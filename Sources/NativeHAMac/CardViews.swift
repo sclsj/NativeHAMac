@@ -325,12 +325,16 @@ struct UnitGraph: View {
                 zoomScale: zoomScale,
                 panFraction: panFraction,
                 hoverLocation: $hoverLocation
-            ) { delta in
-                let next = zoomScale * CGFloat(1 + delta)
-                zoomScale = min(max(next, 1), 18)
-                if zoomScale <= 1.01 {
-                    panFraction = 1
-                }
+            ) { delta, anchorFraction in
+                let currentZoom = zoomScale
+                let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), 18)
+                zoomScale = nextZoom
+                panFraction = anchoredPanFraction(
+                    oldZoom: currentZoom,
+                    newZoom: nextZoom,
+                    oldPanFraction: panFraction,
+                    anchorFraction: anchorFraction
+                )
             } onPan: { delta in
                 guard zoomScale > 1.01 else {
                     return
@@ -381,20 +385,25 @@ struct BitmapLineChart: View {
     let zoomScale: CGFloat
     let panFraction: Double
     @Binding var hoverLocation: CGPoint?
-    let onMagnify: (CGFloat) -> Void
+    let onMagnify: (CGFloat, Double) -> Void
     let onPan: (CGFloat) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
-    @State private var latestToken = ""
+    @State private var latestViewportToken = ""
+    @State private var latestDataToken = ""
+    @State private var desiredRenderToken = ""
     @State private var interactiveTask: Task<Void, Never>?
     @State private var finalTask: Task<Void, Never>?
     @State private var isRendering = false
     @State private var renderAttempted = false
+    @State private var latestInteractionTime = Date.distantPast
 
     var body: some View {
         GeometryReader { geometry in
             let size = geometry.size
-            let token = renderToken(size: size)
+            let viewportToken = renderViewportToken(size: size)
+            let dataToken = renderDataToken()
+            let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 4)
@@ -432,15 +441,21 @@ struct BitmapLineChart: View {
                     onHover: { point in
                         hoverLocation = point
                     },
-                    onMagnify: onMagnify,
-                    onPan: onPan
+                    onMagnify: { delta, point in
+                        latestInteractionTime = Date()
+                        onMagnify(delta, anchorFraction(for: point, size: size))
+                    },
+                    onPan: { delta in
+                        latestInteractionTime = Date()
+                        onPan(delta)
+                    }
                 )
             }
             .onAppear {
-                scheduleRenders(size: size, token: token)
+                scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
-            .onChange(of: token) { newToken in
-                scheduleRenders(size: size, token: newToken)
+            .onChange(of: token) { _ in
+                scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
             .onDisappear {
                 interactiveTask?.cancel()
@@ -449,19 +464,45 @@ struct BitmapLineChart: View {
         }
     }
 
-    private func scheduleRenders(size: CGSize, token: String) {
+    private func scheduleRenders(size: CGSize, viewportToken: String, dataToken: String) {
         guard size.width > 1, size.height > 1 else {
             return
         }
-        if token == latestToken, renderedToken == token, rendered?.quality == .final {
+
+        let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
+        let viewportChanged = viewportToken != latestViewportToken
+        let dataChanged = dataToken != latestDataToken
+
+        if !viewportChanged, !dataChanged, renderedToken == token, rendered?.quality == .final {
             return
         }
 
-        latestToken = token
+        latestViewportToken = viewportToken
+        latestDataToken = dataToken
+        desiredRenderToken = token
         interactiveTask?.cancel()
         finalTask?.cancel()
 
         let hasRenderedImage = rendered != nil
+
+        if !hasRenderedImage || viewportChanged {
+            scheduleViewportRender(size: size, token: token, hasRenderedImage: hasRenderedImage)
+            return
+        }
+
+        guard dataChanged else {
+            return
+        }
+
+        if isZoomedAwayFromLiveEdge {
+            isRendering = false
+            return
+        }
+
+        scheduleLiveDataRender(size: size, token: token)
+    }
+
+    private func scheduleViewportRender(size: CGSize, token: String, hasRenderedImage: Bool) {
         isRendering = !hasRenderedImage
         if !hasRenderedImage {
             renderAttempted = false
@@ -488,13 +529,35 @@ struct BitmapLineChart: View {
         )
     }
 
+    private func scheduleLiveDataRender(size: CGSize, token: String) {
+        isRendering = false
+
+        let elapsedSinceInteraction = Date().timeIntervalSince(latestInteractionTime)
+        let interactionDefer = Double(AppConfig.liveGraphInteractionDeferNanoseconds) / 1_000_000_000
+        let delay = elapsedSinceInteraction < interactionDefer
+            ? AppConfig.liveGraphInteractionDeferNanoseconds
+            : AppConfig.liveGraphDataRenderDelayNanoseconds
+
+        let screenScale = NSScreen.main?.backingScaleFactor ?? 2
+        finalTask = makeRenderTask(
+            size: size,
+            token: token,
+            quality: .final,
+            scale: screenScale,
+            delay: delay,
+            priority: .utility,
+            replaceExistingWithNil: false
+        )
+    }
+
     private func makeRenderTask(
         size: CGSize,
         token: String,
         quality: GraphRenderQuality,
         scale: CGFloat,
         delay: UInt64,
-        priority: TaskPriority
+        priority: TaskPriority,
+        replaceExistingWithNil: Bool = true
     ) -> Task<Void, Never> {
         let renderInputs = inputs
         let renderUnit = unit
@@ -520,12 +583,17 @@ struct BitmapLineChart: View {
             )
 
             await MainActor.run {
-                guard latestToken == token else {
+                guard desiredRenderToken == token else {
                     return
                 }
                 if !Task.isCancelled {
-                    rendered = result
-                    renderedToken = token
+                    if let result = result {
+                        rendered = result
+                        renderedToken = token
+                    } else if replaceExistingWithNil {
+                        rendered = nil
+                        renderedToken = token
+                    }
                     isRendering = false
                     renderAttempted = true
                 }
@@ -533,20 +601,37 @@ struct BitmapLineChart: View {
         }
     }
 
-    private func renderToken(size: CGSize) -> String {
-        let seriesToken = inputs.map { input in
-            let first = input.history.points.first?.lastChanged ?? input.history.points.first?.lastUpdated ?? ""
-            let last = input.history.points.last?.lastChanged ?? input.history.points.last?.lastUpdated ?? ""
-            return "\(input.entityID):\(input.history.points.count):\(first):\(last)"
-        }.joined(separator: "|")
+    private var isZoomedAwayFromLiveEdge: Bool {
+        zoomScale > 1.01 && panFraction < 0.995
+    }
 
-        return [
+    private func anchorFraction(for point: CGPoint, size: CGSize) -> Double {
+        let plotMinX: CGFloat = 42
+        let plotWidth = max(size.width - 54, 1)
+        return min(max(Double((point.x - plotMinX) / plotWidth), 0), 1)
+    }
+
+    private func combinedRenderToken(viewportToken: String, dataToken: String) -> String {
+        "\(viewportToken)::\(dataToken)"
+    }
+
+    private func renderViewportToken(size: CGSize) -> String {
+        [
             unit,
             "\(Int(size.width))x\(Int(size.height))",
             String(format: "%.3f", Double(zoomScale)),
             String(format: "%.3f", panFraction),
-            seriesToken,
         ].joined(separator: "::")
+    }
+
+    private func renderDataToken() -> String {
+        let seriesToken = inputs.map { input in
+            let first = input.history.points.first?.lastUpdated ?? input.history.points.first?.lastChanged ?? ""
+            let last = input.history.points.last?.lastUpdated ?? input.history.points.last?.lastChanged ?? ""
+            return "\(input.entityID):\(input.history.points.count):\(first):\(last)"
+        }.joined(separator: "|")
+
+        return seriesToken
     }
 
     private func axisOverlay(rendered: GraphRenderResult) -> some View {
@@ -639,9 +724,33 @@ struct BitmapLineChart: View {
     }
 }
 
+private func anchoredPanFraction(
+    oldZoom: CGFloat,
+    newZoom: CGFloat,
+    oldPanFraction: Double,
+    anchorFraction: Double
+) -> Double {
+    let newZoomValue = max(Double(newZoom), 1)
+    guard newZoomValue > 1.01 else {
+        return 1
+    }
+
+    let oldZoomValue = max(Double(oldZoom), 1)
+    let anchor = min(max(anchorFraction, 0), 1)
+    let oldVisibleFraction = 1 / oldZoomValue
+    let oldScrollableFraction = max(1 - oldVisibleFraction, 0)
+    let oldStartFraction = min(max(oldPanFraction, 0), 1) * oldScrollableFraction
+    let anchoredFullFraction = oldStartFraction + anchor * oldVisibleFraction
+
+    let newVisibleFraction = 1 / newZoomValue
+    let newScrollableFraction = max(1 - newVisibleFraction, 0.000001)
+    let nextPan = (anchoredFullFraction - anchor * newVisibleFraction) / newScrollableFraction
+    return min(max(nextPan, 0), 1)
+}
+
 struct GraphInteractionOverlay: NSViewRepresentable {
     let onHover: (CGPoint?) -> Void
-    let onMagnify: (CGFloat) -> Void
+    let onMagnify: (CGFloat, CGPoint) -> Void
     let onPan: (CGFloat) -> Void
 
     func makeNSView(context: Context) -> TrackingView {
@@ -656,12 +765,12 @@ struct GraphInteractionOverlay: NSViewRepresentable {
 
     final class TrackingView: NSView {
         var onHover: (CGPoint?) -> Void
-        var onMagnify: (CGFloat) -> Void
+        var onMagnify: (CGFloat, CGPoint) -> Void
         var onPan: (CGFloat) -> Void
 
         init(
             onHover: @escaping (CGPoint?) -> Void,
-            onMagnify: @escaping (CGFloat) -> Void,
+            onMagnify: @escaping (CGFloat, CGPoint) -> Void,
             onPan: @escaping (CGFloat) -> Void
         ) {
             self.onHover = onHover
@@ -704,7 +813,9 @@ struct GraphInteractionOverlay: NSViewRepresentable {
         }
 
         override func magnify(with event: NSEvent) {
-            onMagnify(event.magnification)
+            let point = convert(event.locationInWindow, from: nil)
+            onHover(point)
+            onMagnify(event.magnification, point)
         }
 
         override func scrollWheel(with event: NSEvent) {
@@ -1531,12 +1642,16 @@ struct DetailHistoryGraph: View {
                     zoomScale: zoomScale,
                     panFraction: panFraction,
                     hoverLocation: $hoverLocation
-                ) { delta in
-                    let next = zoomScale * CGFloat(1 + delta)
-                    zoomScale = min(max(next, 1), 18)
-                    if zoomScale <= 1.01 {
-                        panFraction = 1
-                    }
+                ) { delta, anchorFraction in
+                    let currentZoom = zoomScale
+                    let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), 18)
+                    zoomScale = nextZoom
+                    panFraction = anchoredPanFraction(
+                        oldZoom: currentZoom,
+                        newZoom: nextZoom,
+                        oldPanFraction: panFraction,
+                        anchorFraction: anchorFraction
+                    )
                 } onPan: { delta in
                     guard zoomScale > 1.01 else {
                         return

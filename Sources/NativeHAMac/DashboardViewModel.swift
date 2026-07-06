@@ -327,15 +327,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func date(from point: HAHistoryPoint) -> Date? {
-        if let lastChanged = point.lastChanged, let date = parseDate(lastChanged) {
-            return date
-        }
-
-        if let lastUpdated = point.lastUpdated, let date = parseDate(lastUpdated) {
-            return date
-        }
-
-        return nil
+        historyDate(from: point)
     }
 
     func shortTime(_ date: Date) -> String {
@@ -509,7 +501,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func appendRealtimeHistoryStates(_ states: [HAState]) {
-        let pointsByEntity = Dictionary(grouping: states.compactMap(realtimeHistoryPoint)) { item in
+        let pointsByEntity = Dictionary(grouping: states.compactMap { realtimeHistoryPoint(from: $0) }) { item in
             item.point.entityId ?? item.entityID
         }
 
@@ -519,16 +511,22 @@ final class DashboardViewModel: ObservableObject {
 
         var nextHistories = histories
         var historiesChanged = false
-        for key in nextHistories.keys {
+        for key in Array(nextHistories.keys) {
             guard
                 let hours = hoursToShow(fromHistoryKey: key),
+                let requestedEntityIDs = entityIDs(fromHistoryKey: key),
                 let series = nextHistories[key]
             else {
                 continue
             }
 
+            let relevantPoints = pointsByEntity.filter { requestedEntityIDs.contains($0.key) }
+            guard !relevantPoints.isEmpty else {
+                continue
+            }
+
             let cutoff = Date().addingTimeInterval(TimeInterval(-max(hours, 1) * 60 * 60))
-            let merged = append(pointsByEntity: pointsByEntity, to: series, cutoff: cutoff)
+            let merged = append(pointsByEntity: relevantPoints, to: series, cutoff: cutoff)
             if merged != series {
                 nextHistories[key] = merged
                 historiesChanged = true
@@ -541,7 +539,7 @@ final class DashboardViewModel: ObservableObject {
 
         var nextDetailHistories = detailHistories
         var detailChanged = false
-        for (key, series) in nextDetailHistories {
+        for (key, series) in Array(nextDetailHistories) {
             guard
                 let request = detailHistoryRequest(fromKey: key),
                 let updates = pointsByEntity[series.entityID] ?? pointsByEntity[request.entityID]
@@ -550,7 +548,7 @@ final class DashboardViewModel: ObservableObject {
             }
 
             let cutoff = Date().addingTimeInterval(TimeInterval(-max(request.hours, 1) * 60 * 60))
-            let mergedPoints = merge(points: series.points, with: updates.map(\.point), cutoff: cutoff)
+            let mergedPoints = merge(points: series.points, with: updates.map { $0.point }, cutoff: cutoff)
             if mergedPoints != series.points {
                 nextDetailHistories[key] = HAHistorySeries(entityID: series.entityID, points: mergedPoints)
                 detailChanged = true
@@ -576,12 +574,12 @@ final class DashboardViewModel: ObservableObject {
                 continue
             }
 
-            let mergedPoints = merge(points: output[index].points, with: updates.map(\.point), cutoff: cutoff)
+            let mergedPoints = merge(points: output[index].points, with: updates.map { $0.point }, cutoff: cutoff)
             output[index] = HAHistorySeries(entityID: entityID, points: mergedPoints)
         }
 
         for (entityID, updates) in pointsByEntity where !existingEntityIDs.contains(entityID) {
-            let mergedPoints = merge(points: [], with: updates.map(\.point), cutoff: cutoff)
+            let mergedPoints = merge(points: [], with: updates.map { $0.point }, cutoff: cutoff)
             guard !mergedPoints.isEmpty else {
                 continue
             }
@@ -732,6 +730,14 @@ final class DashboardViewModel: ObservableObject {
             return nil
         }
         return Int(rawHours)
+    }
+
+    private func entityIDs(fromHistoryKey key: String) -> Set<String>? {
+        let parts = key.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else {
+            return nil
+        }
+        return Set(parts[1].split(separator: ",").map(String.init))
     }
 
     private func detailHistoryRequest(fromKey key: String) -> (hours: Int, entityID: String)? {
@@ -912,6 +918,11 @@ private struct Connection {
     let baseURL: URL
     let configuration: HomeAssistantConfiguration
     let restClient: HomeAssistantRESTClient
+}
+
+private struct RealtimeHistoryPoint {
+    let entityID: String
+    let point: HAHistoryPoint
 }
 
 struct HistoryRequest: Hashable {

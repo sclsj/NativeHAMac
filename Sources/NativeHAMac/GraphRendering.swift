@@ -356,10 +356,10 @@ private enum DateParsing {
         lock.lock()
         defer { lock.unlock() }
 
-        if let value = point.lastChanged, let date = parse(value) {
+        if let value = point.lastUpdated, let date = parse(value) {
             return date.timeIntervalSince1970
         }
-        if let value = point.lastUpdated, let date = parse(value) {
+        if let value = point.lastChanged, let date = parse(value) {
             return date.timeIntervalSince1970
         }
         return nil
@@ -462,11 +462,11 @@ private final class GraphPreparedSeriesCache {
     }
 
     private func cacheKey(for input: GraphRenderSeriesInput, displayUnit: String) -> String {
-        let first = input.history.points.first?.lastChanged
-            ?? input.history.points.first?.lastUpdated
+        let first = input.history.points.first?.lastUpdated
+            ?? input.history.points.first?.lastChanged
             ?? ""
-        let last = input.history.points.last?.lastChanged
-            ?? input.history.points.last?.lastUpdated
+        let last = input.history.points.last?.lastUpdated
+            ?? input.history.points.last?.lastChanged
             ?? ""
         return [
             input.entityID,
