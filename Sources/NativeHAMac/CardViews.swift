@@ -306,12 +306,12 @@ struct UnitGraph: View {
     @State private var panFraction: Double = 1
 
     private var graphInputs: [GraphRenderSeriesInput] {
-        series.map { item in
+        series.enumerated().map { index, item in
             GraphRenderSeriesInput(
                 entityID: item.entityID,
                 name: model.displayName(for: item.entityID),
                 unit: unit,
-                color: graphColor(for: item.entityID),
+                color: graphColor(at: index),
                 history: item
             )
         }
@@ -1955,17 +1955,14 @@ extension GraphColor {
 }
 
 func graphColor(for entityID: String) -> GraphColor {
-    let palette: [Color] = [
-        Color(red: 0.26, green: 0.47, blue: 0.95),
-        Color(red: 0.93, green: 0.66, blue: 0.22),
-        Color(red: 0.4, green: 0.86, blue: 0.82),
-        Color(red: 0.95, green: 0.32, blue: 0.5),
-        Color(red: 0.66, green: 0.42, blue: 0.92),
-        Color(red: 0.45, green: 0.76, blue: 0.32),
-    ]
-
     let hash = abs(entityID.unicodeScalars.reduce(0) { ($0 &* 31) &+ Int($1.value) })
-    switch hash % palette.count {
+    return graphColor(at: hash % graphPaletteCount)
+}
+
+private let graphPaletteCount = 6
+
+func graphColor(at index: Int) -> GraphColor {
+    switch abs(index) % graphPaletteCount {
     case 0:
         return GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1)
     case 1:

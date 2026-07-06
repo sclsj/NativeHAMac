@@ -343,19 +343,15 @@ enum GraphBitmapRenderer {
     }
 }
 
-private enum DateParsing {
-    private static let lock = NSLock()
-    private static let normal = ISO8601DateFormatter()
-    private static let fractional: ISO8601DateFormatter = {
+private final class GraphDateParser {
+    private let normal = ISO8601DateFormatter()
+    private let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    static func timestamp(from point: HAHistoryPoint) -> Double? {
-        lock.lock()
-        defer { lock.unlock() }
-
+    func timestamp(from point: HAHistoryPoint) -> Double? {
         if let value = point.lastUpdated, let date = parse(value) {
             return date.timeIntervalSince1970
         }
@@ -365,7 +361,7 @@ private enum DateParsing {
         return nil
     }
 
-    private static func parse(_ value: String) -> Date? {
+    private func parse(_ value: String) -> Date? {
         fractional.date(from: value) ?? normal.date(from: value)
     }
 }
@@ -404,22 +400,52 @@ private final class GraphPreparedSeriesCache {
     static let shared = GraphPreparedSeriesCache()
 
     private let lock = NSLock()
-    private var storage: [String: GraphRenderedSeries] = [:]
+    private var storage: [String: GraphPreparedCacheEntry] = [:]
     private var insertionOrder: [String] = []
     private let limit = 96
 
     func series(for input: GraphRenderSeriesInput, displayUnit: String) -> GraphRenderedSeries? {
-        let key = cacheKey(for: input, displayUnit: displayUnit)
+        let key = stableKey(for: input, displayUnit: displayUnit)
+        let fingerprint = sourceFingerprint(for: input.history)
+
         lock.lock()
         if let cached = storage[key] {
+            if cached.matches(fingerprint) {
+                lock.unlock()
+                return cached.series
+            }
             lock.unlock()
-            return cached
-        }
-        lock.unlock()
 
+            if let updated = incrementallyUpdate(
+                cached,
+                input: input,
+                displayUnit: displayUnit,
+                fingerprint: fingerprint
+            ) {
+                store(updated, key: key)
+                return updated.series
+            }
+        } else {
+            lock.unlock()
+        }
+
+        guard let prepared = prepareFull(input: input, displayUnit: displayUnit, fingerprint: fingerprint) else {
+            return nil
+        }
+
+        store(prepared, key: key)
+        return prepared.series
+    }
+
+    private func prepareFull(
+        input: GraphRenderSeriesInput,
+        displayUnit: String,
+        fingerprint: GraphSourceFingerprint
+    ) -> GraphPreparedCacheEntry? {
+        let parser = GraphDateParser()
         let points = input.history.points.compactMap { point -> GraphRenderedPoint? in
             guard
-                let timestamp = DateParsing.timestamp(from: point),
+                let timestamp = parser.timestamp(from: point),
                 let value = numericValue(point.state)
             else {
                 return nil
@@ -437,47 +463,150 @@ private final class GraphPreparedSeriesCache {
             return nil
         }
 
-        let prepared = GraphRenderedSeries(
-            entityID: input.entityID,
-            name: input.name,
-            unit: input.unit,
-            color: input.color,
-            points: points
+        return GraphPreparedCacheEntry(
+            fingerprint: fingerprint,
+            series: GraphRenderedSeries(
+                entityID: input.entityID,
+                name: input.name,
+                unit: input.unit,
+                color: input.color,
+                points: points
+            )
         )
+    }
 
-        lock.lock()
-        if let existing = storage[key] {
-            lock.unlock()
-            return existing
+    private func incrementallyUpdate(
+        _ cached: GraphPreparedCacheEntry,
+        input: GraphRenderSeriesInput,
+        displayUnit: String,
+        fingerprint: GraphSourceFingerprint
+    ) -> GraphPreparedCacheEntry? {
+        guard
+            !input.history.points.isEmpty,
+            !cached.series.points.isEmpty,
+            let cachedLast = cached.fingerprint.lastTimestamp,
+            let overlapIndex = input.history.points.lastIndex(where: { sourceTimestamp(from: $0) == cachedLast })
+        else {
+            return nil
         }
-        storage[key] = prepared
-        insertionOrder.append(key)
+
+        let parser = GraphDateParser()
+        var points: [GraphRenderedPoint]
+        if
+            let firstPoint = input.history.points.first,
+            let firstSourceTimestamp = fingerprint.firstTimestamp,
+            sourceTimestamp(from: firstPoint) == firstSourceTimestamp,
+            let firstTimestamp = parser.timestamp(from: firstPoint)
+        {
+            let startIndex = lowerBound(in: cached.series.points, timestamp: firstTimestamp)
+            points = Array(cached.series.points[startIndex...])
+        } else {
+            points = cached.series.points
+        }
+
+        let newSourceStart = input.history.points.index(after: overlapIndex)
+        if newSourceStart < input.history.points.endIndex {
+            points.reserveCapacity(points.count + input.history.points.distance(from: newSourceStart, to: input.history.points.endIndex))
+
+            for point in input.history.points[newSourceStart...] {
+                guard
+                    let timestamp = parser.timestamp(from: point),
+                    let value = numericValue(point.state)
+                else {
+                    continue
+                }
+
+                let renderedPoint = GraphRenderedPoint(
+                    t: timestamp,
+                    y: value,
+                    display: displayValue(point.state, unit: displayUnit)
+                )
+
+                if let last = points.last, abs(last.t - renderedPoint.t) < 0.001 {
+                    points[points.count - 1] = renderedPoint
+                } else {
+                    points.append(renderedPoint)
+                }
+            }
+        }
+
+        guard !points.isEmpty else {
+            return nil
+        }
+
+        return GraphPreparedCacheEntry(
+            fingerprint: fingerprint,
+            series: GraphRenderedSeries(
+                entityID: input.entityID,
+                name: input.name,
+                unit: input.unit,
+                color: input.color,
+                points: points
+            )
+        )
+    }
+
+    private func store(_ entry: GraphPreparedCacheEntry, key: String) {
+        lock.lock()
+        let isNewKey = storage[key] == nil
+        storage[key] = entry
+        if isNewKey {
+            insertionOrder.append(key)
+        }
         while insertionOrder.count > limit {
             let oldKey = insertionOrder.removeFirst()
             storage.removeValue(forKey: oldKey)
         }
         lock.unlock()
-
-        return prepared
     }
 
-    private func cacheKey(for input: GraphRenderSeriesInput, displayUnit: String) -> String {
-        let first = input.history.points.first?.lastUpdated
-            ?? input.history.points.first?.lastChanged
-            ?? ""
-        let last = input.history.points.last?.lastUpdated
-            ?? input.history.points.last?.lastChanged
-            ?? ""
-        return [
+    private func stableKey(for input: GraphRenderSeriesInput, displayUnit: String) -> String {
+        [
             input.entityID,
             input.name,
             input.unit,
             displayUnit,
-            "\(input.history.points.count)",
-            first,
-            last,
+            colorKey(input.color),
         ].joined(separator: "\u{1F}")
     }
+
+    private func sourceFingerprint(for history: HAHistorySeries) -> GraphSourceFingerprint {
+        GraphSourceFingerprint(
+            count: history.points.count,
+            firstTimestamp: history.points.first.flatMap(sourceTimestamp),
+            lastTimestamp: history.points.last.flatMap(sourceTimestamp)
+        )
+    }
+}
+
+private struct GraphPreparedCacheEntry {
+    let fingerprint: GraphSourceFingerprint
+    let series: GraphRenderedSeries
+
+    func matches(_ other: GraphSourceFingerprint) -> Bool {
+        fingerprint == other
+    }
+}
+
+private struct GraphSourceFingerprint: Equatable {
+    let count: Int
+    let firstTimestamp: String?
+    let lastTimestamp: String?
+}
+
+private func sourceTimestamp(from point: HAHistoryPoint) -> String? {
+    point.lastUpdated ?? point.lastChanged
+}
+
+private func colorKey(_ color: GraphColor) -> String {
+    [
+        Double(color.red),
+        Double(color.green),
+        Double(color.blue),
+        Double(color.alpha),
+    ]
+    .map { String(format: "%.4f", $0) }
+    .joined(separator: ",")
 }
 
 private func visibleRange(
