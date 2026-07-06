@@ -339,7 +339,7 @@ struct UnitGraph: View {
                 guard zoomScale > 1.01 else {
                     return
                 }
-                panFraction = min(max(panFraction - Double(delta / 900), 0), 1)
+                panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
             }
             .frame(height: chartHeight)
 
@@ -748,6 +748,11 @@ private func anchoredPanFraction(
     return min(max(nextPan, 0), 1)
 }
 
+private func panDelta(for scrollDelta: CGFloat, zoomScale: CGFloat) -> Double {
+    let zoom = max(Double(zoomScale), 1.000001)
+    return Double(scrollDelta / 900) / max(zoom - 1, 0.000001)
+}
+
 struct GraphInteractionOverlay: NSViewRepresentable {
     let onHover: (CGPoint?) -> Void
     let onMagnify: (CGFloat, CGPoint) -> Void
@@ -819,10 +824,14 @@ struct GraphInteractionOverlay: NSViewRepresentable {
         }
 
         override func scrollWheel(with event: NSEvent) {
-            let delta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
-                ? event.scrollingDeltaX
-                : event.scrollingDeltaY
-            onPan(delta)
+            let point = convert(event.locationInWindow, from: nil)
+            onHover(point)
+
+            if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
+                onMagnify(event.scrollingDeltaY / 360, point)
+            } else {
+                onPan(event.scrollingDeltaX)
+            }
         }
     }
 }
@@ -1656,7 +1665,7 @@ struct DetailHistoryGraph: View {
                     guard zoomScale > 1.01 else {
                         return
                     }
-                    panFraction = min(max(panFraction - Double(delta / 900), 0), 1)
+                    panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
                 }
                 .frame(height: 230)
             } else {
