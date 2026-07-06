@@ -325,9 +325,9 @@ struct UnitGraph: View {
                 zoomScale: zoomScale,
                 panFraction: panFraction,
                 hoverLocation: $hoverLocation
-            ) { delta, anchorFraction in
+            ) { delta, anchorFraction, maxZoom in
                 let currentZoom = zoomScale
-                let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), 18)
+                let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), maxZoom)
                 zoomScale = nextZoom
                 panFraction = anchoredPanFraction(
                     oldZoom: currentZoom,
@@ -385,7 +385,7 @@ struct BitmapLineChart: View {
     let zoomScale: CGFloat
     let panFraction: Double
     @Binding var hoverLocation: CGPoint?
-    let onMagnify: (CGFloat, Double) -> Void
+    let onMagnify: (CGFloat, Double, CGFloat) -> Void
     let onPan: (CGFloat) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
@@ -403,6 +403,7 @@ struct BitmapLineChart: View {
             let viewportToken = renderViewportToken(size: size)
             let dataToken = renderDataToken()
             let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
+            let maxZoom = maxGraphZoom(for: inputs, size: size)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 4)
@@ -442,7 +443,7 @@ struct BitmapLineChart: View {
                     },
                     onMagnify: { delta, point in
                         latestInteractionTime = Date()
-                        onMagnify(delta, anchorFraction(for: point, size: size))
+                        onMagnify(delta, anchorFraction(for: point, size: size), maxZoom)
                     },
                     onPan: { delta in
                         latestInteractionTime = Date()
@@ -734,6 +735,36 @@ private func anchoredPanFraction(
 private func panDelta(for scrollDelta: CGFloat, zoomScale: CGFloat) -> Double {
     let zoom = max(Double(zoomScale), 1.000001)
     return Double(scrollDelta / 900) / max(zoom - 1, 0.000001)
+}
+
+private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) -> CGFloat {
+    let plotWidth = max(size.width - 54, 1)
+    let screenScale = NSScreen.main?.backingScaleFactor ?? 2
+    let pixelWidth = max(plotWidth * screenScale, 1)
+    let densestSeriesCount = inputs
+        .map { renderableGraphPointCount(in: $0.history) }
+        .max() ?? 0
+
+    return max(CGFloat(densestSeriesCount) / pixelWidth, 1)
+}
+
+private func renderableGraphPointCount(in history: HAHistorySeries) -> Int {
+    history.points.reduce(0) { count, point in
+        isGraphRenderableState(point.state) ? count + 1 : count
+    }
+}
+
+private func isGraphRenderableState(_ state: String) -> Bool {
+    if Double(state) != nil {
+        return true
+    }
+
+    switch state {
+    case "on", "off", "idle", "Running", "running", "Not running":
+        return true
+    default:
+        return false
+    }
 }
 
 struct GraphInteractionOverlay: NSViewRepresentable {
@@ -1634,9 +1665,9 @@ struct DetailHistoryGraph: View {
                     zoomScale: zoomScale,
                     panFraction: panFraction,
                     hoverLocation: $hoverLocation
-                ) { delta, anchorFraction in
+                ) { delta, anchorFraction, maxZoom in
                     let currentZoom = zoomScale
-                    let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), 18)
+                    let nextZoom = min(max(currentZoom * CGFloat(1 + delta), 1), maxZoom)
                     zoomScale = nextZoom
                     panFraction = anchoredPanFraction(
                         oldZoom: currentZoom,
