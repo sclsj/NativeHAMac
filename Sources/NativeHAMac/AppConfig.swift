@@ -14,7 +14,6 @@ enum AppConfig {
     static let showEntityIDsByDefault = false
     static let defaultGraphHours = 1
     static let graphHourOptions = [1, 3, 6, 12]
-    static let renderInteractiveGraphsAtFullResolution = true
     static let realtimeUpdateCoalesceNanoseconds: UInt64 = 50_000_000
     static let liveGraphDataRenderDelayNanoseconds: UInt64 = 120_000_000
     static let liveGraphInteractionDeferNanoseconds: UInt64 = 500_000_000

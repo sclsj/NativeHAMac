@@ -56,18 +56,12 @@ struct GraphSample {
     let values: [GraphSampleValue]
 }
 
-enum GraphRenderQuality {
-    case interactive
-    case final
-}
-
 struct GraphRenderResult {
     let image: CGImage
     let size: CGSize
     let scale: CGFloat
     let plotRect: CGRect
     let unit: String
-    let quality: GraphRenderQuality
     let series: [GraphRenderedSeries]
     let axis: GraphAxis
     let xTicks: [Double]
@@ -143,8 +137,7 @@ enum GraphBitmapRenderer {
         size: CGSize,
         scale: CGFloat,
         zoomScale: CGFloat,
-        panFraction: Double,
-        quality: GraphRenderQuality
+        panFraction: Double
     ) -> GraphRenderResult? {
         let pointSeries = inputs.compactMap {
             GraphPreparedSeriesCache.shared.series(for: $0, displayUnit: unit)
@@ -173,16 +166,9 @@ enum GraphBitmapRenderer {
             let range = visibleRange(in: item.points, start: visibleStart, end: visibleEnd)
             let target = targetPointCount(
                 plotWidth: plotRect.width,
-                seriesCount: pointSeries.count,
-                quality: quality
+                seriesCount: pointSeries.count
             )
-            let points: [GraphRenderedPoint]
-            switch quality {
-            case .interactive:
-                points = strideDownsample(item.points, in: range, target: target)
-            case .final:
-                points = minMaxDownsample(item.points, in: range, target: target)
-            }
+            let points = minMaxDownsample(item.points, in: range, target: target)
 
             return GraphRenderedSeries(
                 entityID: item.entityID,
@@ -223,7 +209,6 @@ enum GraphBitmapRenderer {
             scale: scale,
             plotRect: plotRect,
             unit: unit,
-            quality: quality,
             series: visibleSeries,
             axis: axis,
             xTicks: xTicks,
@@ -315,16 +300,10 @@ enum GraphBitmapRenderer {
 
     private static func targetPointCount(
         plotWidth: CGFloat,
-        seriesCount: Int,
-        quality: GraphRenderQuality
+        seriesCount: Int
     ) -> Int {
         let count = max(seriesCount, 1)
-        switch quality {
-        case .interactive:
-            return max(Int(plotWidth) / count, 48)
-        case .final:
-            return max(Int(plotWidth * 2) / count, 80)
-        }
+        return max(Int(plotWidth * 2) / count, 80)
     }
 
     private static func xPosition(
@@ -649,37 +628,6 @@ private func upperBound(in points: [GraphRenderedPoint], timestamp: Double) -> I
         }
     }
     return low
-}
-
-private func strideDownsample(
-    _ points: [GraphRenderedPoint],
-    in range: Range<Int>,
-    target: Int
-) -> [GraphRenderedPoint] {
-    let count = range.count
-    guard count > 0 else {
-        return []
-    }
-    guard count > target, target > 2 else {
-        return Array(points[range])
-    }
-
-    let outputCount = min(target, count)
-    let step = Double(count - 1) / Double(outputCount - 1)
-    var output: [GraphRenderedPoint] = []
-    output.reserveCapacity(outputCount)
-
-    var lastIndex = -1
-    for index in 0..<outputCount {
-        let sourceIndex = range.lowerBound + Int((Double(index) * step).rounded())
-        let clampedIndex = min(max(sourceIndex, range.lowerBound), range.upperBound - 1)
-        if clampedIndex != lastIndex {
-            output.append(points[clampedIndex])
-            lastIndex = clampedIndex
-        }
-    }
-
-    return output.removingConsecutiveDuplicates()
 }
 
 private func minMaxDownsample(

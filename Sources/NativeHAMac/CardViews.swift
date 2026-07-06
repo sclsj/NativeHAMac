@@ -392,8 +392,7 @@ struct BitmapLineChart: View {
     @State private var latestViewportToken = ""
     @State private var latestDataToken = ""
     @State private var desiredRenderToken = ""
-    @State private var interactiveTask: Task<Void, Never>?
-    @State private var finalTask: Task<Void, Never>?
+    @State private var renderTask: Task<Void, Never>?
     @State private var isRendering = false
     @State private var renderAttempted = false
     @State private var latestInteractionTime = Date.distantPast
@@ -412,7 +411,7 @@ struct BitmapLineChart: View {
                 if let rendered = rendered {
                     Image(decorative: rendered.image, scale: rendered.scale, orientation: .up)
                         .resizable()
-                        .interpolation(rendered.quality == .interactive ? .medium : .high)
+                        .interpolation(.high)
                         .frame(width: size.width, height: size.height)
                         .clipped()
 
@@ -458,8 +457,7 @@ struct BitmapLineChart: View {
                 scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
             .onDisappear {
-                interactiveTask?.cancel()
-                finalTask?.cancel()
+                renderTask?.cancel()
             }
         }
     }
@@ -473,15 +471,14 @@ struct BitmapLineChart: View {
         let viewportChanged = viewportToken != latestViewportToken
         let dataChanged = dataToken != latestDataToken
 
-        if !viewportChanged, !dataChanged, renderedToken == token, rendered?.quality == .final {
+        if !viewportChanged, !dataChanged, renderedToken == token {
             return
         }
 
         latestViewportToken = viewportToken
         latestDataToken = dataToken
         desiredRenderToken = token
-        interactiveTask?.cancel()
-        finalTask?.cancel()
+        renderTask?.cancel()
 
         let hasRenderedImage = rendered != nil
 
@@ -509,23 +506,12 @@ struct BitmapLineChart: View {
         }
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        let interactiveScale = AppConfig.renderInteractiveGraphsAtFullResolution ? screenScale : 1
-
-        interactiveTask = makeRenderTask(
+        renderTask = makeRenderTask(
             size: size,
             token: token,
-            quality: .interactive,
-            scale: interactiveScale,
+            scale: screenScale,
             delay: 0,
             priority: .userInitiated
-        )
-        finalTask = makeRenderTask(
-            size: size,
-            token: token,
-            quality: .final,
-            scale: screenScale,
-            delay: hasRenderedImage ? 220_000_000 : 60_000_000,
-            priority: .utility
         )
     }
 
@@ -539,10 +525,9 @@ struct BitmapLineChart: View {
             : AppConfig.liveGraphDataRenderDelayNanoseconds
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        finalTask = makeRenderTask(
+        renderTask = makeRenderTask(
             size: size,
             token: token,
-            quality: .final,
             scale: screenScale,
             delay: delay,
             priority: .utility,
@@ -553,7 +538,6 @@ struct BitmapLineChart: View {
     private func makeRenderTask(
         size: CGSize,
         token: String,
-        quality: GraphRenderQuality,
         scale: CGFloat,
         delay: UInt64,
         priority: TaskPriority,
@@ -578,8 +562,7 @@ struct BitmapLineChart: View {
                 size: size,
                 scale: scale,
                 zoomScale: renderZoom,
-                panFraction: renderPan,
-                quality: quality
+                panFraction: renderPan
             )
 
             await MainActor.run {
