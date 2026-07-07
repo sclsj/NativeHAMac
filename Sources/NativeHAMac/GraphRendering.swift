@@ -35,6 +35,23 @@ struct GraphRenderedSeries: Identifiable {
     let unit: String
     let color: GraphColor
     let points: [GraphRenderedPoint]
+    let minMaxCache: GraphMinMaxCache?
+
+    init(
+        entityID: String,
+        name: String,
+        unit: String,
+        color: GraphColor,
+        points: [GraphRenderedPoint],
+        minMaxCache: GraphMinMaxCache? = nil
+    ) {
+        self.entityID = entityID
+        self.name = name
+        self.unit = unit
+        self.color = color
+        self.points = points
+        self.minMaxCache = minMaxCache
+    }
 }
 
 struct GraphAxis {
@@ -168,7 +185,8 @@ enum GraphBitmapRenderer {
                 plotWidth: plotRect.width,
                 seriesCount: pointSeries.count
             )
-            let points = minMaxDownsample(item.points, in: range, target: target)
+            let points = item.minMaxCache?.downsample(in: range, target: target)
+                ?? minMaxDownsample(item.points, in: range, target: target)
 
             return GraphRenderedSeries(
                 entityID: item.entityID,
@@ -449,7 +467,8 @@ private final class GraphPreparedSeriesCache {
                 name: input.name,
                 unit: input.unit,
                 color: input.color,
-                points: points
+                points: points,
+                minMaxCache: GraphMinMaxCache(points: points)
             )
         )
     }
@@ -520,7 +539,8 @@ private final class GraphPreparedSeriesCache {
                 name: input.name,
                 unit: input.unit,
                 color: input.color,
-                points: points
+                points: points,
+                minMaxCache: GraphMinMaxCache(points: points)
             )
         )
     }
@@ -685,6 +705,222 @@ private func minMaxDownsample(
         output.append(lastVisible)
     }
     return output.removingConsecutiveDuplicates()
+}
+
+struct GraphMinMaxCache {
+    private static let blockSize = 32
+
+    let points: [GraphRenderedPoint]
+
+    private let levels: [[GraphMinMaxBucket]]
+
+    init(points: [GraphRenderedPoint]) {
+        self.points = points
+
+        var base: [GraphMinMaxBucket] = []
+        base.reserveCapacity((points.count + Self.blockSize - 1) / Self.blockSize)
+        var blockStart = 0
+        while blockStart < points.count {
+            let blockEnd = min(blockStart + Self.blockSize, points.count)
+            if let bucket = Self.scannedBucket(points: points, in: blockStart..<blockEnd) {
+                base.append(bucket)
+            }
+            blockStart += Self.blockSize
+        }
+
+        var levels: [[GraphMinMaxBucket]] = base.isEmpty ? [] : [base]
+        var span = 2
+        while span <= base.count {
+            let halfSpan = span / 2
+            var current: [GraphMinMaxBucket] = []
+            current.reserveCapacity(base.count - span + 1)
+
+            let previous = levels[levels.count - 1]
+            for index in 0...(base.count - span) {
+                current.append(
+                    GraphMinMaxBucket.combining(
+                        previous[index],
+                        previous[index + halfSpan],
+                        points: points
+                    )
+                )
+            }
+
+            levels.append(current)
+            span *= 2
+        }
+
+        self.levels = levels
+    }
+
+    func downsample(in range: Range<Int>, target: Int) -> [GraphRenderedPoint] {
+        let clampedRange = max(range.lowerBound, 0)..<min(range.upperBound, points.count)
+        let count = clampedRange.count
+        guard count > 0 else {
+            return []
+        }
+        guard count > target, target > 2 else {
+            return Array(points[clampedRange])
+        }
+
+        let bucketCount = max(target / 2, 1)
+        let bucketSize = Double(count) / Double(bucketCount)
+        if bucketSize <= Double(Self.blockSize * 2) {
+            return minMaxDownsample(points, in: clampedRange, target: target)
+        }
+
+        var output: [GraphRenderedPoint] = []
+        output.reserveCapacity(target + 2)
+
+        for bucket in 0..<bucketCount {
+            let start = clampedRange.lowerBound + Int(Double(bucket) * bucketSize)
+            let end = min(
+                clampedRange.lowerBound + Int(Double(bucket + 1) * bucketSize),
+                clampedRange.upperBound
+            )
+            guard start < end, let minMax = minMaxIndices(in: start..<end) else {
+                continue
+            }
+
+            let minPoint = points[minMax.minIndex]
+            let maxPoint = points[minMax.maxIndex]
+            if minPoint.t <= maxPoint.t {
+                output.append(minPoint)
+                if minPoint != maxPoint {
+                    output.append(maxPoint)
+                }
+            } else {
+                output.append(maxPoint)
+                if minPoint != maxPoint {
+                    output.append(minPoint)
+                }
+            }
+        }
+
+        let firstVisible = points[clampedRange.lowerBound]
+        let lastVisible = points[clampedRange.upperBound - 1]
+        if output.first != firstVisible {
+            output.insert(firstVisible, at: 0)
+        }
+        if output.last != lastVisible {
+            output.append(lastVisible)
+        }
+        return output.removingConsecutiveDuplicates()
+    }
+
+    private func minMaxIndices(in range: Range<Int>) -> GraphMinMaxBucket? {
+        let lower = max(range.lowerBound, 0)
+        let upper = min(range.upperBound, points.count)
+        guard lower < upper else {
+            return nil
+        }
+
+        var result: GraphMinMaxBucket?
+
+        func include(_ bucket: GraphMinMaxBucket?) {
+            guard let bucket = bucket else {
+                return
+            }
+            if let current = result {
+                result = GraphMinMaxBucket.combining(current, bucket, points: points)
+            } else {
+                result = bucket
+            }
+        }
+
+        let fullStart = min(roundUpToBlock(lower), upper)
+        include(Self.scannedBucket(points: points, in: lower..<fullStart))
+
+        guard fullStart < upper else {
+            return result
+        }
+
+        let fullBlockStart = fullStart / Self.blockSize
+        let fullBlockEnd = upper / Self.blockSize
+        var cursor = fullStart
+        if fullBlockStart < fullBlockEnd {
+            include(blockMinMax(in: fullBlockStart..<fullBlockEnd))
+            cursor = fullBlockEnd * Self.blockSize
+        }
+
+        include(Self.scannedBucket(points: points, in: cursor..<upper))
+        return result
+    }
+
+    private func blockMinMax(in blocks: Range<Int>) -> GraphMinMaxBucket? {
+        let count = blocks.count
+        guard count > 0, !levels.isEmpty else {
+            return nil
+        }
+
+        let level = Self.floorLog2(count)
+        let span = 1 << level
+        let left = levels[level][blocks.lowerBound]
+        let right = levels[level][blocks.upperBound - span]
+        return GraphMinMaxBucket.combining(left, right, points: points)
+    }
+
+    private func roundUpToBlock(_ index: Int) -> Int {
+        ((index + Self.blockSize - 1) / Self.blockSize) * Self.blockSize
+    }
+
+    private static func floorLog2(_ value: Int) -> Int {
+        var value = value
+        var result = 0
+        while value > 1 {
+            value >>= 1
+            result += 1
+        }
+        return result
+    }
+
+    private static func scannedBucket(
+        points: [GraphRenderedPoint],
+        in range: Range<Int>
+    ) -> GraphMinMaxBucket? {
+        guard let first = range.first else {
+            return nil
+        }
+
+        var minIndex = first
+        var maxIndex = first
+        for index in range.dropFirst() {
+            if points[index].y < points[minIndex].y {
+                minIndex = index
+            }
+            if points[index].y > points[maxIndex].y {
+                maxIndex = index
+            }
+        }
+
+        return GraphMinMaxBucket(minIndex: minIndex, maxIndex: maxIndex)
+    }
+}
+
+private struct GraphMinMaxBucket {
+    let minIndex: Int
+    let maxIndex: Int
+
+    static func combining(
+        _ first: GraphMinMaxBucket,
+        _ second: GraphMinMaxBucket,
+        points: [GraphRenderedPoint]
+    ) -> GraphMinMaxBucket {
+        var minIndex = first.minIndex
+        var maxIndex = first.maxIndex
+
+        let secondMin = points[second.minIndex]
+        if secondMin.y < points[minIndex].y {
+            minIndex = second.minIndex
+        }
+
+        let secondMax = points[second.maxIndex]
+        if secondMax.y > points[maxIndex].y {
+            maxIndex = second.maxIndex
+        }
+
+        return GraphMinMaxBucket(minIndex: minIndex, maxIndex: maxIndex)
+    }
 }
 
 private func niceAxis(values: [Double]) -> GraphAxis {

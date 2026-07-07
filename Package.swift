@@ -25,6 +25,10 @@ let package = Package(
             name: "GraphBench",
             targets: ["GraphBench"]
         ),
+        .executable(
+            name: "GraphPyramidBench",
+            targets: ["GraphPyramidBench"]
+        ),
     ],
     targets: [
         .target(
@@ -40,6 +44,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "GraphBench",
+            dependencies: ["NativeHACore"]
+        ),
+        .executableTarget(
+            name: "GraphPyramidBench",
             dependencies: ["NativeHACore"]
         ),
         .testTarget(
