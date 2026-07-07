@@ -742,29 +742,10 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
     let screenScale = NSScreen.main?.backingScaleFactor ?? 2
     let pixelWidth = max(plotWidth * screenScale, 1)
     let densestSeriesCount = inputs
-        .map { renderableGraphPointCount(in: $0.history) }
+        .map { $0.history.points.count }
         .max() ?? 0
 
     return max(CGFloat(densestSeriesCount) / pixelWidth, 1)
-}
-
-private func renderableGraphPointCount(in history: HAHistorySeries) -> Int {
-    history.points.reduce(0) { count, point in
-        isGraphRenderableState(point.state) ? count + 1 : count
-    }
-}
-
-private func isGraphRenderableState(_ state: String) -> Bool {
-    if Double(state) != nil {
-        return true
-    }
-
-    switch state {
-    case "on", "off", "idle", "Running", "running", "Not running":
-        return true
-    default:
-        return false
-    }
 }
 
 struct GraphInteractionOverlay: NSViewRepresentable {
