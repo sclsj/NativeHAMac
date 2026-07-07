@@ -489,6 +489,14 @@ private final class GraphPreparedSeriesCache {
         }
 
         let parser = GraphDateParser()
+
+        if let firstInput = input.history.points.first,
+           let firstInputT = parser.timestamp(from: firstInput),
+           let cachedFirstT = cached.series.points.first?.t,
+           firstInputT < cachedFirstT - 1.0 {
+            return nil
+        }
+
         var points: [GraphRenderedPoint]
         if
             let firstPoint = input.history.points.first,
