@@ -203,26 +203,42 @@ enum GraphBitmapRenderer {
         }
 
         let values = visibleSeries.flatMap { $0.points.map(\.y) }
-        let axis = unit.lowercased() == "state"
-            ? GraphAxis(min: -0.05, max: 1.05, ticks: [0, 1])
+        let isStateTimeline = unit.lowercased() == "state"
+        let axis = isStateTimeline
+            ? GraphAxis(min: -0.05, max: 1.05, ticks: [])
             : niceAxis(values: values)
         let xTicks = linearTicks(min: visibleStart, max: visibleEnd, count: 5)
 
-        guard let image = drawBitmap(
-            series: visibleSeries,
-            size: size,
-            scale: scale,
-            plotRect: plotRect,
-            axis: axis,
-            xTicks: xTicks,
-            visibleStart: visibleStart,
-            visibleEnd: visibleEnd
-        ) else {
+        let image: CGImage?
+        if isStateTimeline {
+            image = drawTimelineBitmap(
+                series: visibleSeries,
+                size: size,
+                scale: scale,
+                plotRect: plotRect,
+                xTicks: xTicks,
+                visibleStart: visibleStart,
+                visibleEnd: visibleEnd
+            )
+        } else {
+            image = drawBitmap(
+                series: visibleSeries,
+                size: size,
+                scale: scale,
+                plotRect: plotRect,
+                axis: axis,
+                xTicks: xTicks,
+                visibleStart: visibleStart,
+                visibleEnd: visibleEnd
+            )
+        }
+
+        guard let finalImage = image else {
             return nil
         }
 
         return GraphRenderResult(
-            image: image,
+            image: finalImage,
             size: size,
             scale: scale,
             plotRect: plotRect,
@@ -277,20 +293,6 @@ enum GraphBitmapRenderer {
             context.setFillColor(CGColor(red: 0.055, green: 0.06, blue: 0.06, alpha: 1))
             context.fill(CGRect(origin: .zero, size: size))
 
-            context.setStrokeColor(CGColor(gray: 1, alpha: 0.09))
-            context.setLineWidth(1)
-            for tick in axis.ticks {
-                let y = yPosition(tick, axis: axis, plotRect: plotRect)
-                context.move(to: CGPoint(x: plotRect.minX, y: y))
-                context.addLine(to: CGPoint(x: plotRect.maxX, y: y))
-            }
-            for tick in xTicks {
-                let x = xPosition(tick, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
-                context.move(to: CGPoint(x: x, y: plotRect.minY))
-                context.addLine(to: CGPoint(x: x, y: plotRect.maxY))
-            }
-            context.strokePath()
-
             context.setLineJoin(.round)
             context.setLineCap(.round)
             for item in series {
@@ -314,6 +316,94 @@ enum GraphBitmapRenderer {
 
             return context.makeImage()
         }
+    }
+
+    private static func drawTimelineBitmap(
+        series: [GraphRenderedSeries],
+        size: CGSize,
+        scale: CGFloat,
+        plotRect: CGRect,
+        xTicks: [Double],
+        visibleStart: Double,
+        visibleEnd: Double
+    ) -> CGImage? {
+        let width = max(Int(size.width * scale), 1)
+        let height = max(Int(size.height * scale), 1)
+        let bytesPerRow = width * 4
+        var data = [UInt8](repeating: 0, count: bytesPerRow * height)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        return data.withUnsafeMutableBytes { pointer in
+            guard let context = CGContext(
+                data: pointer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else {
+                return nil
+            }
+
+            context.scaleBy(x: scale, y: scale)
+            context.translateBy(x: 0, y: size.height)
+            context.scaleBy(x: 1, y: -1)
+            context.setFillColor(CGColor(red: 0.055, green: 0.06, blue: 0.06, alpha: 1))
+            context.fill(CGRect(origin: .zero, size: size))
+
+            let maxRowHeight: CGFloat = 24
+            let rowHeight = min(plotRect.height / CGFloat(series.count), maxRowHeight)
+            let totalHeight = rowHeight * CGFloat(series.count)
+            let startY = plotRect.minY + (plotRect.height - totalHeight) / 2
+
+            for (index, item) in series.enumerated() {
+                let yOffset = startY + CGFloat(index) * rowHeight
+
+                for i in 0..<item.points.count {
+                    let point = item.points[i]
+                    let nextT = (i + 1 < item.points.count) ? item.points[i+1].t : visibleEnd
+
+                    let startX = xPosition(point.t, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                    let endX = xPosition(nextT, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                    let blockWidth = max(endX - startX, 0)
+                    if blockWidth <= 0 { continue }
+
+                    let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
+
+                    let fill: CGColor
+                    if let num = numericValue(point.display) {
+                         fill = num > 0 ? item.color.cgColor : CGColor(gray: 1, alpha: 0.1)
+                    } else {
+                         fill = hashedColor(for: point.display)
+                    }
+                    context.setFillColor(fill)
+                    context.fill(blockRect)
+                }
+            }
+
+            return context.makeImage()
+        }
+    }
+
+    private static let timelineColors: [CGColor] = [
+        CGColor(red: 0.2, green: 0.6, blue: 0.86, alpha: 1),
+        CGColor(red: 0.86, green: 0.3, blue: 0.2, alpha: 1),
+        CGColor(red: 0.2, green: 0.86, blue: 0.5, alpha: 1),
+        CGColor(red: 0.86, green: 0.8, blue: 0.2, alpha: 1),
+        CGColor(red: 0.6, green: 0.2, blue: 0.86, alpha: 1),
+        CGColor(red: 0.86, green: 0.5, blue: 0.2, alpha: 1),
+    ]
+
+    private static func hashedColor(for state: String) -> CGColor {
+        if state == "unavailable" || state == "unknown" {
+            return CGColor(gray: 1, alpha: 0.1)
+        }
+        var hash: UInt = 5381
+        for char in state.utf8 {
+            hash = ((hash << 5) &+ hash) &+ UInt(char)
+        }
+        return timelineColors[Int(hash % UInt(timelineColors.count))]
     }
 
     private static func targetPointCount(
@@ -340,7 +430,7 @@ enum GraphBitmapRenderer {
     }
 }
 
-private final class GraphDateParser {
+final class GraphDateParser {
     private let normal = ISO8601DateFormatter()
     private let fractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -364,10 +454,11 @@ private final class GraphDateParser {
 }
 
 private func numericValue(_ state: String) -> Double? {
-    if state == "on" || state == "Running" || state == "running" {
+    let lower = state.lowercased()
+    if lower == "on" || lower == "running" || lower == "home" || lower == "active" || lower == "open" {
         return 1
     }
-    if state == "off" || state == "idle" || state == "Not running" {
+    if lower == "off" || lower == "idle" || lower == "not running" || lower == "not_home" || lower == "inactive" || lower == "closed" {
         return 0
     }
     return Double(state)
@@ -441,16 +532,17 @@ private final class GraphPreparedSeriesCache {
     ) -> GraphPreparedCacheEntry? {
         let parser = GraphDateParser()
         let points = input.history.points.compactMap { point -> GraphRenderedPoint? in
-            guard
-                let timestamp = parser.timestamp(from: point),
-                let value = numericValue(point.state)
-            else {
+            guard let timestamp = parser.timestamp(from: point) else {
+                return nil
+            }
+            let value = numericValue(point.state)
+            if value == nil && displayUnit.lowercased() != "state" {
                 return nil
             }
 
             return GraphRenderedPoint(
                 t: timestamp,
-                y: value,
+                y: value ?? 0,
                 display: displayValue(point.state, unit: displayUnit)
             )
         }
@@ -515,16 +607,17 @@ private final class GraphPreparedSeriesCache {
             points.reserveCapacity(points.count + input.history.points.distance(from: newSourceStart, to: input.history.points.endIndex))
 
             for point in input.history.points[newSourceStart...] {
-                guard
-                    let timestamp = parser.timestamp(from: point),
-                    let value = numericValue(point.state)
-                else {
+                guard let timestamp = parser.timestamp(from: point) else {
+                    continue
+                }
+                let value = numericValue(point.state)
+                if value == nil && displayUnit.lowercased() != "state" {
                     continue
                 }
 
                 let renderedPoint = GraphRenderedPoint(
                     t: timestamp,
-                    y: value,
+                    y: value ?? 0,
                     display: displayValue(point.state, unit: displayUnit)
                 )
 
@@ -616,7 +709,7 @@ private func colorKey(_ color: GraphColor) -> String {
     .joined(separator: ",")
 }
 
-private func visibleRange(
+func visibleRange(
     in points: [GraphRenderedPoint],
     start: Double,
     end: Double
@@ -931,7 +1024,7 @@ private struct GraphMinMaxBucket {
     }
 }
 
-private func niceAxis(values: [Double]) -> GraphAxis {
+func niceAxis(values: [Double]) -> GraphAxis {
     let minValue = values.min() ?? 0
     let maxValue = values.max() ?? 1
     let span = max(maxValue - minValue, 0.0001)
@@ -973,7 +1066,7 @@ private func niceNumber(_ value: Double) -> Double {
     return niceFraction * pow(10, exponent)
 }
 
-private func linearTicks(min: Double, max: Double, count: Int) -> [Double] {
+func linearTicks(min: Double, max: Double, count: Int) -> [Double] {
     guard count > 1 else {
         return [min]
     }

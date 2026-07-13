@@ -263,8 +263,17 @@ struct HistoryGraphCard: View {
     }
 
     private func groupedSeries(_ series: [HAHistorySeries]) -> [SeriesGroup] {
-        let groups = Dictionary(grouping: series) { item in
-            model.unit(for: item.entityID) ?? (model.domain(for: item.entityID) == "binary_sensor" ? "State" : "")
+        let groups = Dictionary(grouping: series) { item -> String in
+            if let unit = model.unit(for: item.entityID) {
+                return unit
+            }
+            if model.domain(for: item.entityID) == "binary_sensor" {
+                return "State"
+            }
+            if let lastState = item.points.last?.state, Double(lastState) != nil {
+                return ""
+            }
+            return "State"
         }
 
         return groups
@@ -620,25 +629,45 @@ struct BitmapLineChart: View {
 
     private func axisOverlay(rendered: GraphRenderResult) -> some View {
         ZStack(alignment: .topLeading) {
-            Text(rendered.unit.isEmpty ? "value" : rendered.unit)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.white.opacity(0.55))
-                .position(x: 18, y: 11)
-
-            ForEach(rendered.axis.ticks, id: \.self) { tick in
-                Text(formatAxisValue(tick))
-                    .font(.system(size: 10))
+            if rendered.unit.lowercased() != "state" {
+                Text(rendered.unit.isEmpty ? "value" : rendered.unit)
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
-                    .position(x: 21, y: rendered.y(for: tick))
+                    .position(x: 18, y: 11)
+
+                ForEach(rendered.axis.ticks, id: \.self) { tick in
+                    let y = rendered.y(for: tick)
+                    
+                    Path { path in
+                        path.move(to: CGPoint(x: rendered.plotRect.minX, y: y))
+                        path.addLine(to: CGPoint(x: rendered.plotRect.maxX, y: y))
+                    }
+                    .stroke(Color.white.opacity(0.09), lineWidth: 1)
+
+                    Text(formatAxisValue(tick))
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.55))
+                        .position(x: 21, y: y)
+                }
             }
 
             ForEach(rendered.xTicks, id: \.self) { tick in
+                let x = rendered.x(for: tick)
+                
+                Path { path in
+                    path.move(to: CGPoint(x: x, y: rendered.plotRect.minY))
+                    path.addLine(to: CGPoint(x: x, y: rendered.plotRect.maxY))
+                }
+                .stroke(Color.white.opacity(0.09), lineWidth: 1)
+                
                 Text(formatTime(tick))
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.55))
-                    .position(x: rendered.x(for: tick), y: rendered.size.height - 11)
+                    .position(x: x, y: rendered.size.height - 11)
             }
         }
+        .animation(.easeOut(duration: 0.2), value: rendered.axis.ticks)
+        .animation(.easeOut(duration: 0.2), value: rendered.xTicks)
     }
 
     private func hoverOverlay(sample: GraphSample, rendered: GraphRenderResult, size: CGSize) -> some View {
@@ -649,11 +678,13 @@ struct BitmapLineChart: View {
             }
             .stroke(Color.white.opacity(0.35), lineWidth: 1)
 
-            ForEach(sample.values) { value in
-                Circle()
-                    .fill(value.series.color.swiftUIColor)
-                    .frame(width: 8, height: 8)
-                    .position(x: sample.x, y: rendered.y(for: value.point.y))
+            if rendered.unit.lowercased() != "state" {
+                ForEach(sample.values) { value in
+                    Circle()
+                        .fill(value.series.color.swiftUIColor)
+                        .frame(width: 8, height: 8)
+                        .position(x: sample.x, y: rendered.y(for: value.point.y))
+                }
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -691,20 +722,18 @@ struct BitmapLineChart: View {
         }
     }
 
-    private func formatTime(_ timestamp: Double) -> String {
+    func formatAxisValue(_ value: Double) -> String {
+        if abs(value) >= 1000 {
+            return String(format: "%.1fk", value / 1000)
+        }
+        let isInteger = floor(value) == value
+        return isInteger ? String(format: "%.0f", value) : String(format: "%.1f", value)
+    }
+
+    func formatTime(_ timestamp: Double) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter.string(from: Date(timeIntervalSince1970: timestamp))
-    }
-
-    private func formatAxisValue(_ value: Double) -> String {
-        if abs(value) >= 100 {
-            return String(format: "%.0f", value)
-        }
-        if abs(value) >= 10 {
-            return String(format: "%.1f", value)
-        }
-        return String(format: "%.2f", value)
     }
 }
 
@@ -745,7 +774,31 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
         .map { $0.history.points.count }
         .max() ?? 0
 
-    return max(CGFloat(densestSeriesCount) / pixelWidth, 1)
+    var maxZoom = max(CGFloat(densestSeriesCount) / 10.0, 1)
+
+    let minTimeRange: Double = 30 * 60 // 30 minutes viewable
+
+    // Fallback if parsing fails or points are empty:
+    // Just grab min and max
+    var fullStart = Double.greatestFiniteMagnitude
+    var fullEnd = -Double.greatestFiniteMagnitude
+    for input in inputs {
+        let parser = GraphDateParser()
+        if let first = input.history.points.first, let t = parser.timestamp(from: first) {
+            fullStart = min(fullStart, t)
+        }
+        if let last = input.history.points.last, let t = parser.timestamp(from: last) {
+            fullEnd = max(fullEnd, t)
+        }
+    }
+
+    if fullStart < fullEnd {
+        let fullInterval = fullEnd - fullStart
+        let timeBasedMaxZoom = CGFloat(fullInterval / minTimeRange)
+        maxZoom = max(maxZoom, timeBasedMaxZoom)
+    }
+
+    return maxZoom
 }
 
 struct GraphInteractionOverlay: NSViewRepresentable {

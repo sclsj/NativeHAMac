@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @StateObject private var model = DashboardViewModel()
+    @State private var showGraphDemo = false
 
     var body: some View {
         ZStack {
@@ -33,6 +34,10 @@ struct DashboardView: View {
         .foregroundColor(.white)
         .environmentObject(model)
         .animation(.easeOut(duration: 0.12), value: model.selectedEntityID)
+        .sheet(isPresented: $showGraphDemo) {
+            GraphDemoView()
+                .environmentObject(model)
+        }
         .onAppear {
             model.start()
         }
@@ -82,6 +87,12 @@ struct DashboardView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.white.opacity(0.62))
                 .padding(.trailing, 14)
+
+            Button("Graph Demo") {
+                showGraphDemo = true
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 12)
 
             Button(action: {
                 model.refreshHistories()

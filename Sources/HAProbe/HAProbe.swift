@@ -21,9 +21,16 @@ enum HAProbe {
         )
         let config = try await client.fetchConfig()
         let states = try await client.fetchStates()
-
-        print("Connected to: \(config.locationName ?? baseURL.host ?? baseURLString)")
-        print("Components: \(config.components.count)")
         print("Entities: \(states.count)")
+        
+        let sps30Id = states.first { $0.entityId.contains("sps30") && $0.entityId.starts(with: "sensor.") && $0.entityId.contains("pm2") }?.entityId ?? "sensor.sps30_mass_concentration_pm2_5"
+        print("Fetching 1 day of data for \(sps30Id)...")
+        let history = try await client.fetchHistory(entityIDs: [sps30Id], hoursToShow: 24)
+        
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(history)
+        let fileURL = URL(fileURLWithPath: "sps30_1day.json")
+        try data.write(to: fileURL)
+        print("Saved \(data.count) bytes to \(fileURL.path)")
     }
 }

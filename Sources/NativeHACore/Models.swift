@@ -66,7 +66,7 @@ public struct HAState: Decodable, Equatable, Identifiable {
     }
 }
 
-public struct HAHistorySeries: Equatable, Identifiable {
+public struct HAHistorySeries: Equatable, Identifiable, Codable {
     public var id: String { entityID }
 
     public let entityID: String
@@ -78,7 +78,7 @@ public struct HAHistorySeries: Equatable, Identifiable {
     }
 }
 
-public struct HAHistoryPoint: Decodable, Equatable {
+public struct HAHistoryPoint: Codable, Equatable {
     public let entityId: String?
     public let state: String
     public let attributes: [String: JSONValue]?
