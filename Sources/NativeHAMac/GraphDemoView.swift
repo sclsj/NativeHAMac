@@ -80,7 +80,7 @@ struct GraphDemoView: View {
     private func findTargetSeries() -> GraphRenderedSeries? {
         let parser = GraphDateParser()
         
-        if let data = try? Data(contentsOf: URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/sps30_3hours.json")),
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/sps30_1day.json")),
            let histories = try? JSONDecoder().decode([HAHistorySeries].self, from: data),
            let history = histories.first {
             
@@ -155,7 +155,7 @@ struct DemoGraphView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                if let image = draw(size: geo.size) {
+                if let image = draw(size: geo.size, isInteracting: isInteracting) {
                     Image(decorative: image, scale: 2, orientation: .up)
                         .resizable()
                         .interpolation(.high)
@@ -181,18 +181,46 @@ struct DemoGraphView: View {
         }
     }
 
-    private func draw(size: CGSize) -> CGImage? {
+    private func draw(size: CGSize, isInteracting: Bool) -> CGImage? {
         let range = visibleRange(in: series.points, start: visibleStart, end: visibleEnd)
         let scale: CGFloat = 2.0
         let targetCount = Int(size.width * scale)
         let points = series.minMaxCache?.downsample(in: range, target: targetCount) ?? Array(series.points[range])
 
-        let targetMin = points.map(\.y).min() ?? 0
-        let targetMax = points.map(\.y).max() ?? 1
+        let windowWidth = max(visibleEnd - visibleStart, 1)
+        
+        let baseMin = points.map(\.y).min() ?? 0
+        let baseMax = points.map(\.y).max() ?? 1
+        
+        var targetMin = baseMin
+        var targetMax = baseMax
+        
+        if mode == .interpolated || mode == .sticky {
+            let padRange = visibleRange(in: series.points, start: visibleStart - windowWidth * 2, end: visibleEnd + windowWidth * 2)
+            let paddedPoints = series.minMaxCache?.downsample(in: padRange, target: targetCount * 3) ?? Array(series.points[padRange])
+            
+            let decayScale = windowWidth * 0.5
+            
+            for p in paddedPoints {
+                if p.t >= visibleStart && p.t <= visibleEnd { continue }
+                
+                let distance = p.t < visibleStart ? (visibleStart - p.t) : (p.t - visibleEnd)
+                let weight = exp(-distance / decayScale)
+                
+                if p.y > baseMax {
+                    let demandMax = baseMax + (p.y - baseMax) * weight
+                    targetMax = max(targetMax, demandMax)
+                }
+                if p.y < baseMin {
+                    let demandMin = baseMin - (baseMin - p.y) * weight
+                    targetMin = min(targetMin, demandMin)
+                }
+            }
+        }
         
         let rawTargetAxis = niceAxis(values: [targetMin, targetMax])
         
-        DispatchQueue.main.async {
+        RunLoop.main.perform(inModes: [.common]) {
             axisState.update(
                 targetMin: rawTargetAxis.min,
                 targetMax: rawTargetAxis.max,
@@ -235,16 +263,16 @@ struct DemoGraphView: View {
 
 class AxisStateModel: ObservableObject {
     @Published var currentAxis: GraphAxis?
-
+    
     func update(targetMin: Double, targetMax: Double, mode: AxisMode, lowPassFactor: Double, shrinkThreshold: Double, ticks: [Double]) {
         guard let current = currentAxis else {
             currentAxis = GraphAxis(min: targetMin, max: targetMax, ticks: ticks)
             return
         }
-
+        
         var newMin = current.min
         var newMax = current.max
-
+        
         switch mode {
         case .instant:
             newMin = targetMin
@@ -342,13 +370,21 @@ struct DemoInteractionOverlay: NSViewRepresentable {
 
     func makeNSView(context: Context) -> DemoTrackingView {
         let view = DemoTrackingView()
+        view.onInteractionChange = { interacting in
+            if interacting != isInteracting {
+                isInteracting = interacting
+            }
+        }
         view.onPan = { deltaX in
             let range = visibleEnd - visibleStart
             let shift = (deltaX / 400.0) * range
             visibleStart -= shift
             visibleEnd -= shift
         }
-        view.onMagnify = { zoom in
+        view.onMagnify = { magDelta in
+            let zoom = 1.0 + magDelta
+            guard zoom > 0.1 else { return }
+            
             let range = visibleEnd - visibleStart
             let newRange = range / zoom
             let diff = range - newRange
@@ -371,15 +407,38 @@ struct DemoInteractionOverlay: NSViewRepresentable {
 class DemoTrackingView: NSView {
     var onPan: ((Double) -> Void)?
     var onMagnify: ((Double) -> Void)?
+    var onInteractionChange: ((Bool) -> Void)?
+
+    private var interactionTimer: Timer?
+
+    private func notifyInteraction() {
+        if interactionTimer == nil {
+            onInteractionChange?(true)
+        }
+        interactionTimer?.invalidate()
+        interactionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+            self?.interactionTimer = nil
+            self?.onInteractionChange?(false)
+        }
+        // Ensure timer fires even during scrolling runloop
+        if let timer = interactionTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
 
     override func scrollWheel(with event: NSEvent) {
-        if event.phase == .changed || event.phase == .began {
+        notifyInteraction()
+        
+        if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
+            onMagnify?(Double(event.scrollingDeltaY / 360.0))
+        } else {
             onPan?(Double(event.scrollingDeltaX))
         }
     }
 
     override func magnify(with event: NSEvent) {
-        onMagnify?(Double(1.0 + event.magnification))
+        notifyInteraction()
+        onMagnify?(Double(event.magnification))
     }
 }
 
