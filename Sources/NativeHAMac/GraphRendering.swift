@@ -216,7 +216,9 @@ enum GraphBitmapRenderer {
             return nil
         }
 
-        let fullBounds = timeBounds(pointSeries)
+        let isStateTimeline = unit.lowercased() == "state"
+        let dataEnd = isStateTimeline ? Date().timeIntervalSince1970 : nil
+        let fullBounds = timeBounds(pointSeries, overrideEnd: dataEnd)
         let fullInterval = max(fullBounds.end - fullBounds.start, 1)
         let visibleInterval = fullInterval / max(Double(zoomScale), 1)
         let scrollableInterval = max(fullInterval - visibleInterval, 0)
@@ -231,7 +233,6 @@ enum GraphBitmapRenderer {
             height: max(size.height - 44, 1)
         )
 
-        let isStateTimeline = unit.lowercased() == "state"
         let visibleSeries = pointSeries.map { item -> GraphRenderedSeries in
             let points: [GraphRenderedPoint]
             let timelineSegments: [HAHistoryTimelineSegment]
@@ -242,7 +243,7 @@ enum GraphBitmapRenderer {
                     },
                     visibleStart: visibleStart,
                     visibleEnd: visibleEnd,
-                    endTime: visibleEnd
+                    endTime: fullBounds.end
                 )
                 points = timelineSegments.map {
                     GraphRenderedPoint(t: $0.clippedStart, y: 0, display: $0.display)
@@ -516,9 +517,12 @@ private func displayValue(_ state: String, unit: String) -> String {
     return state
 }
 
-private func timeBounds(_ series: [GraphRenderedSeries]) -> (start: Double, end: Double) {
+private func timeBounds(
+    _ series: [GraphRenderedSeries],
+    overrideEnd: Double? = nil
+) -> (start: Double, end: Double) {
     let start = series.compactMap { $0.points.first?.t }.min() ?? 0
-    let end = series.compactMap { $0.points.last?.t }.max() ?? 1
+    let end = overrideEnd ?? series.compactMap { $0.points.last?.t }.max() ?? 1
     return (start, end)
 }
 
