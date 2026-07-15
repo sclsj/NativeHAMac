@@ -1,3 +1,4 @@
+import Foundation
 import NativeHACore
 import SwiftUI
 
@@ -147,6 +148,10 @@ enum AxisMode {
     case instant, interpolated, sticky
 }
 
+private final class DemoRenderState {
+    var axis: GraphAxis?
+}
+
 struct DemoGraphView: View {
     let series: GraphRenderedSeries
     @Binding var visibleStart: Double
@@ -155,19 +160,18 @@ struct DemoGraphView: View {
     let lowPassFactor: Double
     let shrinkThreshold: Double
 
-    @State private var currentAxis: GraphAxis?
-    @State private var renderedFrame: DemoRenderedFrame?
-    @State private var desiredRenderToken = ""
-    @State private var renderedToken = ""
-    @State private var renderTask: Task<Void, Never>?
+    @State private var renderState = DemoRenderState()
+    @State private var settleTick = 0
+    @State private var settleTimer: Timer?
 
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            let token = renderToken(size: size)
+            let frame = renderFrame(size: size, tick: settleTick)
+            let needsSettling = frame?.needsSettling ?? false
 
             ZStack {
-                if let frame = renderedFrame {
+                if let frame = frame {
                     Image(decorative: frame.image, scale: frame.scale, orientation: .up)
                         .resizable()
                         .interpolation(.high)
@@ -195,65 +199,63 @@ struct DemoGraphView: View {
                 )
             }
             .onAppear {
-                scheduleRender(size: size, token: token)
+                updateSettleTimer(needsSettling: needsSettling)
             }
-            .onChange(of: token) { newToken in
-                scheduleRender(size: size, token: newToken)
+            .onChange(of: needsSettling) { newValue in
+                updateSettleTimer(needsSettling: newValue)
             }
             .onDisappear {
-                renderTask?.cancel()
+                stopSettleTimer()
             }
         }
     }
 
-    private func renderToken(size: CGSize) -> String {
-        [
-            "\(Int(size.width))x\(Int(size.height))",
-            String(format: "%.2f", visibleStart),
-            String(format: "%.2f", visibleEnd),
-            "\(mode)",
-            String(format: "%.3f", lowPassFactor),
-            String(format: "%.3f", shrinkThreshold),
-        ].joined(separator: "::")
+    private func renderFrame(size: CGSize, tick: Int) -> DemoRenderedFrame? {
+        _ = tick
+        guard size.width > 1, size.height > 1 else {
+            return nil
+        }
+
+        let frame = DemoGraphRenderer.render(
+            series: series,
+            size: size,
+            visibleStart: visibleStart,
+            visibleEnd: visibleEnd,
+            mode: mode,
+            lowPassFactor: lowPassFactor,
+            shrinkThreshold: shrinkThreshold,
+            currentAxis: renderState.axis
+        )
+
+        if let axis = frame?.axis {
+            renderState.axis = axis
+        }
+        return frame
     }
 
-    private func scheduleRender(size: CGSize, token: String) {
-        guard size.width > 1, size.height > 1, renderedToken != token else {
+    private func updateSettleTimer(needsSettling: Bool) {
+        if needsSettling {
+            startSettleTimer()
+        } else {
+            stopSettleTimer()
+        }
+    }
+
+    private func startSettleTimer() {
+        guard settleTimer == nil else {
             return
         }
 
-        desiredRenderToken = token
-        renderTask?.cancel()
-
-        let renderSeries = series
-        let renderStart = visibleStart
-        let renderEnd = visibleEnd
-        let renderMode = mode
-        let renderLowPassFactor = lowPassFactor
-        let renderShrinkThreshold = shrinkThreshold
-        let previousAxis = currentAxis
-
-        renderTask = Task.detached(priority: .userInitiated) {
-            let frame = DemoGraphRenderer.render(
-                series: renderSeries,
-                size: size,
-                visibleStart: renderStart,
-                visibleEnd: renderEnd,
-                mode: renderMode,
-                lowPassFactor: renderLowPassFactor,
-                shrinkThreshold: renderShrinkThreshold,
-                currentAxis: previousAxis
-            )
-
-            await MainActor.run {
-                guard desiredRenderToken == token, !Task.isCancelled else {
-                    return
-                }
-                renderedFrame = frame
-                currentAxis = frame?.axis
-                renderedToken = token
-            }
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { _ in
+            settleTick = settleTick &+ 1
         }
+        RunLoop.main.add(timer, forMode: .common)
+        settleTimer = timer
+    }
+
+    private func stopSettleTimer() {
+        settleTimer?.invalidate()
+        settleTimer = nil
     }
 }
 
@@ -264,6 +266,7 @@ private struct DemoRenderedFrame {
     let xTicks: [Double]
     let visibleStart: Double
     let visibleEnd: Double
+    let needsSettling: Bool
 }
 
 private enum DemoGraphRenderer {
@@ -282,7 +285,7 @@ private enum DemoGraphRenderer {
         let range = visibleRange(in: series.points, start: visibleStart, end: visibleEnd)
         let points = series.minMaxCache?.downsample(in: range, target: targetCount) ?? Array(series.points[range])
 
-        guard !points.isEmpty, !Task.isCancelled else {
+        guard !points.isEmpty else {
             return nil
         }
 
@@ -301,8 +304,9 @@ private enum DemoGraphRenderer {
             lowPassFactor: lowPassFactor,
             shrinkThreshold: shrinkThreshold
         )
+        let needsSettling = mode == .interpolated && !axisApproximatelyMatches(axis, targetAxis)
 
-        guard !Task.isCancelled, let image = drawImage(
+        guard let image = drawImage(
             points: points,
             size: size,
             scale: scale,
@@ -319,7 +323,8 @@ private enum DemoGraphRenderer {
             axis: axis,
             xTicks: linearTicks(min: visibleStart, max: visibleEnd, count: 5),
             visibleStart: visibleStart,
-            visibleEnd: visibleEnd
+            visibleEnd: visibleEnd,
+            needsSettling: needsSettling
         )
     }
 
@@ -408,6 +413,10 @@ private enum DemoGraphRenderer {
 
         let ticks = mode == .instant ? target.ticks : niceAxis(values: [newMin, newMax]).ticks
         return GraphAxis(min: newMin, max: newMax, ticks: ticks)
+    }
+
+    private static func axisApproximatelyMatches(_ lhs: GraphAxis, _ rhs: GraphAxis) -> Bool {
+        abs(lhs.min - rhs.min) < 0.01 && abs(lhs.max - rhs.max) < 0.01
     }
 
     private static func drawImage(

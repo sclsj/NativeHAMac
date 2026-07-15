@@ -9,6 +9,25 @@ struct GraphColor: Hashable {
     let blue: CGFloat
     let alpha: CGFloat
 
+    init(red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = alpha
+    }
+
+    init?(hex: String) {
+        let trimmed = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard trimmed.count == 6, let raw = UInt32(trimmed, radix: 16) else {
+            return nil
+        }
+
+        self.red = CGFloat((raw >> 16) & 0xff) / 255
+        self.green = CGFloat((raw >> 8) & 0xff) / 255
+        self.blue = CGFloat(raw & 0xff) / 255
+        self.alpha = 1
+    }
+
     var cgColor: CGColor {
         CGColor(red: red, green: green, blue: blue, alpha: alpha)
     }
@@ -37,6 +56,7 @@ struct GraphRenderedSeries: Identifiable {
     let color: GraphColor
     let points: [GraphRenderedPoint]
     let minMaxCache: GraphMinMaxCache?
+    let timelineSegments: [HAHistoryTimelineSegment]
 
     init(
         entityID: String,
@@ -44,7 +64,8 @@ struct GraphRenderedSeries: Identifiable {
         unit: String,
         color: GraphColor,
         points: [GraphRenderedPoint],
-        minMaxCache: GraphMinMaxCache? = nil
+        minMaxCache: GraphMinMaxCache? = nil,
+        timelineSegments: [HAHistoryTimelineSegment] = []
     ) {
         self.entityID = entityID
         self.name = name
@@ -52,6 +73,7 @@ struct GraphRenderedSeries: Identifiable {
         self.color = color
         self.points = points
         self.minMaxCache = minMaxCache
+        self.timelineSegments = timelineSegments
     }
 }
 
@@ -108,12 +130,27 @@ struct GraphRenderResult {
         let targetTimestamp = visibleStart + (visibleEnd - visibleStart) * ratio
         let isStateTimeline = unit.lowercased() == "state"
 
-        let values = series.compactMap { item -> GraphSampleValue? in
-            let selectedPoint = isStateTimeline
-                ? statePoint(in: item.points, at: targetTimestamp)
-                : nearestPoint(in: item.points, to: targetTimestamp)
+        if isStateTimeline {
+            let values = series.compactMap { item -> GraphSampleValue? in
+                guard let segment = timelineSegment(in: item.timelineSegments, at: targetTimestamp) else {
+                    return nil
+                }
 
-            guard let point = selectedPoint else {
+                return GraphSampleValue(
+                    series: item,
+                    point: GraphRenderedPoint(t: targetTimestamp, y: 0, display: segment.display)
+                )
+            }
+
+            guard !values.isEmpty else {
+                return nil
+            }
+
+            return GraphSample(timestamp: targetTimestamp, x: clampedX, values: values)
+        }
+
+        let values = series.compactMap { item -> GraphSampleValue? in
+            guard let point = nearestPoint(in: item.points, to: targetTimestamp) else {
                 return nil
             }
             return GraphSampleValue(series: item, point: point)
@@ -152,16 +189,13 @@ struct GraphRenderResult {
         return abs(before.t - timestamp) <= abs(after.t - timestamp) ? before : after
     }
 
-    private func statePoint(in points: [GraphRenderedPoint], at timestamp: Double) -> GraphRenderedPoint? {
-        guard !points.isEmpty else {
-            return nil
+    private func timelineSegment(
+        in segments: [HAHistoryTimelineSegment],
+        at timestamp: Double
+    ) -> HAHistoryTimelineSegment? {
+        segments.first {
+            timestamp >= $0.clippedStart && timestamp <= $0.clippedEnd
         }
-
-        let insertionIndex = upperBound(in: points, timestamp: timestamp)
-        if insertionIndex == 0 {
-            return points[0]
-        }
-        return points[insertionIndex - 1]
     }
 }
 
@@ -200,9 +234,21 @@ enum GraphBitmapRenderer {
         let isStateTimeline = unit.lowercased() == "state"
         let visibleSeries = pointSeries.map { item -> GraphRenderedSeries in
             let points: [GraphRenderedPoint]
+            let timelineSegments: [HAHistoryTimelineSegment]
             if isStateTimeline {
-                points = timelinePoints(in: item.points, start: visibleStart, end: visibleEnd)
+                timelineSegments = HAHistoryTimelineBuilder.segments(
+                    from: item.points.map {
+                        HAHistoryTimelinePoint(timestamp: $0.t, state: $0.display, display: $0.display)
+                    },
+                    visibleStart: visibleStart,
+                    visibleEnd: visibleEnd,
+                    endTime: visibleEnd
+                )
+                points = timelineSegments.map {
+                    GraphRenderedPoint(t: $0.clippedStart, y: 0, display: $0.display)
+                }
             } else {
+                timelineSegments = []
                 let range = visibleRange(in: item.points, start: visibleStart, end: visibleEnd)
                 let target = targetPointCount(
                     plotWidth: plotRect.width,
@@ -217,10 +263,11 @@ enum GraphBitmapRenderer {
                 name: item.name,
                 unit: item.unit,
                 color: item.color,
-                points: points
+                points: points,
+                timelineSegments: timelineSegments
             )
         }
-        .filter { !$0.points.isEmpty }
+        .filter { isStateTimeline ? !$0.timelineSegments.isEmpty : !$0.points.isEmpty }
 
         guard !visibleSeries.isEmpty else {
             return nil
@@ -381,30 +428,20 @@ enum GraphBitmapRenderer {
             for (index, item) in series.enumerated() {
                 let yOffset = startY + CGFloat(index) * rowHeight
 
-                for i in 0..<item.points.count {
-                    let point = item.points[i]
-                    let nextT = (i + 1 < item.points.count) ? item.points[i+1].t : visibleEnd
-
+                for segment in item.timelineSegments {
                     let startX = max(
                         plotRect.minX,
-                        xPosition(point.t, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                        xPosition(segment.clippedStart, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
                     )
                     let endX = min(
                         plotRect.maxX,
-                        xPosition(nextT, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                        xPosition(segment.clippedEnd, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
                     )
                     let blockWidth = endX - startX
                     if blockWidth <= 0 { continue }
 
                     let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
-
-                    let fill: CGColor
-                    if let num = numericValue(point.display) {
-                         fill = num > 0 ? item.color.cgColor : CGColor(gray: 1, alpha: 0.1)
-                    } else {
-                         fill = hashedColor(for: point.display)
-                    }
-                    context.setFillColor(fill)
+                    context.setFillColor(timelineColor(for: segment.state, entityID: item.entityID).cgColor)
                     context.fill(blockRect)
                 }
             }
@@ -413,24 +450,9 @@ enum GraphBitmapRenderer {
         }
     }
 
-    private static let timelineColors: [CGColor] = [
-        CGColor(red: 0.2, green: 0.6, blue: 0.86, alpha: 1),
-        CGColor(red: 0.86, green: 0.3, blue: 0.2, alpha: 1),
-        CGColor(red: 0.2, green: 0.86, blue: 0.5, alpha: 1),
-        CGColor(red: 0.86, green: 0.8, blue: 0.2, alpha: 1),
-        CGColor(red: 0.6, green: 0.2, blue: 0.86, alpha: 1),
-        CGColor(red: 0.86, green: 0.5, blue: 0.2, alpha: 1),
-    ]
-
-    private static func hashedColor(for state: String) -> CGColor {
-        if state == "unavailable" || state == "unknown" {
-            return CGColor(gray: 1, alpha: 0.1)
-        }
-        var hash: UInt = 5381
-        for char in state.utf8 {
-            hash = ((hash << 5) &+ hash) &+ UInt(char)
-        }
-        return timelineColors[Int(hash % UInt(timelineColors.count))]
+    private static func timelineColor(for state: String, entityID: String) -> GraphColor {
+        let color = HAHistoryTimelineColorResolver.color(for: state, entityID: entityID)
+        return GraphColor(hex: color.hex) ?? GraphColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1)
     }
 
     private static func targetPointCount(
@@ -458,25 +480,10 @@ enum GraphBitmapRenderer {
 }
 
 final class GraphDateParser {
-    private let normal = ISO8601DateFormatter()
-    private let fractional: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+    private let parser = HAHistoryTimestampParser()
 
     func timestamp(from point: HAHistoryPoint) -> Double? {
-        if let value = point.lastChanged, let date = parse(value) {
-            return date.timeIntervalSince1970
-        }
-        if let value = point.lastUpdated, let date = parse(value) {
-            return date.timeIntervalSince1970
-        }
-        return nil
-    }
-
-    private func parse(_ value: String) -> Date? {
-        fractional.date(from: value) ?? normal.date(from: value)
+        parser.timestamp(from: point)
     }
 }
 
@@ -492,8 +499,12 @@ private func numericValue(_ state: String) -> Double? {
 }
 
 private func displayValue(_ state: String, unit: String) -> String {
+    if unit.lowercased() == "state" {
+        return state
+    }
+
     if let value = Double(state) {
-        if unit.isEmpty || unit.lowercased() == "state" {
+        if unit.isEmpty {
             return String(format: "%.2f", value)
         }
         if abs(value) >= 100 {
@@ -589,7 +600,7 @@ private final class GraphPreparedSeriesCache {
                 unit: input.unit,
                 color: input.color,
                 points: points,
-                minMaxCache: GraphMinMaxCache(points: points)
+                minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(points: points)
             )
         )
     }
@@ -673,7 +684,7 @@ private final class GraphPreparedSeriesCache {
                 unit: input.unit,
                 color: input.color,
                 points: points,
-                minMaxCache: GraphMinMaxCache(points: points)
+                minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(points: points)
             )
         )
     }
@@ -753,33 +764,6 @@ func visibleRange(
     let lower = lowerBound(in: points, timestamp: start)
     let upper = upperBound(in: points, timestamp: end)
     return min(lower, points.count)..<min(max(upper, lower), points.count)
-}
-
-private func timelinePoints(
-    in points: [GraphRenderedPoint],
-    start: Double,
-    end: Double
-) -> [GraphRenderedPoint] {
-    guard !points.isEmpty else {
-        return []
-    }
-
-    let lower = lowerBound(in: points, timestamp: start)
-    let upper = upperBound(in: points, timestamp: end)
-    let startIndex: Int
-    if lower > 0 {
-        startIndex = lower - 1
-    } else {
-        startIndex = lower
-    }
-
-    guard startIndex < points.count else {
-        return [points[points.count - 1]]
-    }
-
-    let endIndex = max(upper, startIndex + 1)
-    return Array(points[startIndex..<min(endIndex, points.count)])
-        .removingRedundantStatePoints(enabled: true)
 }
 
 private func lowerBound(in points: [GraphRenderedPoint], timestamp: Double) -> Int {

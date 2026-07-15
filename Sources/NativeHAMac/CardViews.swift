@@ -264,16 +264,12 @@ struct HistoryGraphCard: View {
 
     private func groupedSeries(_ series: [HAHistorySeries]) -> [SeriesGroup] {
         let groups = Dictionary(grouping: series) { item -> String in
-            if let unit = model.unit(for: item.entityID) {
-                return unit
-            }
-            if model.domain(for: item.entityID) == "binary_sensor" {
-                return "State"
-            }
-            if let lastState = item.points.last?.state, Double(lastState) != nil {
-                return ""
-            }
-            return "State"
+            HAHistoryGraphClassifier.displayUnit(
+                entityID: item.entityID,
+                currentUnit: model.unit(for: item.entityID),
+                currentAttributes: model.states[item.entityID]?.attributes,
+                history: item
+            )
         }
 
         return groups
@@ -383,7 +379,7 @@ struct UnitGraph: View {
     }
 
     private var chartHeight: CGFloat {
-        unit == "State" ? 96 : 178
+        unit == HAHistoryGraphClassifier.stateUnit ? 96 : 178
     }
 
 }
@@ -1622,6 +1618,7 @@ struct SwitchDetailContent: View {
                 .labelsHidden()
             }
 
+            DetailHistoryGraph(entityID: entityID, title: "History", hours: 24)
             AttributesSection(entityID: entityID, state: state)
         }
     }
@@ -1685,13 +1682,19 @@ struct DetailHistoryGraph: View {
             }
 
             if let history = model.detailHistory(entityID: entityID, hours: hours) {
+                let displayUnit = HAHistoryGraphClassifier.displayUnit(
+                    entityID: entityID,
+                    currentUnit: model.unit(for: entityID),
+                    currentAttributes: model.states[entityID]?.attributes,
+                    history: history
+                )
                 BitmapLineChart(
-                    unit: model.unit(for: entityID) ?? (model.domain(for: entityID) == "binary_sensor" ? "State" : ""),
+                    unit: displayUnit,
                     inputs: [
                         GraphRenderSeriesInput(
                             entityID: entityID,
                             name: model.displayName(for: entityID),
-                            unit: model.unit(for: entityID) ?? "",
+                            unit: displayUnit,
                             color: graphColor(for: entityID),
                             history: history
                         ),
