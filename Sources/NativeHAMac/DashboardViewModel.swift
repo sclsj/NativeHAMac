@@ -26,6 +26,17 @@ final class DashboardViewModel: ObservableObject {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+    private let shortTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+    private let detailTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        return formatter
+    }()
 
     var homeView: LovelaceView? {
         views.first(where: { $0.path == "default_view" }) ?? views.first
@@ -331,20 +342,14 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func shortTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
+        shortTimeFormatter.string(from: date)
     }
 
     func detailTime(_ value: String?) -> String {
         guard let value = value, let date = parseDate(value) else {
             return "Unknown"
         }
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .medium
-        return formatter.string(from: date)
+        return detailTimeFormatter.string(from: date)
     }
 
     func weatherSummary(_ state: String) -> String {

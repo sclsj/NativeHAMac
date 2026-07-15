@@ -720,17 +720,23 @@ struct BitmapLineChart: View {
 
     func formatAxisValue(_ value: Double) -> String {
         if abs(value) >= 1000 {
-            return String(format: "%.1fk", value / 1000)
+            let divided = value / 1000
+            let isInteger = floor(divided) == divided
+            return isInteger ? String(format: "%.0fk", divided) : String(format: "%.1fk", divided)
         }
         let isInteger = floor(value) == value
         return isInteger ? String(format: "%.0f", value) : String(format: "%.1f", value)
     }
 
     func formatTime(_ timestamp: Double) -> String {
+        BitmapLineChart.timeFormatter.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
-        return formatter.string(from: Date(timeIntervalSince1970: timestamp))
-    }
+        return formatter
+    }()
 }
 
 private func anchoredPanFraction(
@@ -764,13 +770,12 @@ private func panDelta(for scrollDelta: CGFloat, zoomScale: CGFloat) -> Double {
 
 private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) -> CGFloat {
     let plotWidth = max(size.width - 54, 1)
-    let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-    let pixelWidth = max(plotWidth * screenScale, 1)
+    let minVisibleSamples = max(plotWidth * AppConfig.graphMaxZoomVisibleSamplePercentage, 1)
     let densestSeriesCount = inputs
         .map { $0.history.points.count }
         .max() ?? 0
 
-    var maxZoom = max(CGFloat(densestSeriesCount) / pixelWidth, 1)
+    var maxZoom = max(CGFloat(densestSeriesCount) / minVisibleSamples, 1)
 
     let minTimeRange: Double = 30 * 60 // 30 minutes viewable
 
