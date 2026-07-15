@@ -311,13 +311,17 @@ struct UnitGraph: View {
     @State private var panFraction: Double = 1
 
     private var graphInputs: [GraphRenderSeriesInput] {
-        series.enumerated().map { index, item in
+        let windowEnd   = Date().timeIntervalSince1970
+        let windowStart = windowEnd - Double(model.selectedGraphHours) * 3600
+        return series.enumerated().map { index, item in
             GraphRenderSeriesInput(
                 entityID: item.entityID,
                 name: model.displayName(for: item.entityID),
                 unit: unit,
                 color: graphColor(at: index),
-                history: item
+                history: item,
+                windowStart: windowStart,
+                windowEnd: windowEnd
             )
         }
     }
@@ -779,17 +783,29 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
 
     let minTimeRange: Double = 30 * 60 // 30 minutes viewable
 
-    // Fallback if parsing fails or points are empty:
-    // Just grab min and max
-    var fullStart = Double.greatestFiniteMagnitude
-    var fullEnd = -Double.greatestFiniteMagnitude
-    for input in inputs {
-        let parser = GraphDateParser()
-        if let first = input.history.points.first, let t = parser.timestamp(from: first) {
-            fullStart = min(fullStart, t)
-        }
-        if let last = input.history.points.last, let t = parser.timestamp(from: last) {
-            fullEnd = max(fullEnd, t)
+    let isStateTimeline = inputs.first.map { $0.unit.lowercased() == "state" } ?? false
+
+    var fullStart: Double
+    var fullEnd: Double
+
+    if isStateTimeline {
+        // For state timelines, anchor to the requested window rather than data-point
+        // timestamps. The last recorded state change can be long before the window
+        // end (e.g. a switch that didn't toggle), which would make fullEnd == fullStart
+        // and collapse maxZoom to 1, disabling zoom entirely.
+        fullEnd   = inputs.compactMap(\.windowEnd).max()   ?? Date().timeIntervalSince1970
+        fullStart = inputs.compactMap(\.windowStart).min() ?? fullEnd - 3600
+    } else {
+        fullStart = Double.greatestFiniteMagnitude
+        fullEnd   = -Double.greatestFiniteMagnitude
+        for input in inputs {
+            let parser = GraphDateParser()
+            if let first = input.history.points.first, let t = parser.timestamp(from: first) {
+                fullStart = min(fullStart, t)
+            }
+            if let last = input.history.points.last, let t = parser.timestamp(from: last) {
+                fullEnd = max(fullEnd, t)
+            }
         }
     }
 

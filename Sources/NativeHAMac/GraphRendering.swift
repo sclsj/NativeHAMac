@@ -39,6 +39,29 @@ struct GraphRenderSeriesInput {
     let unit: String
     let color: GraphColor
     let history: HAHistorySeries
+    /// Requested window start (Unix seconds). Used by the timeline renderer to anchor
+    /// the left edge to the actual query window rather than the first event timestamp.
+    let windowStart: Double?
+    /// Requested window end (Unix seconds). Defaults to now when nil.
+    let windowEnd: Double?
+
+    init(
+        entityID: String,
+        name: String,
+        unit: String,
+        color: GraphColor,
+        history: HAHistorySeries,
+        windowStart: Double? = nil,
+        windowEnd: Double? = nil
+    ) {
+        self.entityID = entityID
+        self.name = name
+        self.unit = unit
+        self.color = color
+        self.history = history
+        self.windowStart = windowStart
+        self.windowEnd = windowEnd
+    }
 }
 
 struct GraphRenderedPoint: Equatable {
@@ -217,8 +240,9 @@ enum GraphBitmapRenderer {
         }
 
         let isStateTimeline = unit.lowercased() == "state"
-        let dataEnd = isStateTimeline ? Date().timeIntervalSince1970 : nil
-        let fullBounds = timeBounds(pointSeries, overrideEnd: dataEnd)
+        let dataEnd   = isStateTimeline ? (inputs.compactMap(\.windowEnd).max()   ?? Date().timeIntervalSince1970) : nil
+        let dataStart = isStateTimeline ? (inputs.compactMap(\.windowStart).min()) : nil
+        let fullBounds = timeBounds(pointSeries, overrideStart: dataStart, overrideEnd: dataEnd)
         let fullInterval = max(fullBounds.end - fullBounds.start, 1)
         let visibleInterval = fullInterval / max(Double(zoomScale), 1)
         let scrollableInterval = max(fullInterval - visibleInterval, 0)
@@ -519,10 +543,11 @@ private func displayValue(_ state: String, unit: String) -> String {
 
 private func timeBounds(
     _ series: [GraphRenderedSeries],
+    overrideStart: Double? = nil,
     overrideEnd: Double? = nil
 ) -> (start: Double, end: Double) {
-    let start = series.compactMap { $0.points.first?.t }.min() ?? 0
-    let end = overrideEnd ?? series.compactMap { $0.points.last?.t }.max() ?? 1
+    let start = overrideStart ?? series.compactMap { $0.points.first?.t }.min() ?? 0
+    let end   = overrideEnd   ?? series.compactMap { $0.points.last?.t }.max()  ?? 1
     return (start, end)
 }
 
