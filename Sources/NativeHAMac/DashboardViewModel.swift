@@ -663,11 +663,11 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func historyDate(from point: HAHistoryPoint) -> Date? {
-        if let lastUpdated = point.lastUpdated, let date = parseDate(lastUpdated) {
+        if let lastChanged = point.lastChanged, let date = parseDate(lastChanged) {
             return date
         }
 
-        if let lastChanged = point.lastChanged, let date = parseDate(lastChanged) {
+        if let lastUpdated = point.lastUpdated, let date = parseDate(lastUpdated) {
             return date
         }
 
@@ -675,16 +675,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func isHistoryRenderableState(_ value: String) -> Bool {
-        if Double(value) != nil {
-            return true
-        }
-
-        switch value {
-        case "on", "off", "idle", "Running", "running", "Not running":
-            return true
-        default:
-            return false
-        }
+        !value.isEmpty
     }
 
     private func lowerBound(in points: [HAHistoryPoint], timestamp: Date) -> Int {

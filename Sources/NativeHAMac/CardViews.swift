@@ -619,8 +619,8 @@ struct BitmapLineChart: View {
 
     private func renderDataToken() -> String {
         let seriesToken = inputs.map { input in
-            let first = input.history.points.first?.lastUpdated ?? input.history.points.first?.lastChanged ?? ""
-            let last = input.history.points.last?.lastUpdated ?? input.history.points.last?.lastChanged ?? ""
+            let first = input.history.points.first?.lastChanged ?? input.history.points.first?.lastUpdated ?? ""
+            let last = input.history.points.last?.lastChanged ?? input.history.points.last?.lastUpdated ?? ""
             return "\(input.entityID):\(input.history.points.count):\(first):\(last)"
         }.joined(separator: "|")
 
@@ -774,7 +774,7 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
         .map { $0.history.points.count }
         .max() ?? 0
 
-    var maxZoom = max(CGFloat(densestSeriesCount) / 10.0, 1)
+    var maxZoom = max(CGFloat(densestSeriesCount) / pixelWidth, 1)
 
     let minTimeRange: Double = 30 * 60 // 30 minutes viewable
 

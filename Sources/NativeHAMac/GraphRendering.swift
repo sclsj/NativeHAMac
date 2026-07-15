@@ -106,9 +106,14 @@ struct GraphRenderResult {
         let clampedX = min(max(xPosition, plotRect.minX), plotRect.maxX)
         let ratio = Double((clampedX - plotRect.minX) / plotRect.width)
         let targetTimestamp = visibleStart + (visibleEnd - visibleStart) * ratio
+        let isStateTimeline = unit.lowercased() == "state"
 
         let values = series.compactMap { item -> GraphSampleValue? in
-            guard let point = nearestPoint(in: item.points, to: targetTimestamp) else {
+            let selectedPoint = isStateTimeline
+                ? statePoint(in: item.points, at: targetTimestamp)
+                : nearestPoint(in: item.points, to: targetTimestamp)
+
+            guard let point = selectedPoint else {
                 return nil
             }
             return GraphSampleValue(series: item, point: point)
@@ -147,6 +152,17 @@ struct GraphRenderResult {
         return abs(before.t - timestamp) <= abs(after.t - timestamp) ? before : after
     }
 
+    private func statePoint(in points: [GraphRenderedPoint], at timestamp: Double) -> GraphRenderedPoint? {
+        guard !points.isEmpty else {
+            return nil
+        }
+
+        let insertionIndex = upperBound(in: points, timestamp: timestamp)
+        if insertionIndex == 0 {
+            return points[0]
+        }
+        return points[insertionIndex - 1]
+    }
 }
 
 enum GraphBitmapRenderer {
@@ -181,14 +197,20 @@ enum GraphBitmapRenderer {
             height: max(size.height - 44, 1)
         )
 
+        let isStateTimeline = unit.lowercased() == "state"
         let visibleSeries = pointSeries.map { item -> GraphRenderedSeries in
-            let range = visibleRange(in: item.points, start: visibleStart, end: visibleEnd)
-            let target = targetPointCount(
-                plotWidth: plotRect.width,
-                seriesCount: pointSeries.count
-            )
-            let cache = item.minMaxCache ?? GraphMinMaxCache(points: item.points)
-            let points = cache.downsample(in: range, target: target)
+            let points: [GraphRenderedPoint]
+            if isStateTimeline {
+                points = timelinePoints(in: item.points, start: visibleStart, end: visibleEnd)
+            } else {
+                let range = visibleRange(in: item.points, start: visibleStart, end: visibleEnd)
+                let target = targetPointCount(
+                    plotWidth: plotRect.width,
+                    seriesCount: pointSeries.count
+                )
+                let cache = item.minMaxCache ?? GraphMinMaxCache(points: item.points)
+                points = cache.downsample(in: range, target: target)
+            }
 
             return GraphRenderedSeries(
                 entityID: item.entityID,
@@ -205,7 +227,6 @@ enum GraphBitmapRenderer {
         }
 
         let values = visibleSeries.flatMap { $0.points.map(\.y) }
-        let isStateTimeline = unit.lowercased() == "state"
         let axis = isStateTimeline
             ? GraphAxis(min: -0.05, max: 1.05, ticks: [])
             : niceAxis(values: values)
@@ -218,7 +239,6 @@ enum GraphBitmapRenderer {
                 size: size,
                 scale: scale,
                 plotRect: plotRect,
-                xTicks: xTicks,
                 visibleStart: visibleStart,
                 visibleEnd: visibleEnd
             )
@@ -325,7 +345,6 @@ enum GraphBitmapRenderer {
         size: CGSize,
         scale: CGFloat,
         plotRect: CGRect,
-        xTicks: [Double],
         visibleStart: Double,
         visibleEnd: Double
     ) -> CGImage? {
@@ -355,7 +374,7 @@ enum GraphBitmapRenderer {
             context.fill(CGRect(origin: .zero, size: size))
 
             let maxRowHeight: CGFloat = 24
-            let rowHeight = min(plotRect.height / CGFloat(series.count), maxRowHeight)
+            let rowHeight = min(plotRect.height / CGFloat(max(series.count, 1)), maxRowHeight)
             let totalHeight = rowHeight * CGFloat(series.count)
             let startY = plotRect.minY + (plotRect.height - totalHeight) / 2
 
@@ -366,9 +385,15 @@ enum GraphBitmapRenderer {
                     let point = item.points[i]
                     let nextT = (i + 1 < item.points.count) ? item.points[i+1].t : visibleEnd
 
-                    let startX = xPosition(point.t, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
-                    let endX = xPosition(nextT, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
-                    let blockWidth = max(endX - startX, 0)
+                    let startX = max(
+                        plotRect.minX,
+                        xPosition(point.t, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                    )
+                    let endX = min(
+                        plotRect.maxX,
+                        xPosition(nextT, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
+                    )
+                    let blockWidth = endX - startX
                     if blockWidth <= 0 { continue }
 
                     let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
@@ -441,10 +466,10 @@ final class GraphDateParser {
     }()
 
     func timestamp(from point: HAHistoryPoint) -> Double? {
-        if let value = point.lastUpdated, let date = parse(value) {
+        if let value = point.lastChanged, let date = parse(value) {
             return date.timeIntervalSince1970
         }
-        if let value = point.lastChanged, let date = parse(value) {
+        if let value = point.lastUpdated, let date = parse(value) {
             return date.timeIntervalSince1970
         }
         return nil
@@ -533,12 +558,13 @@ private final class GraphPreparedSeriesCache {
         fingerprint: GraphSourceFingerprint
     ) -> GraphPreparedCacheEntry? {
         let parser = GraphDateParser()
+        let isStateTimeline = displayUnit.lowercased() == "state"
         let points = input.history.points.compactMap { point -> GraphRenderedPoint? in
             guard let timestamp = parser.timestamp(from: point) else {
                 return nil
             }
             let value = numericValue(point.state)
-            if value == nil && displayUnit.lowercased() != "state" {
+            if value == nil && !isStateTimeline {
                 return nil
             }
 
@@ -549,6 +575,7 @@ private final class GraphPreparedSeriesCache {
             )
         }
         .sorted { $0.t < $1.t }
+        .removingRedundantStatePoints(enabled: isStateTimeline)
 
         guard !points.isEmpty else {
             return nil
@@ -583,6 +610,7 @@ private final class GraphPreparedSeriesCache {
         }
 
         let parser = GraphDateParser()
+        let isStateTimeline = displayUnit.lowercased() == "state"
 
         if let firstInput = input.history.points.first,
            let firstInputT = parser.timestamp(from: firstInput),
@@ -613,7 +641,7 @@ private final class GraphPreparedSeriesCache {
                     continue
                 }
                 let value = numericValue(point.state)
-                if value == nil && displayUnit.lowercased() != "state" {
+                if value == nil && !isStateTimeline {
                     continue
                 }
 
@@ -625,6 +653,8 @@ private final class GraphPreparedSeriesCache {
 
                 if let last = points.last, abs(last.t - renderedPoint.t) < 0.001 {
                     points[points.count - 1] = renderedPoint
+                } else if isStateTimeline, points.last?.display == renderedPoint.display {
+                    continue
                 } else {
                     points.append(renderedPoint)
                 }
@@ -697,7 +727,7 @@ private struct GraphSourceFingerprint: Equatable {
 }
 
 private func sourceTimestamp(from point: HAHistoryPoint) -> String? {
-    point.lastUpdated ?? point.lastChanged
+    point.lastChanged ?? point.lastUpdated
 }
 
 private func colorKey(_ color: GraphColor) -> String {
@@ -725,6 +755,32 @@ func visibleRange(
     return min(lower, points.count)..<min(max(upper, lower), points.count)
 }
 
+private func timelinePoints(
+    in points: [GraphRenderedPoint],
+    start: Double,
+    end: Double
+) -> [GraphRenderedPoint] {
+    guard !points.isEmpty else {
+        return []
+    }
+
+    let lower = lowerBound(in: points, timestamp: start)
+    let upper = upperBound(in: points, timestamp: end)
+    let startIndex: Int
+    if lower > 0 {
+        startIndex = lower - 1
+    } else {
+        startIndex = lower
+    }
+
+    guard startIndex < points.count else {
+        return [points[points.count - 1]]
+    }
+
+    let endIndex = max(upper, startIndex + 1)
+    return Array(points[startIndex..<min(endIndex, points.count)])
+        .removingRedundantStatePoints(enabled: true)
+}
 
 private func lowerBound(in points: [GraphRenderedPoint], timestamp: Double) -> Int {
     var low = 0
@@ -887,4 +943,19 @@ private extension Array where Element == GraphRenderedPoint {
         return output
     }
 
+    func removingRedundantStatePoints(enabled: Bool) -> [GraphRenderedPoint] {
+        guard enabled else {
+            return self
+        }
+
+        var output: [GraphRenderedPoint] = []
+        output.reserveCapacity(count)
+        for item in self {
+            if output.last?.display == item.display {
+                continue
+            }
+            output.append(item)
+        }
+        return output
+    }
 }
