@@ -67,3 +67,16 @@ Primary hass-frontend files cited by the module plans:
 - Markdown: `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/hui-markdown-card.ts`
 - Lovelace models/views: `/Users/jin/Documents/HA/hass-frontend/src/data/lovelace/config/*.ts`, `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/hui-root.ts`, `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/views/hui-view.ts`
 
+## Shared Testing Method
+
+Use [`../visual-testing.md`](../visual-testing.md) for the macOS 12/Xcode 13.4.1 rendering harness, artifact approval workflow, performance-metric availability, and current-machine limits. Each module plan below adds the fixtures, sizes, states, interactions, lifecycle checks, and pass conditions specific to that module.
+
+Keep the test layers distinct:
+
+- Pure/core tests in `NativeHACoreTests` prove decoding, formatting, geometry, state machines, and reference-frontend semantic contracts without AppKit or network access.
+- `@MainActor` offscreen GUI tests in `NativeHAMacTests` host SwiftUI in `NSHostingView` and capture through `bitmapImageRepForCachingDisplay(in:)` plus `cacheDisplay(in:to:)`; SwiftUI `ImageRenderer` is unavailable at the macOS 12/Swift 5.6 deployment level.
+- Every GUI test writes a current PNG to `.build/render-artifacts/` and first checks signature, dimensions, nonblank content, expected regions/colors, and settled asynchronous state. An approved, macOS-version-labelled image belongs in `Tests/NativeHAMacTests/ReferenceImages/` only after manual comparison with `/Users/jin/Documents/HA/hass-frontend` or the live reference frontend; tolerant pixel comparison may then enforce it. Do not approve current NativeHA output mechanically.
+- XCTest performance coverage uses `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, separates cold preparation from warmed interaction/update work, constructs fixtures outside measured blocks, and consumes measured results. Prefer stored baselines to machine-sensitive millisecond limits.
+- True launch, accessibility traversal, event-to-frame hitch, trackpad/scroll deceleration, and end-to-end input timing remain later XCUITest work under a newer Xcode app target. Xcode 13.4.1 has no `XCTHitchMetric`; module completion must not depend on that unavailable API.
+
+Default tests use fixed timestamps, appearance, logical sizes, display scale, color scheme, and—where the production API permits—locale/timezone. They do not use live Home Assistant state, credentials, or network access. Temporary `XCTExpectFailure` is acceptable only for a narrowly identified hass-frontend conformance gap, with a reason and removal required by the implementation that fixes it.

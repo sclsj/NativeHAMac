@@ -127,33 +127,60 @@ Out of scope:
 
 ## Tests And Verification
 
-Unit tests:
+Follow the shared harness and reference-approval rules in [`../visual-testing.md`](../visual-testing.md). Likely additions are `Tests/NativeHACoreTests/HomeAssistantHistoryStreamTests.swift`, `Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift`, and history-stream cases in `Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift`.
 
-- Decode compact states with `lc` present and absent.
-- Decode `a` as object, missing, and empty object.
-- Convert compact timestamps to `HAHistoryPoint` ISO strings or native timestamps consistently.
-- Accumulator initializes from first stream message.
-- Empty stream message keeps current combined history.
-- Out-of-order incoming chunks are sorted by `lu`.
-- Purging a time window keeps the last expired state at the cutoff with `lc` removed.
-- Timeline history preserves `unknown`, `unavailable`, and `none`.
-- Numeric graph prep skips nonnumeric points only in the numeric line path.
-- `historyKey` differentiates the same entity set with `1`, `3`, and `12` hour cards.
+### Unit tests
 
-Integration-style tests with a fake WebSocket dispatcher:
+- Decode compact states with `lc` present and absent; decode `a` as an object, missing, and empty; reject or deliberately handle malformed `s`/`lu`; and preserve fractional-second precision.
+- Convert compact timestamps to the centralized graph representation consistently. Assert that compact WebSocket fixtures cannot accidentally enter the REST decoder and vice versa.
+- Cover accumulator initialization, replay-complete empty messages, multiple entities, duplicate boundaries, out-of-order chunks sorted by `lu`, incremental entities not present in the replay, and deterministic merge ordering.
+- Drive trimming with an injected fixed clock. Preserve the last expired state at the cutoff, move its `lu` to the cutoff, clear `lc`, and avoid duplicating an existing cutoff state.
+- Preserve `unknown`, `unavailable`, and `none` in timeline input; skip only nonnumeric samples in numeric line preparation without mutating stored history.
+- Assert attribute-request policy for present/missing entities and every `NEED_ATTRIBUTE_DOMAINS` domain named above.
+- Assert that stable card keys distinguish ordered entity sets and `1`, `3`, and `12` hour cards. Add a semantic contract test against `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/hui-history-graph-card.ts`: each card retains its own `hours_to_show`. The existing narrow `XCTExpectFailure` in `GraphRenderingTests.swift` may remain only until this implementation fixes the gap, then must be removed.
 
-- Subscribe sends the expected `history/stream` payload.
-- Unsubscribe sends the matching unsubscribe command through module 02.
-- A subscription callback updates the right card key without affecting other history cards.
+Use small hand-written JSON fixtures for edge cases and generated, fixed-timestamp compact messages for scale. Do not read the live server or a token file.
 
-Manual QA on the live dashboard:
+### Integration tests
 
-- `Home`, `3h`, and `12h` views show history windows matching their Lovelace card config.
-- No global hour tab changes every graph at once.
-- State timelines show `unknown`/`unavailable` spans if such states occur.
-- Numeric sensor graphs still omit nonnumeric gaps instead of drawing bogus zeroes.
-- Reopening a detail sheet does not duplicate history points.
-- Disconnect/reconnect does not merge stale pre-disconnect history into a fresh replay.
+Use the Module 02 fake dispatcher/transport, a controllable clock, and a `@MainActor` `DashboardViewModel` fixture:
+
+- Verify the exact `history/stream` subscribe payload, normalized callback shape, matching unsubscribe command, and fresh `start_time` plus fresh accumulator on reconnect.
+- Start a history card in its loading state, deliver a finite initial replay, wait with a bounded expectation/poll until the graph render model is ready, then deliver an incremental chunk and assert that the visible model changes.
+- Subscribe two cards with overlapping entities. An update for one subscription must not mutate the other card's cache or render model.
+- Keep simultaneous `1h`, `3h`, and `12h` cards and assert independent cutoffs, keys, requests, and rendered windows after the same clock advance.
+- Cancel on card/view disappearance, profile change, and explicit unsubscribe. A late callback after cancellation must not publish UI state or recreate the card cache.
+- Reconnect after replay and verify one fresh subscription, no duplicate samples, and no stale pre-disconnect accumulator merge.
+
+### GUI rendering and visual regression
+
+This module owns a visible integration result even though Module 09 owns graph drawing. Add `@MainActor` offscreen history-card tests using the existing `MacViewPNGRenderer` pattern: `NSHostingView` in a small borderless AppKit window, captured with `bitmapImageRepForCachingDisplay(in:)` and `cacheDisplay(in:to:)`. Do not use SwiftUI `ImageRenderer`, which is unavailable for macOS 12/Xcode 13.4.1.
+
+- Render a `496 x 260`-point card at display scale `2` for a fixed numeric replay and for a state-timeline replay containing `off`, `on`, `unknown`, and `unavailable`. Use the same size for loading/replay/update comparisons, a fixed UTC source timestamp, and an explicit `Asia/Shanghai` display timezone where the production formatter permits it.
+- Capture the initial loading state, the settled replay, and the settled incremental-update state. Use bounded settlement polling for a rendered data region rather than an arbitrary long sleep; assert the replay and update PNGs are distinct.
+- Always write inspectable artifacts such as `history-stream-numeric-replay.png`, `history-stream-numeric-update.png`, and `history-stream-timeline-replay.png` to `.build/render-artifacts/`. Check PNG signature, exact pixel dimensions, nonblank content, graph/timeline color families, and that the replay is beyond the loading indicator before any baseline comparison.
+- Manually compare those artifacts with the identical entity states/window in `/Users/jin/Documents/HA/hass-frontend`. Only reviewed images may enter `Tests/NativeHAMacTests/ReferenceImages/`, labelled with the baseline macOS version and compared tolerantly. A screenshot does not prove merge ordering, window correctness, cancellation, or duplicate prevention; the semantic tests above do.
+
+### Animation and interaction
+
+Do not add scheduler-driven animation tests to the stream layer. Treat loading, replay-ready, and incremental-ready as explicit deterministic states and render those states directly. If the integration adds a graph data-transition animation, expose its progress and render start/midpoint/end (`0`, `0.5`, `1`), assert distinct intermediate output and that the final frame equals the nonanimated final render, and cover reduced motion if the production API supports it. Trackpad, hover, and pan behavior belongs to Module 09.
+
+### Performance and lifecycle
+
+Add separate XCTest measurements so stream work is not hidden inside bitmap cost:
+
+- In `NativeHACoreTests`, measure cold merge of a generated `20,000`-sample initial replay, warmed incremental processing of `100` successive `200`-sample chunks, adversarial out-of-order chunks, and repeated window trimming. Construct and decode fixture data outside a merge-only measured block when the test is intended to measure merging.
+- In `NativeHAMacTests`, separately measure bitmap rendering of the already-merged model. Do not include JSON decoding or accumulator work in the graph-render measurement.
+- Measure at least `100` subscribe/unsubscribe cycles with a fake transport, reconnect cycles with fresh accumulators, cancellation, and card/view disappearance. Assert receive/subscription storage returns to its pre-cycle count and use weak references or an equivalent lifecycle probe to show the coordinator/view model is released.
+- Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`; warm caches before warm interaction measurements, consume the merged history/render result, and store XCTest baselines rather than requiring aggressive fixed milliseconds. A deliberately loose safety ceiling is acceptable only with its rationale documented.
+
+Xcode 13.4.1 has no `XCTHitchMetric`. True event-to-frame hitch and trackpad tests are deferred to a future XCUITest app target under newer Xcode; they are not a completion gate here.
+
+### Manual QA
+
+- On the live dashboard, compare `Home`, `3h`, and `12h` with hass-frontend and confirm every card uses its configured window; no global hour tab changes all graphs.
+- Confirm initial replay becomes visible, incremental states arrive without duplicates, numeric gaps remain gaps rather than zeroes, and timeline `unknown`/`unavailable` spans remain visible.
+- Disconnect/reconnect and verify a fresh replay without stale merging. Reopen/close a detail sheet and switch views repeatedly to confirm subscriptions cancel and no post-disappearance updates occur.
 
 ## Risks
 
@@ -161,6 +188,8 @@ Manual QA on the live dashboard:
 - Double-appending `state_changed` plus `history/stream` updates will create duplicate or near-duplicate points.
 - Keeping `selectedGraphHours` during the transition will hide bugs because all cards appear to use the same request window.
 - Reconnect behavior is easy to get subtly wrong: hass-frontend explicitly avoids reusing the old accumulator and stale `start_time`.
+- A GUI snapshot can look correct while two card caches alias each other or while duplicate/out-of-order samples exist. Keep stream semantics and view-model isolation assertions separate from visual checks.
+- Unbounded settlement sleeps and combined merge-plus-render measurements will make regressions flaky or impossible to attribute; use bounded readiness and separate measurements.
 
 ## Acceptance Criteria
 
@@ -170,4 +199,7 @@ Manual QA on the live dashboard:
 - `unknown`, `unavailable`, and other non-empty state strings are preserved in timeline data.
 - Numeric line graph preparation filters only nonnumeric samples for line rendering.
 - All history subscriptions are cancelable and do not leak when views/cards/detail sheets disappear.
-
+- Core decoding/accumulator, fake-stream integration, card-isolation, reconnect, and cancellation tests pass without network access or credentials.
+- Numeric and timeline stream fixtures produce valid settled PNG artifacts at the documented size; any enforced reference was manually approved against hass-frontend and uses tolerant comparison.
+- Cold replay, incremental/out-of-order merge, trimming, bitmap rendering, and repeated subscription lifecycle measurements have stored XCTest baselines with no unexplained retained memory.
+- The per-card-hours conformance expectation is a normal passing assertion; no permanent `XCTExpectFailure` remains for behavior fixed by this module.

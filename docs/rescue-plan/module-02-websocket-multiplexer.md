@@ -132,27 +132,53 @@ Out of scope:
 
 ## Tests And Verification
 
-Unit tests with a fake WebSocket transport are strongly recommended. If `URLSessionWebSocketTask` is hard to fake, introduce a small protocol around send/receive.
+Follow the shared test-method guidance in [`../visual-testing.md`](../visual-testing.md), especially its macOS 12/Xcode 13.4.1 performance limits. This module is a transport primitive with no direct visual output, so card snapshots, visual references, and animation keyframes are deliberately unnecessary. Its correctness must be proved at the routing and lifecycle boundaries instead.
 
-Test cases:
+### Unit tests
 
-- Auth handshake succeeds only after `auth_required`, auth send, and `auth_ok`.
-- `callRaw` sends unique IDs and resolves responses out of order.
-- Two concurrent commands both receive the correct results.
-- A subscription receives events while a command is in flight.
-- A command response is not delivered to a subscription callback.
-- A subscription event is not swallowed by a pending command wait.
-- Unsubscribe sends the expected command and removes callback.
-- Disconnect fails all pending commands exactly once.
-- Cancellation of a command removes its continuation and later response is ignored.
-- Invalid JSON or unsupported WebSocket message type produces a controlled error.
+Add `Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift`. Put a small send/receive protocol in front of `URLSessionWebSocketTask` and drive it with a scripted fake transport; the default suite must not contact a server or use credentials. Keep complete sent-message and callback-delivery logs in the fake so tests can assert ordering without relying on real-time sleeps.
 
-Manual QA:
+Cover at least:
 
-- Start app, verify Lovelace config loads.
-- State changes continue to update rows while history subscriptions are active.
-- Trigger a refresh or another WebSocket command while state changes are flowing; no disconnection or stalled UI.
-- Close the app and ensure no hanging receive task prevents process exit.
+- Authentication accepts the `auth_required` -> auth send -> `auth_ok` sequence, rejects `auth_invalid`, and does not start more than one steady-state receive loop.
+- `callRaw` allocates unique, monotonically increasing IDs; concurrent calls resolve correctly when results arrive in or out of order; `success: true` with null/absent `result` is accepted where the command contract permits it.
+- Command failures retain the Home Assistant error code/message without including the access token or full sensitive request payload in diagnostics.
+- Subscription acknowledgement and early-event ordering are both safe. An event can arrive while a command is in flight, but command responses never reach callbacks and subscription events are never swallowed by command waits.
+- Subscription payload variants used by `subscribe_events`, `history/stream`, and `weather/subscribe_forecast` normalize according to their tested envelopes rather than assuming every payload is under `event`.
+- `cancel()` is idempotent, emits the centralized unsubscribe command exactly once, removes callback storage even if the socket is already gone, and ignores a late event.
+- Command-task cancellation removes and resumes its continuation exactly once; timeout, send failure, malformed JSON, unknown ID, unsupported frame type, and disconnect each take a controlled path.
+- Disconnect fails every pending command once, terminates subscriptions, drops callback storage, and leaves a late response harmless. A reconnect uses a fresh receive loop and IDs/subscriptions according to the documented reconnect policy; it must not silently replay stale history subscriptions.
+
+### Integration and stress tests
+
+Add `Tests/NativeHACoreTests/HomeAssistantWebSocketMultiplexerStressTests.swift` using deterministic prebuilt message scripts:
+
+- Route 10,000 interleaved results/events across at least 250 concurrent command and subscription IDs, then assert per-ID ordering, exact delivery counts, and a checksum of consumed payloads.
+- Stall one subscriber behind a bounded continuation while other subscribers and command responses continue. Assert that the slow subscriber cannot block the socket receive loop, corrupt order within another subscriber, or cause cross-ID delivery. The chosen overflow/back-pressure behavior for the slow subscriber must itself be asserted.
+- Exercise unsubscribe racing with an in-flight callback, task cancellation racing with a result, socket failure during send, and 100 disconnect/reconnect cycles. Use bounded expectations or polling, not long arbitrary sleeps.
+
+After module 05 owns visible connection state, a single `@MainActor` downstream smoke test may be added under `NativeHAMacTests` (likely `DashboardWebSocketLifecycleTests.swift`) to prove that a fake reconnect reaches `DashboardViewModel` and creates only one replacement state/history subscription. It should assert model state and fake-transport counts; a dashboard PNG is not needed to test low-level dispatch.
+
+### GUI rendering and animation
+
+None. The multiplexer owns no pixels or animation, so its tests should not produce PNGs or visual baselines. Do not use screenshots as evidence of routing, ordering, cancellation, or duplicate prevention. If a later reconnect banner requires visual coverage, that belongs to the dashboard-state module and must use the offscreen AppKit method in `../visual-testing.md`.
+
+### Performance and lifecycle
+
+Add XCTest measurements to `HomeAssistantWebSocketMultiplexerStressTests.swift` with fixture construction outside the measured block and a checksum/count consumed inside it so the optimizer cannot remove the work:
+
+- Measure warm dispatch of the predecoded 10,000-message/250-subscription script separately from JSON decoding and cold connection/authentication setup.
+- Measure end-to-end decode plus dispatch for a serialized 10,000-message script, callback allocation behavior, and incremental batches while subscriptions already exist.
+- Measure 100 reconnect cycles and repeated subscribe/cancel cycles separately; after draining tasks, assert pending-continuation, receive-loop, and callback-storage counts return to zero and retained memory does not grow monotonically.
+- Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, warm the dispatch path before warm measurements, and prefer stored XCTest baselines. Any hard-coded safety ceiling must be deliberately loose and documented.
+
+Xcode 13.4.1 does not expose `XCTHitchMetric`; event-to-frame hitch testing is neither useful nor required for this nonvisual module. Signpost metrics should be added only if dispatch is instrumented with a meaningful interval.
+
+### Manual QA
+
+- Start the app and verify Lovelace config loads while state changes and history subscriptions are active.
+- Trigger another WebSocket command and a reconnect while state changes flow; verify there is no stalled UI, cross-delivery, or duplicate state/history update.
+- Close the app and verify no receive task prevents process exit. Manual observation supplements, but does not replace, fake-transport counts and lifecycle assertions.
 
 ## Risks
 
@@ -160,6 +186,9 @@ Manual QA:
 - Resuming continuations more than once will crash. Pending command removal must be atomic inside the actor.
 - Treating all subscription messages as `event` may break `history/stream` or `weather/subscribe_forecast` if their payloads differ. Normalize at the connection layer with tests.
 - A reconnect layer that auto-replays stale history subscriptions will conflict with hass-frontend's explicit fresh-stream behavior.
+- An overly synchronous fake can hide receive/cancel races. The scripted transport must support independently suspended send, receive, and callback delivery, with bounded deterministic release points.
+- Unbounded child tasks can make a slow subscriber look isolated while creating memory growth or reordering. Stress tests must assert the selected queue/back-pressure contract and cleanup.
+- Tight wall-clock assertions will be machine-dependent. Store XCTest baselines and use deterministic delivery counts as the primary correctness signal.
 
 ## Acceptance Criteria
 
@@ -169,4 +198,7 @@ Manual QA:
 - Subscription owners receive an unsubscribe handle and can clean up.
 - Pending commands and subscriptions are cleaned up on disconnect or cancellation.
 - Module 01 can be implemented without introducing a second raw receiver.
-
+- The fake-transport suite proves routing, per-subscriber ordering, early-event handling, unsubscribe, cancellation, reconnect, timeout, and controlled malformed-message behavior without network access or credentials.
+- The 10,000-message/250-subscription stress fixture has no missing, duplicate, or cross-routed deliveries, including while one subscriber is stalled.
+- Wall-clock, CPU, and memory baselines exist for decode/dispatch, warm dispatch, and repeated reconnect/subscription lifecycle work; receive-loop and callback storage return to zero after cleanup.
+- No direct GUI snapshot is required for this nonvisual module; any downstream reconnect smoke test asserts exactly one replacement subscription rather than treating a screenshot as lifecycle proof.

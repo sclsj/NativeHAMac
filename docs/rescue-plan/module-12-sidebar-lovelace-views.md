@@ -143,29 +143,51 @@ Out of scope:
 
 ## Tests and Verification
 
-Add unit tests for:
+Use the shared offscreen and performance method in [`../visual-testing.md`](../visual-testing.md). Likely files are `Tests/NativeHAMacTests/LovelaceViewNavigationTests.swift`, `DashboardViewRoutingTests.swift`, and sidebar/dashboard cases in `GUIRenderingAndPerformanceTests.swift`. All tests touching `DashboardViewModel`, AppKit, or SwiftUI view state must be `@MainActor`.
 
-- Default view selection.
-- View selection by path.
-- Subviews hidden from primary navigation.
-- `visible: false` hidden from primary navigation.
-- Active view card list changes when selected view changes.
-- History subscription manager receives only active view cards.
-- Last selected view path restore/fallback.
+### Unit tests
 
-Suggested test files:
+- Select the default visible non-subview, select by stable path, restore the last path, and fall back predictably when the path disappears. Cover missing/duplicate paths as malformed input without inventing random identities.
+- Hide subviews and `visible: false` views from primary navigation while preserving direct subview routing/back-path data. Cover icon-only, title-only, icon-and-title, absent title, long title, panel, and empty-view configs.
+- Assert that active cards change without mutating decoded Lovelace config and that `Home`, `3h`, and `12h` retain their independent history-card options.
+- Make selection styling a deterministic pure value (selected, unselected, hover, keyboard focus, disabled/hidden as applicable) so its colors/indicator geometry can be tested without synthesizing pointer events.
 
-- `/Users/jin/Documents/Computer/NativeHA/Tests/NativeHAMacTests/LovelaceViewNavigationTests.swift`
-- `/Users/jin/Documents/Computer/NativeHA/Tests/NativeHAMacTests/DashboardViewRoutingTests.swift`
+### Integration tests
 
-Manual QA:
+Use a three-view fixture matching `default_view`, `home_3h`, and `home_12h`, plus fake Module 01 history, Module 07 forecast, and Module 08 template coordinators:
 
-- Launch against the live server.
-- Confirm the sidebar or top navigation shows `Home`, `3h`, and `12h`.
-- Select each view and confirm the visible cards match HA.
-- Confirm the history cards in `3h` use 3-hour windows and cards in `12h` use 12-hour windows without a global graph-hour override.
-- Switch views repeatedly and confirm old history/weather/template subscriptions do not keep updating hidden views.
-- Relaunch and confirm the last selected view restores if still present.
+- Initial routing starts subscriptions only for the selected view. Each view switch cancels obsolete history/weather/template owners before or atomically with starting the new set; switching back creates one subscription per visible card, not duplicates.
+- Deliver a late update from a canceled hidden view and assert it does not mutate visible view state or restart rendering. Hidden views must not schedule graph bitmap work.
+- Restore persisted selection, handle removed/hidden restored paths, route into/out of a subview, and verify back-path fallback.
+- Repeated resize/layout recalculation must preserve selected view/card identity and must not recreate subscriptions solely because the window width changed.
+
+### GUI rendering and visual regression
+
+Render navigation states this module owns: selected, unselected, hover, keyboard focus if implemented, long title, narrow window, loading config, and empty view. Also render a representative multi-card dashboard with entities, weather, Markdown, numeric history, and timeline history at real layout sizes.
+
+- Use `1792 x 1000` logical points for the current three-column desktop composition: the audited constants are a `238`-point sidebar and `496`-point card columns. Use `900 x 700` as the narrow-window fixture and document the chosen responsive behavior (fewer columns, horizontal overflow, or another implemented rule) rather than silently clipping controls.
+- Fix dark appearance/color scheme, display scale `2`, fixture timestamps, `en_US_POSIX`, and `Asia/Shanghai` where production formatting permits. Host SwiftUI in `NSHostingView` in a small offscreen AppKit window and capture with `bitmapImageRepForCachingDisplay(in:)` plus `cacheDisplay(in:to:)`; do not use unavailable SwiftUI `ImageRenderer` on macOS 12/Xcode 13.4.1.
+- Put all current PNGs in `.build/render-artifacts/`, for example `sidebar-selected-home.png`, `sidebar-hover-long-title.png`, `dashboard-three-column.png`, `dashboard-narrow.png`, `dashboard-loading.png`, and `dashboard-empty-view.png`. Check PNG signature, exact dimensions, nonblank content, expected selected/hover indicator regions, required card regions, and settled graphs rather than capturing their loading placeholders unintentionally.
+- Compare identical Lovelace fixtures manually with `/Users/jin/Documents/HA/hass-frontend` or the live frontend. Only reviewed images may become macOS-version-labelled references in `Tests/NativeHAMacTests/ReferenceImages/`, using tolerant comparison. A dashboard PNG does not prove routing, focus order, keyboard access, subscription cancellation, data semantics, or performance.
+
+### Animation and interaction
+
+- Prefer explicit selection/hover/focus models over nondeterministic mouse automation. If the selected indicator or sidebar movement animates, render deterministic progress `0`, `0.5`, and `1`; assert frames differ and the final frame equals the stable selected destination. Verify reduced motion if that animation and production support exist.
+- Semantically test click/keyboard selection and back routing through direct action invocation or bounded event expectations. True pointer travel, scroll deceleration, focus traversal, and event-to-frame hitch testing is deferred to a future XCUITest target under newer Xcode; Xcode 13.4.1 does not provide `XCTHitchMetric`.
+
+### Performance and lifecycle
+
+- Build a generated `500`-card dashboard fixture outside measured blocks, with nested stacks and a controlled mix of supported/unsupported cards. Measure cold route/layout preparation separately from a warmed render of the selected view.
+- Measure `100` repeated `Home -> 3h -> 12h` switching cycles with fake coordinators, plus repeated narrow/normal layout changes, using `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Consume selected card/subscription/render counts and prefer stored XCTest baselines over tight wall-time assertions.
+- Warm card/graph caches before measuring warm switching. Track subscription registries, render-task counts, and weak owners so each cycle returns to the expected active-view set and memory does not trend upward.
+- Measure cleanup/cancellation separately from initial load. A hidden view must have zero active history/forecast/template subscriptions and no continuing graph render or animation work after bounded settlement.
+- Use signpost metrics only around intentionally instrumented route-to-visible or subscription-reconciliation intervals. Do not require unavailable `XCTHitchMetric`.
+
+### Manual QA
+
+- Against the live server, compare the visible view navigation and card sets for `Home`, `3h`, and `12h` with hass-frontend; verify per-card windows and the absence of the global hour override.
+- Switch views rapidly, enter/leave any implemented subview, resize from wide to narrow and back, and relaunch for persisted-route recovery. Confirm hidden graphs stop rendering and old history/weather/template streams stop processing.
+- Verify keyboard navigation, visible focus, logical focus order, activation, resize behavior, scroll/overflow behavior, long-title truncation, card/sidebar clipping, and empty/loading states manually. Offscreen snapshots cannot establish accessibility or real focus behavior.
 
 ## Dependencies
 
@@ -179,6 +201,8 @@ Manual QA:
 - Current local column rules may have been compensating for dashboard layout. Removing them abruptly could degrade layout. Keep profile layout hints available but secondary to Lovelace.
 - Lovelace visibility conditions can depend on user identity. Implement simple cases first and fail open with documented limitations if needed.
 - Keeping hidden views subscribed will waste bandwidth and can corrupt visible state. Active-view subscription boundaries are required.
+- Fixed full-window snapshots can miss routing/subscription defects and can be OS-sensitive because of fonts/system controls. Pair them with semantic lifecycle tests and macOS-version-labelled tolerant baselines.
+- A large dashboard can recreate expensive graph/card work on every selection or resize if identity is unstable. Include stable-identity, warmed-switching, and hidden-render-task assertions.
 
 ## Acceptance Criteria
 
@@ -187,4 +211,8 @@ Manual QA:
 - Global graph-hour controls no longer override card configuration.
 - Active view selection controls which cards and subscriptions are active.
 - Hardcoded personal sidebar labels are removed or isolated behind profile settings.
-
+- Routing, persistence/fallback, subview visibility/back path, and active-card tests pass with stable identities and no mutation of decoded config.
+- Switching views starts exactly the required subscriptions, cancels the old set, rejects late hidden-view updates, and leaves hidden views with no graph rendering/animation work.
+- Selected/unselected/hover/long-title/loading/empty, wide multi-column, and narrow layouts emit valid PNG artifacts at the documented sizes; any enforced references were manually reviewed against hass-frontend and compare tolerantly.
+- Stored performance baselines cover the generated `500`-card dashboard and repeated warmed switching/resizing with no unexplained task, subscription, or memory growth.
+- Keyboard focus/navigation and resize/clipping pass manual QA; unavailable XCUITest/hitch coverage is documented rather than simulated with unreliable sleeps.
