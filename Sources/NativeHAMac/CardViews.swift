@@ -743,7 +743,7 @@ struct BitmapLineChart: View {
     }()
 }
 
-private func anchoredPanFraction(
+func anchoredPanFraction(
     oldZoom: CGFloat,
     newZoom: CGFloat,
     oldPanFraction: Double,
@@ -767,7 +767,7 @@ private func anchoredPanFraction(
     return min(max(nextPan, 0), 1)
 }
 
-private func panDelta(for scrollDelta: CGFloat, zoomScale: CGFloat) -> Double {
+func panDelta(for scrollDelta: CGFloat, zoomScale: CGFloat) -> Double {
     let zoom = max(Double(zoomScale), 1.000001)
     return Double(scrollDelta / 900) / max(zoom - 1, 0.000001)
 }

@@ -9,6 +9,8 @@ The first implementation slice is a reusable Swift package:
 - `NativeHACoreTests`: request construction and decoding tests.
 - `NativeHAMac`: native macOS dashboard app.
 - `GraphBench`: graph algorithm/rendering benchmark using real Home Assistant history.
+- `NativeHAMacTests`: graph contracts, offscreen GUI PNG checks, animation keyframes,
+  and XCTest performance metrics that run on macOS 12.
 
 The current app is macOS-only and intentionally avoids WebView/JavaScript. It reads the Lovelace dashboard config through Home Assistant's WebSocket API, renders supported cards with SwiftUI, and renders history graphs through off-main CoreGraphics bitmaps with a lightweight SwiftUI hover/gesture overlay.
 
@@ -24,6 +26,9 @@ The current app is macOS-only and intentionally avoids WebView/JavaScript. It re
 cd /Users/jin/Documents/Computer/NativeHA
 swift test
 ```
+
+See [`docs/visual-testing.md`](docs/visual-testing.md) for GUI artifacts, approved
+visual baselines, animation-frame checks, and performance-test guidance.
 
 ## Run The macOS App
 

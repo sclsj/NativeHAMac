@@ -54,5 +54,10 @@ let package = Package(
             name: "NativeHACoreTests",
             dependencies: ["NativeHACore"]
         ),
+        .testTarget(
+            name: "NativeHAMacTests",
+            dependencies: ["NativeHAMac"],
+            exclude: ["ReferenceImages"]
+        ),
     ]
 )
