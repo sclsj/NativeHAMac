@@ -60,6 +60,18 @@ request more than one phase.
 - Start staged rescue planning with `docs/rescue-plan/README.md`, but verify its
   claims against current code, live behavior, `docs/user-deviations.md`, and
   `docs/configurability.md`.
+- Use `docs/reference-context/README.md` as the durable module evidence and
+  handoff index. For a missing or stale packet, create or refresh the reviewed
+  module manifest, generated dependency graph, and human evidence packet by
+  following `docs/reference-context/module-workflow.md`.
+- Resolve reference sources with `tools/reference-context/trace-ts-deps.mjs`
+  through a module manifest instead of manually crawling all of
+  `hass-frontend`. Record repository revision, relative path, stable symbol,
+  and blob/content hash; line numbers are navigation hints only. Calls through
+  types or dependency injection may require an explicit reviewed runtime seed.
+- Keep generated graphs rebuildable and out of prompt context. Promote only
+  behavior-relevant contracts, anchors, decisions, risks, and unresolved
+  questions into the human evidence packet.
 - Keep stages or modules small enough for one bounded agent/session. Make plans
   descriptive and self-contained enough for a later implementation session.
 - Maintain durable reference indexes and rescue/action-plan artifacts. Focus
@@ -74,6 +86,14 @@ request more than one phase.
 - Establish the cause from relevant code, observed behavior, and tests before
   speculative fixes. Prefer simple, minimally invasive changes that preserve
   required behavior.
+- For a staged module with a reference-context packet, run its documented
+  staleness check and read the packet before editing. If green, use its contract
+  IDs and cited anchors without reopening the broad planning audit or loading
+  the full generated graph. If missing, yellow, or red, stop application edits
+  and dispatch a bounded read-only packet refresh first.
+- Use one Swift-writing owner at a time. A researcher may prepare the packet and
+  an independent verifier may follow the implementation, but they must not make
+  overlapping application-code edits.
 - If a useful product, performance, or resource choice can be configurable,
   make it configurable in `Sources/NativeHAMac/AppConfig.swift` instead of
   hardcoding it. This includes ambiguous algorithms such as downsampling,
@@ -116,6 +136,10 @@ request more than one phase.
 
 - Verify the surface changed by each stage and add relevant regression coverage;
   do not assume an earlier audit found bugs introduced later.
+- For a packet-backed module, verify by contract ID, update its validation
+  results and exact failures, and move its status to `complete` only when all
+  required offline, live, visual, performance, and lifecycle checks that apply
+  have evidence.
 - Use testing appropriate to the changed module, including GUI, animation,
   responsiveness, concurrency, cache, and performance verification where those
   concerns apply.
@@ -135,6 +159,10 @@ request more than one phase.
 
 ## Finish
 
+- Before a phase handoff, compaction, or session end, update the module evidence
+  packet with status, decisions, actual diff scope, validation, remaining gaps,
+  and the exact next action. This packet, not the raw transcript or generated
+  dependency graph, is the durable continuation point.
 - Give detailed plain-language conclusions and keep cross-session handoffs
   self-contained.
 - If the task produced changes, inspect the exact final diff and commit the

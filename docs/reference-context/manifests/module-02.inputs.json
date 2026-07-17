@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "02",
+  "title": "WebSocket multiplexer and subscription architecture",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": ["HomeAssistantWebSocketClient"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel.load"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/entrypoints/core.ts",
+      "symbols": ["connProm"]
+    },
+    {
+      "path": "src/data/lovelace/config/types.ts",
+      "symbols": ["fetchConfig"]
+    },
+    {
+      "path": "src/util/websocket.ts",
+      "symbols": ["callWS"]
+    },
+    {
+      "path": "src/data/history.ts",
+      "symbols": ["subscribeHistoryStream"]
+    },
+    {
+      "path": "src/data/weather.ts",
+      "symbols": ["subscribeForecast"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+      "symbols": ["Connection"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/socket.js",
+      "symbols": ["createSocket"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "symbols": ["supportedFeatures", "unsubscribeEvents"]
+    }
+  ],
+  "followPackages": ["home-assistant-js-websocket"],
+  "followTypeOnly": false,
+  "maxDepth": 6,
+  "maxNodes": 5000
+}
