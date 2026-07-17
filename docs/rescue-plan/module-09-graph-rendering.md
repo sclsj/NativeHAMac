@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Keep the existing native graph rendering pipeline, but align the remaining behavior with Home Assistant history charts: step line charts, timeline handling, time axes, tooltips, per-card options, and interaction behavior.
+Keep the existing native graph rendering pipeline, but align the remaining behavior with Home Assistant history charts except where the approved native interaction and smooth y-axis deviations apply.
 
 This is not a rewrite module. The current CoreGraphics bitmap path, timeline builder, prepared series cache, and min/max downsampling cache are strong foundations.
 
@@ -21,7 +21,7 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/GraphRe
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
 
-- `HistoryGraphCard` labels use global selected hours today, not per-card `hours_to_show`.
+- `HistoryGraphCard` labels use the current bare global selected hours. The intended global selector remains, but its ranges/default/scope must come from the typed `AppConfig` policy without rewriting decoded cards.
 - Card options such as names, legend behavior, `show_names`, `min_y_axis`, `max_y_axis`, and logarithmic scale are not fully modeled.
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Tests/NativeHAMacTests/HistoryGraphSupportTests.swift`:
@@ -49,13 +49,13 @@ Keep the existing renderer split:
 
 - History ingestion and normalization comes from Module 01.
 - Card options come from Module 04.
-- Per-card subscription lifecycle comes from Module 05.
-- The renderer receives prepared, card-local `HistoryGraphRenderModel` input.
+- Visible-card subscription lifecycle comes from Module 05.
+- The renderer receives prepared `HistoryGraphRenderModel` input with the effective selected range.
 
 Add or refine these types:
 
 - `HistoryGraphCardOptions`
-  - `hoursToShow`
+  - effective selected range from the typed time-range policy
   - `showNames`
   - `fitYData`
   - `minYAxis`
@@ -76,9 +76,9 @@ Add or refine these types:
    - Do not replace bitmap rendering with a web view or a new chart framework.
    - Keep caches unless profiling shows a concrete defect.
 
-2. Use card-local options.
-   - Remove graph rendering's dependence on global selected hours.
-   - Consume `hours_to_show` from each `history-graph` card.
+2. Use the configured range policy without mutating cards.
+   - Replace dependence on bare global selected hours with the typed `AppConfig` policy.
+   - Preserve decoded `hours_to_show`, but use the effective selector range for the intended Home dashboard unless an explicit per-graph override is configured.
    - Add `show_names`, `min_y_axis`, `max_y_axis`, `fit_y_data`, `logarithmic_scale`, and `expand_legend` where decoded by Module 04.
 
 3. Implement step-end line paths.
@@ -111,10 +111,11 @@ Add or refine these types:
    - Implement `fit_y_data` where supported.
    - Add guardrails for flat series, NaN, infinity, and empty series.
    - Implement logarithmic scale only for strictly positive numeric data; otherwise fall back with a visible debug/test error or safe linear scale.
+   - While zooming or inertial panning changes the visible range, update numeric y-axis bounds smoothly and continuously. Keep interpolation/look-ahead/hysteresis tuning in a typed `AppConfig` policy and select it through visual and performance testing.
 
 9. Keep performance guardrails.
-   - Retain min/max downsampling for high-volume numeric sensors.
-   - Add performance fixtures using existing `sps30_*` scratch data only as optional local research artifacts, not as committed fixtures unless sanitized and intentionally added.
+   - Preserve spikes and visible detail. Benchmark the current min/max path, a no-loss oracle, and other sensible native/reference candidates; keep the selected algorithm and any measured crossover configurable in `AppConfig.swift`.
+   - Move reusable benchmark fixtures, methodology, size metadata, and results into a tracked `Benchmarks/<topic>/` directory; local live-data scratch files may remain inputs rather than test fixtures.
 
 10. Add visual regression hooks.
    - Keep pure rendering functions testable.
@@ -149,8 +150,8 @@ Extend the proven experiments in `Tests/NativeHAMacTests/GraphRenderingTests.swi
 - Hover at exact samples, between samples, before the first sample, after the last sample, and across a gap. The line lookup must use the last sample at or before hover time, matching `/Users/jin/Documents/HA/hass-frontend/src/components/chart/state-history-chart-line.ts`; timeline lookup must return the active segment. Remove the current hover `XCTExpectFailure` when fixed.
 - Assert timeline segment boundaries and stable, distinct colors for `off`, `on`, `unknown`, `unavailable`, and `none`; preserve the original stored history while numeric preparation skips only nonnumeric samples.
 - Cover axis bounds for explicit min/max, `fit_y_data`, flat/empty/single-point series, NaN/infinity, and logarithmic fallback with nonpositive values. Assert time ticks and nonoverlap decisions for `1h`, `3h`, `12h`, and `24h` at `320` and `496` point widths with fixed `en_US_POSIX` locale and `Asia/Shanghai` timezone where the production API permits injection.
-- Assert stable series colors across redraw/reorder rules, legend names/options, clipping to plot rect, and card-local hours. The per-card contract comes from `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/hui-history-graph-card.ts`; remove the current per-card-hours `XCTExpectFailure` when Modules 01/05/09 correct it.
-- Keep pure tests for `anchoredPanFraction`, pan delta/sensitivity, zoom limits, viewport selection, pan clamping at both ends, pointer-time anchoring, and gesture-delta-to-model conversion. These tests—not screenshots—prove interaction math.
+- Assert stable series colors across redraw/reorder rules, legend names/options, clipping to plot rect, raw `hours_to_show` preservation, and effective `1h`/`3h`/`12h` selector ranges. Replace the current per-card-hours `XCTExpectFailure` with the approved range-policy contract.
+- Keep pure tests for pointer-anchored vertical-scroll zoom, horizontal-scroll pan sensitivity/inertia, zoom limits, viewport selection, loaded-coverage pan clamping, and gesture-delta-to-model conversion. The selected/default range is an initial viewport, not a zoom-out ceiling; test configured expansion beyond it. These tests—not screenshots—prove interaction math.
 - Add deterministic downsampling tests with narrow positive and negative spikes between quiet samples. Assert both extrema survive and that downsampled time ordering and endpoints remain valid.
 
 Any temporary conformance `XCTExpectFailure` must name one known gap and its hass-frontend source, and the fixing implementation must remove it. Do not normalize expected failures as permanent parity tests.
@@ -171,33 +172,34 @@ Use the existing macOS 12-compatible `MacViewPNGRenderer` approach: `NSHostingVi
 - Produce and manually review approved-reference candidates for at least: `graph-numeric-single.png`, `graph-numeric-multi.png`, `graph-state-timeline.png`, `graph-unknown-unavailable.png`, `graph-zoomed.png`, `graph-hover-tooltip.png`, `graph-empty.png`, and `graph-loading.png`.
 - Compare each candidate with the identical fixture/state in `/Users/jin/Documents/HA/hass-frontend` or the live reference frontend. Only reviewed output belongs in `Tests/NativeHAMacTests/ReferenceImages/`, documented with the baseline macOS version and enforced with tolerant comparison. When a change is intentional, inspect actual, expected, and preferably a diff artifact before updating the baseline.
 
-Approved screenshots do not prove step semantics, tooltip selection, per-card hours, downsampling correctness, interaction math, accessibility, lifecycle, or performance; those remain explicit tests above/below.
+Approved screenshots do not prove step semantics, tooltip selection, effective range policy, downsampling correctness, interaction math, accessibility, lifecycle, or performance; those remain explicit tests above/below.
 
 ### Animation and interaction
 
-- Render explicit model states instead of automating a trackpad: unzoomed, `4x` zoom anchored at a fixed `75%` plot position, left/mid/right pan clamps, hover over an exact point, hover between points, and tooltip near both plot edges. Assert each viewport/tooltip model and PNG is meaningfully distinct.
-- If axis/data transitions remain animated, expose deterministic interpolated state and render progress `0`, `0.5`, and `1`. Assert start/mid/end differ where expected and the end frame equals a stable final render. If the production code supports reduced motion, verify it goes directly to the final state. Do not make real-time sleeps or scheduler timing the primary test.
-- True magnification-event, trackpad inertia, and event-to-frame hitch coverage is deliberately deferred to an XCUITest app target under newer Xcode. Xcode 13.4.1 does not expose `XCTHitchMetric`.
+- Render explicit model states instead of automating a trackpad: unzoomed, `4x` pointer-anchored zoom, expanded-beyond-default coverage, left/mid/right loaded-coverage pan clamps, hover over an exact point, hover between points, and tooltip near both plot edges. Assert each viewport/tooltip model and PNG is meaningfully distinct.
+- For the required smooth y-axis transition, and any data transition that remains animated, expose deterministic interpolated state and render progress `0`, `0.5`, and `1`. Assert start/mid/end differ where expected and the end frame equals a stable final render. If the production code supports reduced motion, verify the intended reduced-motion behavior. Do not make real-time sleeps or scheduler timing the primary test.
+- True trackpad vertical-scroll zoom, horizontal-scroll inertia, and event-to-frame hitch coverage is deliberately deferred to an XCUITest app target under newer Xcode. Xcode 13.4.1 does not expose `XCTHitchMetric`.
 
 ### Performance and lifecycle
 
 - Separate cold parse/classify/prepare/cache population from warm cached bitmap rendering. Generate fixtures outside measured blocks and consume the prepared model/image so optimization cannot remove work.
 - Store baselines for realistic `720`-point cold preparation/rendering and a stress `20,000`-point warm cached render at `496 x 178`, scale `2`, including the current proven `4x` zoom/pan fixture. Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric` with warmed caches for warm paths.
 - Measure downsampling of a `20,000`-sample spike fixture and assert spikes remain in the result. Measure repeated warm pan/zoom/hover renders across a fixed viewport sequence separately from preparation.
+- If this module changes sampling/cache algorithms, keep the reusable benchmark and results under `Benchmarks/<topic>/` and compare correctness, elapsed time, CPU, and memory with live `1h` and `24h` data as well as adversarial fixtures.
 - Measure render-request scheduling/cancellation under a burst of superseding viewports and repeated card appearance/disappearance. Assert canceled tasks do not publish and cached/render-task memory returns to a documented steady state.
 - Keep renderer work off the main actor where the architecture permits. Add signposts around scheduling-to-publication only if the code is instrumented meaningfully; otherwise assert main-actor work is limited to state capture/publication and use a broad, documented responsiveness ceiling only as a safety net. Prefer stored XCTest performance baselines to tight machine-dependent milliseconds.
 
 ### Manual QA
 
-- Compare live `1h`, `3h`, and `12h` cards with hass-frontend for card-local windows, step lines, timeline unknown/unavailable spans, previous-sample tooltip values, stable colors, and responsive warm pan/zoom/hover.
+- Compare the Home dashboard at selected `1h`, `3h`, and `12h` ranges with the corresponding reference data for step lines, timeline unknown/unavailable spans, previous-sample tooltip values, stable colors, and responsive warm trackpad zoom/pan/hover.
 - At normal and narrow card widths, inspect x-axis label clipping/overlap, `Asia/Shanghai` locale/time formatting, line width, grid lines, tooltip placement near edges, legend wrapping/expanded layout, explicit y-axis options, and empty/loading/error presentation.
-- Observe data/axis transitions and reduced-motion behavior if supported. Manual review is still required for perceived animation smoothness; automated hitch testing is not available on this machine.
+- Observe continuous y-axis response throughout zoom and inertial pan, plus reduced-motion behavior if supported. Manual review is still required for perceived animation smoothness; automated hitch testing is not available on this machine.
 
 ## Dependencies
 
 - Module 01 for correct history stream data.
 - Module 04 for graph card options.
-- Module 05 for per-card history and active-view lifecycle.
+- Module 05 for effective range and active-view lifecycle.
 - Module 12 because only the active Lovelace view should drive active graph subscriptions.
 
 ## Risks
@@ -211,13 +213,13 @@ Approved screenshots do not prove step semantics, tooltip selection, per-card ho
 
 ## Acceptance Criteria
 
-- Graphs use card-local `hours_to_show`.
+- Graphs use the effective typed `AppConfig` range policy while preserving raw `hours_to_show`.
 - Timeline graphs preserve `unknown` and `unavailable`.
 - Numeric line graphs use step-end behavior.
 - Hover/sample lookup matches state-history semantics.
-- Time axes are readable for live 1h, 3h, and 12h cards.
+- Time axes are readable for selected `1h`, `3h`, and `12h` ranges.
 - Existing graph performance optimizations remain intact.
-- Semantic tests pass for step-end paths, previous-sample hover, timelines/gaps, axes/ticks, stable colors, zoom anchoring, pan clamping, per-card hours, and spike-preserving downsampling; fixed gaps no longer remain under `XCTExpectFailure`.
+- Semantic tests pass for step-end paths, previous-sample hover, timelines/gaps, axes/ticks, stable colors, pointer-anchored zoom, inertial pan mapping/clamping, effective range selection/expansion, smooth y-axis transitions, and spike-preserving downsampling; fixed gaps no longer remain under `XCTExpectFailure`.
 - Light bitmap checks and the full settled `496`-point history-graph render pass without network access, and all required PNG candidates are written to `.build/render-artifacts/` for manual reference review.
 - Enforced visual references, when present, were reviewed against hass-frontend, are tied to a documented macOS version, and pass tolerant comparison.
 - Stored metrics cover cold preparation, realistic render, `20,000`-point warm cached render, downsampling, repeated interaction renders, superseded-task cancellation, and lifecycle memory without unexplained regression.

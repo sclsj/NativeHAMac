@@ -83,7 +83,7 @@ Message handling:
 3. Implement send serialization.
    - Use `JSONEncoder` or `JSONSerialization` consistently from `JSONValue`.
    - Include `id` and `type` in every command after auth.
-   - Avoid printing tokens or full payloads that may contain secrets.
+   - Keep diagnostics concise rather than dumping full payloads.
 
 4. Implement `callRaw`.
    - Register a pending continuation before sending.
@@ -142,7 +142,7 @@ Cover at least:
 
 - Authentication accepts the `auth_required` -> auth send -> `auth_ok` sequence, rejects `auth_invalid`, and does not start more than one steady-state receive loop.
 - `callRaw` allocates unique, monotonically increasing IDs; concurrent calls resolve correctly when results arrive in or out of order; `success: true` with null/absent `result` is accepted where the command contract permits it.
-- Command failures retain the Home Assistant error code/message without including the access token or full sensitive request payload in diagnostics.
+- Command failures retain the Home Assistant error code/message without requiring full request-payload dumps.
 - Subscription acknowledgement and early-event ordering are both safe. An event can arrive while a command is in flight, but command responses never reach callbacks and subscription events are never swallowed by command waits.
 - Subscription payload variants used by `subscribe_events`, `history/stream`, and `weather/subscribe_forecast` normalize according to their tested envelopes rather than assuming every payload is under `event`.
 - `cancel()` is idempotent, emits the centralized unsubscribe command exactly once, removes callback storage even if the socket is already gone, and ignores a late event.

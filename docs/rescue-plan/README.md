@@ -16,7 +16,7 @@ Implement in this order unless a future audit finds a blocker:
 6. `module-05-dashboard-viewmodel-state.md`
 7. Card/detail modules: `06`, `07`, `08`, `09`, `10`, `11`
 
-Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both remove the current global graph-hour tab model, so coordinate those changes.
+Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 
 ## Dependency Map
 
@@ -24,7 +24,7 @@ Module 1 and later subscription-heavy modules depend on module 2. Module 12 and 
 |---|---|---|---|
 | 01 | History `history/stream` | 02, partly 04 | 05, 09, detail history |
 | 02 | WebSocket multiplexer | none | 01, 07 forecast, 08 templates |
-| 03 | Server/profile preferences | none | 05, 12 cleanup |
+| 03 | Server profiles / typed `AppConfig` policies | none | 05, 12 cleanup |
 | 04 | Lovelace decode robustness | 02 for fetch path only | 01, 05, 06, 07, 08, 12 |
 | 05 | DashboardViewModel orchestration | 01, 02, 03, 04, 12 | Card behavior consistency |
 | 06 | Entities/entity rows | 04, 05 | Current dashboard row correctness |
@@ -33,15 +33,16 @@ Module 1 and later subscription-heavy modules depend on module 2. Module 12 and 
 | 09 | Graph rendering | 01, 05 | History visual parity |
 | 10 | Climate detail | 03, 05, 06 | More-info climate correctness |
 | 11 | Fan detail | 05, 06 | More-info fan correctness |
-| 12 | Lovelace views/sidebar | 04, partly 01 | Multi-view dashboard correctness |
+| 12 | Lovelace views/sidebar | 04, partly 01 | Dashboard navigation correctness |
 
 ## Live Dashboard Scope
 
 The live server surface from the parent audit should drive prioritization before broad Home Assistant coverage:
 
-- Three Lovelace views: `Home` (`default_view`), `3h` (`home_3h`), `12h` (`home_12h`).
+- Three Lovelace views exist: `Home` (`default_view`), `3h` (`home_3h`), `12h` (`home_12h`). The latter two are maintenance workarounds, not intended separate dashboards.
 - Flattened card types currently in use: `entities`, `history-graph`, `vertical-stack`, `weather-forecast`, `markdown`.
-- History cards use per-card `hours_to_show` values `1`, `3`, and `12`. NativeHA currently overwrites these with a global selected-hour control.
+- Present the intended Home dashboard once and use the typed `AppConfig` time-range policy for the available ranges, default, and selector behavior.
+- The default dashboard's `vertical-stack` values are layout workarounds. Preserve their raw config, but render the approved configurable three-column composition.
 - Weather cards currently use `show_forecast: false`. Current-state weather display matters before forecast rows.
 - Entity surface is mostly sensors, switches, automations, device trackers, binary sensors, weather, `climate.room_ac`, and `fan.ac_unit_controller_ac_fan`.
 
@@ -49,8 +50,8 @@ The live server surface from the parent audit should drive prioritization before
 
 - Do not generally remove `unknown`, `unavailable`, or `none` from history ingestion. The hass-frontend timeline path keeps these as timeline states with distinct colors. Numeric line graph preparation can skip nonnumeric samples in the line-only path.
 - Module 1 cannot be implemented correctly on top of the current WebSocket client. Module 2 must provide a single receive loop and ID-based dispatch first.
-- The global graph-hour tabs are not Home Assistant-like and conflict with the live dashboard. Preserve each history card's `hours_to_show`; use Lovelace views for `Home`, `3h`, and `12h`.
-- AppConfig's personal data is acceptable as prototype bootstrapping, but it must be isolated behind a server profile/preferences boundary instead of being scattered into dashboard transformation and rendering.
+- Keep one configurable graph-range selector on the intended Home dashboard instead of exposing the duplicate `3h` and `12h` maintenance views as separate dashboards.
+- Keep approved product, layout, interaction, scheduling, sampling, and cache choices as typed policies in `AppConfig.swift`; isolate server-profile state and avoid scattering either kind of configuration through rendering code.
 - Weather forecast support is lower priority for the current live dashboard because `show_forecast` is false, but weather icon/current-state/units should be corrected now and forecast subscription should be designed against module 2.
 - Graph rendering is not a failed subsystem. It already has useful bitmap rendering, timeline colors, parsing caches, and min/max downsampling. The remaining work is reference-aligned semantics and interaction polish, not a rewrite.
 

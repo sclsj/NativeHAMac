@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Replace the hardcoded sidebar/top-bar navigation with navigation derived from Lovelace views.
+Replace hardcoded sidebar navigation with navigation derived from genuine Lovelace views while keeping the approved configurable graph-range selector.
 
-The live dashboard has three views:
+The live configuration has three views:
 
 - `Home` with path `default_view`
 - `3h` with path `home_3h`
 - `12h` with path `home_12h`
 
-NativeHA currently renders only one view and uses global graph-hour buttons, which conflicts with Lovelace's actual view/card model.
+The `3h` and `12h` views are maintenance workarounds for graph ranges, not intended separate dashboards. Present Home once and use the typed `AppConfig` range policy; continue to support genuine additional Lovelace views.
 
 ## Current-Code Findings
 
@@ -55,12 +55,12 @@ Drive navigation from decoded Lovelace config:
   - Keeps app-level settings/profile controls separate from Lovelace views.
 - `DashboardView`
   - Renders active view title and cards.
-  - Removes global graph-hour controls.
+  - Keeps one graph-range selector driven by the typed `AppConfig` policy.
 
 ## Confirmed Corrections to Claude's Original Direction
 
-- The global `1h/3h/6h/12h/24h` graph-hour UI is not HA-like and conflicts with the live dashboard, where `hours_to_show` is encoded in cards/views.
-- Do not collapse the live `3h` and `12h` views into graph-hour filters. They are distinct Lovelace views and should remain navigable.
+- Keep one selector or equivalent control that changes the intended Home dashboard's graph range; configure its ranges, default, and scope in `AppConfig.swift`.
+- Do not expose the live `3h` and `12h` maintenance duplicates as intended separate navigation/content.
 - Do not hardcode the user's profile name or personal labels in the sidebar. Profile display belongs in Module 03.
 
 ## Implementation Tasks
@@ -92,15 +92,16 @@ Drive navigation from decoded Lovelace config:
    - Hide subviews from primary navigation unless directly routed.
    - Respect simple `visible: false` cases.
    - If conditional visibility is too broad for the first pass, decode and document unsupported conditions.
+   - Exclude or collapse the known `home_3h` and `home_12h` maintenance duplicates for the default dashboard while preserving their raw decoded config.
 
-4. Remove global graph-hour controls from the top bar.
+4. Keep the configured graph-range selector in the top bar or equivalent native location.
    - Do not mutate card configs when a user changes views.
-   - Let `Home`, `3h`, and `12h` view selection determine which cards and history windows are active.
+   - Let the typed `AppConfig` range policy determine the effective graph window on Home.
 
 5. Update card layout to use active view.
    - `dashboardColumns` should be active-view aware.
-   - Existing column rules from `AppConfig` should become optional profile layout hints, not the default source of truth.
-   - Start with masonry-like columns for regular views and single-column/panel behavior for `panel` views.
+   - Keep the approved default-dashboard three-column composition in a typed `AppConfig` layout policy; preserve raw `vertical-stack` config without treating it as desired grouping there.
+   - Use Lovelace layout semantics for unrelated dashboards, including single-column/panel behavior where configured.
 
 6. Tie subscriptions to active view.
    - History streams from Module 01 should be active only for visible cards in the selected view.
@@ -149,12 +150,12 @@ Use the shared offscreen and performance method in [`../visual-testing.md`](../v
 
 - Select the default visible non-subview, select by stable path, restore the last path, and fall back predictably when the path disappears. Cover missing/duplicate paths as malformed input without inventing random identities.
 - Hide subviews and `visible: false` views from primary navigation while preserving direct subview routing/back-path data. Cover icon-only, title-only, icon-and-title, absent title, long title, panel, and empty-view configs.
-- Assert that active cards change without mutating decoded Lovelace config and that `Home`, `3h`, and `12h` retain their independent history-card options.
+- Assert that active genuine views change without mutating decoded Lovelace config and that Home's `1h`, `3h`, and `12h` selector values change effective ranges without exposing duplicate dashboards.
 - Make selection styling a deterministic pure value (selected, unselected, hover, keyboard focus, disabled/hidden as applicable) so its colors/indicator geometry can be tested without synthesizing pointer events.
 
 ### Integration tests
 
-Use a three-view fixture matching `default_view`, `home_3h`, and `home_12h`, plus fake Module 01 history, Module 07 forecast, and Module 08 template coordinators:
+Use a fixture containing `default_view`, the `home_3h`/`home_12h` maintenance duplicates, and one genuine unrelated view, plus fake Module 01 history, Module 07 forecast, and Module 08 template coordinators. Assert the maintenance duplicates are not primary navigation items.
 
 - Initial routing starts subscriptions only for the selected view. Each view switch cancels obsolete history/weather/template owners before or atomically with starting the new set; switching back creates one subscription per visible card, not duplicates.
 - Deliver a late update from a canceled hidden view and assert it does not mutate visible view state or restart rendering. Hidden views must not schedule graph bitmap work.
@@ -178,14 +179,14 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 ### Performance and lifecycle
 
 - Build a generated `500`-card dashboard fixture outside measured blocks, with nested stacks and a controlled mix of supported/unsupported cards. Measure cold route/layout preparation separately from a warmed render of the selected view.
-- Measure `100` repeated `Home -> 3h -> 12h` switching cycles with fake coordinators, plus repeated narrow/normal layout changes, using `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Consume selected card/subscription/render counts and prefer stored XCTest baselines over tight wall-time assertions.
+- Measure `100` repeated graph-range changes plus genuine view switches with fake coordinators, and repeated narrow/normal layout changes, using `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Consume selected card/subscription/render counts and prefer stored XCTest baselines over tight wall-time assertions.
 - Warm card/graph caches before measuring warm switching. Track subscription registries, render-task counts, and weak owners so each cycle returns to the expected active-view set and memory does not trend upward.
 - Measure cleanup/cancellation separately from initial load. A hidden view must have zero active history/forecast/template subscriptions and no continuing graph render or animation work after bounded settlement.
 - Use signpost metrics only around intentionally instrumented route-to-visible or subscription-reconciliation intervals. Do not require unavailable `XCTHitchMetric`.
 
 ### Manual QA
 
-- Against the live server, compare the visible view navigation and card sets for `Home`, `3h`, and `12h` with hass-frontend; verify per-card windows and the absence of the global hour override.
+- Against the live server, confirm Home appears once, `3h`/`12h` maintenance duplicates are not primary navigation, and the configured selector reproduces those graph ranges without changing unrelated Home content.
 - Switch views rapidly, enter/leave any implemented subview, resize from wide to narrow and back, and relaunch for persisted-route recovery. Confirm hidden graphs stop rendering and old history/weather/template streams stop processing.
 - Verify keyboard navigation, visible focus, logical focus order, activation, resize behavior, scroll/overflow behavior, long-title truncation, card/sidebar clipping, and empty/loading states manually. Offscreen snapshots cannot establish accessibility or real focus behavior.
 
@@ -193,12 +194,12 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 
 - Module 04 for robust Lovelace view decoding.
 - Module 05 for active-view state and subscription lifecycle.
-- Module 01 for per-card history windows.
+- Module 01 for effective selected history ranges.
 - Module 03 for replacing hardcoded sidebar profile labels.
 
 ## Risks
 
-- Current local column rules may have been compensating for dashboard layout. Removing them abruptly could degrade layout. Keep profile layout hints available but secondary to Lovelace.
+- Applying the default-dashboard three-column exception to unrelated dashboards would discard intended Lovelace layout semantics. Scope the typed `AppConfig` policy to the approved dashboard.
 - Lovelace visibility conditions can depend on user identity. Implement simple cases first and fail open with documented limitations if needed.
 - Keeping hidden views subscribed will waste bandwidth and can corrupt visible state. Active-view subscription boundaries are required.
 - Fixed full-window snapshots can miss routing/subscription defects and can be OS-sensitive because of fonts/system controls. Pair them with semantic lifecycle tests and macOS-version-labelled tolerant baselines.
@@ -207,8 +208,8 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 ## Acceptance Criteria
 
 - Navigation is driven by Lovelace views from the server.
-- The live `Home`, `3h`, and `12h` views are all selectable.
-- Global graph-hour controls no longer override card configuration.
+- The live Home dashboard appears once; `3h` and `12h` maintenance duplicates are not exposed as intended separate dashboards.
+- The configured graph-range selector changes effective graph windows without mutating decoded card configuration.
 - Active view selection controls which cards and subscriptions are active.
 - Hardcoded personal sidebar labels are removed or isolated behind profile settings.
 - Routing, persistence/fallback, subview visibility/back path, and active-card tests pass with stable identities and no mutation of decoded config.

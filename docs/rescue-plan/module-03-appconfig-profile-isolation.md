@@ -6,7 +6,7 @@ Priority: high, but not a prerequisite for module 02. This should land before br
 
 ## Goal
 
-Move personal/server-specific runtime configuration behind explicit profile and preference boundaries. Keep prototype bootstrapping possible, but stop scattering private entity IDs, base URLs, card placement rules, hidden entities, and climate preset guesses through rendering and view-model logic.
+Separate server-profile state from typed product and presentation policies in `AppConfig.swift`. Keep prototype bootstrapping possible, but stop scattering entity IDs, base URLs, card placement rules, hidden entities, and climate preset guesses through rendering and view-model logic. Keep [`../configurability.md`](../configurability.md) synchronized when an approved configuration surface changes.
 
 ## Confirmed Current-Code Findings
 
@@ -31,66 +31,61 @@ hass-frontend stores dashboard configuration in Lovelace config and user/session
 
 ## Target Architecture
 
-Split current `AppConfig` into three categories:
+Separate the current mixed configuration into three categories:
 
-1. Build defaults
-   - Nonpersonal constants such as default timeouts, coalescing delays, chart render delays, and fallback layout dimensions.
-   - These can remain in source as `NativeHADefaults`.
+1. Typed `AppConfig` product policies
+   - Keep approved ranges, scheduling, layout, interaction, sampling, cache budgets, thresholds, and useful presentation choices in `Sources/NativeHAMac/AppConfig.swift`.
+   - Prefer typed policies/enums over unrelated scalar constants.
 
 2. Server profile
    - Base URL candidates.
    - Token source or account reference.
    - Last successful base URL.
    - Server identity metadata from `/api/config`, such as location name, time zone, unit system, and components.
-   - Stored in user defaults, app support JSON, or Keychain-backed profile data.
+   - Stored in user defaults or app support JSON as appropriate.
 
-3. User dashboard preferences/overrides
+3. Local dashboard presentation policies
    - Hidden entity IDs.
    - Optional extra card entities.
-   - Optional column placement rules.
+   - The approved default-dashboard three-column placement/layout rules.
    - Optional entity-specific UI hints, such as preset display labels.
-   - These should be clearly optional local overrides, not part of Lovelace decoding.
+   - Keep these typed in `AppConfig.swift`, separate from Lovelace decoding and server-profile persistence.
 
 Credentials:
 
-- Long-lived tokens must not be printed.
-- Prefer Keychain for stored token material.
-- If keeping a token-file bootstrap path, make it a debug-only default or an editable profile setting.
+- The existing local token-file bootstrap may remain. Credential migration, redaction, or Keychain work is not required by this module.
 
 ## Detailed Implementation Tasks
 
 1. Introduce profile models.
    - `HomeAssistantServerProfile`: id, displayName, baseURLs, tokenReference, lastWorkingBaseURL, created/updated timestamps.
-   - `DashboardPreferences`: hiddenEntityIDs, extraEntitiesByCardKey, columnRules, showEntityIDsByDefault.
-   - `EntityUIPreferences`: optional per-entity local presentation hints.
+   - `DashboardPresentationPolicy`: typed `AppConfig` values for hidden entities, extra entities, column/layout rules, and entity-ID display.
+   - `EntityUIPolicy`: optional typed `AppConfig` presentation hints.
 
 2. Create a profile store.
    - Minimal first pass: JSON file in Application Support plus token-file fallback.
-   - Better pass: Keychain token storage with profile metadata in Application Support.
    - Include migration from current `AppConfig` constants for the current user only if needed.
 
 3. Refactor `DashboardViewModel.firstWorkingConnection`.
    - Read URL candidates from active profile.
    - Try `lastWorkingBaseURL` first.
    - Persist the successful URL back into the profile.
-   - Surface connection status without leaking token paths or token values.
+   - Surface connection status.
 
 4. Move card cleanup/augmentation out of generic Lovelace transformation.
-   - Personal hidden entities and extra entities should be applied in a named `DashboardPreferencesApplier`.
+   - Local hidden entities and extra entities should be applied in a named presentation-policy applier backed by `AppConfig.swift`.
    - Do not mutate decoded `LovelaceCard` values to smuggle in personal overrides.
    - Use stable card identity from module 04 rather than card title strings where possible.
 
 5. Remove `climatePresetTargetTemperatures` from generic climate behavior.
-   - If local prediction remains useful, store it as optional entity UI preference.
+   - If local prediction remains useful, store it as an optional typed `AppConfig` entity UI policy.
    - Module 10 should work correctly without local prediction.
 
 6. Clean up benchmark/probe configuration.
    - `HAProbe` already uses `HA_BASE_URL` and `HA_TOKEN`; keep that pattern.
    - Move `GraphBench` and `GraphPyramidBench` to environment variables or shared debug profile loading.
 
-7. Add a small preferences UI only if required.
-   - For this module's acceptance, a file-backed active profile is enough.
-   - A later UX module can add profile editing.
+7. Do not add a settings UI for these configuration surfaces unless a later task explicitly requests one.
 
 ## File Ownership And Scope
 
@@ -99,7 +94,7 @@ Likely files to edit in future implementation:
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/AppConfig.swift`
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardViewModel.swift`
 - Optional new `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/ProfileStore.swift`
-- Optional new `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardPreferences.swift`
+- Optional new `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardPresentationPolicy.swift`
 - `/Users/jin/Documents/Computer/NativeHA/Sources/GraphBench/GraphBench.swift`
 - `/Users/jin/Documents/Computer/NativeHA/Sources/GraphPyramidBench/GraphPyramidBench.swift`
 
@@ -111,26 +106,24 @@ Out of scope:
 
 ## Tests And Verification
 
-Use isolated temporary directories and fake connection probes throughout. The default suite must not read the developer's real token file, touch the real Application Support/Keychain entries, or contact any configured URL.
+Use isolated temporary directories and fake connection probes throughout. The default suite must not modify the developer's real token file or Application Support entries, or contact any configured URL.
 
 ### Unit tests
 
-Add `Tests/NativeHAMacTests/ProfileStoreTests.swift` and `DashboardPreferencesTests.swift` (the profile types currently belong to the macOS app target, so `NativeHAMacTests` is the existing appropriate target unless implementation moves pure models into `NativeHACore`). Cover:
+Add `Tests/NativeHAMacTests/ProfileStoreTests.swift` and `DashboardPresentationPolicyTests.swift` (the types currently belong to the macOS app target, so `NativeHAMacTests` is the existing appropriate target unless implementation moves pure models into `NativeHACore`). Cover:
 
 - An empty temporary store yields documented nonpersonal defaults; valid profile metadata round-trips exactly; malformed, truncated, old-version, absent, and unknown-field files have an explicit recovery/migration result rather than silently selecting a different server.
 - Profile selection precedence is deterministic: explicit test override, persisted active profile, then documented debug bootstrap/default. `lastWorkingBaseURL` is tried first only within the active profile, a successful fallback is persisted, and failures cannot mutate another profile.
 - Switching profiles cancels the prior connection attempt before starting the new one. A late fake response from the old profile cannot replace the active profile or its server metadata.
-- Token material is represented by a reference, not serialized into profile JSON or `UserDefaults`. Token-file bootstrap and Keychain/token-provider failures produce redacted errors.
-- Dashboard preferences apply hidden entities, extra entities, column rules, and `showEntityIDsByDefault` only for the selected preference set. Disabling preferences restores the untouched decoded Lovelace model; keys use stable module-04 identity rather than localized title alone.
+- Token-file bootstrap and any profile token reference follow deterministic precedence without changing another profile.
+- Typed `AppConfig` presentation policies apply hidden entities, extra entities, the approved default-dashboard column rules, and `showEntityIDsByDefault` without mutating the decoded Lovelace model; keys use stable module-04 identity rather than localized title alone.
 - Climate and fan presentation remains correct when all entity-specific preset hints are absent.
-
-Add a test log sink and a recursive inspection of emitted diagnostics, saved profile JSON, and any failure attachment names. Seed it with a conspicuous fake token and token-file path and assert neither appears. Do not print file contents on assertion failure until they have been redacted.
 
 ### Integration tests
 
-In `Tests/NativeHAMacTests/ProfileConnectionSelectionTests.swift`, inject a fake profile store, token provider, and URL probe into the startup path. Verify first launch, remembered fallback, profile switch, failure, cancellation, and relaunch precedence without network access. Assert profile A's token reference, last URL, preferences, and server metadata never leak into profile B.
+In `Tests/NativeHAMacTests/ProfileConnectionSelectionTests.swift`, inject a fake profile store, token provider, and URL probe into the startup path. Verify first launch, remembered fallback, profile switch, failure, cancellation, and relaunch precedence without network access. Assert profile A's token reference, last URL, and server metadata never leak into profile B.
 
-These tests should also pass a representative module-04 dashboard through `DashboardPreferencesApplier` and assert the original decoded value remains unchanged. This is a semantic model assertion; a screenshot cannot prove profile isolation.
+These tests should also pass a representative module-04 dashboard through the `AppConfig`-backed presentation-policy applier and assert the original decoded value remains unchanged. This is a semantic model assertion; a screenshot cannot prove configuration isolation.
 
 ### GUI rendering, animation, and interaction
 
@@ -141,7 +134,7 @@ No direct GUI snapshot or animation test is required, and the default tests shou
 Add `Tests/NativeHAMacTests/ProfileStorePerformanceTests.swift` with fixed temporary fixtures prepared before measurement:
 
 - Measure cold startup loading/decoding of a store containing 100 profiles separately from warm lookup of the active profile and token reference.
-- Measure 1,000 in-memory profile switches with a fake token provider/connection probe, consuming the final selected profile and URL. Also measure preference application to a predecoded 500-card dashboard separately from profile-file decoding.
+- Measure 1,000 in-memory profile switches with a fake token provider/connection probe, consuming the final selected profile and URL. Also measure presentation-policy application to a predecoded 500-card dashboard separately from profile-file decoding.
 - Repeatedly switch profiles while a fake connection attempt is suspended, then release stale attempts and assert cancellation leaves no retained tasks, callbacks, or cross-profile mutation. Use memory measurements and explicit weak/lifecycle assertions where possible.
 
 Use the macOS-12-compatible `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, warm caches before warm-path measurements, and prefer stored XCTest baselines over tight millisecond thresholds. Signposts are useful only if startup/profile switching has meaningful instrumentation. `XCTHitchMetric` is unavailable in Xcode 13.4.1; true app-launch/UI hitch work belongs to a later XCUITest target under newer Xcode, not this module.
@@ -149,26 +142,23 @@ Use the macOS-12-compatible `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetr
 ### Manual QA
 
 - Start the app using the current active server profile, then verify a failed first URL falls back and the winner is remembered after relaunch.
-- Disable personal dashboard preferences and verify the original Lovelace entities return; switch profiles and verify URL choices and overrides remain isolated.
-- Inspect console output, error banners, generated test artifacts, and persisted profile metadata for the conspicuous test secret and real credentials. Manual inspection is a final defense; automated redaction tests remain required.
+- Disable the local dashboard presentation policy and verify the original Lovelace entities return; switch profiles and verify server URL choices remain isolated.
+- Confirm the configured local token bootstrap and active profile still connect as expected.
 
 ## Risks
 
 - Moving config too early without a migration path can make the prototype harder to run.
-- Applying hidden entities at decode time can permanently distort Lovelace models in memory. Keep preferences as a separate presentation layer.
-- Token storage changes can accidentally print or persist secrets in plain text. Keep token handling narrow and auditable.
-- Tests that use the developer's real home directory or Keychain can overwrite a working profile and make results order-dependent. Require injected storage roots and token providers.
+- Applying hidden entities at decode time can permanently distort Lovelace models in memory. Keep the `AppConfig` policy as a separate presentation layer.
+- Tests that use the developer's real home directory or profile files can overwrite a working profile and make results order-dependent. Require injected storage roots and token providers.
 - Asynchronous profile switches can accept a late connection result from the previous profile. Cancellation and cross-profile isolation need deterministic suspended-probe tests.
-- Performance fixtures containing realistic-looking tokens can leak through XCTest attachments or failure diagnostics. Use conspicuous synthetic secrets and redaction-safe assertions only.
 
 ## Acceptance Criteria
 
-- Source-level personal values are limited to nonshipping debug defaults or removed entirely.
+- Server-profile state and approved typed `AppConfig` product/presentation policies have separate, explicit ownership.
 - Runtime server selection comes from an active profile.
-- Dashboard personal overrides are isolated in a preference model and can be disabled.
+- Dashboard presentation overrides are isolated in typed `AppConfig` policies and do not mutate decoded Lovelace data.
 - Climate/fan/card rendering no longer depends on `AppConfig` personal entity IDs for correctness.
 - Existing live server can still be reached with the user's current setup.
 - Persistence, migration/recovery, selection precedence, remembered fallback, profile switching, and cancellation pass against isolated temporary storage and fake probes with no network access.
-- Automated scans prove that profile files, logs, errors, and test artifacts contain neither token values nor sensitive token-file paths.
-- Cold profile loading, warm lookup/switching, and 500-card preference application have wall-clock, CPU, and memory baselines; repeated switching leaves no stale tasks or cross-profile updates.
+- Cold profile loading, warm lookup/switching, and 500-card presentation-policy application have wall-clock, CPU, and memory baselines; repeated switching leaves no stale tasks or cross-profile updates.
 - No direct GUI baseline is required because a settings/profile UI is out of scope; any visible connection-state coverage is owned by module 05.

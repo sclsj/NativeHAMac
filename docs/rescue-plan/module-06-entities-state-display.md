@@ -61,7 +61,7 @@ Add shared entity presentation helpers:
 ## Confirmed Corrections to Claude's Original Direction
 
 - Do not implement state display by excluding `unknown`, `unavailable`, or `none` globally. For entity rows, those should display clearly as unavailable/unknown states.
-- Do not place hardcoded personal display names or personal entity hiding in `EntitiesCard`. That belongs in Module 03 profile policy.
+- Do not place hardcoded personal display names or personal entity hiding in `EntitiesCard`. That belongs in the typed Module 03 `AppConfig` presentation policy.
 - Do not broaden toggle behavior only by adding domains. Toggle must also account for entity availability and service support where possible.
 
 ## Implementation Tasks
@@ -277,7 +277,7 @@ later XCUITest work under newer Xcode.
 
 - Module 04 for robust row config decoding.
 - Module 05 for moving display and action logic out of `DashboardViewModel`.
-- Module 03 for profile-based hidden entity handling.
+- Module 03 for `AppConfig`-based hidden entity handling.
 
 ## Risks
 

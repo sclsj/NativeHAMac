@@ -7,8 +7,8 @@ Turn `DashboardViewModel` from a large mixed coordinator into a predictable appl
 - Lovelace views and cards.
 - HA entity states and service calls.
 - WebSocket subscriptions.
-- Per-card history windows.
-- User/server profile preferences.
+- Configured graph history ranges.
+- Server profiles and typed `AppConfig` policies.
 - Error, retry, and loading states.
 
 This module should not be treated as a visual redesign. It is the integration layer that lets Modules 01, 02, 03, 04, 06, 07, 08, and 12 work without duplicating business rules across SwiftUI views.
@@ -17,12 +17,12 @@ This module should not be treated as a visual redesign. It is the integration la
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardViewModel.swift`:
 
-- `selectedGraphHours` is global view-model state. `cleanCards(_:)` rewrites every `history-graph` card with that global value, which conflicts with HA Lovelace where each history card owns `hours_to_show`.
-- `homeView` returns only the first Lovelace view or the view marked `default_view`. The live server has three Lovelace views: `Home`, `3h`, and `12h`, but NativeHA currently renders only one logical view.
-- `dashboardColumns` is based on `AppConfig.columnRules`, matching personal titles and entity IDs rather than Lovelace layout semantics.
+- `selectedGraphHours` is bare global view-model state, and `cleanCards(_:)` rewrites decoded `history-graph` cards with it. The approved selector remains global by default, but it must come from a typed `AppConfig` policy without mutating raw Lovelace values.
+- `homeView` returns only the first Lovelace view or the view marked `default_view`. The live `3h` and `12h` views are maintenance duplicates, so rendering the intended Home view once is correct once its configurable range selector is wired properly.
+- `dashboardColumns` is based on `AppConfig.columnRules`. That three-column composition is an approved default-dashboard deviation, but the layout values need one typed `AppConfig` policy instead of distributed constants.
 - `load()` fetches REST states, fetches Lovelace through WebSocket, then starts state subscriptions on the same WebSocket client. This depends on the broken single-reader WebSocket architecture described in Module 02.
-- `loadHistories(for:)` uses REST history and receives the card list after `cleanCards(_:)`, so the requested window is global rather than card-local.
-- `historyKey(entityID:hours:)` includes the global hours value. This is usable as a cache key, but the input hours must come from the card configuration, not a global segmented control.
+- `loadHistories(for:)` uses REST history and receives the card list after destructive `cleanCards(_:)`; the effective global range should instead come from the typed policy.
+- `historyKey(entityID:hours:)` includes the global hours value. This is usable as a cache key once the input comes from the effective `AppConfig` selector policy.
 - `historyEntityIDs(for:)` filters through `AppConfig.hiddenEntities`, which mixes server/user policy into core Lovelace rendering.
 - `displayState(for:)`, `displayName(for:)`, `domain(of:)`, and `canToggle(_:)` duplicate rules that should be centralized and aligned with HA frontend helpers.
 - `canToggle(_:)` currently recognizes only `switch`, `fan`, `input_boolean`, and `automation`. HA frontend also treats domains such as `light`, `group`, `humidifier`, and `valve` as toggle-capable when the entity is available.
@@ -65,8 +65,8 @@ Recommended ownership:
   - Provides active view and card list.
   - Preserves view path/title/visibility metadata from Module 04.
 - `HistoryCoordinator`
-  - Owns per-card history subscriptions after Modules 01 and 02.
-  - Keys history by entity set plus card-local `hours_to_show` and relevant options.
+  - Owns visible-card history subscriptions after Modules 01 and 02.
+  - Keys history by entity set plus the effective selected range and relevant options.
   - Cancels obsolete subscriptions.
 - `EntityDisplayFormatter`
   - Owns state display, name display, units, device classes, timestamps, and unavailable handling for Modules 06 and 10.
@@ -74,7 +74,7 @@ Recommended ownership:
   - Encapsulates calls such as toggle, climate target temperature, fan percentage, and automation trigger.
   - Keeps REST service-call behavior initially, but has one clear place to move to WebSocket `call_service` later.
 - `ServerProfile`
-  - Comes from Module 03 and replaces scattered `AppConfig` decisions.
+  - Comes from Module 03 and owns server connection state; approved product and presentation policies remain typed in `AppConfig.swift`.
 
 ## Implementation Tasks
 
@@ -91,19 +91,19 @@ Recommended ownership:
 3. Stop cleaning Lovelace cards globally.
    - Remove the behavior where `cleanCards(_:)` overwrites `hours_to_show`.
    - Keep only safe normalization that mirrors HA frontend behavior or is required for decode compatibility.
-   - Preserve card-local options for Modules 01 and 09.
+   - Preserve raw card options while applying the effective range policy separately for Modules 01 and 09.
 
-4. Move hidden/extra/personal entities behind profile policy.
+4. Move hidden/extra/default-dashboard presentation choices behind typed `AppConfig` policy.
    - Do not let `DashboardViewModel` know about hardcoded entity IDs.
-   - Ask `ServerProfile` or `DashboardPreferences` whether a profile wants additional synthetic cards, hidden entities, or local layout hints.
-   - Keep Lovelace config as the default source of truth.
+   - Ask the typed presentation/layout policy for additional synthetic cards, hidden entities, and the approved default-dashboard three-column placement.
+   - Keep Lovelace config as the default source of truth except for the explicit default-dashboard deviation.
 
 5. Add active view state.
    - Expose `views: [LovelaceView]`.
    - Expose `selectedViewID` or `selectedViewPath`.
    - Expose `selectedViewCards`.
    - Update history subscriptions when the selected view changes.
-   - This should be completed with Module 12.
+   - This should be completed with Module 12; do not expose the duplicate `3h`/`12h` maintenance views as intended dashboards.
 
 6. Replace duplicated display/domain helpers.
    - Move `domain(of:)`, `displayName(for:)`, `displayState(for:)`, and `canToggle(_:)` out of the view model.
@@ -113,7 +113,7 @@ Recommended ownership:
 7. Make history subscription lifecycle explicit.
    - After Module 01, replace REST `loadHistories(for:)` with `HistoryCoordinator.subscribe(card:)`.
    - Store unsubscribe handles.
-   - Cancel history subscriptions when the active view changes, when the server profile changes, and when the WebSocket reconnects.
+   - Cancel view-owned history subscriptions when the active view changes, when the server profile changes, and when the WebSocket reconnects. Shared low-priority prefetch/cache ownership is separate.
 
 8. Make realtime state subscription lifecycle explicit.
    - After Module 02, subscribe to `state_changed` through the multiplexer.
@@ -154,10 +154,10 @@ Use [`../visual-testing.md`](../visual-testing.md) for the shared macOS 12 rende
 ### Unit tests
 
 - Drive the bootstrap/state machine deterministically through starting/idle, loading states, loading Lovelace, subscribing, live/ready, partial-data, error, reconnecting, and disconnected semantics. Use the concrete production enum names that land; do not infer phases from display strings. Assert permitted transitions, retry transitions, and that component-specific errors do not erase usable data from other components.
-- Selecting each Lovelace view exposes only that view's cards; per-card `hours_to_show` survives normalization; hidden/extra entity policy remains profile-driven; toggle decisions delegate to Module 06.
+- Raw `hours_to_show` survives normalization while `1h`, `3h`, and `12h` selector values produce the corresponding effective graph ranges; hidden/extra/layout policy remains `AppConfig`-driven; toggle decisions delegate to Module 06.
 - `HAEntityStore` initial load, replacement, one-entity update, deletion/`new_state == nil`, stale update rejection if sequencing exists, and unrelated-entity preservation all receive pure tests.
 - Use a fixed burst fixture with duplicate entity IDs and assert coalescing publishes the last update per entity, preserves updates for other entities, and schedules at most the intended number of main-actor publications.
-- Verify retry entry points affect only their owned failure domain and that errors are sanitized of base-URL credentials/tokens.
+- Verify retry entry points affect only their owned failure domain.
 
 ### Integration tests
 
@@ -189,15 +189,15 @@ Exercise state changes by setting the view-model phase directly rather than slee
 
 ### Manual QA
 
-- Load the live server and confirm `Home`, `3h`, and `12h` remain usable with per-card `1`, `3`, and `12` hour history while realtime state updates continue.
+- Load the intended Home dashboard once and confirm its configurable selector produces `1h`, `3h`, and `12h` graph ranges while realtime state updates continue.
 - Disconnect/restore the server and verify recoverable partial/reconnecting/disconnected UI, retained usable data where intended, and recovery without duplicate rows, samples, or subscriptions.
-- Switch views and profiles and close/reopen the dashboard while watching diagnostics for canceled work and sanitized errors. Compare only the module-owned shell/status behavior with hass-frontend; card parity is accepted in the card modules.
+- Switch genuine views and profiles and close/reopen the dashboard while watching diagnostics for canceled work. Compare only the module-owned shell/status behavior with hass-frontend; card parity is accepted in the card modules.
 
 ## Dependencies
 
 - Module 02 is required before concurrent WebSocket subscription behavior can be reliable.
 - Module 01 is required before history can be moved off REST.
-- Module 03 should land before personal config is removed from view-model decisions.
+- Module 03 should land before server-profile and typed `AppConfig` policy decisions are removed from view-model internals.
 - Module 04 should land before active view routing is complete.
 - Module 06 should land before display/toggle helpers are fully removed from this type.
 - Module 12 should land with or shortly after active view state.
@@ -206,7 +206,7 @@ Exercise state changes by setting the view-model phase directly rather than slee
 
 - Refactoring all view-model responsibilities at once may create a broad diff. Prefer extracting helpers while preserving public API wrappers, then remove wrappers after card modules are migrated.
 - Realtime reconnect can produce duplicate subscriptions unless unsubscribe handles are tracked carefully.
-- A profile-driven hidden entity policy can accidentally hide entities that Lovelace intentionally configured. Default behavior should render Lovelace as configured and apply profile overrides only when explicitly enabled.
+- An `AppConfig` presentation policy can accidentally hide entities that Lovelace intentionally configured. Limit the approved default-dashboard exception to that dashboard and preserve raw Lovelace configuration.
 - A visually correct dashboard can still have illegal state transitions, expensive main-actor preparation, or retained tasks. Keep transition, executor, and lifecycle assertions independent of snapshots.
 - Performance measurements that combine JSON generation, background transformation, and main-actor publication will not identify UI stalls. Measure those phases separately.
 
@@ -217,7 +217,7 @@ Exercise state changes by setting the view-model phase directly rather than slee
 - Entity display and toggle decisions are delegated to testable helpers.
 - Entity state updates are applied through one store path.
 - History and state subscriptions have explicit cancellation and retry paths.
-- The live dashboard can switch among `Home`, `3h`, and `12h` without losing realtime updates.
+- The live dashboard presents Home once, changes graph ranges through the configured selector, and keeps realtime updates active.
 - No hardcoded personal entity IDs remain in `DashboardViewModel`.
 - Deterministic state-transition and fake-dependency integration tests cover loading, live, partial, error, reconnecting, disconnected, retry, cancellation, and late-callback suppression.
 - Module-owned loading/partial/error/reconnect/empty states produce valid offscreen PNG artifacts at the documented size; any enforced reference was reviewed against hass-frontend and uses tolerant comparison.

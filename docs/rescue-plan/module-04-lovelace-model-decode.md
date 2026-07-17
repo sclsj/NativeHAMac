@@ -121,7 +121,7 @@ View routing:
    - Keep camelCase Swift names mapped to snake_case Lovelace keys.
 
 5. Stop destructive card cleaning.
-   - Module 03 preferences may hide or augment presentation, but `cleanCards` should not rebuild cards and discard fields.
+   - Module 03 `AppConfig` presentation policies may hide or augment presentation, but `cleanCards` should not rebuild cards and discard fields.
    - Use a separate presentation filter that wraps/resolves cards without changing the decoded model.
 
 6. Add model tests using representative live dashboard snippets.
@@ -153,7 +153,7 @@ The authoritative schema references for this module are `/Users/jin/Documents/HA
 
 ### Unit tests
 
-Add `Tests/NativeHACoreTests/LovelaceModelDecodingTests.swift` with checked-in synthetic JSON under `Tests/NativeHACoreTests/Fixtures/Lovelace/`. Keep fixture timestamps absent or fixed and replace real entity IDs/secrets with stable test values.
+Add `Tests/NativeHACoreTests/LovelaceModelDecodingTests.swift` with checked-in synthetic JSON under `Tests/NativeHACoreTests/Fixtures/Lovelace/`. Keep fixture timestamps absent or fixed and replace live entity IDs with stable test values.
 
 Use at least these fixtures:
 
@@ -161,15 +161,15 @@ Use at least these fixtures:
 - `unknown-fields.json`: unknown top-level, view, card, action, entity-row, `grid_options`, visibility, header/footer, and nested keys with arrays, objects, booleans, numbers, nulls, and strings. Assert recursive raw-value equality after decode and presentation filtering.
 - `malformed-configurations.json` (or separate one-case fixtures): missing/unknown card type, missing entity, unsupported object row, null optional values, wrong scalar/container types, truncated JSON, empty views/cards, and a deeply nested but bounded stack. Assert the documented throw, skip, or invalid/unsupported-placeholder outcome for each case; do not silently drop an entire valid sibling list.
 
-Cover typed accessors and snake_case mapping for every field in **Fields To Add For Current Surface**. Add explicit tests that `hours_to_show` remains per card through nested traversal and preference application, `show_forecast: false` is distinguishable from absence, unknown keys survive, and decoded models never introduce UUID/random fallback values.
+Cover typed accessors and snake_case mapping for every field in **Fields To Add For Current Surface**. Add explicit tests that raw `hours_to_show` survives nested traversal even when the approved `AppConfig` selector policy supplies the effective displayed range, `show_forecast: false` is distinguishable from absence, unknown keys survive, and decoded models never introduce UUID/random fallback values.
 
-The existing narrowly scoped `XCTExpectFailure` for per-card `hours_to_show` in `Tests/NativeHAMacTests/GraphRenderingTests.swift` may document the current known gap while the implementation is still absent. Remove that expectation as part of the change that stops overwriting decoded hours; do not turn it into a permanent expected failure.
+Replace the existing per-card `hours_to_show` `XCTExpectFailure` in `Tests/NativeHAMacTests/GraphRenderingTests.swift` with separate assertions for raw-value preservation and the approved effective-range policy.
 
 Decode identical bytes twice and assert resolved view/card/row paths match. Then insert, remove, and reorder siblings and assert the documented path-identity behavior without accidental reuse. Because pure index paths intentionally change after reorder, also verify any fallback fingerprint is deterministic and does not contain Swift's process-randomized `hashValue`.
 
 ### Integration tests
 
-Add `Tests/NativeHAMacTests/LovelaceRenderingIntegrationTests.swift` to pass the representative and malformed fixtures through decode -> stable traversal -> optional module-03 preference wrapper -> `CardRenderer`. Assert supported card counts/order, unsupported placeholders, preserved original models, independent history hours, and stable SwiftUI IDs across identical refreshes. A late config refresh must update only the node whose semantic input changed.
+Add `Tests/NativeHAMacTests/LovelaceRenderingIntegrationTests.swift` to pass the representative and malformed fixtures through decode -> stable traversal -> module-03 presentation policy -> `CardRenderer`. Assert supported card counts/order, unsupported placeholders, preserved original models/raw history hours, the effective selected range, and stable SwiftUI IDs across identical refreshes. A late config refresh must update only the node whose semantic input changed.
 
 If a malformed card is intentionally rejected at the top-level decoder rather than represented, test the surrounding dashboard's explicit error/fallback state instead. This choice is an implementation-time hypothesis to resolve; whichever policy is selected must be consistent and covered rather than inferred from a screenshot.
 
@@ -178,7 +178,7 @@ If a malformed card is intentionally rejected at the top-level decoder rather th
 Extend `LovelaceRenderingIntegrationTests.swift` (or the existing `GUIRenderingAndPerformanceTests.swift`) with `@MainActor` offscreen renders for UI states that this decode module directly changes:
 
 - An unknown card fallback at `496 x 150` points and an unsupported entity-row/fallback card at `496 x 210` points.
-- A supported vertical stack decoded from JSON at the real dashboard column width, `496 x 640` points, containing nested entities, history, weather, and markdown cards. Use `360 x 640` as the narrow variant to expose wrapping/clipping caused by nested config. Do not require grid/conditional screenshots until those renderers themselves enter scope.
+- A supported vertical stack from a non-default synthetic dashboard decoded from JSON at `496 x 640` points, containing nested entities, history, weather, and markdown cards. Use `360 x 640` as the narrow variant to expose wrapping/clipping caused by nested config. The user's default dashboard instead follows the approved flattened three-column layout policy. Do not require grid/conditional screenshots until those renderers themselves enter scope.
 - Two otherwise identical refresh renders to catch layout churn from unstable identity; retain semantic identity assertions because pixel equality alone cannot prove lifecycle correctness.
 
 NativeHA targets macOS 12 with Swift 5.6/Xcode 13.4.1. Do not use SwiftUI `ImageRenderer`. Follow [`../visual-testing.md`](../visual-testing.md): host SwiftUI in `NSHostingView` inside a small offscreen AppKit window and capture through `bitmapImageRepForCachingDisplay(in:)` plus `cacheDisplay(in:to:)`. Fix dark appearance/color scheme, logical size, display scale `2`, locale/timezone where production APIs permit, and all fixture data. Tests touching `NSApplication`, SwiftUI state, or `DashboardViewModel` run on the main actor and use bounded settlement rather than arbitrary sleeps.
@@ -204,8 +204,8 @@ Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, warm caches before 
 
 ### Manual QA
 
-- Compare the representative fixture with its hass-frontend rendering and verify nested order, fallback visibility, card/view metadata effects, and each history card's configured `hours_to_show`.
-- Load the current live dashboard and confirm every supported card/row is present; unsupported card/row warnings identify the failing config without exposing secrets or crashing.
+- Compare the representative fixture with its hass-frontend rendering and verify raw nested order, fallback visibility, card/view metadata, and preserved `hours_to_show`; verify the default-dashboard flattening and effective range separately against the approved NativeHA policies.
+- Load the current live dashboard and confirm every supported card/row is present; unsupported card/row warnings identify the failing config without crashing.
 - Refresh and switch views repeatedly after module 12. Inspect for UUID-related flicker, lost card state, duplicate subscriptions, wrapping/clipping, and stale cards. Manual observation is required for conformance but does not replace semantic decode/identity or lifecycle assertions.
 
 ## Risks
@@ -225,7 +225,7 @@ Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, warm caches before 
 - Card and row identities are stable across refreshes.
 - `DashboardViewModel` no longer reconstructs `LovelaceCard` values just to apply local preferences.
 - Current live dashboard decodes without dropping configured cards or rows.
-- Representative, unknown-field, and malformed fixture suites cover every currently supported typed field, recursive raw preservation, nested sibling recovery, per-card hours, and deterministic path/fingerprint identity.
+- Representative, unknown-field, and malformed fixture suites cover every currently supported typed field, recursive raw preservation, nested sibling recovery, raw history hours plus effective range selection, and deterministic path/fingerprint identity.
 - Decode-to-render integration produces reviewed artifacts for unknown/unsupported fallback and `496`/`360`-point nested layouts, with PNG validity/region checks and optional approved macOS-versioned tolerant references.
 - The 500-card fixture has separate clock/CPU/memory baselines for cold decode, warm traversal/transformation, and repeated refresh; repeated disposal does not retain decoded models or resolved traversal nodes.
 - No test treats a screenshot as proof of data correctness, raw preservation, stable identity, lifecycle cleanup, accessibility, or performance.

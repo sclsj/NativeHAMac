@@ -57,7 +57,7 @@ Add climate-specific helpers:
 
 ## Confirmed Corrections to Claude's Original Direction
 
-- Remove personal preset target-temperature predictions from the core detail surface. If a user wants local shortcuts, they belong in Module 03 profile preferences and should be clearly separate from HA state.
+- Remove personal preset target-temperature predictions from the core HA-derived detail state. If retained as local shortcuts, keep them in an explicit typed `AppConfig` entity UI policy and clearly separate them from HA state.
 - Do not assume every climate entity supports `off` and `cool`; use `hvac_modes`.
 - Do not couple a climate detail view to a specific fan entity ID.
 
@@ -93,8 +93,8 @@ Add climate-specific helpers:
    - Do not inject `["off", "cool"]` when the entity does not provide modes.
    - If modes are missing, show current state and disable mode switching.
 
-4. Remove AppConfig preset target temperatures from default climate UI.
-   - If retained as user shortcuts, move them behind profile preference APIs from Module 03.
+4. Remove direct personal-preset lookup from generic HA-derived climate controls.
+   - If retained as user shortcuts, move them behind a typed `AppConfig` entity UI policy from Module 03.
    - Clearly label shortcuts as local shortcuts, not HA state.
 
 5. Implement service payload builders.
@@ -162,7 +162,7 @@ Test:
 - capability resolution for single target, target range, humidity, preset, fan, swing, auxiliary heat, and on/off controls;
 - no invented `off`/`cool` modes when `hvac_modes` is missing, and conservative behavior when attributes and feature bits disagree;
 - target clamping and step rounding at the minimum, maximum, half-step boundaries, invalid/zero step input, and both Celsius and Fahrenheit scales;
-- pure angle-to-progress and progress-to-temperature conversion at the dial endpoints and wrap boundary, progress clamping, dial hit regions, the four-point drag-versus-click threshold, and button increments;
+- pure angle-to-progress and progress-to-temperature conversion at the dial endpoints and wrap boundary, progress clamping, dial hit regions, the configured drag-versus-click threshold (current default: four points), and button increments;
 - exact service payloads for HVAC mode, single target, target range, humidity, preset, fan mode, swing mode, on, and off, including rejection while missing or unavailable;
 - optimistic-state transitions: request, matching server confirmation, a differing authoritative server value, service failure/rollback, and a stale earlier response arriving after a newer request.
 
@@ -245,7 +245,7 @@ Offscreen PNGs cannot establish data correctness, accessibility, service semanti
 - Supported feature bit constants must be kept aligned with HA.
 - Local preset shortcuts can be useful, but mixing them into HA-derived controls creates false confidence. Keep them separate if retained.
 - The current detail shell is fixed at `520x620`; a `360x620` content fixture can expose clipping, but changing the shell's width behavior must be confirmed against the intended dashboard presentation during implementation.
-- Dial boundary angles, step rounding, and optimistic updates are easy to make internally inconsistent. Shared pure conversion helpers and state-machine tests must drive both the controller and view.
+- Dial boundary angles, step rounding, the typed `AppConfig` interaction threshold, and optimistic updates are easy to make internally inconsistent. Shared pure conversion helpers and state-machine tests must drive both the controller and view.
 - Snapshot stability depends on fixed appearance, scale, timestamps, locale/timezone, and a documented macOS baseline. Pixel references still cannot validate payloads or control capability logic.
 - Continuous drag can accidentally create a service-call storm, while stale server updates can overwrite a newer optimistic request. Recording-controller integration tests must cover both races.
 - Detail history/render tasks can outlive a dismissed sheet unless cancellation and callback ownership are explicit; screenshots will not detect that leak.

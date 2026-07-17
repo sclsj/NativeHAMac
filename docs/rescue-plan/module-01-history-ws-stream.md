@@ -2,7 +2,7 @@
 
 Original Claude module: `1. History API: Switch to WebSocket history/stream`.
 
-Priority: critical. Depends on module 02. Coordinate with module 12 because the live dashboard encodes graph windows in Lovelace views/cards, not a global graph-hour control.
+Priority: critical. Depends on module 02. Coordinate with module 12 because the intended Home dashboard uses one configurable graph-range selector rather than separate `3h` and `12h` maintenance views.
 
 ## Goal
 
@@ -56,8 +56,8 @@ Use the existing `HAHistorySeries` and `HAHistoryPoint` only if the adapter is c
 
 Dashboard behavior:
 
-- Each `history-graph` card owns its own history subscription keyed by stable card identity, entity IDs, and the card's `hoursToShow`.
-- Detail sheets can subscribe to a separate 24-hour window for the selected entity, or reuse a shared history subscription manager keyed by `(entityID, hours)`.
+- Each `history-graph` card owns its own history subscription keyed by stable card identity, entity IDs, and the effective range from the typed `AppConfig` time-range policy.
+- Detail sheets use the configured detail range, or reuse a shared history subscription manager keyed by `(entityID, range)`.
 - `state_changed` subscriptions keep the entity cache fresh. They should not also append duplicate history points for streams that are already subscribed.
 - `history/stream` subscriptions should be canceled when their card/view/detail owner disappears or its key changes.
 
@@ -76,6 +76,7 @@ Dashboard behavior:
    - Merge existing and incoming entity histories.
    - Sort if incoming data is older than the last combined point.
    - For `hoursToShow`, purge old history while preserving the last expired state at the cutoff boundary with `lc` cleared, matching hass-frontend lines `197-223`.
+   - Keep that trimming local to the foreground subscription accumulator; it must not evict broader coverage retained by the configured shared history/prepared-series cache.
 
 3. Implement attribute policy equivalent to `entityIdHistoryNeedsAttributes`.
    - Needs attributes if the entity is not in current states.
@@ -91,17 +92,17 @@ Dashboard behavior:
 
 5. Replace app-facing REST history loading in `DashboardViewModel`.
    - Remove `loadHistories()` from the normal card path or make it a fallback only.
-   - Remove global `selectedGraphHours` from history request construction.
-   - `historyKey(for:)` must include card-scoped hours, stable card identity, and ordered entity IDs.
-   - `historyEntityIDs(for:)` should use the decoded Lovelace card config after module 04 and should not apply personal hidden-entity filters except through module 03 user preferences.
+   - Replace bare `selectedGraphHours` handling with the typed `AppConfig` time-range policy.
+   - `historyKey(for:)` must include the effective selected range, stable card identity, and ordered entity IDs.
+   - `historyEntityIDs(for:)` should use the decoded Lovelace card config after module 04 and apply any local hidden-entity choice only through the typed Module 03 `AppConfig` presentation policy.
 
-6. Preserve per-card `hours_to_show`.
+6. Preserve decoded `hours_to_show` without using it to override the approved selector policy.
    - Stop rewriting `LovelaceCard.hoursToShow` in `cleanCards`.
-   - Use `card.hoursToShow ?? 24` for history cards, matching hass-frontend's default.
-   - Update the card header display to show the card's actual window.
+   - Resolve the displayed/requested window through the typed `AppConfig` policy, which defaults to one selector for the Home dashboard and may support explicit per-graph overrides.
+   - Update the card header display to show the effective selected window.
 
 7. Define transition behavior for active views.
-   - After module 12, subscribe only to history cards in the selected view plus any active detail sheet.
+   - After module 12, keep foreground history streams only for visible cards plus any active detail sheet. App-level idle prefetch/cache work is separate, lower priority, cancellable, and bounded by the configured cache policy.
    - Before module 12, do not subscribe hidden live views if they are not rendered.
 
 8. Keep REST history safe for tools.
@@ -134,10 +135,10 @@ Follow the shared harness and reference-approval rules in [`../visual-testing.md
 - Decode compact states with `lc` present and absent; decode `a` as an object, missing, and empty; reject or deliberately handle malformed `s`/`lu`; and preserve fractional-second precision.
 - Convert compact timestamps to the centralized graph representation consistently. Assert that compact WebSocket fixtures cannot accidentally enter the REST decoder and vice versa.
 - Cover accumulator initialization, replay-complete empty messages, multiple entities, duplicate boundaries, out-of-order chunks sorted by `lu`, incremental entities not present in the replay, and deterministic merge ordering.
-- Drive trimming with an injected fixed clock. Preserve the last expired state at the cutoff, move its `lu` to the cutoff, clear `lc`, and avoid duplicating an existing cutoff state.
+- Drive foreground-accumulator trimming with an injected fixed clock. Preserve the last expired state at the cutoff, move its `lu` to the cutoff, clear `lc`, avoid duplicating an existing cutoff state, and leave broader shared-cache coverage intact.
 - Preserve `unknown`, `unavailable`, and `none` in timeline input; skip only nonnumeric samples in numeric line preparation without mutating stored history.
 - Assert attribute-request policy for present/missing entities and every `NEED_ATTRIBUTE_DOMAINS` domain named above.
-- Assert that stable card keys distinguish ordered entity sets and `1`, `3`, and `12` hour cards. Add a semantic contract test against `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/hui-history-graph-card.ts`: each card retains its own `hours_to_show`. The existing narrow `XCTExpectFailure` in `GraphRenderingTests.swift` may remain only until this implementation fixes the gap, then must be removed.
+- Assert that stable card keys distinguish ordered entity sets and effective `1`, `3`, and `12` hour selector values while decoded `hours_to_show` remains unchanged in the raw model. Replace the existing per-card-hours `XCTExpectFailure` in `GraphRenderingTests.swift` with the approved effective-range policy contract.
 
 Use small hand-written JSON fixtures for edge cases and generated, fixed-timestamp compact messages for scale. Do not read the live server or a token file.
 
@@ -148,7 +149,7 @@ Use the Module 02 fake dispatcher/transport, a controllable clock, and a `@MainA
 - Verify the exact `history/stream` subscribe payload, normalized callback shape, matching unsubscribe command, and fresh `start_time` plus fresh accumulator on reconnect.
 - Start a history card in its loading state, deliver a finite initial replay, wait with a bounded expectation/poll until the graph render model is ready, then deliver an incremental chunk and assert that the visible model changes.
 - Subscribe two cards with overlapping entities. An update for one subscription must not mutate the other card's cache or render model.
-- Keep simultaneous `1h`, `3h`, and `12h` cards and assert independent cutoffs, keys, requests, and rendered windows after the same clock advance.
+- Apply `1h`, `3h`, and `12h` selector values in turn and assert matching cutoffs, keys, requests, and rendered windows across the visible graphs.
 - Cancel on card/view disappearance, profile change, and explicit unsubscribe. A late callback after cancellation must not publish UI state or recreate the card cache.
 - Reconnect after replay and verify one fresh subscription, no duplicate samples, and no stale pre-disconnect accumulator merge.
 
@@ -178,7 +179,7 @@ Xcode 13.4.1 has no `XCTHitchMetric`. True event-to-frame hitch and trackpad tes
 
 ### Manual QA
 
-- On the live dashboard, compare `Home`, `3h`, and `12h` with hass-frontend and confirm every card uses its configured window; no global hour tab changes all graphs.
+- On the live dashboard, compare the intended Home content at `1h`, `3h`, and `12h` with the corresponding reference states and confirm the selector changes all graphs according to the configured policy.
 - Confirm initial replay becomes visible, incremental states arrive without duplicates, numeric gaps remain gaps rather than zeroes, and timeline `unknown`/`unavailable` spans remain visible.
 - Disconnect/reconnect and verify a fresh replay without stale merging. Reopen/close a detail sheet and switch views repeatedly to confirm subscriptions cancel and no post-disappearance updates occur.
 
@@ -186,7 +187,7 @@ Xcode 13.4.1 has no `XCTHitchMetric`. True event-to-frame hitch and trackpad tes
 
 - A naive adapter may lose attributes needed for climate/person/device_tracker timelines under `minimal_response`.
 - Double-appending `state_changed` plus `history/stream` updates will create duplicate or near-duplicate points.
-- Keeping `selectedGraphHours` during the transition will hide bugs because all cards appear to use the same request window.
+- Mutating decoded card config to carry the selected range will hide policy and cache-key bugs; keep the typed range policy separate from raw Lovelace values.
 - Reconnect behavior is easy to get subtly wrong: hass-frontend explicitly avoids reusing the old accumulator and stale `start_time`.
 - A GUI snapshot can look correct while two card caches alias each other or while duplicate/out-of-order samples exist. Keep stream semantics and view-model isolation assertions separate from visual checks.
 - Unbounded settlement sleeps and combined merge-plus-render measurements will make regressions flaky or impossible to attribute; use bounded readiness and separate measurements.
@@ -195,11 +196,11 @@ Xcode 13.4.1 has no `XCTHitchMetric`. True event-to-frame hitch and trackpad tes
 
 - NativeHA app history cards no longer call REST `/api/history/period` during normal dashboard rendering.
 - WebSocket `history/stream` supplies initial replay and live updates.
-- Each history card respects its own `hours_to_show`, defaulting to 24 when absent.
+- The Home dashboard's graphs use the effective range from the typed `AppConfig` selector policy while raw `hours_to_show` remains preserved.
 - `unknown`, `unavailable`, and other non-empty state strings are preserved in timeline data.
 - Numeric line graph preparation filters only nonnumeric samples for line rendering.
 - All history subscriptions are cancelable and do not leak when views/cards/detail sheets disappear.
 - Core decoding/accumulator, fake-stream integration, card-isolation, reconnect, and cancellation tests pass without network access or credentials.
 - Numeric and timeline stream fixtures produce valid settled PNG artifacts at the documented size; any enforced reference was manually approved against hass-frontend and uses tolerant comparison.
 - Cold replay, incremental/out-of-order merge, trimming, bitmap rendering, and repeated subscription lifecycle measurements have stored XCTest baselines with no unexplained retained memory.
-- The per-card-hours conformance expectation is a normal passing assertion; no permanent `XCTExpectFailure` remains for behavior fixed by this module.
+- The effective-range policy is a normal passing assertion; the obsolete per-card-hours `XCTExpectFailure` is removed.
