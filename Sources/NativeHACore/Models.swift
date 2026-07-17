@@ -71,10 +71,27 @@ public struct HAHistorySeries: Equatable, Identifiable, Codable {
 
     public let entityID: String
     public let points: [HAHistoryPoint]
+    /// A deterministic digest of the complete source content. Render caches use
+    /// this instead of assuming that equal counts/endpoints imply equal data.
+    public let contentRevision: UInt64
 
-    public init(entityID: String, points: [HAHistoryPoint]) {
+    public init(entityID: String, points: [HAHistoryPoint], contentRevision: UInt64? = nil) {
         self.entityID = entityID
         self.points = points
+        self.contentRevision = contentRevision ?? Self.revision(entityID: entityID, points: points)
+    }
+
+    private static func revision(entityID: String, points: [HAHistoryPoint]) -> UInt64 {
+        var digest: UInt64 = 14_695_981_039_346_656_037
+        digest.append(entityID)
+        for point in points {
+            digest.append(point.entityId ?? "")
+            digest.append(point.state)
+            digest.append(point.lastChanged ?? "")
+            digest.append(point.lastUpdated ?? "")
+            digest.append(point.attributes)
+        }
+        return digest
     }
 }
 
@@ -108,6 +125,54 @@ public struct HAHistoryPoint: Codable, Equatable {
     }
 }
 
+private extension UInt64 {
+    mutating func append(_ value: String) {
+        for byte in value.utf8 {
+            self ^= UInt64(byte)
+            self &*= 1_099_511_628_211
+        }
+        self ^= 0xff
+        self &*= 1_099_511_628_211
+    }
+
+    mutating func append(_ attributes: [String: JSONValue]?) {
+        guard let attributes = attributes else {
+            append("<nil>")
+            return
+        }
+        for key in attributes.keys.sorted() {
+            append(key)
+            append(attributes[key]!)
+        }
+    }
+
+    mutating func append(_ value: JSONValue) {
+        switch value {
+        case let .string(item):
+            append("s")
+            append(item)
+        case let .int(item):
+            append("i\(item)")
+        case let .double(item):
+            append("d\(item.bitPattern)")
+        case let .bool(item):
+            append(item ? "b1" : "b0")
+        case let .object(item):
+            append("{")
+            append(item)
+            append("}")
+        case let .array(items):
+            append("[")
+            for item in items {
+                append(item)
+            }
+            append("]")
+        case .null:
+            append("n")
+        }
+    }
+}
+
 public struct LovelaceConfig: Decodable, Equatable {
     public let views: [LovelaceView]
 }
@@ -122,6 +187,9 @@ public struct LovelaceView: Decodable, Equatable, Identifiable {
 
 public struct LovelaceCard: Decodable, Equatable, Identifiable {
     public var id = UUID()
+    /// Native-only deterministic traversal identity assigned by the dashboard
+    /// owner. It is not decoded from or written back into Lovelace config.
+    public var nativeOwnerID: String? = nil
 
     public let type: String
     public let title: String?
@@ -140,7 +208,8 @@ public struct LovelaceCard: Decodable, Equatable, Identifiable {
         cards: [LovelaceCard]? = nil,
         hoursToShow: Int? = nil,
         showForecast: Bool? = nil,
-        content: String? = nil
+        content: String? = nil,
+        nativeOwnerID: String? = nil
     ) {
         self.type = type
         self.title = title
@@ -150,6 +219,7 @@ public struct LovelaceCard: Decodable, Equatable, Identifiable {
         self.hoursToShow = hoursToShow
         self.showForecast = showForecast
         self.content = content
+        self.nativeOwnerID = nativeOwnerID
     }
 
     private enum CodingKeys: String, CodingKey {

@@ -50,6 +50,27 @@ public final class HomeAssistantWebSocketClient {
             }
         }
     }
+
+    public func subscribeHistoryStatesTimeWindow(
+        entityIDs: [String],
+        hoursToShow: Int,
+        currentStates: [String: HAState],
+        now: @escaping @Sendable () -> Date = { Date() },
+        onStatus: @escaping @Sendable (HAHistoryStreamOwnerStatus) async -> Void = { _ in },
+        onHistory: @escaping @Sendable ([String: [HACompactHistoryState]]) async -> Void
+    ) async throws -> HAHistoryStreamSubscription {
+        let coordinator = HAHistoryStreamCoordinator(
+            connection: connection,
+            entityIDs: entityIDs,
+            range: TimeInterval(max(hoursToShow, 1) * 60 * 60),
+            currentStates: currentStates,
+            now: now,
+            onUpdate: onHistory,
+            onStatus: onStatus
+        )
+        try await coordinator.start()
+        return HAHistoryStreamSubscription(coordinator: coordinator)
+    }
 }
 
 private struct HAStateChangedEvent: Decodable {

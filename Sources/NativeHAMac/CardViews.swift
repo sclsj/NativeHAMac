@@ -29,13 +29,14 @@ struct CardRenderer: View {
 
 extension LovelaceCard {
     var nativeID: String {
-        [
-            type,
-            title ?? "",
-            entity ?? "",
-            entities?.compactMap(\.entity).joined(separator: ",") ?? "",
-            cards?.map(\.nativeID).joined(separator: "|") ?? "",
-        ].joined(separator: "::")
+        if let nativeOwnerID = nativeOwnerID {
+            return nativeOwnerID
+        }
+        let entityList = entities?.compactMap(\.entity).joined(separator: ",") ?? ""
+        let nestedCards = cards?.map(\.nativeID).joined(separator: "|") ?? ""
+        let rawHours = hoursToShow.map { String($0) } ?? ""
+        let components: [String] = [type, title ?? "", entity ?? "", entityList, nestedCards, rawHours]
+        return components.joined(separator: "::")
     }
 }
 
@@ -248,6 +249,8 @@ struct HistoryGraphCard: View {
                             .padding(.vertical, 6)
                     }
                 }
+            } else if case let .error(message)? = model.historyStatus(for: card) {
+                historyError(message)
             } else {
                 VStack(spacing: 10) {
                     ProgressView()
@@ -260,6 +263,20 @@ struct HistoryGraphCard: View {
             }
         }
         .cardStyle()
+    }
+
+    private func historyError(_ message: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundColor(.yellow)
+            Text("History unavailable")
+                .font(.system(size: 12, weight: .semibold))
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.55))
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 170)
     }
 
     private func groupedSeries(_ series: [HAHistorySeries]) -> [SeriesGroup] {
@@ -396,6 +413,7 @@ struct BitmapLineChart: View {
     @Binding var hoverLocation: CGPoint?
     let onMagnify: (CGFloat, Double, CGFloat) -> Void
     let onPan: (CGFloat) -> Void
+    let onRenderReady: (GraphRenderResult) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
     @State private var latestViewportToken = ""
@@ -405,6 +423,26 @@ struct BitmapLineChart: View {
     @State private var isRendering = false
     @State private var renderAttempted = false
     @State private var latestInteractionTime = Date.distantPast
+
+    init(
+        unit: String,
+        inputs: [GraphRenderSeriesInput],
+        zoomScale: CGFloat,
+        panFraction: Double,
+        hoverLocation: Binding<CGPoint?>,
+        onMagnify: @escaping (CGFloat, Double, CGFloat) -> Void,
+        onPan: @escaping (CGFloat) -> Void,
+        onRenderReady: @escaping (GraphRenderResult) -> Void = { _ in }
+    ) {
+        self.unit = unit
+        self.inputs = inputs
+        self.zoomScale = zoomScale
+        self.panFraction = panFraction
+        _hoverLocation = hoverLocation
+        self.onMagnify = onMagnify
+        self.onPan = onPan
+        self.onRenderReady = onRenderReady
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -557,6 +595,7 @@ struct BitmapLineChart: View {
         let renderUnit = unit
         let renderZoom = zoomScale
         let renderPan = panFraction
+        let renderReady = onRenderReady
 
         return Task.detached(priority: priority) {
             if delay > 0 {
@@ -583,6 +622,7 @@ struct BitmapLineChart: View {
                     if let result = result {
                         rendered = result
                         renderedToken = token
+                        renderReady(result)
                     } else if replaceExistingWithNil {
                         rendered = nil
                         renderedToken = token
@@ -621,7 +661,7 @@ struct BitmapLineChart: View {
         let seriesToken = inputs.map { input in
             let first = input.history.points.first?.lastChanged ?? input.history.points.first?.lastUpdated ?? ""
             let last = input.history.points.last?.lastChanged ?? input.history.points.last?.lastUpdated ?? ""
-            return "\(input.entityID):\(input.history.points.count):\(first):\(last)"
+            return "\(input.entityID):\(input.history.points.count):\(first):\(last):\(input.history.contentRevision)"
         }.joined(separator: "|")
 
         return seriesToken
@@ -1692,17 +1732,18 @@ struct DetailHistoryGraph: View {
     @State private var panFraction: Double = 1
 
     var body: some View {
+        let effectiveHours = AppConfig.graphTimeRangePolicy.detailDefault.hours
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
                     .font(.system(size: 17, weight: .semibold))
                 Spacer()
-                Text("\(hours)h")
+                Text("\(effectiveHours)h")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.cyan.opacity(0.8))
             }
 
-            if let history = model.detailHistory(entityID: entityID, hours: hours) {
+            if let history = model.detailHistory(entityID: entityID, hours: effectiveHours) {
                 let displayUnit = HAHistoryGraphClassifier.displayUnit(
                     entityID: entityID,
                     currentUnit: model.unit(for: entityID),
@@ -1740,6 +1781,23 @@ struct DetailHistoryGraph: View {
                     panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
                 }
                 .frame(height: 230)
+            } else if case let .error(message)? = model.detailHistoryStatus(
+                entityID: entityID,
+                hours: effectiveHours
+            ) {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.yellow)
+                    Text("History unavailable")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(message)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, minHeight: 230)
+                .background(Color.black.opacity(0.18))
+                .cornerRadius(4)
             } else {
                 VStack(spacing: 8) {
                     ProgressView()
@@ -1754,7 +1812,10 @@ struct DetailHistoryGraph: View {
             }
         }
         .onAppear {
-            model.loadDetailHistory(entityID: entityID, hours: hours)
+            model.loadDetailHistory(entityID: entityID, hours: effectiveHours)
+        }
+        .onDisappear {
+            model.unloadDetailHistory(entityID: entityID, hours: effectiveHours)
         }
     }
 }

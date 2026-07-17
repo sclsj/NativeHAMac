@@ -16,6 +16,10 @@
       "symbols": ["HomeAssistantWebSocketClient"]
     },
     {
+      "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
+      "symbols": ["HACompactHistoryState", "HAHistoryStreamAccumulator", "HAHistoryProjection", "HAHistoryStreamCoordinator"]
+    },
+    {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
       "symbols": ["subscribeRaw", "subscribeMessage", "statusUpdates"]
     },
@@ -44,8 +48,32 @@
       "symbols": ["HistoryGraphSupportTests"]
     },
     {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryStreamTests.swift",
+      "symbols": ["HomeAssistantHistoryStreamTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryStreamPerformanceTests.swift",
+      "symbols": ["HomeAssistantHistoryStreamPerformanceTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
+      "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    },
+    {
       "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
       "symbols": ["GraphRenderingTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+      "symbols": ["HistoryStreamIntegrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
+      "symbols": ["GUIRenderingAndPerformanceTests"]
+    },
+    {
+      "path": "Benchmarks/history-stream/main.swift",
+      "symbols": ["HistoryStreamBench"]
     }
   ],
   "entries": [

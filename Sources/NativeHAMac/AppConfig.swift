@@ -12,8 +12,17 @@ enum AppConfig {
     ]
 
     static let showEntityIDsByDefault = false
-    static let defaultGraphHours = 1
-    static let graphHourOptions = [1, 3, 6, 12]
+    static let graphTimeRangePolicy = GraphTimeRangePolicy(
+        availableSelections: [1, 3, 6, 12].map(GraphTimeRange.init(hours:)),
+        defaultSelection: GraphTimeRange(hours: 1),
+        scope: .global,
+        detailDefault: GraphTimeRange(hours: 24),
+        allowsExpansionBeyondSelection: false,
+        maximumExpansion: nil,
+        expansionGestureThreshold: nil
+    )
+    static var defaultGraphHours: Int { graphTimeRangePolicy.defaultSelection.hours }
+    static var graphHourOptions: [Int] { graphTimeRangePolicy.availableSelections.map(\.hours) }
     static let graphMaxZoomVisibleSamplePercentage: CGFloat = 0.10
     static let realtimeUpdateCoalesceNanoseconds: UInt64 = 50_000_000
     static let liveGraphDataRenderDelayNanoseconds: UInt64 = 120_000_000
@@ -58,6 +67,34 @@ enum AppConfig {
         CardColumnRule(column: 2, title: "Sensor"),
         CardColumnRule(column: 2, title: "AC Unit Controller"),
     ]
+}
+
+struct GraphTimeRange: Hashable {
+    let hours: Int
+
+    init(hours: Int) {
+        self.hours = max(hours, 1)
+    }
+}
+
+enum GraphTimeRangeScope: Equatable {
+    case global
+}
+
+struct GraphTimeRangePolicy {
+    let availableSelections: [GraphTimeRange]
+    let defaultSelection: GraphTimeRange
+    let scope: GraphTimeRangeScope
+    let detailDefault: GraphTimeRange
+    /// Module 01 defines the seam but deliberately leaves range expansion to
+    /// the later graph-navigation/cache work.
+    let allowsExpansionBeyondSelection: Bool
+    let maximumExpansion: GraphTimeRange?
+    let expansionGestureThreshold: CGFloat?
+
+    func selection(hours: Int) -> GraphTimeRange? {
+        availableSelections.first { $0.hours == hours }
+    }
 }
 
 struct WebSocketPolicy {

@@ -142,6 +142,200 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         }
     }
 
+    func testHistoryStreamNumericAndTimelineLoadingReplayIncrementalArtifacts() throws {
+        let size = CGSize(width: 496, height: 260)
+        for run in 1...3 {
+            let (loading, oracle) = try historyLoadingVisual(size: size)
+            let prefix = String(format: "history-stream-run-%02d", run)
+            try persistAndAttach(loading.pngData, name: "\(prefix)-loading.png")
+
+            let numericReplay = try historyStreamVisual(
+                input: historyStreamNumericInput(middleState: "20"),
+                unit: "°C",
+                size: size,
+                oracle: oracle
+            )
+            let numericUpdate = try historyStreamVisual(
+                input: historyStreamNumericInput(middleState: "28"),
+                unit: "°C",
+                size: size,
+                oracle: oracle
+            )
+            try persistAndAttach(numericReplay.pngData, name: "\(prefix)-numeric-replay.png")
+            try persistAndAttach(numericUpdate.pngData, name: "\(prefix)-numeric-update.png")
+            XCTAssertNotEqual(numericReplay.pngData, numericUpdate.pngData)
+
+            let timelineReplay = try historyStreamVisual(
+                input: historyStreamTimelineInput(lastState: "unknown"),
+                unit: HAHistoryGraphClassifier.stateUnit,
+                size: size,
+                oracle: oracle
+            )
+            let timelineUpdate = try historyStreamVisual(
+                input: historyStreamTimelineInput(lastState: "off"),
+                unit: HAHistoryGraphClassifier.stateUnit,
+                size: size,
+                oracle: oracle
+            )
+            try persistAndAttach(timelineReplay.pngData, name: "\(prefix)-timeline-replay.png")
+            try persistAndAttach(timelineUpdate.pngData, name: "\(prefix)-timeline-update.png")
+            XCTAssertNotEqual(timelineReplay.pngData, timelineUpdate.pngData)
+        }
+    }
+
+    func testHistoryVisualLabelOracleRejectsPopulatedGraphsWithBlankLabelBands() throws {
+        let size = CGSize(width: 496, height: 260)
+        let (_, oracle) = try historyLoadingVisual(size: size)
+        let numeric = try historyStreamVisual(
+            input: historyStreamNumericInput(middleState: "20"),
+            unit: "°C",
+            size: size,
+            oracle: oracle
+        )
+        let timeline = try historyStreamVisual(
+            input: historyStreamTimelineInput(lastState: "unknown"),
+            unit: HAHistoryGraphClassifier.stateUnit,
+            size: size,
+            oracle: oracle
+        )
+
+        let numericBitmap = try XCTUnwrap(NSBitmapImageRep(data: numeric.pngData))
+        let blankRange = try oracle.erasingRangeLabel(in: numericBitmap)
+        XCTAssertGreaterThan(changedSamples(in: blankRange, x: 80..<960, y: 100..<420), 100)
+        XCTAssertTrue(oracle.hasFiveAxisLabels(in: blankRange))
+        XCTAssertFalse(
+            oracle.isSettled(blankRange, requiresAxesAndData: true),
+            "A populated grid/data bitmap with a blank 1h band must not settle."
+        )
+
+        let timelineBitmap = try XCTUnwrap(NSBitmapImageRep(data: timeline.pngData))
+        let blankAxis = try oracle.erasingAxisLabels(in: timelineBitmap)
+        XCTAssertGreaterThan(changedSamples(in: blankAxis, x: 80..<960, y: 100..<420), 100)
+        XCTAssertTrue(oracle.hasOneHourRangeLabel(in: blankAxis))
+        XCTAssertFalse(
+            oracle.isSettled(blankAxis, requiresAxesAndData: true),
+            "Populated timeline data with a blank five-label bottom band must not settle."
+        )
+    }
+
+    private func historyLoadingVisual(
+        size: CGSize
+    ) throws -> (rendered: RenderedPNG, oracle: HistoryVisualLabelOracle) {
+        let loadingProbe = HistoryVisualSettlementProbe()
+        var discoveredOracle: HistoryVisualLabelOracle?
+        let loading = try MacViewPNGRenderer.render(
+            HistoryStreamLoadingFixture(onReady: { loadingProbe.markLoadingReady() }),
+            size: size,
+            displayScale: 2,
+            readiness: { loadingProbe.isReady },
+            bitmapReadiness: { bitmap in
+                guard let oracle = HistoryVisualLabelOracle.discover(in: bitmap) else {
+                    return false
+                }
+                discoveredOracle = oracle
+                return oracle.isSettled(bitmap, requiresAxesAndData: false)
+            },
+            requiredConsecutiveBitmapReadinessPasses: 2
+        )
+        let oracle = try XCTUnwrap(discoveredOracle)
+        try assertUsablePNG(loading, minimumBytes: 3_000, minimumChangedSamples: 20)
+        try assertDimensions(loading.pngData, width: 992, height: 520)
+        try assertSettledHistorySurface(
+            loading.pngData,
+            requiresAxesAndData: false,
+            oracle: oracle
+        )
+        return (loading, oracle)
+    }
+
+    private func historyStreamVisual(
+        input: GraphRenderSeriesInput,
+        unit: String,
+        size: CGSize,
+        oracle: HistoryVisualLabelOracle
+    ) throws -> RenderedPNG {
+        let probe = HistoryVisualSettlementProbe()
+        let rendered = try MacViewPNGRenderer.render(
+            HistoryStreamVisualFixture(
+                unit: unit,
+                input: input,
+                onRenderReady: { probe.record($0) }
+            ),
+            size: size,
+            displayScale: 2,
+            readiness: { probe.isReady },
+            bitmapReadiness: { oracle.isSettled($0, requiresAxesAndData: true) },
+            requiredConsecutiveBitmapReadinessPasses: 2
+        )
+        XCTAssertGreaterThanOrEqual(probe.xTickCount, 4)
+        XCTAssertGreaterThan(probe.renderedDatumCount, 0)
+        try assertUsablePNG(rendered, minimumBytes: 8_000, minimumChangedSamples: 100)
+        try assertDimensions(rendered.pngData, width: 992, height: 520)
+        try assertSettledHistorySurface(
+            rendered.pngData,
+            requiresAxesAndData: true,
+            oracle: oracle
+        )
+        return rendered
+    }
+
+    private func assertSettledHistorySurface(
+        _ data: Data,
+        requiresAxesAndData: Bool,
+        oracle: HistoryVisualLabelOracle,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data), file: file, line: line)
+        XCTAssertTrue(oracle.hasHeaderLabel(in: bitmap), "Header glyphs were not settled", file: file, line: line)
+        XCTAssertTrue(
+            oracle.hasOneHourRangeLabel(in: bitmap),
+            "The composited 1h glyph template was not present in its range-label band",
+            file: file,
+            line: line
+        )
+
+        guard requiresAxesAndData else { return }
+        let dataInk = changedSamples(in: bitmap, x: 80..<960, y: 100..<420)
+        XCTAssertTrue(
+            oracle.hasFiveAxisLabels(in: bitmap),
+            "Five separated bottom-axis glyph groups were not settled",
+            file: file,
+            line: line
+        )
+        XCTAssertGreaterThan(dataInk, 100, "Rendered data region was not settled", file: file, line: line)
+    }
+
+    private func changedSamples(
+        in bitmap: NSBitmapImageRep,
+        x: Range<Int>,
+        y: Range<Int>
+    ) -> Int {
+        guard let background = bitmap.colorAt(x: 0, y: 0)?.usingColorSpace(.deviceRGB) else {
+            return 0
+        }
+        var count = 0
+        for row in stride(from: y.lowerBound, to: min(y.upperBound, bitmap.pixelsHigh), by: 2) {
+            for column in stride(from: x.lowerBound, to: min(x.upperBound, bitmap.pixelsWide), by: 2) {
+                guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.deviceRGB) else {
+                    continue
+                }
+                let difference = abs(color.redComponent - background.redComponent) +
+                    abs(color.greenComponent - background.greenComponent) +
+                    abs(color.blueComponent - background.blueComponent) +
+                    abs(color.alphaComponent - background.alphaComponent)
+                if difference > 0.06 { count += 1 }
+            }
+        }
+        return count
+    }
+
+    private func assertDimensions(_ data: Data, width: Int, height: Int) throws {
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
+        XCTAssertEqual(bitmap.pixelsWide, width)
+        XCTAssertEqual(bitmap.pixelsHigh, height)
+    }
+
     private func assertUsablePNG(
         _ rendered: RenderedPNG,
         minimumBytes: Int,
@@ -174,6 +368,412 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
     }
 }
 
+private struct HistoryStreamLoadingFixture: View {
+    let onReady: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("History")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Text("1h")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            Spacer()
+            ProgressView()
+                .scaleEffect(0.8)
+                .frame(maxWidth: .infinity)
+            Text("Loading history")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.55))
+                .frame(maxWidth: .infinity)
+            Spacer()
+        }
+        .padding(18)
+        .frame(width: 496, height: 260)
+        .background(Color(red: 0.09, green: 0.095, blue: 0.095))
+        .onAppear(perform: onReady)
+    }
+}
+
+private struct HistoryStreamVisualFixture: View {
+    let unit: String
+    let input: GraphRenderSeriesInput
+    let onRenderReady: (GraphRenderResult) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(unit == HAHistoryGraphClassifier.stateUnit ? "Timeline history" : "Numeric history")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Text("1h")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            BitmapLineChart(
+                unit: unit,
+                inputs: [input],
+                zoomScale: 1,
+                panFraction: 1,
+                hoverLocation: .constant(nil),
+                onMagnify: { _, _, _ in },
+                onPan: { _ in },
+                onRenderReady: onRenderReady
+            )
+        }
+        .padding(18)
+        .frame(width: 496, height: 260)
+        .background(Color(red: 0.09, green: 0.095, blue: 0.095))
+    }
+}
+
+private final class HistoryVisualSettlementProbe {
+    private(set) var isReady = false
+    private(set) var xTickCount = 0
+    private(set) var renderedDatumCount = 0
+
+    func markLoadingReady() {
+        isReady = true
+    }
+
+    func record(_ result: GraphRenderResult) {
+        xTickCount = result.xTicks.count
+        renderedDatumCount = result.series.reduce(0) { count, series in
+            count + series.points.count + series.timelineSegments.count
+        }
+        isReady = xTickCount >= 4 && renderedDatumCount > 0
+    }
+}
+
+private struct HistoryVisualLabelOracle {
+    private let shellAtLowEdge: Bool
+    private let oneHourTemplate: HistoryBinaryMask
+
+    static func discover(in bitmap: NSBitmapImageRep) -> HistoryVisualLabelOracle? {
+        for shellAtLowEdge in [true, false] {
+            let mask = HistoryBinaryMask(
+                bitmap: bitmap,
+                rect: rangeRect(in: bitmap, shellAtLowEdge: shellAtLowEdge)
+            )
+            guard mask.looksLikeOneHourGlyphs else { continue }
+            let oracle = HistoryVisualLabelOracle(
+                shellAtLowEdge: shellAtLowEdge,
+                oneHourTemplate: mask
+            )
+            if oracle.hasHeaderLabel(in: bitmap) {
+                return oracle
+            }
+        }
+        return nil
+    }
+
+    func isSettled(_ bitmap: NSBitmapImageRep, requiresAxesAndData: Bool) -> Bool {
+        guard hasHeaderLabel(in: bitmap), hasOneHourRangeLabel(in: bitmap) else {
+            return false
+        }
+        guard requiresAxesAndData else { return true }
+        return hasFiveAxisLabels(in: bitmap) && dataRegionIsPopulated(in: bitmap)
+    }
+
+    func hasHeaderLabel(in bitmap: NSBitmapImageRep) -> Bool {
+        let mask = HistoryBinaryMask(
+            bitmap: bitmap,
+            rect: Self.orientedRect(
+                x: 20..<700,
+                topY: 20..<78,
+                in: bitmap,
+                shellAtLowEdge: shellAtLowEdge
+            )
+        )
+        let glyphs = mask.components.filter {
+            $0.pixelCount >= 40 && $0.height >= 15 && $0.height <= 25
+        }
+        guard glyphs.count >= 7, let bounds = HistoryGlyphComponent.union(glyphs) else {
+            return false
+        }
+        return bounds.width >= 70 && bounds.height >= 17 && bounds.height <= 30
+    }
+
+    func hasOneHourRangeLabel(in bitmap: NSBitmapImageRep) -> Bool {
+        let candidate = HistoryBinaryMask(
+            bitmap: bitmap,
+            rect: Self.rangeRect(in: bitmap, shellAtLowEdge: shellAtLowEdge)
+        )
+        guard candidate.looksLikeOneHourGlyphs else { return false }
+        return oneHourTemplate.maximumIntersectionOverUnion(with: candidate, translationRadius: 1) >= 0.82
+    }
+
+    func hasFiveAxisLabels(in bitmap: NSBitmapImageRep) -> Bool {
+        let horizontalBands = [
+            60..<185,
+            255..<390,
+            455..<595,
+            660..<800,
+            860..<985,
+        ]
+        return horizontalBands.allSatisfy { xBand in
+            let mask = HistoryBinaryMask(
+                bitmap: bitmap,
+                rect: Self.orientedRect(
+                    x: xBand,
+                    topY: 440..<480,
+                    in: bitmap,
+                    shellAtLowEdge: shellAtLowEdge
+                )
+            )
+            let glyphs = mask.components.filter {
+                $0.pixelCount >= 30 && $0.height >= 12 && $0.height <= 21
+            }
+            guard glyphs.count >= 5, let bounds = HistoryGlyphComponent.union(glyphs) else {
+                return false
+            }
+            return mask.foregroundCount >= 250 &&
+                bounds.width >= 70 && bounds.width <= 115 &&
+                bounds.height >= 14 && bounds.height <= 22
+        }
+    }
+
+    func erasingRangeLabel(in bitmap: NSBitmapImageRep) throws -> NSBitmapImageRep {
+        let rect = Self.rangeRect(in: bitmap, shellAtLowEdge: shellAtLowEdge)
+        return try bitmapByErasing(rect: rect, in: bitmap)
+    }
+
+    func erasingAxisLabels(in bitmap: NSBitmapImageRep) throws -> NSBitmapImageRep {
+        let rect = Self.orientedRect(
+            x: 50..<985,
+            topY: 435..<485,
+            in: bitmap,
+            shellAtLowEdge: shellAtLowEdge
+        )
+        return try bitmapByErasing(rect: rect, in: bitmap)
+    }
+
+    private func dataRegionIsPopulated(in bitmap: NSBitmapImageRep) -> Bool {
+        guard let background = bitmap.colorAt(x: 0, y: 0)?.usingColorSpace(.deviceRGB) else {
+            return false
+        }
+        var count = 0
+        for y in stride(from: 100, to: min(420, bitmap.pixelsHigh), by: 2) {
+            for x in stride(from: 80, to: min(960, bitmap.pixelsWide), by: 2) {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else {
+                    continue
+                }
+                let difference = abs(color.redComponent - background.redComponent) +
+                    abs(color.greenComponent - background.greenComponent) +
+                    abs(color.blueComponent - background.blueComponent) +
+                    abs(color.alphaComponent - background.alphaComponent)
+                if difference > 0.06 {
+                    count += 1
+                    if count > 100 { return true }
+                }
+            }
+        }
+        return false
+    }
+
+    private func bitmapByErasing(
+        rect: HistoryPixelRect,
+        in bitmap: NSBitmapImageRep
+    ) throws -> NSBitmapImageRep {
+        guard
+            let data = bitmap.representation(using: .png, properties: [:]),
+            let copy = NSBitmapImageRep(data: data),
+            let fill = copy.colorAt(x: rect.x.lowerBound, y: rect.y.lowerBound)
+        else {
+            throw MacViewPNGRendererError.bitmapCreationFailed
+        }
+        for y in rect.y {
+            for x in rect.x {
+                copy.setColor(fill, atX: x, y: y)
+            }
+        }
+        return copy
+    }
+
+    private static func rangeRect(
+        in bitmap: NSBitmapImageRep,
+        shellAtLowEdge: Bool
+    ) -> HistoryPixelRect {
+        orientedRect(
+            x: 900..<975,
+            topY: 30..<75,
+            in: bitmap,
+            shellAtLowEdge: shellAtLowEdge
+        )
+    }
+
+    private static func orientedRect(
+        x: Range<Int>,
+        topY: Range<Int>,
+        in bitmap: NSBitmapImageRep,
+        shellAtLowEdge: Bool
+    ) -> HistoryPixelRect {
+        let y: Range<Int>
+        if shellAtLowEdge {
+            y = topY
+        } else {
+            y = (bitmap.pixelsHigh - topY.upperBound)..<(bitmap.pixelsHigh - topY.lowerBound)
+        }
+        return HistoryPixelRect(
+            x: max(0, x.lowerBound)..<min(bitmap.pixelsWide, x.upperBound),
+            y: max(0, y.lowerBound)..<min(bitmap.pixelsHigh, y.upperBound)
+        )
+    }
+}
+
+private struct HistoryPixelRect {
+    let x: Range<Int>
+    let y: Range<Int>
+}
+
+private struct HistoryGlyphComponent {
+    let minX: Int
+    let maxX: Int
+    let minY: Int
+    let maxY: Int
+    let pixelCount: Int
+
+    var width: Int { maxX - minX + 1 }
+    var height: Int { maxY - minY + 1 }
+
+    static func union(_ components: [HistoryGlyphComponent]) -> HistoryGlyphComponent? {
+        guard let first = components.first else { return nil }
+        return components.dropFirst().reduce(first) { result, component in
+            HistoryGlyphComponent(
+                minX: min(result.minX, component.minX),
+                maxX: max(result.maxX, component.maxX),
+                minY: min(result.minY, component.minY),
+                maxY: max(result.maxY, component.maxY),
+                pixelCount: result.pixelCount + component.pixelCount
+            )
+        }
+    }
+}
+
+private struct HistoryBinaryMask {
+    let width: Int
+    let height: Int
+    let pixels: [Bool]
+
+    init(bitmap: NSBitmapImageRep, rect: HistoryPixelRect) {
+        width = rect.x.count
+        height = rect.y.count
+        var values = Array(repeating: false, count: width * height)
+        for (localY, y) in rect.y.enumerated() {
+            for (localX, x) in rect.x.enumerated() {
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else {
+                    continue
+                }
+                let brightness = max(
+                    color.redComponent,
+                    max(color.greenComponent, color.blueComponent)
+                )
+                values[localY * width + localX] = brightness > 0.45 && color.alphaComponent > 0.5
+            }
+        }
+        pixels = values
+    }
+
+    var foregroundCount: Int {
+        pixels.reduce(0) { $0 + ($1 ? 1 : 0) }
+    }
+
+    var looksLikeOneHourGlyphs: Bool {
+        let glyphs = components
+            .filter { $0.pixelCount >= 40 && $0.height >= 15 && $0.height <= 21 }
+            .sorted { $0.minX < $1.minX }
+        guard glyphs.count == 2, let bounds = HistoryGlyphComponent.union(glyphs) else {
+            return false
+        }
+        return foregroundCount >= 150 && foregroundCount <= 260 &&
+            glyphs[0].width >= 6 && glyphs[0].width <= 10 &&
+            glyphs[1].width >= 10 && glyphs[1].width <= 14 &&
+            glyphs[1].minX - glyphs[0].maxX >= 2 &&
+            glyphs[1].minX - glyphs[0].maxX <= 7 &&
+            bounds.width >= 20 && bounds.width <= 28 &&
+            bounds.height >= 16 && bounds.height <= 21
+    }
+
+    var components: [HistoryGlyphComponent] {
+        guard width > 0, height > 0 else { return [] }
+        var visited = Array(repeating: false, count: pixels.count)
+        var result: [HistoryGlyphComponent] = []
+        for start in pixels.indices where pixels[start] && !visited[start] {
+            visited[start] = true
+            var stack = [start]
+            var cursor = 0
+            var minX = start % width
+            var maxX = minX
+            var minY = start / width
+            var maxY = minY
+            var count = 0
+            while cursor < stack.count {
+                let index = stack[cursor]
+                cursor += 1
+                count += 1
+                let x = index % width
+                let y = index / width
+                minX = min(minX, x)
+                maxX = max(maxX, x)
+                minY = min(minY, y)
+                maxY = max(maxY, y)
+                for adjacentY in max(0, y - 1)...min(height - 1, y + 1) {
+                    for adjacentX in max(0, x - 1)...min(width - 1, x + 1) {
+                        let adjacent = adjacentY * width + adjacentX
+                        if pixels[adjacent] && !visited[adjacent] {
+                            visited[adjacent] = true
+                            stack.append(adjacent)
+                        }
+                    }
+                }
+            }
+            result.append(
+                HistoryGlyphComponent(
+                    minX: minX,
+                    maxX: maxX,
+                    minY: minY,
+                    maxY: maxY,
+                    pixelCount: count
+                )
+            )
+        }
+        return result
+    }
+
+    func maximumIntersectionOverUnion(
+        with candidate: HistoryBinaryMask,
+        translationRadius: Int
+    ) -> Double {
+        guard width == candidate.width, height == candidate.height else { return 0 }
+        let templateCount = foregroundCount
+        let candidateCount = candidate.foregroundCount
+        guard templateCount > 0, candidateCount > 0 else { return 0 }
+        var maximum = 0.0
+        for offsetY in -translationRadius...translationRadius {
+            for offsetX in -translationRadius...translationRadius {
+                var intersection = 0
+                for y in 0..<height {
+                    let candidateY = y + offsetY
+                    guard candidateY >= 0, candidateY < height else { continue }
+                    for x in 0..<width where pixels[y * width + x] {
+                        let candidateX = x + offsetX
+                        guard candidateX >= 0, candidateX < width else { continue }
+                        if candidate.pixels[candidateY * width + candidateX] {
+                            intersection += 1
+                        }
+                    }
+                }
+                let union = templateCount + candidateCount - intersection
+                if union > 0 {
+                    maximum = max(maximum, Double(intersection) / Double(union))
+                }
+            }
+        }
+        return maximum
+    }
+}
+
 struct RenderedPNG {
     let pngData: Data
     let nonBackgroundSampleCount: Int
@@ -183,6 +783,7 @@ struct RenderedPNG {
 enum MacViewPNGRendererError: Error {
     case bitmapCreationFailed
     case pngEncodingFailed
+    case settlementTimedOut
 }
 
 enum MacViewPNGRenderer {
@@ -191,7 +792,11 @@ enum MacViewPNGRenderer {
         _ view: V,
         size: CGSize,
         displayScale: CGFloat,
-        settleTime: TimeInterval = 0
+        settleTime: TimeInterval = 0,
+        readiness: (() -> Bool)? = nil,
+        bitmapReadiness: ((NSBitmapImageRep) -> Bool)? = nil,
+        requiredConsecutiveBitmapReadinessPasses: Int = 1,
+        readinessTimeout: TimeInterval = 3
     ) throws -> RenderedPNG {
         _ = NSApplication.shared
 
@@ -222,17 +827,70 @@ enum MacViewPNGRenderer {
 
         hostingView.layoutSubtreeIfNeeded()
         hostingView.displayIfNeeded()
-        if settleTime > 0 {
+        if let readiness = readiness {
+            let deadline = Date(timeIntervalSinceNow: readinessTimeout)
+            while !readiness(), Date() < deadline {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+                hostingView.layoutSubtreeIfNeeded()
+                hostingView.displayIfNeeded()
+            }
+            guard readiness() else {
+                throw MacViewPNGRendererError.settlementTimedOut
+            }
+            // Readiness is emitted when production render state is installed.
+            // Complete two deterministic layout/display turns so its SwiftUI
+            // overlays (header, range, axes, and tick labels) are composited.
+            for _ in 0..<2 {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+                hostingView.layoutSubtreeIfNeeded()
+                hostingView.displayIfNeeded()
+            }
+        } else if settleTime > 0 {
             RunLoop.main.run(until: Date(timeIntervalSinceNow: settleTime))
             hostingView.layoutSubtreeIfNeeded()
             hostingView.displayIfNeeded()
         }
 
-        guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
-            throw MacViewPNGRendererError.bitmapCreationFailed
+        let makeBitmap: () throws -> NSBitmapImageRep = {
+            guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+                throw MacViewPNGRendererError.bitmapCreationFailed
+            }
+            bitmap.size = size
+            hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+            return bitmap
         }
-        bitmap.size = size
-        hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+
+        let bitmap: NSBitmapImageRep
+        if let bitmapReadiness = bitmapReadiness {
+            let deadline = Date(timeIntervalSinceNow: readinessTimeout)
+            var settled: NSBitmapImageRep?
+            var consecutivePasses = 0
+            let requiredPasses = max(1, requiredConsecutiveBitmapReadinessPasses)
+            repeat {
+                let candidate = try makeBitmap()
+                if bitmapReadiness(candidate) {
+                    consecutivePasses += 1
+                    if consecutivePasses >= requiredPasses {
+                        settled = candidate
+                        break
+                    }
+                } else {
+                    consecutivePasses = 0
+                }
+                // Every pass is evaluated against a newly cached bitmap after
+                // another display turn; a single transient label composition
+                // can therefore never be accepted as the final artifact.
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+                hostingView.layoutSubtreeIfNeeded()
+                hostingView.displayIfNeeded()
+            } while Date() < deadline
+            guard let settled = settled else {
+                throw MacViewPNGRendererError.settlementTimedOut
+            }
+            bitmap = settled
+        } else {
+            bitmap = try makeBitmap()
+        }
 
         guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
             throw MacViewPNGRendererError.pngEncodingFailed
@@ -385,6 +1043,59 @@ private func performanceInput(pointCount: Int, entityID: String) -> GraphRenderS
         unit: "µg/m³",
         color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
         history: HAHistorySeries(entityID: entityID, points: points)
+    )
+}
+
+private let historyVisualBase = 1_767_225_600.0
+
+private func historyStreamNumericInput(middleState: String) -> GraphRenderSeriesInput {
+    GraphRenderSeriesInput(
+        entityID: "sensor.history_visual",
+        name: "History visual",
+        unit: "°C",
+        color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
+        history: HAHistorySeries(
+            entityID: "sensor.history_visual",
+            points: [
+                historyVisualPoint(entityID: "sensor.history_visual", state: "18", offset: 0),
+                historyVisualPoint(entityID: "sensor.history_visual", state: middleState, offset: 1_800),
+                historyVisualPoint(entityID: "sensor.history_visual", state: "22", offset: 3_600),
+            ]
+        ),
+        windowStart: historyVisualBase,
+        windowEnd: historyVisualBase + 3_600
+    )
+}
+
+private func historyStreamTimelineInput(lastState: String) -> GraphRenderSeriesInput {
+    GraphRenderSeriesInput(
+        entityID: "switch.history_visual",
+        name: "History visual",
+        unit: HAHistoryGraphClassifier.stateUnit,
+        color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
+        history: HAHistorySeries(
+            entityID: "switch.history_visual",
+            points: [
+                historyVisualPoint(entityID: "switch.history_visual", state: "off", offset: 0),
+                historyVisualPoint(entityID: "switch.history_visual", state: "on", offset: 1_200),
+                historyVisualPoint(entityID: "switch.history_visual", state: lastState, offset: 2_400),
+            ]
+        ),
+        windowStart: historyVisualBase,
+        windowEnd: historyVisualBase + 3_600
+    )
+}
+
+private func historyVisualPoint(entityID: String, state: String, offset: Int) -> HAHistoryPoint {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    let timestamp = formatter.string(from: Date(timeIntervalSince1970: historyVisualBase + Double(offset)))
+    return HAHistoryPoint(
+        entityId: entityID,
+        state: state,
+        attributes: nil,
+        lastChanged: timestamp,
+        lastUpdated: timestamp
     )
 }
 

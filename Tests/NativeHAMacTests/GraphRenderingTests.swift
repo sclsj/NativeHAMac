@@ -171,6 +171,35 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertTrue(hasHorizontalStep)
     }
 
+    func testSameShapeContentReplacementInvalidatesPreparedSeries() throws {
+        let first = GraphRenderSeriesInput(
+            entityID: "sensor.same_shape",
+            name: "Same shape",
+            unit: "°C",
+            color: graphBlue,
+            history: history(entityID: "sensor.same_shape", samples: [(0, "10"), (100, "20"), (200, "30")])
+        )
+        let replacement = GraphRenderSeriesInput(
+            entityID: "sensor.same_shape",
+            name: "Same shape",
+            unit: "°C",
+            color: graphBlue,
+            history: history(entityID: "sensor.same_shape", samples: [(0, "10"), (100, "99"), (200, "30")])
+        )
+
+        let initial = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [first], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+        let updated = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [replacement], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+        XCTAssertEqual(initial.series.first?.points.map(\.y), [10, 20, 30])
+        XCTAssertEqual(updated.series.first?.points.map(\.y), [10, 99, 30])
+        XCTAssertNotEqual(first.history.contentRevision, replacement.history.contentRevision)
+    }
+
     private func numericInput() -> GraphRenderSeriesInput {
         GraphRenderSeriesInput(
             entityID: "sensor.room_temperature",
@@ -213,7 +242,7 @@ final class GraphRenderingTests: XCTestCase {
 
 @MainActor
 final class CardReferenceContractTests: XCTestCase {
-    func testHistoryCardUsesItsOwnHoursToShow() {
+    func testHistoryCardUsesApprovedGlobalRangeWithoutMutatingRawHours() {
         let model = DashboardViewModel()
         model.selectedGraphHours = 1
         let card = LovelaceCard(
@@ -222,10 +251,11 @@ final class CardReferenceContractTests: XCTestCase {
             hoursToShow: 12
         )
 
-        XCTExpectFailure(
-            "Known HA parity gap: history cards currently use the dashboard's global hour selection instead of hours_to_show."
-        )
-        XCTAssertTrue(model.historyKey(for: card).hasPrefix("12:"))
+        let oneHourKey = model.historyKey(for: card)
+        model.selectedGraphHours = 12
+        XCTAssertNotEqual(model.historyKey(for: card), oneHourKey)
+        XCTAssertEqual(card.hoursToShow, 12)
+        XCTAssertEqual(AppConfig.graphTimeRangePolicy.scope, .global)
     }
 }
 

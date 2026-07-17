@@ -45,9 +45,11 @@ Configure a typed time-range policy including:
 - an optional maximum history range and the gesture threshold for expanding
   beyond the initial range.
 
-**Implementation note:** NativeHA currently has bare global hour options and a
-default in `AppConfig.swift`; the complete typed policy and arbitrary range
-expansion are not yet implemented.
+**Implementation note:** Module 01 now defines a typed `GraphTimeRangePolicy`
+in `AppConfig.swift` with available selections, default selection, global
+scope, and the detail default. It also exposes disabled expansion-policy seams
+without implementing them. Arbitrary range expansion, an expansion maximum,
+and gesture-driven fetch behavior remain future Module 09/cache work.
 
 ### 2. Graph sampling and detail budget
 

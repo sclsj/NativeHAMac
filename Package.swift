@@ -29,6 +29,10 @@ let package = Package(
             name: "GraphPyramidBench",
             targets: ["GraphPyramidBench"]
         ),
+        .executable(
+            name: "HistoryStreamBench",
+            targets: ["HistoryStreamBench"]
+        ),
     ],
     targets: [
         .target(
@@ -49,6 +53,12 @@ let package = Package(
         .executableTarget(
             name: "GraphPyramidBench",
             dependencies: ["NativeHACore"]
+        ),
+        .executableTarget(
+            name: "HistoryStreamBench",
+            dependencies: ["NativeHACore"],
+            path: "Benchmarks/history-stream",
+            exclude: ["README.md", "results.md"]
         ),
         .testTarget(
             name: "NativeHACoreTests",

@@ -3,13 +3,13 @@ schema: nativeha-evidence/v1
 module: "01"
 title: History WebSocket stream and dashboard consumers
 plan: ../../rescue-plan/module-01-history-ws-stream.md
-status: research-ready
+status: verification-ready
 contract_revision: 1
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 92e9a2bf95f7dd2cfd649bba2bc0ac8dbbbccb19
+nativeha_revision: 0f6a324aa43c5c508a8304c1767483c0d2edc6f4
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: df8a12499ec172d728bca112c393796fa19f054dc14e340bf573bf762db01da5
+graph_fingerprint: 7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602
 last_validated: 2026-07-17
 ---
 
@@ -17,8 +17,8 @@ last_validated: 2026-07-17
 
 ## Scope delta
 
-The rescue plan's WebSocket direction is confirmed. This packet makes the
-following behavior and scope corrections before implementation:
+The rescue plan's WebSocket direction is implemented. This packet preserves
+the following researched behavior and scope corrections:
 
 - Module 02 already unwraps `{type: "event", event: ...}`. Module 01 consumes
   one decoded `HistoryStreamMessage`; it must not add a second raw-envelope
@@ -43,9 +43,10 @@ following behavior and scope corrections before implementation:
   shared byte-budgeted history/prepared cache, and idle 24-hour prefetch remain
   approved future work. The foreground design must not make them impossible.
 
-Research changed only the manifest, generated graph, and this packet. No Swift,
-test, rescue-plan, canonical product/configuration, tool, or reference-checkout
-file changed.
+Implementation changed NativeHA core/macOS sources, deterministic tests, a
+tracked benchmark, the canonical configuration note, the manifest/generated
+graph, and this packet/index. It did not change the reference checkout, rescue
+plan, canonical user deviations, server state, or Module 02 implementation.
 
 ## Behavior contracts
 
@@ -118,7 +119,12 @@ file changed.
 The reference lockfile is `yarn.lock`, SHA-256
 `ca345f66a74a1054b77bd2f47f20cb9e13e79b2c864f3375822cca9b14ff41b6`.
 
-### NativeHA at `92e9a2bf95f7dd2cfd649bba2bc0ac8dbbbccb19`
+### NativeHA pre-implementation baseline at `92e9a2bf95f7dd2cfd649bba2bc0ac8dbbbccb19`
+
+These anchors explain the implementation starting point. The current working
+tree is based on `0f6a324aa43c5c508a8304c1767483c0d2edc6f4`; its exact implementation and
+test hashes are pinned in the regenerated dependency graph rather than copied
+by hand here.
 
 - **SW-01** — `Sources/NativeHACore/Models.swift::HAHistorySeries`,
   `HAHistoryPoint`, and `LovelaceCard`, line hints 69, 81, and 119. Git blob
@@ -167,7 +173,7 @@ The reference lockfile is `yarn.lock`, SHA-256
 The generated graph is
 [`module-01.dependencies.json`](../generated/module-01.dependencies.json),
 fingerprint
-`df8a12499ec172d728bca112c393796fa19f054dc14e340bf573bf762db01da5`.
+`7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602`.
 It contains 21 nodes and 143 edges, one editor/card dynamic-import cycle, no
 unresolved edge, and no truncation.
 
@@ -222,8 +228,9 @@ unresolved edge, and no truncation.
 | UD-01 | One typed global graph-range selector on the intended Home dashboard overrides the reference card's independent `hours_to_show`; raw values remain decoded. | User-approved product intent | Requested/displayed visible graphs share the selected effective range; raw Lovelace remains available. | [User deviations](../../user-deviations.md#dashboard-graph-time-range), CFG-01 | Range/key/request/raw-model matrix | approved; Module 01 current scope |
 | UD-02 | Selected range is an initial viewport, not the eventual zoom-out maximum. | User-approved future intent | Current selected-window stream remains reference-correct; later expansion fetches/reuses older coverage. | [User deviations](../../user-deviations.md#expand-graph-history-beyond-the-initial-range) | Current range tests now; expansion tests later | approved; behavior deferred |
 | UD-03 | Idle 24-hour prefetch and range-aware shared cache are lower-priority, cancellable, deduplicated, and budgeted. | User-approved future intent/performance | Foreground stream correctness and responsiveness remain primary. | [User deviations](../../user-deviations.md#idle-history-prefetch-and-range-reuse), CFG-05 | Cache coverage/priority/cancellation benchmarks later | approved; behavior deferred |
-| D01-01 | Use Swift value types/actors and an injected clock rather than mutable JavaScript objects/listeners. | Native platform convention and determinism | Same wire fields, rolling window, ordering, and fresh reconnect outcomes. | C01-01 through C01-04 | Fake clock/transport suite | proposed implementation technique; allowed |
-| D01-02 | Safely accept missing `a` and empty per-entity arrays instead of crashing on malformed/sparse server data. | Native robustness | Valid server history behavior and attributes remain unchanged. | C01-01/C01-02 | Sparse/malformed fixtures | proposed implementation technique; allowed |
+| D01-01 | Use Swift value types/actors and an injected clock rather than mutable JavaScript objects/listeners. | Native platform convention and determinism | Same wire fields, rolling window, ordering, and fresh reconnect outcomes. | C01-01 through C01-04 | Fake clock/transport suite | implemented |
+| D01-02 | Safely accept missing `a` and empty per-entity arrays instead of crashing on malformed/sparse server data. | Native robustness | Valid server history behavior and attributes remain unchanged. | C01-01/C01-02 | Sparse/malformed fixtures | implemented |
+| D01-03 | Use an exact stable two-way merge when existing and incoming arrays are each ordered, with a full stable-sort fallback for unsorted input. | Swift performance optimization proven against the reference output | Equal-timestamp arrival order, duplicates, cutoff behavior, and all projected values remain byte-for-byte equivalent in the tracked fixture. | C01-02, HF-01 | Unit fixtures plus `HistoryStreamBench` | implemented; benchmarked |
 | GAP-01 | Do not implement recorder statistics merge in this rescue module. | Explicit rescue-plan scope boundary, not an approved product deviation | State history streaming is preserved; future statistics parity remains visible. | HF-02/HF-03 | N/A for completion; retain documented gap | deferred parity work |
 
 There is no unresolved product choice. Implementation mechanics such as a
@@ -358,14 +365,488 @@ dismissal or unrelated controls.
   Module 01 should expose ownership seams, not implement those modules now.
 
 None of these is a material behavior question: each has a contract and
-deterministic acceptance test, so the packet is `research-ready`.
+deterministic acceptance test. The implementation owner addressed the current
+Module 01 risks; the approved future work remains explicitly deferred.
+
+## Implementation result
+
+The single Swift implementation owner completed the module on the working tree
+based at `0f6a324aa43c5c508a8304c1767483c0d2edc6f4`:
+
+- `HomeAssistantHistoryStream.swift` now owns compact stream decoding, exact
+  accumulation, projection, attribute policy, reconnect coordination, and
+  cancellation. The WebSocket client exposes a typed
+  `subscribeHistoryStatesTimeWindow` facade over Module 02 with
+  `resubscribe: false`.
+- `DashboardViewModel` now owns independent visible-card/detail stream
+  subscriptions and generation-checked publication. The normal app history
+  path no longer calls REST or appends `state_changed` samples. The REST client
+  remains available to the benchmark/probe tools.
+- `AppConfig` supplies the typed global 1/3/6/12-hour policy and 24-hour detail
+  default. Deterministic traversal occurrence identity replaces regenerated
+  UUID ownership while raw decoded `hoursToShow` remains unchanged.
+- `HAHistorySeries` has a deterministic content revision, and graph preparation
+  only reuses incremental work when content truly grows. Same-shape replacement
+  therefore invalidates prepared/rendered output.
+- Deterministic core, integration, rendering, lifecycle, performance, and
+  opt-in live-smoke tests cover the contracts. `HistoryStreamBench` records the
+  exact-output stable-merge choice under `Benchmarks/history-stream/`.
+
+Actual implementation paths are pinned by the graph and comprise:
+
+- `Package.swift`, `Sources/NativeHACore/HomeAssistantHistoryStream.swift`,
+  `HomeAssistantWebSocketClient.swift`, and `Models.swift`;
+- `Sources/NativeHAMac/AppConfig.swift`, `CardViews.swift`,
+  `DashboardViewModel.swift`, and `GraphRendering.swift`;
+- the new core history unit/performance/live-smoke tests, the macOS history
+  integration tests, and focused graph/GUI regression additions;
+- `Benchmarks/history-stream/`, `docs/configurability.md`, and the Module 01
+  manifest/generated graph/packet/index.
+
+## Implementer verification
+
+| Contract | Implementer evidence | Result before independent verification |
+|---|---|---|
+| C01-01 | Compact fixtures cover optional/missing fields, fractional seconds, metadata, malformed requirements, and REST-shape separation. | pass |
+| C01-02 | Fixed-clock union/order/duplicate/cutoff/new-entity tests plus exact benchmark comparison cover accumulation. | pass |
+| C01-03 | Fake transport asserts ordered IDs, ISO start, omitted end, booleans, six attribute domains, mixed/missing states. | pass |
+| C01-04 | Initial-ready, rejection, reconnect freshness, 100 reconnects, cancel/idempotence, stale generation, and zero ownership are deterministic. | pass |
+| C01-05 | Projection tests cover timeline sentinel states, numeric gaps, timestamp/domain rules, sparse attributes, and precision. | pass |
+| C01-06 | Two-card isolation, deterministic occurrence/ordered identity, global range replacement, raw hours, detail lifecycle/race, and no state double-append pass. | pass |
+| C01-07 | Owner-specific loading/error UI, rejection, cancellation, late generation suppression, weak release, and 100-cycle zero ownership pass. | pass |
+| C01-08 | Same-shape invalidation, replay/update PNG distinction, async 20k preparation, and prompt detail dismissal pass. | pass |
+| C01-09 | App orchestration uses only the WebSocket stream; REST remains separate and all app/tool products build. | pass |
+
+Recorded implementer runs on 2026-07-17:
+
+- Initial and final staleness checks were green. The final resolver self-test
+  passed with 28 nodes, 59 edges, and fingerprint
+  `31bfe3e30a5d9e6098b57c3efbed65351a0a0cd4758edebac90bbe72078dde07`.
+  After implementation, the regenerated Module 01 graph has 21 nodes, 143
+  edges, no unresolved/truncated dependency, and fingerprint
+  `031ae9d2ee3c7471be95702c817114d393efd073b0685dc6679c78462983c51d`.
+- Focused core history tests passed 10/10; focused macOS integration tests
+  passed 2/2; focused graph tests passed 8/8. The final complete suite passed
+  58 tests with one intentional opt-in live-smoke skip and no failures in
+  33.301 seconds. Its two existing Module 09 hover/step markers remained
+  expected.
+- `NativeHAMac`, `GraphBench`, `GraphPyramidBench`, `ha-probe`, and
+  `HistoryStreamBench` built. The release benchmark's final 40,000 samples had
+  checksum `8026277772552279935`; the final run's stable merge averaged 87.218
+  ms versus 140.775 ms for full stable sort (1.61x) with exact array equality.
+- XCTest metrics cover reference 25,000-state decode/cold replay/twenty warm
+  chunks and rescue 20,000+100x200 out-of-order/trim fixtures using clock, CPU,
+  and memory metrics. The latest debug out-of-order merge measured about
+  1.3–1.4 seconds after optimization; the tracked release benchmark above is
+  the algorithm-selection evidence.
+- Fixed 496x260-point at 2x loading/replay/update numeric and timeline PNGs are
+  valid 992x520 nonblank artifacts; replay and update differ. The 20,000-point
+  responsiveness/dismissal test passed in 0.203 seconds.
+- The opt-in authenticated read-only smoke passed one-hour, forced reconnect,
+  and 24-hour coverage with zero final ownership: 2,384 fractional one-hour
+  points in 0.183 seconds, a fresh 2,384-point reconnect, and 55,859 fractional
+  24-hour points in 2.693 seconds. It made no state/service mutation.
+
+The independent verifier must rerun the final full suite after inspecting the
+working-tree diff; implementer results are supporting evidence, not completion.
+
+## Fresh independent verification — 2026-07-17
+
+Verdict: remain `verification-ready`. The implementation and all executed
+offline/live suites are green, but the packet's required evidence is not yet
+complete for C01-04, C01-07, and C01-08. In particular, the visual test passed
+while producing incompletely settled replay/update artifacts, and the claimed
+gated responsiveness probe does not contain a gate or exercise a production
+history publication/render path. These are completion blockers even though no
+Swift test reported a failure.
+
+| Contract | Independent evidence | Verdict |
+|---|---|---|
+| C01-01 | The compact decoder and REST/stream separation were inspected and the focused fixtures passed, including fractional seconds, optional/missing fields, metadata, malformed required fields, and empty entity arrays. | pass |
+| C01-02 | Stable equal-timestamp/duplicate order, out-of-order merging, cutoff boundary rewrite, exact-cutoff behavior, and new-entity trim timing passed. The release benchmark also required exact equality between both candidate arrays. | pass |
+| C01-03 | The exact `history/stream` wire dictionary, ordered IDs, recomputed fractional ISO start, omitted end, both booleans, all six attribute domains, mixed domains, and missing/current state policy passed inspection and deterministic tests. The live ordinary-domain request reported `no_attributes=true` and returned zero attribute-bearing points, as expected. | pass |
+| C01-04 | One initial owner despite immediate `ready`, `resubscribe:false`, 100 fresh-start reconnects, fresh accumulator data, weak release, idempotent cancellation, and final zero ownership passed. However, no Module 01 test rejects the reconnect-created subscription and proves owner error, no busy loop, zero abandoned ownership, and a later readiness/refresh retry with another fresh accumulator, although the packet explicitly requires that case. | required failed-resubscribe evidence missing |
+| C01-05 | Timeline sentinel states, numeric stored-data preservation, sparse attributes, deterministic ordering, centralized fractional timestamp conversion, and the `lu` production branch shared by climate/humidifier/water-heater passed tests plus code inspection. | pass |
+| C01-06 | Two overlapping card owners remained isolated; deterministic occurrence identity, ordered entity identity, raw `hoursToShow`, global effective-range replacement, 24-hour detail ownership, prompt detail cancellation, and removal of `state_changed` history appends passed. | pass |
+| C01-07 | Initial rejection/status propagation, repeated cancellation, 100-cycle weak release, and exact final Module 02 ownership passed. The implementer table nevertheless claims late-generation suppression and broader error isolation that the Module 01 tests do not exercise: there is no gated late callback during cancellation/replacement, reconnect-subscribe rejection, history-owner overflow/error isolation with another live owner, or cancellation while merge/preparation is in flight. | required cancellation/error/generation evidence incomplete |
+| C01-08 | Same-shape content revision invalidation and semantic owner isolation passed. The fixed visual test passed and wrote five valid nonblank 992x520 PNGs with different replay/update hashes, but direct inspection found incompletely settled captures on repeated runs (one timeline replay lacked its range/x-axis labels; after the full suite the numeric update lacked its header and the timeline update lacked its header/x-axis labels). The helper waits a fixed 0.30 seconds rather than polling readiness. The 20,000-point dismissal test passed in 0.195-0.330 seconds, but merely starts an unrelated `Task.detached`, immediately opens/closes a model, and awaits projection; it has no controllable gate, no production stream publication/render path, and no before-gate responsiveness assertion. | fail |
+| C01-09 | Search and diff inspection found no app-facing `fetchHistory` call or realtime history append. REST remains only in the REST client/tool path, the stream/REST decoder separation passed, and all app/tool products built. | pass |
+
+Independent commands and observations:
+
+```text
+node tools/reference-context/check-context.mjs docs/reference-context/generated/module-01.dependencies.json
+GREEN
+
+node tools/reference-context/test-resolver.mjs
+PASS: 28 nodes, 59 edges, fingerprint 31bfe3e30a5d9e6098b57c3efbed65351a0a0cd4758edebac90bbe72078dde07
+
+/usr/bin/time -lp swift test --filter HomeAssistantHistoryStreamTests
+10 tests, 0 failures; 100 reconnect and 100 subscribe/cancel cycles passed;
+maximum resident set size 81,559,552 bytes
+
+/usr/bin/time -lp swift test --filter HomeAssistantWebSocket
+17 tests, 0 failures; maximum resident set size 76,398,592 bytes
+
+/usr/bin/time -lp swift test --filter HistoryStreamIntegrationTests
+2 tests, 0 failures
+
+/usr/bin/time -lp swift test --filter GraphRenderingTests
+8 tests, 0 failures; the two pre-existing Module 09 markers remained expected
+
+/usr/bin/time -lp swift test --filter HomeAssistantHistoryStreamPerformanceTests
+5 tests, 0 failures; decode, cold replay, warm 20-chunk merge, 20,000+100x200
+out-of-order merge, and rolling trim remained separate clock/CPU/memory metrics;
+out-of-order clock mean 1.309 seconds; maximum resident set size 125,796,352 bytes
+
+swift test --skip-build
+58 tests, 1 intentional opt-in live skip, 0 failures; 31.227 seconds
+
+swift build --product NativeHAMac
+swift build --product GraphBench
+swift build --product GraphPyramidBench
+swift build --product ha-probe
+swift build --product HistoryStreamBench
+all passed
+
+/usr/bin/time -lp swift run -c release HistoryStreamBench
+exact arrays matched; final 40,000; checksum 8026277772552279935;
+stable merge 95.983 ms average; full stable sort 161.985 ms average;
+maximum resident set size 122,650,624 bytes; no speed threshold enforced
+
+NATIVEHA_RUN_LIVE_HISTORY_SMOKE=1 swift test --filter \
+  HomeAssistantHistoryLiveSmokeTests.testReadOnlyOneHourTwentyFourHourAndReconnectSmoke
+1 test, 0 failures; entities sensor.qtpy_sensors_bme688_humidity,
+sensor.qtpy_sensors_bme688_temperature, switch.cmpower_w1_7ac38d_33_fen_kong_kai_guan;
+no_attributes=true; 1h 2,381 points/2,381 fractional/0 attributes in 0.167s;
+reconnect callbacks 2/loading 2/fresh final 2,381 points; 24h 55,863
+points/55,863 fractional/0 attributes in 3.400s; final ownership zero;
+maximum resident set size 100,253,696 bytes; no service/state mutation
+
+Swift 5.6.1; target arm64-apple-macosx12.0; Xcode 13.4.1; Swift tools 5.6;
+Module 01 manifest/generated JSON parse PASS; git diff --check PASS
+```
+
+No stream animation was introduced, so a stream animation oracle remains N/A.
+Diff inspection found only disabled range-expansion seams and the existing
+prepared-render cache invalidation fix; it did not implement shared history
+cache/prefetch, range expansion, recorder statistics, Module 09 interaction,
+or Module 12 view behavior. The read-only hass-frontend checkout remained
+clean. `Benchmarks/.DS_Store` is an accidental untracked artifact and must be
+removed by the implementation owner before commit.
+
+Exact repair action:
+
+1. For C01-04/C01-07, add deterministic fake-transport cases that reject the
+   reconnect-created history subscription and gate a late callback/in-flight
+   merge across cancellation or generation replacement. Assert concise
+   owner-local error, no busy retry, no stale publication, another owner's
+   continued delivery, a later readiness/explicit-refresh fresh start and
+   accumulator, and exact zero pending/subscription/wire/delivery/buffer counts.
+2. For C01-08, replace fixed visual settlement with a bounded readiness poll
+   that requires the full header, range label, axes/ticks, and data region
+   before capturing every replay/update PNG. Add a controllable gate inside the
+   actual stream projection/publication or render-preparation path; prove the
+   detail sheet and unrelated main-actor work complete before releasing it,
+   then prove cancellation/generation prevents stale publication.
+3. Rerun the focused/full suites, inspect all five regenerated PNGs, rerun the
+   opt-in live smoke, remove `Benchmarks/.DS_Store`, and dispatch another fresh
+   independent verification.
+
+## Bounded repair implementation — 2026-07-17
+
+The same single Swift implementation owner completed the verifier's bounded
+C01-04/C01-07/C01-08 repair action without broadening Module 01:
+
+- The history coordinator now drains complete-history publications through one
+  cancellable, serialized, latest-value worker. Cancellation/reconnect/refresh
+  invalidates pending work immediately; a slow projection callback no longer
+  blocks wire disposal, and a cancelled generation cannot publish `ready`.
+- A deterministic two-owner `ScriptedWebSocketTransport` test rejects one
+  reconnect-created `history/stream` subscription while the other owner keeps
+  delivering. It proves the concise owner-local error, no busy retry, exact
+  absence of abandoned ownership, explicit-refresh recovery with another fresh
+  ISO start/accumulator, weak release, and zero pending/subscription/wire/
+  delivery/buffer/termination/receiver counts after disposal.
+- `DashboardViewModel` has an internal default-no-op processing hook at the
+  actual history projection/publication boundary. A 20,000-point production
+  replay test holds that path, completes detail dismissal and unrelated
+  main-actor work before release, cancels the card generation and wire owner
+  before release, then proves the late callback cannot recreate history/status.
+  The model weakly releases and all connection/transport counts finish at zero.
+- `BitmapLineChart` reports when its production render result is installed.
+  The visual renderer now combines that signal with a bounded three-second
+  bitmap-readiness poll; it requires bright header/range text, populated graph
+  ticks/data, and nonblank header/axis/data regions instead of sleeping 0.30
+  seconds. The obsolete unrelated detached-task responsiveness test was
+  removed in favor of the production-path gated integration test.
+- `Benchmarks/.DS_Store` was removed. No reference-checkout, Module 02,
+  deferred cache/prefetch/range-expansion/statistics, Module 09, or Module 12
+  behavior changed.
+
+Repair validation on the final working tree:
+
+```text
+HomeAssistantHistoryStreamTests: 11 passed
+HomeAssistantWebSocket*: 17 passed
+HistoryStreamIntegrationTests: 3 passed
+GraphRenderingTests: 8 passed; two existing Module 09 markers expected
+GUIRenderingAndPerformanceTests: 5 passed
+HomeAssistantHistoryStreamPerformanceTests: 5 passed; out-of-order mean 1.297s
+
+swift test: 59 tests, 1 intentional opt-in live skip, 0 failures; 35.375s
+NativeHAMac, GraphBench, GraphPyramidBench, ha-probe, HistoryStreamBench: built
+
+release HistoryStreamBench: exact final 40,000 samples;
+checksum 8026277772552279935; merge 91.902ms, sort 143.339ms, 1.56x
+
+read-only live smoke: 1 test passed in 3.641s; no_attributes=true;
+1h 2,378 points/2 callbacks/0 attributes/2,378 fractional in 0.177s;
+reconnect fresh 2,376 points/2 callbacks/2 loading states;
+24h 56,166 points/2 callbacks/0 attributes/56,166 fractional in 2.650s;
+zero final ownership, no service/state mutation, max RSS 95,502,336 bytes
+```
+
+The fixed 496x260-point at 2x visual test passed three consecutive repair runs
+under the bounded readiness poll. All five final PNGs are valid nonblank
+992x520 images. Direct full-resolution inspection confirmed the loading shell,
+numeric replay/update, and timeline replay/update each contain their complete
+header and `1h` range label; settled graphs contain all five x-axis labels,
+ticks/grid, and data. Numeric and timeline replay/update pairs are visibly and
+bytewise distinct. Pixel inspection independently found bright header/range
+and bottom-axis components in every settled PNG.
+
+The regenerated graph remains 21 nodes/143 edges with no unresolved or
+truncated dependency and now has fingerprint
+`749fb98463873b316b94bd8639167cf541dd0160bcb52d88c15a15a2b7813a00`.
+The final staleness check is green; the resolver self-test passes 28 nodes/59
+edges with fingerprint
+`dd7691e06ec49684dfe6582befef9af042ab3a84872e1de17d684a619d4e21cd`.
+This repair evidence returns C01-04, C01-07, and C01-08 to a fresh verifier; it
+does not independently mark them complete.
+
+## Fresh independent re-verification after bounded repair — 2026-07-17
+
+Verdict: remain `verification-ready`. The bounded C01-04/C01-07 ownership and
+responsiveness repairs pass independently, as do C01-01 through C01-07 and
+C01-09 overall. C01-08 still fails the required visual-settlement oracle: the
+test's new readiness predicates return success for reproducibly incomplete
+replay images. A green XCTest result is therefore not completion evidence for
+the visual contract.
+
+| Contract | Fresh independent evidence | Verdict |
+|---|---|---|
+| C01-01 | Focused compact fixtures passed for optional/missing fields, fractional seconds, metadata, malformed required fields, empty entity arrays, and REST/stream decoder separation. | pass |
+| C01-02 | Stable equal-timestamp/duplicate ordering, out-of-order merging, cutoff rewrite, exact-cutoff behavior, new-entity timing, and unchanged broader coverage passed. The release benchmark required exact array equality. | pass |
+| C01-03 | Inspection and deterministic tests passed for ordered IDs, recomputed fractional ISO start, omitted end, both request booleans, all six attribute domains, and missing/current-state policy. The live ordinary-domain request reported `no_attributes=true` with zero attribute-bearing points. | pass |
+| C01-04 | The exact two-owner reconnect-rejection case passed. One reconnect-created owner received the concise local `history_unavailable` error, issued no busy-loop retry, left the other owner delivering, then explicitly refreshed with a later ISO start and a fresh-only accumulator. The 100 reconnect cycle also produced 101 distinct starts. Final pending/subscription/wire/delivery/buffer/task/termination/receiver ownership was exactly zero and both owners weakly released. | pass |
+| C01-05 | Timeline sentinel-state preservation, nonnumeric stored-data preservation, sparse attributes, domain timestamp rules, fractional conversion, deterministic ordering, and same-shape content revision passed. | pass |
+| C01-06 | Two overlapping owners stayed isolated; deterministic occurrence and ordered-entity identity, global effective range, raw `hoursToShow`, 24-hour detail ownership, prompt detail cancellation, and no `state_changed` history append passed. | pass |
+| C01-07 | Initial/reconnect rejection is owner-local; the unaffected owner remains live. A separate production-path 20,000-point gate held actual projection/publication while detail-state dismissal and unrelated main-actor work completed. Cancellation removed the generation and wire owner before release; the gated callback then recreated neither history nor status. The model weakly released and all connection/transport counts reached zero. | pass |
+| C01-08 | Same-shape invalidation and the production-path cancellation gate pass. The fixed 496x260-point at 2x visual XCTest also passed three consecutive runs, and all five PNGs were nonblank 992x520 images with distinct replay/update hashes. Direct original-resolution inspection nevertheless found the numeric replay missing its `1h` range label and the timeline replay missing both `1h` and all five x-axis labels. The same incomplete images and hashes recurred in all three uniquely copied runs, proving that the coarse bright-pixel readiness regions admit plot/grid false positives. | fail visual settlement |
+| C01-09 | Search/diff inspection found no normal macOS app `fetchHistory` call, REST fallback, or realtime double append. REST remains in `HomeAssistantRESTClient`, `GraphBench`, `GraphPyramidBench`, and `HAProbe`; all five products build. | pass |
+
+Fresh commands and results:
+
+```text
+node tools/reference-context/check-context.mjs docs/reference-context/generated/module-01.dependencies.json
+GREEN
+
+node tools/reference-context/test-resolver.mjs
+PASS: 28 nodes, 59 edges, fingerprint dd7691e06ec49684dfe6582befef9af042ab3a84872e1de17d684a619d4e21cd
+
+swift test --filter HomeAssistantHistoryStreamTests
+11 tests, 0 failures; 100 reconnect and 100 subscribe/cancel cycles passed
+
+swift test --filter HomeAssistantWebSocket
+17 tests, 0 failures
+
+swift test --filter HistoryStreamIntegrationTests
+3 tests, 0 failures; production-path gate passed
+
+swift test --filter GraphRenderingTests
+8 tests, 0 failures; two existing Module 09 expected markers remained expected
+
+swift test --filter HomeAssistantHistoryStreamPerformanceTests
+5 tests, 0 failures; out-of-order clock mean 1.281 seconds
+
+swift test --filter GUIRenderingAndPerformanceTests
+5 tests, 0 failures; visual assertion false positive documented above
+
+swift test
+59 tests, 1 intentional opt-in live skip, 0 failures; 34.707 seconds
+
+swift build --product NativeHAMac
+swift build --product GraphBench
+swift build --product GraphPyramidBench
+swift build --product ha-probe
+swift build --product HistoryStreamBench
+all passed
+
+swift run -c release HistoryStreamBench
+exact arrays matched; final 40,000; checksum 8026277772552279935;
+stable merge 93.030ms average; full stable sort 149.806ms average;
+no speed threshold enforced
+
+NATIVEHA_RUN_LIVE_HISTORY_SMOKE=1 swift test --filter \
+  HomeAssistantHistoryLiveSmokeTests.testReadOnlyOneHourTwentyFourHourAndReconnectSmoke
+1 test passed; entities sensor.qtpy_sensors_bme688_humidity,
+sensor.qtpy_sensors_bme688_temperature,
+switch.cmpower_w1_7ac38d_33_fen_kong_kai_guan; no_attributes=true;
+1h 2,374 points/1 callback/0 attributes/2,374 fractional in 0.174s;
+reconnect 2 callbacks/2 loading states/fresh final 2,374 points;
+24h 56,597 points/1 callback/0 attributes/56,597 fractional in 3.259s;
+zero-ownership assertions passed; no service/state mutation
+```
+
+The three repeated visual runs produced identical hashes for each state, so the
+failure was not overwritten-file caching. Loading was complete. Numeric replay
+was `a9d487c7...` and lacked `1h`; numeric update was `888a90f2...` and was
+complete. Timeline replay was `3ec10f5e...` and lacked `1h` plus the x-axis
+labels; timeline update was `31971b88...` and was complete. Replay/update
+content itself remained distinct.
+
+Compatibility and scope checks also passed: Swift 5.6.1/Xcode 13.4.1, Swift
+tools 5.6, and `arm64-apple-macosx12.0`; manifest/generated JSON parsing; local
+Markdown links; final green graph/resolver checks; clean hass-frontend checkout;
+and `git diff --check`. The untracked deliverable list contains only the three
+benchmark files and five intended Swift test/source files; the previously
+reported `Benchmarks/.DS_Store` is absent. Existing ignored `.DS_Store` files
+elsewhere in the repository were pre-existing and are outside the Module 01
+diff. Inspection found only disabled expansion seams and prepared-cache
+invalidation: shared cache/prefetch/range expansion, recorder statistics,
+Module 09 interaction, and Module 12 view behavior remain deferred.
+
+## Second bounded C01-08 visual-only repair — 2026-07-17
+
+The same single Swift implementation owner repaired only the C01-08 test
+settlement/capture evidence. No file under `Sources/` changed during this
+repair, so history protocol, accumulator, reconnect, lifecycle, projection,
+rendering, and application behavior are byte-identical to the preceding
+bounded-repair verification. The prior five-product builds, exact-output
+release benchmark, and read-only live smoke therefore remain applicable.
+
+The GUI oracle no longer counts bright samples in broad regions. After the
+production `BitmapLineChart.onRenderReady` result reports at least four x ticks
+and nonempty rendered data, it applies these layout-aware text conditions:
+
+- The loading capture establishes a binary template from the exact range-label
+  band. Before it can become a template, that band must contain exactly the two
+  significant connected components expected for the fixture's `1h`: bounded
+  `1`/`h` widths, 15-21 pixel glyph heights, a 2-7 pixel inter-glyph gap, and a
+  20-28 by 16-21 pixel union. Replay/update range masks must independently pass
+  those constraints and match the loading template at intersection-over-union
+  `>= 0.82`, allowing only a one-pixel composition translation.
+- The title band must contain at least seven connected text glyph components
+  with title-specific height and union geometry.
+- Each of five nonoverlapping expected x-axis regions must contain at least
+  five text-shaped connected components, at least 250 foreground glyph pixels,
+  and a bounded 70-115 by 14-22 pixel group. The regions lie solely in the
+  bottom label band, below plot borders, grid lines, and timeline/numeric data.
+- Data still must be nonblank, but data/grid pixels cannot satisfy any label
+  condition. Every accepted bitmap must pass all applicable conditions on two
+  consecutive newly cached snapshots, each separated by a layout/display
+  turn. A failure resets the consecutive count. There is no fixed sleep.
+
+The named negative regression copies otherwise complete production-fixture
+bitmaps, erases only the range-label band from a populated numeric grid/data
+image, and erases only the five-label bottom band from populated timeline data.
+It proves the unaffected data/other-label condition remains present and that
+the settlement oracle rejects both exact incomplete shapes.
+
+One test invocation now creates three complete repeated runs, each with five
+unique names. All 15 PNGs are nonblank 992x520 images. Numeric and timeline
+replay/update pairs are distinct; each state is deterministic across repeats:
+
+```text
+history-stream-run-{01,02,03}-loading.png
+  694df21b101244fb3c68fd3686beacd3c7089c1821d9bfcb3d85f36dcb5108d4
+history-stream-run-{01,02,03}-numeric-replay.png
+  a9d487c71931decf9f26bc3a138b7894a62f200b8a361489bfdb9b11ada265d0
+history-stream-run-{01,02,03}-numeric-update.png
+  888a90f2a11cd5d226bd908defc9012d077f500687e6e5cb0e01fafa96740c9f
+history-stream-run-{01,02,03}-timeline-replay.png
+  3ec10f5eff5087e57c67cedba7b8b65ed5bf2d29ac4bce4ee02bc1a0330f8982
+history-stream-run-{01,02,03}-timeline-update.png
+  31971b88140cbcf2ca495e0014337faa062f08f3a3ea5bf34877fd3b58b01778
+```
+
+All 15 uniquely named files were opened through the image viewer at original
+resolution. Exact original-PNG crop inspection and the production-test oracle
+establish that numeric replay contains `1h`, and timeline replay contains `1h`
+plus all five bottom-axis labels, in every repeat. ImageMagick pixel comparison
+reports zero differing pixels between loading and numeric-replay `1h` crops,
+zero between loading and timeline-replay `1h` crops, and zero between timeline
+replay/update bottom-label crops.
+
+The in-app viewer can present two byte-identical PNG data URLs differently in
+one multi-image response (during this inspection, an equality check returned
+`same: true` while one preview omitted an overlay). A verifier must therefore
+inspect each original file and use its raw crop/component evidence rather than
+treating a transient preview thumbnail as different PNG content. This is a
+viewer-presentation caveat, not a waiver of the label conditions: the erased
+raw-PNG regressions fail the oracle deterministically.
+
+Final repair validation:
+
+```text
+node tools/reference-context/check-context.mjs \
+  docs/reference-context/generated/module-01.dependencies.json
+GREEN
+
+node tools/reference-context/test-resolver.mjs
+PASS: 28 nodes, 59 edges, fingerprint
+dd7691e06ec49684dfe6582befef9af042ab3a84872e1de17d684a619d4e21cd
+
+swift test --filter \
+  GUIRenderingAndPerformanceTests.testHistoryVisualLabelOracleRejectsPopulatedGraphsWithBlankLabelBands
+1 test, 0 failures; exact blank-range/blank-axis regressions passed; 3.092s
+
+swift test --filter \
+  GUIRenderingAndPerformanceTests.testHistoryStreamNumericAndTimelineLoadingReplayIncrementalArtifacts
+1 test, 0 failures; all 15 unique artifacts produced; 17.227s
+
+swift test --filter GUIRenderingAndPerformanceTests
+6 tests, 0 failures; 18.469s
+
+swift test --filter GraphRenderingTests  # repeated twice
+8 tests, 0 failures each run; two pre-existing Module 09 markers expected
+
+swift test --filter HistoryStreamIntegrationTests  # repeated twice
+3 tests, 0 failures each run
+
+/usr/bin/time -lp swift test
+60 tests, 1 intentional opt-in live skip, 0 failures; 47.720s;
+maximum resident set size 1,878,949,888 bytes
+```
+
+The regenerated graph remains 21 nodes/143 edges with no unresolved/truncated
+dependency and fingerprint
+`7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602`.
+The graph check is green and resolver self-test remains green. C01-08 is
+returned to a fresh independent verifier; this repair does not mark it or the
+module complete. Module 01 manifest/generated JSON parsing, packet/index local
+Markdown links, and `git diff --check` pass; the read-only hass-frontend
+checkout remains clean. Exactly 15 uniquely named history artifacts remain in
+the artifact directory. No new `.DS_Store` is tracked or untracked; the ignored
+root/`Sources`/`Tests`/`docs`/`tools` files are pre-existing and outside this
+repair.
+
+## Live GUI regression hold — 2026-07-17
+
+Do not mark Module 01 complete. After the visual-only repair, the user reported
+and the final writer reproduced a live `CO2/VOC` history owner stuck loading
+with `Home Assistant WebSocket disconnected`; switching to 12h also cycles the
+shared app status between Live/Reconnecting. The user also reports SPS30
+scroll/zoom/pan redraw only after the gesture ends. The time-boxed pass made no
+application changes because neither root cause was proven enough for a safe
+fix. The self-contained reproduction, likely transport/render causes, exact
+stress evidence, current scope, and next commands are in [`todo.md`](../../../todo.md).
 
 ## Handoff
 
-Keep the parent task as orchestrator and dispatch exactly one implementation
-subagent as the only Swift writer.
-
-The implementation agent must first run:
+First repair and live-verify both GUI regressions in [`todo.md`](../../../todo.md).
+Then dispatch a fresh independent verifier. It must first run:
 
 ```sh
 node tools/reference-context/check-context.mjs \
@@ -373,24 +854,25 @@ node tools/reference-context/check-context.mjs \
 node tools/reference-context/test-resolver.mjs
 ```
 
-If the graph is green, read this packet, the Module 01 rescue plan, the complete
-current Swift owners named above, and only HF-01/HF-02/HF-03 plus the focused
-tests/benchmark as needed. Do not re-audit the full frontend or Module 02.
+If green, inspect the actual diff and graph-pinned implementation paths, then
+verify C01-01 through C01-09 against this packet without re-auditing the entire
+frontend or redoing Module 02. Rerun focused history/integration/render tests,
+the full suite, all five products, the release benchmark, PNG checks, lifecycle
+ownership checks, and the opt-in read-only live one-hour/reconnect/24-hour smoke
+when the configured server is reachable. Confirm normal app history has zero
+REST fallback/double append and that approved future cache/prefetch/expansion,
+recorder statistics, Module 09, and Module 12 work did not leak into scope.
 
-Implement C01-01 through C01-09 in dependency order. Expected scope is a new
-`Sources/NativeHACore/HomeAssistantHistoryStream.swift`, small typed additions
-to the WebSocket facade, `AppConfig` and its canonical configuration note,
-dashboard/card/detail ownership, narrowly necessary prepared-output
-invalidation, deterministic core/macOS tests, and this packet/index. Preserve
-the REST tool path and do not implement the deferred shared cache, idle
-prefetch, arbitrary range expansion, recorder statistics, Module 04 decoding,
-Module 09 rendering redesign, or Module 12 navigation.
-
-Run targeted history/WebSocket tests, performance/lifecycle tests, the full
-suite, app/tool builds, applicable offscreen visual checks, and a read-only live
-1h/24h/reconnect smoke. Record exact results and actual diff scope here, then
-set status to `verification-ready` with an exact fresh-verifier handoff. Do not
-mark `complete` without independent verification.
+Independently re-verify C01-08's consecutive label-specific settlement and
+blank-band regressions plus the bounded C01-04/C01-07 repair above. Inspect the
+15 uniquely named original-resolution PNGs and raw label crops; account for the
+documented in-app preview inconsistency by comparing source bytes/components if
+two identical data URLs appear different. Explicitly confirm numeric replay has
+`1h` and timeline replay has `1h` plus five separated bottom-axis labels. The
+verifier remains read-only with respect to Swift unless the orchestrator starts
+a separate repair task. Mark the module complete only after every replay and
+update capture contains the complete header/range/axis/data surface and all C01
+contracts pass independently.
 
 ## Change log
 
@@ -398,3 +880,28 @@ mark `complete` without independent verification.
   completed bounded reference/Swift research; reconciled the rescue plan with
   verified Module 02 behavior and canonical global-range/future-cache intent;
   defined C01-01 through C01-09; status `research-ready` at contract revision 1.
+- 2026-07-17: implemented C01-01 through C01-09 with one Swift writer; added
+  deterministic core/macOS/visual/performance/live-smoke coverage and the
+  tracked exact-output merge benchmark; regenerated the graph; recorded
+  implementer validation; status `verification-ready` pending a fresh
+  independent verifier.
+- 2026-07-17: fresh independent verification passed C01-01, C01-02, C01-03,
+  C01-05, C01-06, and C01-09, but retained `verification-ready`: C01-04/C01-07
+  lack required failure/generation evidence, and C01-08 produced visibly
+  unsettled PNGs while its claimed gated dismissal probe had no gate or
+  production-path contention.
+- 2026-07-17: the single Swift owner completed the bounded C01-04/C01-07/C01-08
+  repair; added deterministic reconnect-failure/owner-isolation and real
+  production-path cancellation evidence; replaced fixed visual timing with
+  bounded render-state/bitmap readiness; regenerated and inspected settled
+  artifacts; status remains `verification-ready` for a fresh verifier.
+- 2026-07-17: a fresh independent re-verifier passed C01-04/C01-07 and all
+  nonvisual checks, but retained `verification-ready`: three repeated visual
+  tests falsely accepted the same incomplete numeric/timeline replay images.
+  C01-08 requires one more bounded visual-readiness repair.
+- 2026-07-17: the single Swift owner completed a visual-only C01-08 repair;
+  replaced coarse readiness with consecutive `1h` template and five-region
+  axis glyph-component checks, added exact erased-label-band regressions,
+  generated and inspected 15 unique artifacts, and documented the in-app
+  viewer's inconsistent presentation of identical data URLs. Production source
+  remained unchanged; status stays `verification-ready` for a fresh verifier.

@@ -8,6 +8,8 @@ final class DashboardViewModel: ObservableObject {
     @Published var states: [String: HAState] = [:]
     @Published var histories: [String: [HAHistorySeries]] = [:]
     @Published var detailHistories: [String: HAHistorySeries] = [:]
+    @Published var historyStatuses: [String: HAHistoryStreamOwnerStatus] = [:]
+    @Published var detailHistoryStatuses: [String: HAHistoryStreamOwnerStatus] = [:]
     @Published var status = "Starting"
     @Published var errorMessage: String?
     @Published var activeBaseURL: URL?
@@ -18,9 +20,15 @@ final class DashboardViewModel: ObservableObject {
     private var webSocketClient: HomeAssistantWebSocketClient?
     private var stateSubscription: HAWebSocketSubscription?
     private var connectionStatusTask: Task<Void, Never>?
+    private var historySubscriptions: [String: HAHistoryStreamSubscription] = [:]
+    private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
+    private var historyGenerations: [String: UUID] = [:]
+    private var detailHistoryGenerations: [String: UUID] = [:]
+    private var desiredDetailHistoryKeys: Set<String> = []
+    private let historyNow: @Sendable () -> Date
+    private let historyProcessingHook: @Sendable () async -> Void
     private var hasStarted = false
     private var pendingStates: [String: HAState] = [:]
-    private var pendingHistoryStates: [HAState] = []
     private var isStateFlushScheduled = false
     private let isoFormatter = ISO8601DateFormatter()
     private let fractionalISOFormatter: ISO8601DateFormatter = {
@@ -40,6 +48,20 @@ final class DashboardViewModel: ObservableObject {
         return formatter
     }()
 
+    init(
+        webSocketClient: HomeAssistantWebSocketClient? = nil,
+        initialStates: [String: HAState] = [:],
+        initialViews: [LovelaceView] = [],
+        historyNow: @escaping @Sendable () -> Date = { Date() },
+        historyProcessingHook: @escaping @Sendable () async -> Void = {}
+    ) {
+        self.webSocketClient = webSocketClient
+        self.states = initialStates
+        self.views = initialViews
+        self.historyNow = historyNow
+        self.historyProcessingHook = historyProcessingHook
+    }
+
     var homeView: LovelaceView? {
         views.first(where: { $0.path == "default_view" }) ?? views.first
     }
@@ -49,7 +71,7 @@ final class DashboardViewModel: ObservableObject {
             return []
         }
 
-        return cleanCards(flatten(cards))
+        return cleanCards(flatten(cards), path: "home")
     }
 
     var dashboardColumns: [[LovelaceCard]] {
@@ -85,7 +107,10 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setGraphHours(_ hours: Int) {
-        guard selectedGraphHours != hours else {
+        guard
+            AppConfig.graphTimeRangePolicy.selection(hours: hours) != nil,
+            selectedGraphHours != hours
+        else {
             return
         }
 
@@ -294,32 +319,51 @@ final class DashboardViewModel: ObservableObject {
 
     func refreshHistories() {
         Task {
-            await loadHistories()
+            await refreshHistorySubscriptions()
         }
     }
 
     func historyKey(for card: LovelaceCard) -> String {
         let entities = historyEntityIDs(for: card)
-        return "\(selectedGraphHours):\(entities.joined(separator: ","))"
+        return HistoryRequest(
+            ownerID: card.nativeID,
+            entityIDs: entities,
+            hoursToShow: selectedGraphHours
+        ).key
     }
 
     func historySeries(for card: LovelaceCard) -> [HAHistorySeries]? {
         histories[historyKey(for: card)]
     }
 
+    func historyStatus(for card: LovelaceCard) -> HAHistoryStreamOwnerStatus? {
+        historyStatuses[historyKey(for: card)]
+    }
+
     func detailHistory(entityID: String, hours: Int) -> HAHistorySeries? {
         detailHistories[detailHistoryKey(entityID: entityID, hours: hours)]
     }
 
-    func loadDetailHistory(entityID: String, hours: Int) {
-        let key = detailHistoryKey(entityID: entityID, hours: hours)
-        guard detailHistories[key] == nil else {
-            return
-        }
+    func detailHistoryStatus(entityID: String, hours: Int) -> HAHistoryStreamOwnerStatus? {
+        detailHistoryStatuses[detailHistoryKey(entityID: entityID, hours: hours)]
+    }
 
+    func loadDetailHistory(entityID: String, hours: Int) {
+        let effectiveHours = AppConfig.graphTimeRangePolicy.detailDefault.hours
+        let key = detailHistoryKey(entityID: entityID, hours: effectiveHours)
+        desiredDetailHistoryKeys.insert(key)
         Task {
-            await loadDetailHistory(entityID: entityID, hours: hours, key: key)
+            await startDetailHistory(entityID: entityID, hours: effectiveHours, key: key)
         }
+    }
+
+    func unloadDetailHistory(entityID: String, hours: Int) {
+        let key = detailHistoryKey(entityID: entityID, hours: hours)
+        desiredDetailHistoryKeys.remove(key)
+        let subscription = detailHistorySubscriptions.removeValue(forKey: key)
+        detailHistoryGenerations.removeValue(forKey: key)
+        detailHistoryStatuses.removeValue(forKey: key)
+        Task { await subscription?.cancel() }
     }
 
     func historyEntityIDs(for card: LovelaceCard) -> [String] {
@@ -328,10 +372,22 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func openDetails(entityID: String) {
+        if let previous = selectedEntityID, previous != entityID {
+            unloadDetailHistory(
+                entityID: previous,
+                hours: AppConfig.graphTimeRangePolicy.detailDefault.hours
+            )
+        }
         selectedEntityID = entityID
     }
 
     func closeDetails() {
+        if let selectedEntityID = selectedEntityID {
+            unloadDetailHistory(
+                entityID: selectedEntityID,
+                hours: AppConfig.graphTimeRangePolicy.detailDefault.hours
+            )
+        }
         selectedEntityID = nil
     }
 
@@ -451,7 +507,6 @@ final class DashboardViewModel: ObservableObject {
 
     private func queueStateUpdate(_ state: HAState) {
         pendingStates[state.entityId] = state
-        pendingHistoryStates.append(state)
 
         guard !isStateFlushScheduled else {
             return
@@ -470,220 +525,156 @@ final class DashboardViewModel: ObservableObject {
             return
         }
 
-        let historyStates = pendingHistoryStates
-
         for (entityID, state) in pendingStates {
             states[entityID] = state
         }
         pendingStates.removeAll()
-        pendingHistoryStates.removeAll()
         isStateFlushScheduled = false
+    }
 
-        appendRealtimeHistoryStates(historyStates)
+    func synchronizeHistorySubscriptionsForTesting() async {
+        await loadHistories()
     }
 
     private func loadHistories() async {
-            guard let restClient = restClient else {
-                return
-            }
+        guard let webSocketClient = webSocketClient else { return }
 
-            do {
-                let requests = historyRequests()
-                var nextHistories: [String: [HAHistorySeries]] = histories
-
-                for request in requests {
-                    nextHistories[request.key] = try await restClient.fetchHistory(
-                        entityIDs: request.entityIDs,
-                        hoursToShow: request.hoursToShow
-                    )
-                }
-
-                histories = nextHistories
-            } catch {
-                errorMessage = "History refresh failed: \(error.localizedDescription)"
-            }
+        let requests = historyRequests()
+        let desiredKeys = Set(requests.map(\.key))
+        for key in Array(historySubscriptions.keys) where !desiredKeys.contains(key) {
+            let subscription = historySubscriptions.removeValue(forKey: key)
+            historyGenerations.removeValue(forKey: key)
+            historyStatuses.removeValue(forKey: key)
+            histories.removeValue(forKey: key)
+            await subscription?.cancel()
         }
 
-
-    private func loadDetailHistory(entityID: String, hours: Int, key: String) async {
-        guard let restClient = restClient else {
-            return
+        for request in requests where historySubscriptions[request.key] == nil {
+            await startHistory(request, webSocketClient: webSocketClient)
         }
+    }
+
+    private func startHistory(
+        _ request: HistoryRequest,
+        webSocketClient: HomeAssistantWebSocketClient
+    ) async {
+        let key = request.key
+        let generation = UUID()
+        let stateSnapshot = states
+        historyGenerations[key] = generation
+        historyStatuses[key] = .loading
+        let weakModel = WeakDashboardViewModelBox(self)
+        let processingHook = historyProcessingHook
 
         do {
-            let series = try await restClient.fetchHistory(entityIDs: [entityID], hoursToShow: hours)
-            if let first = series.first {
-                detailHistories[key] = first
+            let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
+                entityIDs: request.entityIDs,
+                hoursToShow: request.hoursToShow,
+                currentStates: stateSnapshot,
+                now: historyNow,
+                onStatus: { status in
+                    await MainActor.run {
+                        guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        weakModel.value?.historyStatuses[key] = status
+                    }
+                },
+                onHistory: { history in
+                    await processingHook()
+                    guard !Task.isCancelled else { return }
+                    let projected = HAHistoryProjection.series(
+                        from: history,
+                        orderedEntityIDs: request.entityIDs,
+                        currentStates: stateSnapshot
+                    )
+                    await MainActor.run {
+                        guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        weakModel.value?.histories[key] = projected
+                    }
+                }
+            )
+            guard historyGenerations[key] == generation else {
+                await subscription.cancel()
+                return
             }
+            historySubscriptions[key] = subscription
         } catch {
+            guard historyGenerations[key] == generation else { return }
+            historyStatuses[key] = .error(error.localizedDescription)
+            errorMessage = "History stream failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func refreshHistorySubscriptions() async {
+        if historySubscriptions.isEmpty {
+            await loadHistories()
+            return
+        }
+        for (key, subscription) in historySubscriptions {
+            historyStatuses[key] = .loading
+            do {
+                try await subscription.refresh()
+            } catch {
+                historyStatuses[key] = .error(error.localizedDescription)
+            }
+        }
+    }
+
+    private func startDetailHistory(entityID: String, hours: Int, key: String) async {
+        guard
+            desiredDetailHistoryKeys.contains(key),
+            detailHistorySubscriptions[key] == nil,
+            let webSocketClient = webSocketClient
+        else { return }
+
+        let generation = UUID()
+        let stateSnapshot = states
+        detailHistoryGenerations[key] = generation
+        detailHistoryStatuses[key] = .loading
+        let weakModel = WeakDashboardViewModelBox(self)
+        let processingHook = historyProcessingHook
+        do {
+            let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
+                entityIDs: [entityID],
+                hoursToShow: hours,
+                currentStates: stateSnapshot,
+                now: historyNow,
+                onStatus: { status in
+                    await MainActor.run {
+                        guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
+                        weakModel.value?.detailHistoryStatuses[key] = status
+                    }
+                },
+                onHistory: { history in
+                    await processingHook()
+                    guard !Task.isCancelled else { return }
+                    let projection = HAHistoryProjection.series(
+                        from: history,
+                        orderedEntityIDs: [entityID],
+                        currentStates: stateSnapshot
+                    ).first
+                    await MainActor.run {
+                        guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
+                        weakModel.value?.detailHistories[key] = projection
+                    }
+                }
+            )
+            guard
+                desiredDetailHistoryKeys.contains(key),
+                detailHistoryGenerations[key] == generation
+            else {
+                await subscription.cancel()
+                return
+            }
+            detailHistorySubscriptions[key] = subscription
+        } catch {
+            guard detailHistoryGenerations[key] == generation else { return }
+            detailHistoryStatuses[key] = .error(error.localizedDescription)
             errorMessage = "Detail history failed for \(entityID): \(error.localizedDescription)"
         }
     }
 
     private func detailHistoryKey(entityID: String, hours: Int) -> String {
         "\(hours):\(entityID)"
-    }
-
-    private func appendRealtimeHistoryStates(_ states: [HAState]) {
-        let pointsByEntity = Dictionary(grouping: states.compactMap { realtimeHistoryPoint(from: $0) }) { item in
-            item.point.entityId ?? item.entityID
-        }
-
-        guard !pointsByEntity.isEmpty else {
-            return
-        }
-
-        var nextHistories = histories
-        var historiesChanged = false
-        for key in Array(nextHistories.keys) {
-            guard
-                let hours = hoursToShow(fromHistoryKey: key),
-                let requestedEntityIDs = entityIDs(fromHistoryKey: key),
-                let series = nextHistories[key]
-            else {
-                continue
-            }
-
-            let relevantPoints = pointsByEntity.filter { requestedEntityIDs.contains($0.key) }
-            guard !relevantPoints.isEmpty else {
-                continue
-            }
-
-            let cutoff = Date().addingTimeInterval(TimeInterval(-max(hours, 1) * 60 * 60))
-            let merged = append(pointsByEntity: relevantPoints, to: series, cutoff: cutoff)
-            if merged != series {
-                nextHistories[key] = merged
-                historiesChanged = true
-            }
-        }
-
-        if historiesChanged {
-            histories = nextHistories
-        }
-
-        var nextDetailHistories = detailHistories
-        var detailChanged = false
-        for (key, series) in Array(nextDetailHistories) {
-            guard
-                let request = detailHistoryRequest(fromKey: key),
-                let updates = pointsByEntity[series.entityID] ?? pointsByEntity[request.entityID]
-            else {
-                continue
-            }
-
-            let cutoff = Date().addingTimeInterval(TimeInterval(-max(request.hours, 1) * 60 * 60))
-            let mergedPoints = merge(points: series.points, with: updates.map { $0.point }, cutoff: cutoff)
-            if mergedPoints != series.points {
-                nextDetailHistories[key] = HAHistorySeries(entityID: series.entityID, points: mergedPoints)
-                detailChanged = true
-            }
-        }
-
-        if detailChanged {
-            detailHistories = nextDetailHistories
-        }
-    }
-
-    private func append(
-        pointsByEntity: [String: [RealtimeHistoryPoint]],
-        to seriesList: [HAHistorySeries],
-        cutoff: Date
-    ) -> [HAHistorySeries] {
-        var output = seriesList
-        var existingEntityIDs = Set(seriesList.map(\.entityID))
-
-        for index in output.indices {
-            let entityID = output[index].entityID
-            guard let updates = pointsByEntity[entityID] else {
-                continue
-            }
-
-            let mergedPoints = merge(points: output[index].points, with: updates.map { $0.point }, cutoff: cutoff)
-            output[index] = HAHistorySeries(entityID: entityID, points: mergedPoints)
-        }
-
-        for (entityID, updates) in pointsByEntity where !existingEntityIDs.contains(entityID) {
-            let mergedPoints = merge(points: [], with: updates.map { $0.point }, cutoff: cutoff)
-            guard !mergedPoints.isEmpty else {
-                continue
-            }
-            output.append(HAHistorySeries(entityID: entityID, points: mergedPoints))
-            existingEntityIDs.insert(entityID)
-        }
-
-        return output
-    }
-
-    private func merge(
-        points: [HAHistoryPoint],
-        with updates: [HAHistoryPoint],
-        cutoff: Date
-    ) -> [HAHistoryPoint] {
-        let sortedUpdates = updates
-            .filter { historyDate(from: $0) != nil }
-            .sorted {
-                (historyDate(from: $0) ?? .distantPast) < (historyDate(from: $1) ?? .distantPast)
-            }
-
-        guard !sortedUpdates.isEmpty else {
-            return points
-        }
-
-        var merged = points
-        merged.reserveCapacity(points.count + sortedUpdates.count)
-
-        for point in sortedUpdates {
-            guard let timestamp = historyDate(from: point) else {
-                continue
-            }
-
-            if let last = merged.last, let lastTimestamp = historyDate(from: last) {
-                let delta = timestamp.timeIntervalSince(lastTimestamp)
-                if abs(delta) < 0.001 {
-                    merged[merged.count - 1] = point
-                } else if delta > 0 {
-                    merged.append(point)
-                } else {
-                    let insertionIndex = upperBound(in: merged, timestamp: timestamp)
-                    if insertionIndex > 0,
-                       let previousTimestamp = historyDate(from: merged[insertionIndex - 1]),
-                       abs(timestamp.timeIntervalSince(previousTimestamp)) < 0.001
-                    {
-                        merged[insertionIndex - 1] = point
-                    } else {
-                        merged.insert(point, at: insertionIndex)
-                    }
-                }
-            } else {
-                merged.append(point)
-            }
-        }
-
-        let cutoffIndex = lowerBound(in: merged, timestamp: cutoff)
-        if cutoffIndex > 0 {
-            merged.removeFirst(cutoffIndex)
-        }
-        return merged
-    }
-
-    private func realtimeHistoryPoint(from state: HAState) -> RealtimeHistoryPoint? {
-        guard isHistoryRenderableState(state.state) else {
-            return nil
-        }
-
-        let point = HAHistoryPoint(
-            entityId: state.entityId,
-            state: state.state,
-            attributes: state.attributes,
-            lastChanged: state.lastChanged,
-            lastUpdated: state.lastUpdated
-        )
-
-        guard historyDate(from: point) != nil else {
-            return nil
-        }
-
-        return RealtimeHistoryPoint(entityID: state.entityId, point: point)
     }
 
     private func historyDate(from point: HAHistoryPoint) -> Date? {
@@ -698,72 +689,6 @@ final class DashboardViewModel: ObservableObject {
         return nil
     }
 
-    private func isHistoryRenderableState(_ value: String) -> Bool {
-        !value.isEmpty
-    }
-
-    private func lowerBound(in points: [HAHistoryPoint], timestamp: Date) -> Int {
-        var low = 0
-        var high = points.count
-        while low < high {
-            let mid = (low + high) / 2
-            guard let date = historyDate(from: points[mid]) else {
-                low = mid + 1
-                continue
-            }
-
-            if date < timestamp {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-        return low
-    }
-
-    private func upperBound(in points: [HAHistoryPoint], timestamp: Date) -> Int {
-        var low = 0
-        var high = points.count
-        while low < high {
-            let mid = (low + high) / 2
-            guard let date = historyDate(from: points[mid]) else {
-                low = mid + 1
-                continue
-            }
-
-            if date <= timestamp {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-        return low
-    }
-
-    private func hoursToShow(fromHistoryKey key: String) -> Int? {
-        guard let rawHours = key.split(separator: ":", maxSplits: 1).first else {
-            return nil
-        }
-        return Int(rawHours)
-    }
-
-    private func entityIDs(fromHistoryKey key: String) -> Set<String>? {
-        let parts = key.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2 else {
-            return nil
-        }
-        return Set(parts[1].split(separator: ",").map(String.init))
-    }
-
-    private func detailHistoryRequest(fromKey key: String) -> (hours: Int, entityID: String)? {
-        let parts = key.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2, let hours = Int(parts[0]) else {
-            return nil
-        }
-        return (hours, parts[1])
-    }
-
-
     private func historyRequests() -> [HistoryRequest] {
         var requests: [HistoryRequest] = []
         collectHistoryRequests(from: homeCards, into: &requests)
@@ -775,7 +700,11 @@ final class DashboardViewModel: ObservableObject {
             if card.type == "history-graph" {
                 let entities = historyEntityIDs(for: card)
                 if !entities.isEmpty {
-                    requests.append(HistoryRequest(entityIDs: entities, hoursToShow: selectedGraphHours))
+                    requests.append(HistoryRequest(
+                        ownerID: card.nativeID,
+                        entityIDs: entities,
+                        hoursToShow: selectedGraphHours
+                    ))
                 }
             }
 
@@ -794,8 +723,9 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
-    private func cleanCards(_ cards: [LovelaceCard]) -> [LovelaceCard] {
-        cards.compactMap { card in
+    private func cleanCards(_ cards: [LovelaceCard], path: String) -> [LovelaceCard] {
+        cards.enumerated().compactMap { index, card in
+            let cardPath = "\(path)/\(index)"
             let configuredEntities = card.entities ?? []
             let extraEntities = card.title.flatMap { AppConfig.extraEntitiesByCardTitle[$0] } ?? []
             let mergedEntities = (extraEntities + configuredEntities).removingDuplicateEntities()
@@ -808,7 +738,7 @@ final class DashboardViewModel: ObservableObject {
                 }
             }
 
-            let cleanedNestedCards = card.cards.map { cleanCards($0) }
+            let cleanedNestedCards = card.cards.map { cleanCards($0, path: "\(cardPath)/cards") }
 
             if card.entities != nil, cleanedEntities?.isEmpty == true {
                 return nil
@@ -824,9 +754,10 @@ final class DashboardViewModel: ObservableObject {
                 entity: card.entity,
                 entities: cleanedEntities,
                 cards: cleanedNestedCards,
-                hoursToShow: selectedGraphHours,
+                hoursToShow: card.hoursToShow,
                 showForecast: card.showForecast,
-                content: card.content
+                content: card.content,
+                nativeOwnerID: cardPath
             )
         }
     }
@@ -930,10 +861,18 @@ final class DashboardViewModel: ObservableObject {
 
     deinit {
         connectionStatusTask?.cancel()
-        let subscription = stateSubscription
+        let stateSubscription = stateSubscription
+        let historySubscriptions = Array(historySubscriptions.values)
+        let detailHistorySubscriptions = Array(detailHistorySubscriptions.values)
         let client = webSocketClient
         Task {
-            await subscription?.cancel()
+            await stateSubscription?.cancel()
+            for subscription in historySubscriptions {
+                await subscription.cancel()
+            }
+            for subscription in detailHistorySubscriptions {
+                await subscription.cancel()
+            }
             await client?.disconnect()
         }
     }
@@ -945,11 +884,6 @@ private struct Connection {
     let restClient: HomeAssistantRESTClient
 }
 
-private struct RealtimeHistoryPoint {
-    let entityID: String
-    let point: HAHistoryPoint
-}
-
 private final class WeakDashboardViewModelBox: @unchecked Sendable {
     weak var value: DashboardViewModel?
 
@@ -959,11 +893,13 @@ private final class WeakDashboardViewModelBox: @unchecked Sendable {
 }
 
 struct HistoryRequest: Hashable {
+    let ownerID: String
     let entityIDs: [String]
     let hoursToShow: Int
 
     var key: String {
-        "\(hoursToShow):\(entityIDs.joined(separator: ","))"
+        [ownerID, "\(hoursToShow)", entityIDs.joined(separator: ",")]
+            .joined(separator: "\u{1F}")
     }
 }
 

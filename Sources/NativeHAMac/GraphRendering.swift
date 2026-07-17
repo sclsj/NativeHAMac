@@ -641,6 +641,7 @@ private final class GraphPreparedSeriesCache {
         fingerprint: GraphSourceFingerprint
     ) -> GraphPreparedCacheEntry? {
         guard
+            fingerprint.count > cached.fingerprint.count,
             !input.history.points.isEmpty,
             !cached.series.points.isEmpty,
             let cachedLast = cached.fingerprint.lastTimestamp,
@@ -746,7 +747,8 @@ private final class GraphPreparedSeriesCache {
         GraphSourceFingerprint(
             count: history.points.count,
             firstTimestamp: history.points.first.flatMap(sourceTimestamp),
-            lastTimestamp: history.points.last.flatMap(sourceTimestamp)
+            lastTimestamp: history.points.last.flatMap(sourceTimestamp),
+            contentRevision: history.contentRevision
         )
     }
 }
@@ -764,6 +766,7 @@ private struct GraphSourceFingerprint: Equatable {
     let count: Int
     let firstTimestamp: String?
     let lastTimestamp: String?
+    let contentRevision: UInt64
 }
 
 private func sourceTimestamp(from point: HAHistoryPoint) -> String? {
