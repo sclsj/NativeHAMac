@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "01",
+  "title": "History WebSocket stream and dashboard consumers",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["HAHistorySeries", "HAHistoryPoint", "LovelaceCard"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
+      "symbols": ["HomeAssistantRESTClient.fetchHistory"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": ["HomeAssistantWebSocketClient"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+      "symbols": ["subscribeRaw", "subscribeMessage", "statusUpdates"]
+    },
+    {
+      "path": "Sources/NativeHACore/HistoryGraphSupport.swift",
+      "symbols": ["HAHistoryGraphClassifier", "HAHistoryTimestampParser", "HAHistoryTimelineBuilder"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel", "HistoryRequest"]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": ["HistoryGraphCard", "DetailHistoryGraph"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRendering.swift",
+      "symbols": ["GraphRenderPipeline"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HistoryGraphSupportTests.swift",
+      "symbols": ["HistoryGraphSupportTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
+      "symbols": ["GraphRenderingTests"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/data/history.ts",
+      "symbols": [
+        "EntityHistoryState",
+        "HistoryStreamMessage",
+        "entityIdHistoryNeedsAttributes",
+        "HistoryStream",
+        "subscribeHistoryStatesTimeWindow",
+        "subscribeHistoryStream"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "symbols": ["DEFAULT_HOURS_TO_SHOW", "HuiHistoryGraphCard"]
+    },
+    {
+      "path": "src/dialogs/more-info/ha-more-info-history.ts",
+      "symbols": ["MoreInfoHistory"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+      "symbols": ["Connection"]
+    }
+  ],
+  "followPackages": ["home-assistant-js-websocket"],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}

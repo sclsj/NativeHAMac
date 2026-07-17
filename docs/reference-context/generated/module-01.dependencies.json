@@ -1,0 +1,4384 @@
+{
+  "cycles": [
+    [
+      "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts"
+    ]
+  ],
+  "edges": [
+    {
+      "bindings": [
+        {
+          "imported": "ERR_INVALID_AUTH",
+          "local": "ERR_INVALID_AUTH",
+          "phase": "runtime"
+        },
+        {
+          "imported": "ERR_CONNECTION_LOST",
+          "local": "ERR_CONNECTION_LOST",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 55,
+      "externalLibraryImport": true,
+      "from": "npm:home-assistant-js-websocket@9.6.0:dist/connection.js",
+      "kind": "static-import",
+      "length": 13,
+      "line": 6,
+      "offset": 219,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/errors.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/home-assistant-js-websocket/dist/errors.js",
+      "specifier": "./errors.js",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/errors.js",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/errors.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "*",
+          "local": "messages",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 27,
+      "externalLibraryImport": true,
+      "from": "npm:home-assistant-js-websocket@9.6.0:dist/connection.js",
+      "kind": "static-import",
+      "length": 15,
+      "line": 5,
+      "offset": 148,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/messages.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "specifier": "./messages.js",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/messages.js",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/messages.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "colors",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 20,
+      "externalLibraryImport": true,
+      "from": "repo:src/common/color/convert-color.ts",
+      "kind": "static-import",
+      "length": 12,
+      "line": 1,
+      "offset": 19,
+      "packageId": {
+        "name": "@types/color-name",
+        "subModuleName": "index.d.ts",
+        "version": "2.0.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/color-name/index.js",
+      "specifier": "color-name",
+      "to": "npm:color-name@2.1.0:index.js",
+      "typeResolved": "node_modules/@types/color-name/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "resolveThemeColor",
+          "local": "resolveThemeColor",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/color/convert-color.ts",
+      "kind": "static-import",
+      "length": 17,
+      "line": 3,
+      "offset": 102,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/color/compute-color.ts",
+      "specifier": "./compute-color",
+      "to": "repo:src/common/color/compute-color.ts",
+      "typeResolved": "src/common/color/compute-color.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "expandHex",
+          "local": "expandHex",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/color/convert-color.ts",
+      "kind": "static-import",
+      "length": 7,
+      "line": 2,
+      "offset": 59,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/color/hex.ts",
+      "specifier": "./hex",
+      "to": "repo:src/common/color/hex.ts",
+      "typeResolved": "src/common/color/hex.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/config/is_component_loaded.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 1,
+      "offset": 35,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "mainWindow",
+          "local": "mainWindow",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 28,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/url/search-params.ts",
+      "kind": "static-import",
+      "length": 24,
+      "line": 1,
+      "offset": 27,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/dom/get_main_window.ts",
+      "specifier": "../dom/get_main_window",
+      "to": "repo:src/common/dom/get_main_window.ts",
+      "typeResolved": "src/common/dom/get_main_window.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "RenderItemFunction",
+          "local": "RenderItemFunction",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 41,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 34,
+      "line": 1,
+      "offset": 40,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "@lit-labs/virtualizer/virtualize",
+      "to": "npm:@lit-labs/virtualizer@2.1.1:virtualize.js",
+      "typeResolved": "node_modules/@lit-labs/virtualizer/virtualize.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "mdiRestart",
+          "local": "mdiRestart",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 28,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 9,
+      "line": 2,
+      "offset": 103,
+      "packageId": {
+        "name": "@mdi/js",
+        "subModuleName": "mdi.d.ts",
+        "version": "7.4.47"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@mdi/js/mdi.js",
+      "specifier": "@mdi/js",
+      "to": "npm:@mdi/js@7.4.47:mdi.js",
+      "typeResolved": "node_modules/@mdi/js/mdi.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "eventOptions",
+          "local": "eventOptions",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "queryAll",
+          "local": "queryAll",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 11,
+      "offset": 293,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PropertyValues",
+          "local": "PropertyValues",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 3,
+      "offset": 150,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 4,
+      "offset": 204,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isComponentLoaded",
+          "local": "isComponentLoaded",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 41,
+      "line": 12,
+      "offset": 345,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/config/is_component_loaded.ts",
+      "specifier": "../../common/config/is_component_loaded",
+      "to": "repo:src/common/config/is_component_loaded.ts",
+      "typeResolved": "src/common/config/is_component_loaded.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "restoreScroll",
+          "local": "restoreScroll",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 31,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 40,
+      "line": 13,
+      "offset": 418,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/decorators/restore-scroll.ts",
+      "specifier": "../../common/decorators/restore-scroll",
+      "to": "repo:src/common/decorators/restore-scroll.ts",
+      "typeResolved": "src/common/decorators/restore-scroll.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "side-effect-import",
+      "length": 28,
+      "line": 23,
+      "offset": 723,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/state-history-chart-line.ts",
+      "specifier": "./state-history-chart-line",
+      "to": "repo:src/components/chart/state-history-chart-line.ts",
+      "typeResolved": "src/components/chart/state-history-chart-line.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "StateHistoryChartLine",
+          "local": "StateHistoryChartLine",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 44,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 28,
+      "line": 24,
+      "offset": 796,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "./state-history-chart-line",
+      "to": "repo:src/components/chart/state-history-chart-line.ts",
+      "typeResolved": "src/components/chart/state-history-chart-line.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "side-effect-import",
+      "length": 32,
+      "line": 25,
+      "offset": 833,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/state-history-chart-timeline.ts",
+      "specifier": "./state-history-chart-timeline",
+      "to": "repo:src/components/chart/state-history-chart-timeline.ts",
+      "typeResolved": "src/components/chart/state-history-chart-timeline.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "StateHistoryChartTimeline",
+          "local": "StateHistoryChartTimeline",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 48,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 32,
+      "line": 26,
+      "offset": 914,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "./state-history-chart-timeline",
+      "to": "repo:src/components/chart/state-history-chart-timeline.ts",
+      "typeResolved": "src/components/chart/state-history-chart-timeline.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "side-effect-import",
+      "length": 14,
+      "line": 21,
+      "offset": 675,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-button.ts",
+      "specifier": "../ha-button",
+      "to": "repo:src/components/ha-button.ts",
+      "typeResolved": "src/components/ha-button.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "side-effect-import",
+      "length": 16,
+      "line": 22,
+      "offset": 698,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-svg-icon.ts",
+      "specifier": "../ha-svg-icon",
+      "to": "repo:src/components/ha-svg-icon.ts",
+      "typeResolved": "src/components/ha-svg-icon.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HistoryResult",
+          "local": "HistoryResult",
+          "phase": "type"
+        },
+        {
+          "imported": "LineChartUnit",
+          "local": "LineChartUnit",
+          "phase": "type"
+        },
+        {
+          "imported": "TimelineEntity",
+          "local": "TimelineEntity",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 20,
+      "line": 18,
+      "offset": 533,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../data/history",
+      "to": "repo:src/data/history.ts",
+      "typeResolved": "src/data/history.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "loadVirtualizer",
+          "local": "loadVirtualizer",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 19,
+      "offset": 587,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/resources/virtualizer.ts",
+      "specifier": "../../resources/virtualizer",
+      "to": "repo:src/resources/virtualizer.ts",
+      "typeResolved": "src/resources/virtualizer.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 20,
+      "offset": 653,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "BarSeriesOption",
+          "local": "BarSeriesOption",
+          "phase": "type"
+        },
+        {
+          "imported": "LineSeriesOption",
+          "local": "LineSeriesOption",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 27,
+      "line": 4,
+      "offset": 60,
+      "packageId": {
+        "name": "echarts",
+        "subModuleName": "types/dist/shared.d.ts",
+        "version": "6.1.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "echarts/types/dist/shared",
+      "to": "npm:echarts@6.1.0:types/dist/shared.d.ts",
+      "typeResolved": "node_modules/echarts/types/dist/shared.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 7,
+      "offset": 249,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PropertyValues",
+          "local": "PropertyValues",
+          "phase": "type"
+        },
+        {
+          "imported": "TemplateResult",
+          "local": "TemplateResult",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 53,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 5,
+      "offset": 141,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "styleMap",
+          "local": "styleMap",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 26,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 26,
+      "line": 8,
+      "offset": 292,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/directives/style-map.js",
+      "specifier": "lit/directives/style-map",
+      "to": "npm:lit@3.3.3:directives/style-map.js",
+      "typeResolved": "node_modules/lit/directives/style-map.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 6,
+      "offset": 195,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "memoizeOne",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 24,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 9,
+      "offset": 343,
+      "packageId": {
+        "name": "memoize-one",
+        "subModuleName": "dist/memoize-one.d.ts",
+        "version": "6.0.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/memoize-one/dist/memoize-one.esm.js",
+      "specifier": "memoize-one",
+      "to": "npm:memoize-one@6.0.0:dist/memoize-one.esm.js",
+      "typeResolved": "node_modules/memoize-one/dist/memoize-one.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isComponentLoaded",
+          "local": "isComponentLoaded",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 41,
+      "line": 10,
+      "offset": 392,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/config/is_component_loaded.ts",
+      "specifier": "../../common/config/is_component_loaded",
+      "to": "repo:src/common/config/is_component_loaded.ts",
+      "typeResolved": "src/common/config/is_component_loaded.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "formatDateTimeWithSeconds",
+          "local": "formatDateTimeWithSeconds",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 43,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 40,
+      "line": 15,
+      "offset": 664,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/datetime/format_date_time.ts",
+      "specifier": "../../common/datetime/format_date_time",
+      "to": "repo:src/common/datetime/format_date_time.ts",
+      "typeResolved": "src/common/datetime/format_date_time.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "formatDate",
+          "local": "formatDate",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 28,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 14,
+      "offset": 585,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/datetime/format_date.ts",
+      "specifier": "../../common/datetime/format_date",
+      "to": "repo:src/common/datetime/format_date.ts",
+      "typeResolved": "src/common/datetime/format_date.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "formatTimeWithSeconds",
+          "local": "formatTimeWithSeconds",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 39,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 16,
+      "offset": 744,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/datetime/format_time.ts",
+      "specifier": "../../common/datetime/format_time",
+      "to": "repo:src/common/datetime/format_time.ts",
+      "typeResolved": "src/common/datetime/format_time.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "fireEvent",
+          "local": "fireEvent",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 12,
+      "offset": 526,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/dom/fire_event.ts",
+      "specifier": "../../common/dom/fire_event",
+      "to": "repo:src/common/dom/fire_event.ts",
+      "typeResolved": "src/common/dom/fire_event.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HASSDomEvent",
+          "local": "HASSDomEvent",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 11,
+      "offset": 469,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../common/dom/fire_event",
+      "to": "repo:src/common/dom/fire_event.ts",
+      "typeResolved": "src/common/dom/fire_event.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "formatNumber",
+          "local": "formatNumber",
+          "phase": "runtime"
+        },
+        {
+          "imported": "getNumberFormatOptions",
+          "local": "getNumberFormatOptions",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 20,
+      "offset": 839,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/number/format_number.ts",
+      "specifier": "../../common/number/format_number",
+      "to": "repo:src/common/number/format_number.ts",
+      "typeResolved": "src/common/number/format_number.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "blankBeforeUnit",
+          "local": "blankBeforeUnit",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 45,
+      "line": 21,
+      "offset": 908,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/translations/blank_before_unit.ts",
+      "specifier": "../../common/translations/blank_before_unit",
+      "to": "repo:src/common/translations/blank_before_unit.ts",
+      "typeResolved": "src/common/translations/blank_before_unit.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeRTL",
+          "local": "computeRTL",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 28,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 31,
+      "line": 22,
+      "offset": 982,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/util/compute_rtl.ts",
+      "specifier": "../../common/util/compute_rtl",
+      "to": "repo:src/common/util/compute_rtl.ts",
+      "typeResolved": "src/common/util/compute_rtl.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "getPeriodicAxisLabelConfig",
+          "local": "getPeriodicAxisLabelConfig",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 44,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 14,
+      "line": 31,
+      "offset": 1353,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/axis-label.ts",
+      "specifier": "./axis-label",
+      "to": "repo:src/components/chart/axis-label.ts",
+      "typeResolved": "src/components/chart/axis-label.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "sideTooltipPosition",
+          "local": "sideTooltipPosition",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 37,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 26,
+      "line": 34,
+      "offset": 1490,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/chart-tooltip-position.ts",
+      "specifier": "./chart-tooltip-position",
+      "to": "repo:src/components/chart/chart-tooltip-position.ts",
+      "typeResolved": "src/components/chart/chart-tooltip-position.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "side-effect-import",
+      "length": 17,
+      "line": 33,
+      "offset": 1435,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/ha-chart-base.ts",
+      "specifier": "./ha-chart-base",
+      "to": "repo:src/components/chart/ha-chart-base.ts",
+      "typeResolved": "src/components/chart/ha-chart-base.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "CustomLegendOption",
+          "local": "CustomLegendOption",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 41,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 17,
+      "line": 32,
+      "offset": 1409,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "./ha-chart-base",
+      "to": "repo:src/components/chart/ha-chart-base.ts",
+      "typeResolved": "src/components/chart/ha-chart-base.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "side-effect-import",
+      "length": 27,
+      "line": 35,
+      "offset": 1525,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/ha-chart-tooltip-marker.ts",
+      "specifier": "./ha-chart-tooltip-marker",
+      "to": "repo:src/components/chart/ha-chart-tooltip-marker.ts",
+      "typeResolved": "src/components/chart/ha-chart-tooltip-marker.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "generateStatisticsChartData",
+          "local": "generateStatisticsChartData",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 45,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 25,
+      "line": 36,
+      "offset": 1598,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/statistics-chart-data.ts",
+      "specifier": "./statistics-chart-data",
+      "to": "repo:src/components/chart/statistics-chart-data.ts",
+      "typeResolved": "src/components/chart/statistics-chart-data.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "getStatisticMetadata",
+          "local": "getStatisticMetadata",
+          "phase": "runtime"
+        },
+        {
+          "imported": "isExternalStatistic",
+          "local": "isExternalStatistic",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 59,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 21,
+      "line": 28,
+      "offset": 1170,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/data/recorder.ts",
+      "specifier": "../../data/recorder",
+      "to": "repo:src/data/recorder.ts",
+      "typeResolved": "src/data/recorder.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "Statistics",
+          "local": "Statistics",
+          "phase": "type"
+        },
+        {
+          "imported": "StatisticsMetaData",
+          "local": "StatisticsMetaData",
+          "phase": "type"
+        },
+        {
+          "imported": "StatisticType",
+          "local": "StatisticType",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 21,
+      "line": 27,
+      "offset": 1089,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../data/recorder",
+      "to": "repo:src/data/recorder.ts",
+      "typeResolved": "src/data/recorder.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HaECOption",
+          "local": "HaECOption",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 33,
+      "line": 29,
+      "offset": 1225,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../resources/echarts/echarts",
+      "to": "repo:src/resources/echarts/echarts.ts",
+      "typeResolved": "src/resources/echarts/echarts.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 30,
+      "offset": 1295,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "mdiAlertCircleOutline",
+          "local": "mdiAlertCircleOutline",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mdiAlertOutline",
+          "local": "mdiAlertOutline",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mdiCheckboxMarkedCircleOutline",
+          "local": "mdiCheckboxMarkedCircleOutline",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mdiClose",
+          "local": "mdiClose",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mdiInformationOutline",
+          "local": "mdiInformationOutline",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 9,
+      "line": 7,
+      "offset": 131,
+      "packageId": {
+        "name": "@mdi/js",
+        "subModuleName": "mdi.d.ts",
+        "version": "7.4.47"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@mdi/js/mdi.js",
+      "specifier": "@mdi/js",
+      "to": "npm:@mdi/js@7.4.47:mdi.js",
+      "typeResolved": "node_modules/@mdi/js/mdi.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 9,
+      "offset": 243,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "classMap",
+          "local": "classMap",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 26,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 26,
+      "line": 10,
+      "offset": 286,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/directives/class-map.js",
+      "specifier": "lit/directives/class-map",
+      "to": "npm:lit@3.3.3:directives/class-map.js",
+      "typeResolved": "node_modules/lit/directives/class-map.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 8,
+      "offset": 189,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "consumeLocalize",
+          "local": "consumeLocalize",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 44,
+      "line": 11,
+      "offset": 346,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/decorators/consume-context-entry.ts",
+      "specifier": "../common/decorators/consume-context-entry",
+      "to": "repo:src/common/decorators/consume-context-entry.ts",
+      "typeResolved": "src/common/decorators/consume-context-entry.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "fireEvent",
+          "local": "fireEvent",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 26,
+      "line": 13,
+      "offset": 487,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/dom/fire_event.ts",
+      "specifier": "../common/dom/fire_event",
+      "to": "repo:src/common/dom/fire_event.ts",
+      "typeResolved": "src/common/dom/fire_event.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LocalizeFunc",
+          "local": "LocalizeFunc",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "static-import",
+      "length": 33,
+      "line": 12,
+      "offset": 426,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../common/translations/localize",
+      "to": "repo:src/common/translations/localize.ts",
+      "typeResolved": "src/common/translations/localize.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "side-effect-import",
+      "length": 18,
+      "line": 14,
+      "offset": 522,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-icon-button.ts",
+      "specifier": "./ha-icon-button",
+      "to": "repo:src/components/ha-icon-button.ts",
+      "typeResolved": "src/components/ha-icon-button.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-alert.ts",
+      "kind": "side-effect-import",
+      "length": 15,
+      "line": 15,
+      "offset": 549,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-svg-icon.ts",
+      "specifier": "./ha-svg-icon",
+      "to": "repo:src/components/ha-svg-icon.ts",
+      "typeResolved": "src/components/ha-svg-icon.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 41,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-card.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 2,
+      "offset": 94,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-card.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 47,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "mdiChevronLeft",
+          "local": "mdiChevronLeft",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mdiChevronRight",
+          "local": "mdiChevronRight",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 49,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-icon-next.ts",
+      "kind": "static-import",
+      "length": 9,
+      "line": 1,
+      "offset": 48,
+      "packageId": {
+        "name": "@mdi/js",
+        "subModuleName": "mdi.d.ts",
+        "version": "7.4.47"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@mdi/js/mdi.js",
+      "specifier": "@mdi/js",
+      "to": "npm:@mdi/js@7.4.47:mdi.js",
+      "typeResolved": "node_modules/@mdi/js/mdi.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 41,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-icon-next.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 2,
+      "offset": 99,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "mainWindow",
+          "local": "mainWindow",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 28,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-icon-next.ts",
+      "kind": "static-import",
+      "length": 31,
+      "line": 3,
+      "offset": 144,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/dom/get_main_window.ts",
+      "specifier": "../common/dom/get_main_window",
+      "to": "repo:src/common/dom/get_main_window.ts",
+      "typeResolved": "src/common/dom/get_main_window.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HaSvgIcon",
+          "local": "HaSvgIcon",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/components/ha-icon-next.ts",
+      "kind": "static-import",
+      "length": 15,
+      "line": 4,
+      "offset": 203,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-svg-icon.ts",
+      "specifier": "./ha-svg-icon",
+      "to": "repo:src/components/ha-svg-icon.ts",
+      "typeResolved": "src/components/ha-svg-icon.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "Tooltip",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-tooltip.ts",
+      "kind": "static-import",
+      "length": 60,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "@home-assistant/webawesome",
+        "subModuleName": "dist/components/tooltip/tooltip.d.ts",
+        "version": "3.7.0-ha.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@home-assistant/webawesome/dist/components/tooltip/tooltip.js",
+      "specifier": "@home-assistant/webawesome/dist/components/tooltip/tooltip",
+      "to": "npm:@home-assistant/webawesome@3.7.0-ha.0:dist/components/tooltip/tooltip.js",
+      "typeResolved": "node_modules/@home-assistant/webawesome/dist/components/tooltip/tooltip.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 41,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-tooltip.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 4,
+      "offset": 192,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "CSSResultGroup",
+          "local": "CSSResultGroup",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-tooltip.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 2,
+      "offset": 118,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/components/ha-tooltip.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 3,
+      "offset": 145,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HassConfig",
+          "local": "HassConfig",
+          "phase": "type"
+        },
+        {
+          "imported": "HassEntities",
+          "local": "HassEntities",
+          "phase": "type"
+        },
+        {
+          "imported": "HassEntity",
+          "local": "HassEntity",
+          "phase": "type"
+        },
+        {
+          "imported": "HassEntityAttributeBase",
+          "local": "HassEntityAttributeBase",
+          "phase": "type"
+        },
+        {
+          "imported": "MessageBase",
+          "local": "MessageBase",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": true,
+      "from": "repo:src/data/history.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 7,
+      "offset": 107,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/index.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "home-assistant-js-websocket",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/index.d.ts",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeDomain",
+          "local": "computeDomain",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 31,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/history.ts",
+      "kind": "static-import",
+      "length": 33,
+      "line": 8,
+      "offset": 168,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/entity/compute_domain.ts",
+      "specifier": "../common/entity/compute_domain",
+      "to": "repo:src/common/entity/compute_domain.ts",
+      "typeResolved": "src/common/entity/compute_domain.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/history.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 12,
+      "offset": 497,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "Connection",
+          "local": "Connection",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "repo:src/data/recorder.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 1,
+      "offset": 32,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/index.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "home-assistant-js-websocket",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/index.d.ts",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "firstWeekday",
+          "local": "firstWeekday",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 30,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/recorder.ts",
+      "kind": "static-import",
+      "length": 34,
+      "line": 5,
+      "offset": 282,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/datetime/first_weekday.ts",
+      "specifier": "../common/datetime/first_weekday",
+      "to": "repo:src/common/datetime/first_weekday.ts",
+      "typeResolved": "src/common/datetime/first_weekday.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeStateName",
+          "local": "computeStateName",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 34,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/recorder.ts",
+      "kind": "static-import",
+      "length": 37,
+      "line": 2,
+      "offset": 96,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/entity/compute_state_name.ts",
+      "specifier": "../common/entity/compute_state_name",
+      "to": "repo:src/common/entity/compute_state_name.ts",
+      "typeResolved": "src/common/entity/compute_state_name.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HaDurationData",
+          "local": "HaDurationData",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/recorder.ts",
+      "kind": "static-import",
+      "length": 33,
+      "line": 3,
+      "offset": 171,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../components/ha-duration-input",
+      "to": "repo:src/components/ha-duration-input.ts",
+      "typeResolved": "src/components/ha-duration-input.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/data/recorder.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 4,
+      "offset": 241,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "startOfYesterday",
+          "local": "startOfYesterday",
+          "phase": "runtime"
+        },
+        {
+          "imported": "subHours",
+          "local": "subHours",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 44,
+      "externalLibraryImport": true,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 1,
+      "offset": 43,
+      "packageId": {
+        "name": "date-fns",
+        "subModuleName": "index.d.ts",
+        "version": "4.4.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/date-fns/index.js",
+      "specifier": "date-fns",
+      "to": "npm:date-fns@4.4.0:index.js",
+      "typeResolved": "node_modules/date-fns/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 4,
+      "offset": 199,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PropertyValues",
+          "local": "PropertyValues",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 2,
+      "offset": 91,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 3,
+      "offset": 145,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isComponentLoaded",
+          "local": "isComponentLoaded",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 41,
+      "line": 5,
+      "offset": 251,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/config/is_component_loaded.ts",
+      "specifier": "../../common/config/is_component_loaded",
+      "to": "repo:src/common/config/is_component_loaded.ts",
+      "typeResolved": "src/common/config/is_component_loaded.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeDomain",
+          "local": "computeDomain",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 31,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 36,
+      "line": 6,
+      "offset": 324,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/entity/compute_domain.ts",
+      "specifier": "../../common/entity/compute_domain",
+      "to": "repo:src/common/entity/compute_domain.ts",
+      "typeResolved": "src/common/entity/compute_domain.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "createSearchParam",
+          "local": "createSearchParam",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 32,
+      "line": 7,
+      "offset": 396,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/url/search-params.ts",
+      "specifier": "../../common/url/search-params",
+      "to": "repo:src/common/url/search-params.ts",
+      "typeResolved": "src/common/url/search-params.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "side-effect-import",
+      "length": 45,
+      "line": 8,
+      "offset": 437,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/state-history-charts.ts",
+      "specifier": "../../components/chart/state-history-charts",
+      "to": "repo:src/components/chart/state-history-charts.ts",
+      "typeResolved": "src/components/chart/state-history-charts.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "side-effect-import",
+      "length": 41,
+      "line": 9,
+      "offset": 491,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/statistics-chart.ts",
+      "specifier": "../../components/chart/statistics-chart",
+      "to": "repo:src/components/chart/statistics-chart.ts",
+      "typeResolved": "src/components/chart/statistics-chart.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "side-effect-import",
+      "length": 27,
+      "line": 10,
+      "offset": 541,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-alert.ts",
+      "specifier": "../../components/ha-alert",
+      "to": "repo:src/components/ha-alert.ts",
+      "typeResolved": "src/components/ha-alert.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeHistory",
+          "local": "computeHistory",
+          "phase": "runtime"
+        },
+        {
+          "imported": "subscribeHistoryStatesTimeWindow",
+          "local": "subscribeHistoryStatesTimeWindow",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 20,
+      "line": 15,
+      "offset": 697,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/data/history.ts",
+      "specifier": "../../data/history",
+      "to": "repo:src/data/history.ts",
+      "typeResolved": "src/data/history.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HistoryResult",
+          "local": "HistoryResult",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 20,
+      "line": 11,
+      "offset": 605,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../data/history",
+      "to": "repo:src/data/history.ts",
+      "typeResolved": "src/data/history.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "fetchStatistics",
+          "local": "fetchStatistics",
+          "phase": "runtime"
+        },
+        {
+          "imported": "getStatisticMetadata",
+          "local": "getStatisticMetadata",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 55,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 21,
+      "line": 21,
+      "offset": 872,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/data/recorder.ts",
+      "specifier": "../../data/recorder",
+      "to": "repo:src/data/recorder.ts",
+      "typeResolved": "src/data/recorder.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "Statistics",
+          "local": "Statistics",
+          "phase": "type"
+        },
+        {
+          "imported": "StatisticsMetaData",
+          "local": "StatisticsMetaData",
+          "phase": "type"
+        },
+        {
+          "imported": "StatisticsTypes",
+          "local": "StatisticsTypes",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 21,
+      "line": 20,
+      "offset": 795,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../data/recorder",
+      "to": "repo:src/data/recorder.ts",
+      "typeResolved": "src/data/recorder.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "haStyle",
+          "local": "haStyle",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 24,
+      "line": 22,
+      "offset": 919,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/resources/styles.ts",
+      "specifier": "../../resources/styles",
+      "to": "repo:src/resources/styles.ts",
+      "typeResolved": "src/resources/styles.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 23,
+      "offset": 980,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 3,
+      "offset": 144,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PropertyValues",
+          "local": "PropertyValues",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 36,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "classMap",
+          "local": "classMap",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 26,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 26,
+      "line": 4,
+      "offset": 187,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/directives/class-map.js",
+      "specifier": "lit/directives/class-map",
+      "to": "npm:lit@3.3.3:directives/class-map.js",
+      "typeResolved": "node_modules/lit/directives/class-map.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 2,
+      "offset": 90,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "theme2hex",
+          "local": "theme2hex",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 37,
+      "line": 5,
+      "offset": 241,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/color/convert-color.ts",
+      "specifier": "../../../common/color/convert-color",
+      "to": "repo:src/common/color/convert-color.ts",
+      "typeResolved": "src/common/color/convert-color.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isComponentLoaded",
+          "local": "isComponentLoaded",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 44,
+      "line": 6,
+      "offset": 314,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/config/is_component_loaded.ts",
+      "specifier": "../../../common/config/is_component_loaded",
+      "to": "repo:src/common/config/is_component_loaded.ts",
+      "typeResolved": "src/common/config/is_component_loaded.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "createSearchParam",
+          "local": "createSearchParam",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 7,
+      "offset": 394,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/url/search-params.ts",
+      "specifier": "../../../common/url/search-params",
+      "to": "repo:src/common/url/search-params.ts",
+      "typeResolved": "src/common/url/search-params.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "side-effect-import",
+      "length": 48,
+      "line": 8,
+      "offset": 438,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/chart/state-history-charts.ts",
+      "specifier": "../../../components/chart/state-history-charts",
+      "to": "repo:src/components/chart/state-history-charts.ts",
+      "typeResolved": "src/components/chart/state-history-charts.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "side-effect-import",
+      "length": 30,
+      "line": 9,
+      "offset": 495,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-alert.ts",
+      "specifier": "../../../components/ha-alert",
+      "to": "repo:src/components/ha-alert.ts",
+      "typeResolved": "src/components/ha-alert.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "side-effect-import",
+      "length": 29,
+      "line": 10,
+      "offset": 534,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-card.ts",
+      "specifier": "../../../components/ha-card",
+      "to": "repo:src/components/ha-card.ts",
+      "typeResolved": "src/components/ha-card.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "side-effect-import",
+      "length": 34,
+      "line": 11,
+      "offset": 572,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-icon-next.ts",
+      "specifier": "../../../components/ha-icon-next",
+      "to": "repo:src/components/ha-icon-next.ts",
+      "typeResolved": "src/components/ha-icon-next.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "side-effect-import",
+      "length": 32,
+      "line": 12,
+      "offset": 615,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-tooltip.ts",
+      "specifier": "../../../components/ha-tooltip",
+      "to": "repo:src/components/ha-tooltip.ts",
+      "typeResolved": "src/components/ha-tooltip.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeHistory",
+          "local": "computeHistory",
+          "phase": "runtime"
+        },
+        {
+          "imported": "convertStatisticsToHistory",
+          "local": "convertStatisticsToHistory",
+          "phase": "runtime"
+        },
+        {
+          "imported": "mergeHistoryResults",
+          "local": "mergeHistoryResults",
+          "phase": "runtime"
+        },
+        {
+          "imported": "subscribeHistoryStatesTimeWindow",
+          "local": "subscribeHistoryStatesTimeWindow",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 23,
+      "line": 19,
+      "offset": 794,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/data/history.ts",
+      "specifier": "../../../data/history",
+      "to": "repo:src/data/history.ts",
+      "typeResolved": "src/data/history.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HistoryResult",
+          "local": "HistoryResult",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 23,
+      "line": 19,
+      "offset": 794,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../data/history",
+      "to": "repo:src/data/history.ts",
+      "typeResolved": "src/data/history.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "fetchStatistics",
+          "local": "fetchStatistics",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 24,
+      "line": 20,
+      "offset": 851,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/data/recorder.ts",
+      "specifier": "../../../data/recorder",
+      "to": "repo:src/data/recorder.ts",
+      "typeResolved": "src/data/recorder.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "GraphEntityConfig",
+          "local": "GraphEntityConfig",
+          "phase": "type"
+        },
+        {
+          "imported": "HistoryGraphCardConfig",
+          "local": "HistoryGraphCardConfig",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 64,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 9,
+      "line": 25,
+      "offset": 1203,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "./types",
+      "to": "repo:src/panels/lovelace/cards/types.ts",
+      "typeResolved": "src/panels/lovelace/cards/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "hasConfigOrEntitiesChanged",
+          "local": "hasConfigOrEntitiesChanged",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 44,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 23,
+      "line": 22,
+      "offset": 973,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/common/has-changed.ts",
+      "specifier": "../common/has-changed",
+      "to": "repo:src/panels/lovelace/common/has-changed.ts",
+      "typeResolved": "src/panels/lovelace/common/has-changed.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "processConfigEntities",
+          "local": "processConfigEntities",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 39,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 23,
+      "offset": 1036,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/common/process-config-entities.ts",
+      "specifier": "../common/process-config-entities",
+      "to": "repo:src/panels/lovelace/common/process-config-entities.ts",
+      "typeResolved": "src/panels/lovelace/common/process-config-entities.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": null,
+      "column": 18,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "dynamic-import",
+      "length": 57,
+      "line": 32,
+      "offset": 1436,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "specifier": "../editor/config-elements/hui-history-graph-card-editor",
+      "to": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "typeResolved": "src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LovelaceCard",
+          "local": "LovelaceCard",
+          "phase": "type"
+        },
+        {
+          "imported": "LovelaceGridOptions",
+          "local": "LovelaceGridOptions",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 56,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 24,
+      "offset": 1128,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../types",
+      "to": "repo:src/panels/lovelace/types.ts",
+      "typeResolved": "src/panels/lovelace/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 21,
+      "offset": 912,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HassEntity",
+          "local": "HassEntity",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 1,
+      "offset": 32,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/index.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "home-assistant-js-websocket",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/index.d.ts",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PropertyValues",
+          "local": "PropertyValues",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 2,
+      "offset": 99,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "EntityRegistryDisplayEntry",
+          "local": "EntityRegistryDisplayEntry",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 49,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "static-import",
+      "length": 38,
+      "line": 3,
+      "offset": 154,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../data/entity/entity_registry",
+      "to": "repo:src/data/entity/entity_registry.ts",
+      "typeResolved": "src/data/entity/entity_registry.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "processConfigEntities",
+          "local": "processConfigEntities",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 39,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "static-import",
+      "length": 27,
+      "line": 5,
+      "offset": 285,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/common/process-config-entities.ts",
+      "specifier": "./process-config-entities",
+      "to": "repo:src/panels/lovelace/common/process-config-entities.ts",
+      "typeResolved": "src/panels/lovelace/common/process-config-entities.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 4,
+      "offset": 229,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isValidEntityId",
+          "local": "isValidEntityId",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 33,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/common/process-config-entities.ts",
+      "kind": "static-import",
+      "length": 40,
+      "line": 2,
+      "offset": 77,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/entity/valid_entity_id.ts",
+      "specifier": "../../../common/entity/valid_entity_id",
+      "to": "repo:src/common/entity/valid_entity_id.ts",
+      "typeResolved": "src/common/entity/valid_entity_id.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "EntityConfig",
+          "local": "EntityConfig",
+          "phase": "type"
+        },
+        {
+          "imported": "LovelaceRowConfig",
+          "local": "LovelaceRowConfig",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 54,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/common/process-config-entities.ts",
+      "kind": "static-import",
+      "length": 22,
+      "line": 3,
+      "offset": 172,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../entity-rows/types",
+      "to": "repo:src/panels/lovelace/entity-rows/types.ts",
+      "typeResolved": "src/panels/lovelace/entity-rows/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "customElement",
+          "local": "customElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "property",
+          "local": "property",
+          "phase": "runtime"
+        },
+        {
+          "imported": "state",
+          "local": "state",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 16,
+      "line": 3,
+      "offset": 144,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/decorators.js",
+      "specifier": "lit/decorators",
+      "to": "npm:lit@3.3.3:decorators.js",
+      "typeResolved": "node_modules/lit/decorators.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "CSSResultGroup",
+          "local": "CSSResultGroup",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 37,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 36,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:development/index.d.ts",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        },
+        {
+          "imported": "html",
+          "local": "html",
+          "phase": "runtime"
+        },
+        {
+          "imported": "LitElement",
+          "local": "LitElement",
+          "phase": "runtime"
+        },
+        {
+          "imported": "nothing",
+          "local": "nothing",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 48,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 2,
+      "offset": 90,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "memoizeOne",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 24,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 4,
+      "offset": 185,
+      "packageId": {
+        "name": "memoize-one",
+        "subModuleName": "dist/memoize-one.d.ts",
+        "version": "6.0.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/memoize-one/dist/memoize-one.esm.js",
+      "specifier": "memoize-one",
+      "to": "npm:memoize-one@6.0.0:dist/memoize-one.esm.js",
+      "typeResolved": "node_modules/memoize-one/dist/memoize-one.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "array",
+          "local": "array",
+          "phase": "runtime"
+        },
+        {
+          "imported": "assert",
+          "local": "assert",
+          "phase": "runtime"
+        },
+        {
+          "imported": "assign",
+          "local": "assign",
+          "phase": "runtime"
+        },
+        {
+          "imported": "boolean",
+          "local": "boolean",
+          "phase": "runtime"
+        },
+        {
+          "imported": "number",
+          "local": "number",
+          "phase": "runtime"
+        },
+        {
+          "imported": "object",
+          "local": "object",
+          "phase": "runtime"
+        },
+        {
+          "imported": "optional",
+          "local": "optional",
+          "phase": "runtime"
+        },
+        {
+          "imported": "string",
+          "local": "string",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": true,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 14,
+      "offset": 298,
+      "packageId": {
+        "name": "superstruct",
+        "subModuleName": "dist/index.d.ts",
+        "version": "2.0.2"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/superstruct/dist/index.mjs",
+      "specifier": "superstruct",
+      "to": "npm:superstruct@2.0.2:dist/index.mjs",
+      "typeResolved": "node_modules/superstruct/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "fireEvent",
+          "local": "fireEvent",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 27,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 16,
+      "offset": 410,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/dom/fire_event.ts",
+      "specifier": "../../../../common/dom/fire_event",
+      "to": "repo:src/common/dom/fire_event.ts",
+      "typeResolved": "src/common/dom/fire_event.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HASSDomEvent",
+          "local": "HASSDomEvent",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 35,
+      "line": 15,
+      "offset": 347,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../../common/dom/fire_event",
+      "to": "repo:src/common/dom/fire_event.ts",
+      "typeResolved": "src/common/dom/fire_event.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "computeDomain",
+          "local": "computeDomain",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 31,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 42,
+      "line": 17,
+      "offset": 477,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/entity/compute_domain.ts",
+      "specifier": "../../../../common/entity/compute_domain",
+      "to": "repo:src/common/entity/compute_domain.ts",
+      "typeResolved": "src/common/entity/compute_domain.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "isNumericFromAttributes",
+          "local": "isNumericFromAttributes",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 41,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 41,
+      "line": 18,
+      "offset": 561,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/number/format_number.ts",
+      "specifier": "../../../../common/number/format_number",
+      "to": "repo:src/common/number/format_number.ts",
+      "typeResolved": "src/common/number/format_number.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LocalizeFunc",
+          "local": "LocalizeFunc",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 42,
+      "line": 19,
+      "offset": 638,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../../common/translations/localize",
+      "to": "repo:src/common/translations/localize.ts",
+      "typeResolved": "src/common/translations/localize.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "side-effect-import",
+      "length": 40,
+      "line": 20,
+      "offset": 689,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/components/ha-form/ha-form.ts",
+      "specifier": "../../../../components/ha-form/ha-form",
+      "to": "repo:src/components/ha-form/ha-form.ts",
+      "typeResolved": "src/components/ha-form/ha-form.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HaFormSchema",
+          "local": "HaFormSchema",
+          "phase": "type"
+        },
+        {
+          "imported": "SchemaUnion",
+          "local": "SchemaUnion",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 38,
+      "line": 24,
+      "offset": 783,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../../components/ha-form/types",
+      "to": "repo:src/components/ha-form/types.ts",
+      "typeResolved": "src/components/ha-form/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "DEFAULT_HOURS_TO_SHOW",
+          "local": "DEFAULT_HOURS_TO_SHOW",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 39,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 36,
+      "line": 26,
+      "offset": 917,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "specifier": "../../cards/hui-history-graph-card",
+      "to": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "typeResolved": "src/panels/lovelace/cards/hui-history-graph-card.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "GraphEntityConfig",
+          "local": "GraphEntityConfig",
+          "phase": "type"
+        },
+        {
+          "imported": "HistoryGraphCardConfig",
+          "local": "HistoryGraphCardConfig",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 19,
+      "line": 30,
+      "offset": 1023,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../cards/types",
+      "to": "repo:src/panels/lovelace/cards/types.ts",
+      "typeResolved": "src/panels/lovelace/cards/types.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "side-effect-import",
+      "length": 36,
+      "line": 31,
+      "offset": 1051,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/components/hui-entity-editor.ts",
+      "specifier": "../../components/hui-entity-editor",
+      "to": "repo:src/panels/lovelace/components/hui-entity-editor.ts",
+      "typeResolved": "src/panels/lovelace/components/hui-entity-editor.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "orderPropertiesGraphCard",
+          "local": "orderPropertiesGraphCard",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 42,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 43,
+      "line": 38,
+      "offset": 1511,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/config-elements/order-properties/order-properties-graph.ts",
+      "specifier": "./order-properties/order-properties-graph",
+      "to": "repo:src/panels/lovelace/editor/config-elements/order-properties/order-properties-graph.ts",
+      "typeResolved": "src/panels/lovelace/editor/config-elements/order-properties/order-properties-graph.ts"
+    },
+    {
+      "bindings": [],
+      "boundary": "max-depth",
+      "column": 8,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "side-effect-import",
+      "length": 27,
+      "line": 33,
+      "offset": 1151,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/hui-sub-element-editor.ts",
+      "specifier": "../hui-sub-element-editor",
+      "to": "repo:src/panels/lovelace/editor/hui-sub-element-editor.ts",
+      "typeResolved": "src/panels/lovelace/editor/hui-sub-element-editor.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "processEditorEntities",
+          "local": "processEditorEntities",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 39,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 28,
+      "line": 34,
+      "offset": 1218,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/process-editor-entities.ts",
+      "specifier": "../process-editor-entities",
+      "to": "repo:src/panels/lovelace/editor/process-editor-entities.ts",
+      "typeResolved": "src/panels/lovelace/editor/process-editor-entities.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "baseLovelaceCardConfig",
+          "local": "baseLovelaceCardConfig",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 40,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 35,
+      "offset": 1287,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/structs/base-card-struct.ts",
+      "specifier": "../structs/base-card-struct",
+      "to": "repo:src/panels/lovelace/editor/structs/base-card-struct.ts",
+      "typeResolved": "src/panels/lovelace/editor/structs/base-card-struct.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "graphEntitiesConfigStruct",
+          "local": "graphEntitiesConfigStruct",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 43,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 28,
+      "line": 36,
+      "offset": 1360,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/panels/lovelace/editor/structs/entities-struct.ts",
+      "specifier": "../structs/entities-struct",
+      "to": "repo:src/panels/lovelace/editor/structs/entities-struct.ts",
+      "typeResolved": "src/panels/lovelace/editor/structs/entities-struct.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "EditDetailElementEvent",
+          "local": "EditDetailElementEvent",
+          "phase": "type"
+        },
+        {
+          "imported": "SubElementEditorConfig",
+          "local": "SubElementEditorConfig",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 69,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 37,
+      "offset": 1458,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../types",
+      "to": "repo:src/panels/lovelace/editor/types.ts",
+      "typeResolved": "src/panels/lovelace/editor/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "LovelaceCardEditor",
+          "local": "LovelaceCardEditor",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 41,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 13,
+      "line": 32,
+      "offset": 1129,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../types",
+      "to": "repo:src/panels/lovelace/types.ts",
+      "typeResolved": "src/panels/lovelace/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "HomeAssistant",
+          "local": "HomeAssistant",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 36,
+      "externalLibraryImport": false,
+      "from": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "static-import",
+      "length": 19,
+      "line": 25,
+      "offset": 858,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../../../types",
+      "to": "repo:src/types.ts",
+      "typeResolved": "src/types.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/resources/styles.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    }
+  ],
+  "graphFingerprint": "df8a12499ec172d728bca112c393796fa19f054dc14e340bf573bf762db01da5",
+  "manifest": {
+    "module": "01",
+    "path": "docs/reference-context/manifests/module-01.inputs.json",
+    "sha256": "abbf731c47409acbb7bd7c6a3f22d4d3ae33149cf1dead3359b4345663715837"
+  },
+  "nativeha": {
+    "anchors": [
+      {
+        "dirty": false,
+        "headBlob": "b38bb86ddb86497920773561a105f3b10877b729",
+        "missing": false,
+        "path": "Sources/NativeHACore/HistoryGraphSupport.swift",
+        "sha256": "6ce56c6cfb42002cdc24d7d37eb4d2c9a8d8cff5cbfb41ea62975ad063325d31",
+        "symbols": [
+          "HAHistoryGraphClassifier",
+          "HAHistoryTimelineBuilder",
+          "HAHistoryTimestampParser"
+        ],
+        "worktreeBlob": "b38bb86ddb86497920773561a105f3b10877b729"
+      },
+      {
+        "dirty": false,
+        "headBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
+        "sha256": "954c494e8eef10a9c15b98342b72f20dc1d982c67bc378c36f6f33b2707380e8",
+        "symbols": [
+          "HomeAssistantRESTClient.fetchHistory"
+        ],
+        "worktreeBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332"
+      },
+      {
+        "dirty": false,
+        "headBlob": "96434a2930fd14a3751872b9c567c3938cd32498",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+        "sha256": "8aba0fb19193a7806801adc0480f2e92316c0594a82de4096fc3ffcb9d19c7fa",
+        "symbols": [
+          "HomeAssistantWebSocketClient"
+        ],
+        "worktreeBlob": "96434a2930fd14a3751872b9c567c3938cd32498"
+      },
+      {
+        "dirty": false,
+        "headBlob": "a432522113ff1d044be8c497cc5f066e7504669b",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+        "sha256": "62604bdd77b88b4fa7730c6620521daefd6211482fd0ca74cdb882ec70dd4ec6",
+        "symbols": [
+          "statusUpdates",
+          "subscribeMessage",
+          "subscribeRaw"
+        ],
+        "worktreeBlob": "a432522113ff1d044be8c497cc5f066e7504669b"
+      },
+      {
+        "dirty": false,
+        "headBlob": "69494d1d1b4f7b298cc294275269e04b8d24920b",
+        "missing": false,
+        "path": "Sources/NativeHACore/Models.swift",
+        "sha256": "5a9d62407b1f072cc8627a35b40fbbf6d82dbf61d1346cbf3b9aadb855bc5fc2",
+        "symbols": [
+          "HAHistoryPoint",
+          "HAHistorySeries",
+          "LovelaceCard"
+        ],
+        "worktreeBlob": "69494d1d1b4f7b298cc294275269e04b8d24920b"
+      },
+      {
+        "dirty": false,
+        "headBlob": "8e3b7f7abfa487125cb3593f97ef1e7d1aced981",
+        "missing": false,
+        "path": "Sources/NativeHAMac/AppConfig.swift",
+        "sha256": "ac0473f4ee44bfef7469aaaa85d93e7a39818845428ad3c62eb1f0c87c4edb6e",
+        "symbols": [
+          "AppConfig"
+        ],
+        "worktreeBlob": "8e3b7f7abfa487125cb3593f97ef1e7d1aced981"
+      },
+      {
+        "dirty": false,
+        "headBlob": "c7424667fcf86ffb8f147faa7d75703077ed4961",
+        "missing": false,
+        "path": "Sources/NativeHAMac/CardViews.swift",
+        "sha256": "a8861dc6f58730db7344aebc0dec80c9e9326c405dd157af3bc27c6939dd2f18",
+        "symbols": [
+          "DetailHistoryGraph",
+          "HistoryGraphCard"
+        ],
+        "worktreeBlob": "c7424667fcf86ffb8f147faa7d75703077ed4961"
+      },
+      {
+        "dirty": false,
+        "headBlob": "0d0a6e96b6c3c143ce80db4e3626d2a87ae8b09f",
+        "missing": false,
+        "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+        "sha256": "86a442ecec0a61db8cf30b5c16579f16a7d78b48a3fc24fd44e9a6dabeb78edb",
+        "symbols": [
+          "DashboardViewModel",
+          "HistoryRequest"
+        ],
+        "worktreeBlob": "0d0a6e96b6c3c143ce80db4e3626d2a87ae8b09f"
+      },
+      {
+        "dirty": false,
+        "headBlob": "ad68bdc79988205ecbdb8d1118d6af5715577b1c",
+        "missing": false,
+        "path": "Sources/NativeHAMac/GraphRendering.swift",
+        "sha256": "9ebca6835af2e08d7a86e228c72acd07bb3fa6e98b3501b5cf418d4267ac1efe",
+        "symbols": [
+          "GraphRenderPipeline"
+        ],
+        "worktreeBlob": "ad68bdc79988205ecbdb8d1118d6af5715577b1c"
+      },
+      {
+        "dirty": false,
+        "headBlob": "8e53e421fb762291ef42236154851bf567090e7f",
+        "missing": false,
+        "path": "Tests/NativeHACoreTests/HistoryGraphSupportTests.swift",
+        "sha256": "a6c8e31d9186203f707d37af49cff1a7ed265b9d501fef91c58d2080f29cc8af",
+        "symbols": [
+          "HistoryGraphSupportTests"
+        ],
+        "worktreeBlob": "8e53e421fb762291ef42236154851bf567090e7f"
+      },
+      {
+        "dirty": false,
+        "headBlob": "ba2a2145f7a7a1c08b366e66dbbde3629c01a0d5",
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
+        "sha256": "57ca19e9d766040e89dcd838c36d58cf0ca1378c1ecaaa6a00a08eb164e6c9c0",
+        "symbols": [
+          "GraphRenderingTests"
+        ],
+        "worktreeBlob": "ba2a2145f7a7a1c08b366e66dbbde3629c01a0d5"
+      }
+    ],
+    "dirty": true,
+    "gitBranch": "main",
+    "gitHead": "92e9a2bf95f7dd2cfd649bba2bc0ac8dbbbccb19"
+  },
+  "nodes": [
+    {
+      "depth": 0,
+      "explicitSeed": true,
+      "id": "npm:home-assistant-js-websocket@9.6.0:dist/connection.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [
+        "Connection",
+        "DEBUG"
+      ],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/0eded7864632b5e19e92289ffac0e24308b1e8f425e292ae87ed21450852f7705db521e202614b1d5bbdb7948633143dce2524ed548db0c38486b40ed1ffa474",
+          "key": "home-assistant-js-websocket@npm:9.6.0"
+        },
+        "name": "home-assistant-js-websocket",
+        "packageJSONSha256": "156dcc6aba886af8c9aa5ed6d3b314440fd886ceed05534104d4c886b5d3d4db",
+        "version": "9.6.0"
+      },
+      "packagePath": "dist/connection.js",
+      "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 338,
+          "length": 13050,
+          "line": 8,
+          "name": "Connection",
+          "offset": 255
+        },
+        {
+          "column": 1,
+          "endColumn": 21,
+          "endLine": 7,
+          "length": 20,
+          "line": 7,
+          "name": "DEBUG",
+          "offset": 234
+        }
+      ],
+      "sha256": "884929a38078cc51cb47b0d7d8a821ef99bc784bcd50792bf9b044f936db69e8"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:home-assistant-js-websocket@9.6.0:dist/errors.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/0eded7864632b5e19e92289ffac0e24308b1e8f425e292ae87ed21450852f7705db521e202614b1d5bbdb7948633143dce2524ed548db0c38486b40ed1ffa474",
+          "key": "home-assistant-js-websocket@npm:9.6.0"
+        },
+        "name": "home-assistant-js-websocket",
+        "packageJSONSha256": "156dcc6aba886af8c9aa5ed6d3b314440fd886ceed05534104d4c886b5d3d4db",
+        "version": "9.6.0"
+      },
+      "packagePath": "dist/errors.js",
+      "path": "node_modules/home-assistant-js-websocket/dist/errors.js",
+      "selectedSymbols": [],
+      "sha256": "117b7269850d102e4899d4ebb03664dfbaaf727fddc106b0a15c69d923de34de"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:home-assistant-js-websocket@9.6.0:dist/messages.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/0eded7864632b5e19e92289ffac0e24308b1e8f425e292ae87ed21450852f7705db521e202614b1d5bbdb7948633143dce2524ed548db0c38486b40ed1ffa474",
+          "key": "home-assistant-js-websocket@npm:9.6.0"
+        },
+        "name": "home-assistant-js-websocket",
+        "packageJSONSha256": "156dcc6aba886af8c9aa5ed6d3b314440fd886ceed05534104d4c886b5d3d4db",
+        "version": "9.6.0"
+      },
+      "packagePath": "dist/messages.js",
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "selectedSymbols": [],
+      "sha256": "5de87c3bf01207c73424e51a0676705afee7afc2efde7cb8707dfafe709a7b35"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "b36b92153c4037908c937ed531341e9068bad791",
+      "id": "repo:src/common/color/convert-color.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/common/color/convert-color.ts",
+      "selectedSymbols": [],
+      "sha256": "0d54e6776786614ad2b9fdd879db71295e160f126f742e998f4befc730417dab",
+      "worktreeBlob": "b36b92153c4037908c937ed531341e9068bad791"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "0427daa2fec1d5dcc18f8200b55fbf39938db1f8",
+      "id": "repo:src/common/config/is_component_loaded.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/common/config/is_component_loaded.ts",
+      "selectedSymbols": [],
+      "sha256": "1309668951222945bb0147ef147f219086b0ce9c2c1b6740a601b0c2b0c59563",
+      "worktreeBlob": "0427daa2fec1d5dcc18f8200b55fbf39938db1f8"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "005bdb25b3db6c6ed7b02361badda3aca9448f5e",
+      "id": "repo:src/common/entity/compute_domain.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/common/entity/compute_domain.ts",
+      "selectedSymbols": [],
+      "sha256": "3965f329c2388e0ade3980e5ea63b488c500b825e34a83c80d16c9551edeff94",
+      "worktreeBlob": "005bdb25b3db6c6ed7b02361badda3aca9448f5e"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "a7bd025842a06bd578dbe6c888f85e4113a8fb3b",
+      "id": "repo:src/common/url/search-params.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/common/url/search-params.ts",
+      "selectedSymbols": [],
+      "sha256": "33a7be283389b120befc4f2b255464d9c7533e32e1652e7a852150d6d03e9d45",
+      "worktreeBlob": "a7bd025842a06bd578dbe6c888f85e4113a8fb3b"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "89ca2a4a6c3bfb83aa32521fb0e2b4576d4e224e",
+      "id": "repo:src/components/chart/state-history-charts.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/chart/state-history-charts.ts",
+      "selectedSymbols": [],
+      "sha256": "d8d6012c00cd0735aade84084dc728023251ffdfa11ab0d5873dfd0ad2af522c",
+      "worktreeBlob": "89ca2a4a6c3bfb83aa32521fb0e2b4576d4e224e"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "a75a81823cd8c11f3f290bf807ef4be3be335e10",
+      "id": "repo:src/components/chart/statistics-chart.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/chart/statistics-chart.ts",
+      "selectedSymbols": [],
+      "sha256": "0dbf604f841797d94849c81e05e87908762051a579c99d4ac180a44039e75543",
+      "worktreeBlob": "a75a81823cd8c11f3f290bf807ef4be3be335e10"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "9a110f4833ee91cd932e6f8b8e50c286edcb1ac5",
+      "id": "repo:src/components/ha-alert.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/ha-alert.ts",
+      "selectedSymbols": [],
+      "sha256": "709566dca93a9657fef4e42e3a03578ef2db830afdc88ea7cf4b306ef90a41cb",
+      "worktreeBlob": "9a110f4833ee91cd932e6f8b8e50c286edcb1ac5"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "c8953d8be5c36e6f1dc3a8b9f01cecfd85d3832d",
+      "id": "repo:src/components/ha-card.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/ha-card.ts",
+      "selectedSymbols": [],
+      "sha256": "e7c941041f4e2ae2fe402648fff2587e3781dbd1f26fb711c8db1f6f77cb142b",
+      "worktreeBlob": "c8953d8be5c36e6f1dc3a8b9f01cecfd85d3832d"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "e5330cb22cc88ef39245d558c2b311901db6d3e7",
+      "id": "repo:src/components/ha-icon-next.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/ha-icon-next.ts",
+      "selectedSymbols": [],
+      "sha256": "248eb852648f610dad31a9293e7e77632da13643fae7eec16e98c0c6a971bb08",
+      "worktreeBlob": "e5330cb22cc88ef39245d558c2b311901db6d3e7"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "ee1ab32cb7b7cd712456936733f91a9e330dde97",
+      "id": "repo:src/components/ha-tooltip.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/components/ha-tooltip.ts",
+      "selectedSymbols": [],
+      "sha256": "3a6833197f8536684b6ea7d78aecabc6ad14788c5384926c3d003570a34e92ed",
+      "worktreeBlob": "ee1ab32cb7b7cd712456936733f91a9e330dde97"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "5a3c3e8f8fa02c7a081a1ddb0fea875bd40147e2",
+      "id": "repo:src/data/history.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "EntityHistoryState",
+        "HistoryStates",
+        "HistoryStream",
+        "HistoryStreamMessage",
+        "NEED_ATTRIBUTE_DOMAINS",
+        "entityIdHistoryNeedsAttributes",
+        "subscribeHistoryStatesTimeWindow",
+        "subscribeHistoryStream"
+      ],
+      "missingSymbols": [],
+      "path": "src/data/history.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 87,
+          "length": 214,
+          "line": 78,
+          "name": "EntityHistoryState",
+          "offset": 1831
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 237,
+          "length": 3636,
+          "line": 141,
+          "name": "HistoryStream",
+          "offset": 3517
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 93,
+          "length": 186,
+          "line": 89,
+          "name": "HistoryStreamMessage",
+          "offset": 2047
+        },
+        {
+          "column": 1,
+          "endColumn": 60,
+          "endLine": 100,
+          "length": 182,
+          "line": 95,
+          "name": "entityIdHistoryNeedsAttributes",
+          "offset": 2235
+        },
+        {
+          "column": 1,
+          "endColumn": 5,
+          "endLine": 268,
+          "length": 958,
+          "line": 239,
+          "name": "subscribeHistoryStatesTimeWindow",
+          "offset": 7155
+        },
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 322,
+          "length": 1220,
+          "line": 281,
+          "name": "subscribeHistoryStream",
+          "offset": 8720
+        },
+        {
+          "column": 1,
+          "endColumn": 66,
+          "endLine": 76,
+          "length": 65,
+          "line": 76,
+          "name": "HistoryStates",
+          "offset": 1764
+        },
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 25,
+          "length": 134,
+          "line": 18,
+          "name": "NEED_ATTRIBUTE_DOMAINS",
+          "offset": 744
+        }
+      ],
+      "sha256": "055be2c7ce23ba96de01948e8af51c1f3c699d0580f7d49c22ffc662eb19470c",
+      "worktreeBlob": "5a3c3e8f8fa02c7a081a1ddb0fea875bd40147e2"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "98d073e067af71e70a578c763a7c8c4527137893",
+      "id": "repo:src/data/recorder.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/data/recorder.ts",
+      "selectedSymbols": [],
+      "sha256": "9559171dc0b8ebae6bd7d43a88da1e07b9f3579c41d21bfaddcbd0392de17989",
+      "worktreeBlob": "98d073e067af71e70a578c763a7c8c4527137893"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "2f75e720fd4be4a91a45adffa51fb70deaf7a90e",
+      "id": "repo:src/dialogs/more-info/ha-more-info-history.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "MoreInfoHistory",
+        "statTypes"
+      ],
+      "missingSymbols": [],
+      "path": "src/dialogs/more-info/ha-more-info-history.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 310,
+          "length": 7913,
+          "line": 33,
+          "name": "MoreInfoHistory",
+          "offset": 1140
+        },
+        {
+          "column": 1,
+          "endColumn": 68,
+          "endLine": 31,
+          "length": 67,
+          "line": 31,
+          "name": "statTypes",
+          "offset": 1071
+        }
+      ],
+      "sha256": "fc4e6bd1b2aa3967e56646a6d5ec56e16625d71429b585d536f6715f13b52a74",
+      "worktreeBlob": "2f75e720fd4be4a91a45adffa51fb70deaf7a90e"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "9b6bb306ca29ecfc4e028cab468c5f826a0ed1a5",
+      "id": "repo:src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "DEFAULT_HOURS_TO_SHOW",
+        "HuiHistoryGraphCard"
+      ],
+      "missingSymbols": [],
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 41,
+          "endLine": 27,
+          "length": 40,
+          "line": 27,
+          "name": "DEFAULT_HOURS_TO_SHOW",
+          "offset": 1215
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 424,
+          "length": 10798,
+          "line": 29,
+          "name": "HuiHistoryGraphCard",
+          "offset": 1257
+        }
+      ],
+      "sha256": "f20a8c88f513571917cb2471f034682c9bd09ff83570b44531664a75118ba7cd",
+      "worktreeBlob": "9b6bb306ca29ecfc4e028cab468c5f826a0ed1a5"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "fba5ca16a6ce6c1288eb48c0d48360ffe17e5002",
+      "id": "repo:src/panels/lovelace/common/has-changed.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/panels/lovelace/common/has-changed.ts",
+      "selectedSymbols": [],
+      "sha256": "2c2a9850111aa1323511fffc4d6795dd2079cd70f380f0078500ad60f010f1d4",
+      "worktreeBlob": "fba5ca16a6ce6c1288eb48c0d48360ffe17e5002"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "f9ff1d85c8c3c56f2119161fbfe0826ddfb98170",
+      "id": "repo:src/panels/lovelace/common/process-config-entities.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/panels/lovelace/common/process-config-entities.ts",
+      "selectedSymbols": [],
+      "sha256": "9944ea2014a25ef1cccf3624f34047a03034ca1e6fd597e1edcea68694a766fc",
+      "worktreeBlob": "f9ff1d85c8c3c56f2119161fbfe0826ddfb98170"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "88c7ffe63fbeca6f88897c59e567edd075a98619",
+      "id": "repo:src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/panels/lovelace/editor/config-elements/hui-history-graph-card-editor.ts",
+      "selectedSymbols": [],
+      "sha256": "40fcb05b527dd4b2b0167c9b0518659f08eecc2353a6d665154f7b29fbc35273",
+      "worktreeBlob": "88c7ffe63fbeca6f88897c59e567edd075a98619"
+    },
+    {
+      "depth": 1,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "3284cf2cdf4e971bd2c924b9951882fff85cd9f0",
+      "id": "repo:src/resources/styles.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/resources/styles.ts",
+      "selectedSymbols": [],
+      "sha256": "9b118b138a9f8655391e88df21450fa0c1adb1b49b3721f93b552b37cc05af42",
+      "worktreeBlob": "3284cf2cdf4e971bd2c924b9951882fff85cd9f0"
+    }
+  ],
+  "options": {
+    "entries": [
+      {
+        "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+        "symbols": [
+          "Connection"
+        ]
+      },
+      {
+        "path": "src/data/history.ts",
+        "symbols": [
+          "EntityHistoryState",
+          "HistoryStream",
+          "HistoryStreamMessage",
+          "entityIdHistoryNeedsAttributes",
+          "subscribeHistoryStatesTimeWindow",
+          "subscribeHistoryStream"
+        ]
+      },
+      {
+        "path": "src/dialogs/more-info/ha-more-info-history.ts",
+        "symbols": [
+          "MoreInfoHistory"
+        ]
+      },
+      {
+        "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+        "symbols": [
+          "DEFAULT_HOURS_TO_SHOW",
+          "HuiHistoryGraphCard"
+        ]
+      }
+    ],
+    "followPackages": [
+      "home-assistant-js-websocket"
+    ],
+    "followTypeOnly": false,
+    "maxDepth": 1,
+    "maxNodes": 5000,
+    "resolutionBasis": "TypeScript bundler resolution plus package exports import/browser/default runtime selection"
+  },
+  "reference": {
+    "dirty": false,
+    "gitBranch": "remove-agents-md",
+    "gitHead": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+    "lockfile": {
+      "path": "yarn.lock",
+      "sha256": "ca345f66a74a1054b77bd2f47f20cb9e13e79b2c864f3375822cca9b14ff41b6"
+    },
+    "root": "/Users/jin/Documents/HA/hass-frontend",
+    "rspackConfig": {
+      "path": "build-scripts/rspack.cjs",
+      "sha256": "87cece7c29088dd7c7ddddbd2a0893c7fe6749ecaa8d77e529745173fd5d0904"
+    },
+    "tsconfig": {
+      "path": "tsconfig.json",
+      "sha256": "b711003d7bd0fd3b76fedb3e6d63cf2c4d92d35436644180284ab16f5fbe86ea"
+    },
+    "typescriptVersion": "6.0.3"
+  },
+  "schemaVersion": "nativeha-ts-dependency-graph/v1",
+  "tool": {
+    "path": "tools/reference-context/trace-ts-deps.mjs",
+    "sha256": "8ff12d32b60590badccd2921ebf61e6ffecde61b3c994a17a8ed33809caba8fe",
+    "version": "1.0.0"
+  },
+  "truncated": null,
+  "unresolved": []
+}
