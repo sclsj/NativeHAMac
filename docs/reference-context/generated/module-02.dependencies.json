@@ -1557,40 +1557,75 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "25f80cc423416c098c50eb9dde41b93ca8e31d18b2946fa6d404a7a915ad10ea",
+  "graphFingerprint": "6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
-    "sha256": "a66931dd4c5174c5e11cdbe81b8f9eec9b0a87a828d143ca91a024df5ce36fed"
+    "sha256": "18e4a699ec7f47341e8e090d89c66356dd41db69dca12fe6107cf4a5fae0852c"
   },
   "nativeha": {
     "anchors": [
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "2991447a91dd6d92185da8214e4d020a8a2845a2",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "29530f8cab9c9d4ec7ba98ee082cf9671bc2978007be2a3f45baf87a9cf6132d",
+        "sha256": "8aba0fb19193a7806801adc0480f2e92316c0594a82de4096fc3ffcb9d19c7fa",
         "symbols": [
           "HomeAssistantWebSocketClient"
         ],
-        "worktreeBlob": "2991447a91dd6d92185da8214e4d020a8a2845a2"
+        "worktreeBlob": "96434a2930fd14a3751872b9c567c3938cd32498"
       },
       {
         "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+        "sha256": "62604bdd77b88b4fa7730c6620521daefd6211482fd0ca74cdb882ec70dd4ec6",
+        "symbols": [
+          "HomeAssistantWebSocketConnection",
+          "callRaw",
+          "subscribeRaw"
+        ],
+        "worktreeBlob": "a432522113ff1d044be8c497cc5f066e7504669b"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
+        "sha256": "fa26460370c024c7689cd47b9544c497888dc10c1b256d1ee6e19a5bf5e644e7",
+        "symbols": [
+          "HomeAssistantWebSocketTransport"
+        ],
+        "worktreeBlob": "8fed132e65db10c452097eff268639687dd1be16"
+      },
+      {
+        "dirty": true,
+        "headBlob": "206244bef22c32d58ba007b4b813ff1804a3b385",
+        "missing": false,
+        "path": "Sources/NativeHAMac/AppConfig.swift",
+        "sha256": "ac0473f4ee44bfef7469aaaa85d93e7a39818845428ad3c62eb1f0c87c4edb6e",
+        "symbols": [
+          "AppConfig.webSocketPolicy"
+        ],
+        "worktreeBlob": "8e3b7f7abfa487125cb3593f97ef1e7d1aced981"
+      },
+      {
+        "dirty": true,
         "headBlob": "37815aac34b736e645e929f586748c2e314d4deb",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "f19f79bb937660d2128cdfc7dd083b43879d1d722eca9177c1e17ed32a416c16",
+        "sha256": "86a442ecec0a61db8cf30b5c16579f16a7d78b48a3fc24fd44e9a6dabeb78edb",
         "symbols": [
           "DashboardViewModel.load"
         ],
-        "worktreeBlob": "37815aac34b736e645e929f586748c2e314d4deb"
+        "worktreeBlob": "0d0a6e96b6c3c143ce80db4e3626d2a87ae8b09f"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "78a40f22dd278c74af9a81ae47a802fc4a94c1d1"
+    "gitHead": "04795558e076661287cabab524b19d3bb3337fa2"
   },
   "nodes": [
     {

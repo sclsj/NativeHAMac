@@ -4,8 +4,20 @@
   "title": "WebSocket multiplexer and subscription architecture",
   "nativeEntries": [
     {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+      "symbols": ["HomeAssistantWebSocketConnection", "callRaw", "subscribeRaw"]
+    },
+    {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
       "symbols": ["HomeAssistantWebSocketClient"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
+      "symbols": ["HomeAssistantWebSocketTransport"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig.webSocketPolicy"]
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",

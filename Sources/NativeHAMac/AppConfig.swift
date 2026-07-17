@@ -18,6 +18,11 @@ enum AppConfig {
     static let realtimeUpdateCoalesceNanoseconds: UInt64 = 50_000_000
     static let liveGraphDataRenderDelayNanoseconds: UInt64 = 120_000_000
     static let liveGraphInteractionDeferNanoseconds: UInt64 = 500_000_000
+    static let webSocketPolicy = WebSocketPolicy(
+        commandTimeout: 10,
+        subscriptionDeliveryCapacity: 256,
+        maximumConcurrentCallbackTasks: 4
+    )
 
     static let sidebarWidth: CGFloat = 238
     static let dashboardColumnCount = 3
@@ -53,6 +58,12 @@ enum AppConfig {
         CardColumnRule(column: 2, title: "Sensor"),
         CardColumnRule(column: 2, title: "AC Unit Controller"),
     ]
+}
+
+struct WebSocketPolicy {
+    let commandTimeout: TimeInterval
+    let subscriptionDeliveryCapacity: Int
+    let maximumConcurrentCallbackTasks: Int
 }
 
 struct CardColumnRule {

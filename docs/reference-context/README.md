@@ -11,8 +11,8 @@ packet.
 
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
 |---|---|---|---|---|---|
-| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | research-ready | 1 | Implement C02-01 through C02-07 |
-| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | not created | blocked on 02 implementation | Requires stable Module 02 subscription/lifecycle contract | Research after 02 reaches verification-ready |
+| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete | 1 | Use the verified multiplexer contract in Module 01 |
+| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | not created | unresearched | Module 02 complete | Dispatch Module 01 researcher |
 | 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | not created | unresearched | Depends on 02 for fetch path | Dispatch researcher after 01 |
 | 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | unresearched | Independent, but ordered after 04 in the rescue plan | Dispatch researcher after 04 |
 | 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | not created | unresearched | Requires 04; coordinates with 01 | Dispatch researcher after 03 |

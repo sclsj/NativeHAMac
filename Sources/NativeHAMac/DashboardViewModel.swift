@@ -16,6 +16,8 @@ final class DashboardViewModel: ObservableObject {
 
     private var restClient: HomeAssistantRESTClient?
     private var webSocketClient: HomeAssistantWebSocketClient?
+    private var stateSubscription: HAWebSocketSubscription?
+    private var connectionStatusTask: Task<Void, Never>?
     private var hasStarted = false
     private var pendingStates: [String: HAState] = [:]
     private var pendingHistoryStates: [HAState] = []
@@ -395,28 +397,45 @@ final class DashboardViewModel: ObservableObject {
             states = Dictionary(uniqueKeysWithValues: stateList.map { ($0.entityId, $0) })
 
             status = "Loading dashboard"
-            let webSocket = HomeAssistantWebSocketClient(configuration: connection.configuration)
+            let webSocket = HomeAssistantWebSocketClient(
+                configuration: connection.configuration,
+                commandTimeout: AppConfig.webSocketPolicy.commandTimeout,
+                subscriptionDeliveryCapacity: AppConfig.webSocketPolicy.subscriptionDeliveryCapacity,
+                maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
+            )
             try await webSocket.connect()
             let config = try await webSocket.fetchLovelaceConfig()
             views = config.views
             webSocketClient = webSocket
 
             status = "Live"
-            try await webSocket.subscribeToStateChanges()
+            let weakModel = WeakDashboardViewModelBox(self)
+            stateSubscription = try await webSocket.subscribeToStateChanges { state in
+                await MainActor.run {
+                    weakModel.value?.queueStateUpdate(state)
+                }
+            }
 
             Task { [weak self] in
                 await self?.loadHistories()
             }
 
-            Task { [weak self, webSocket] in
-                do {
-                    try await webSocket.receiveStateChanges { [weak self] state in
-                        self?.queueStateUpdate(state)
-                    }
-                } catch {
+            connectionStatusTask = Task { [weak self, webSocket] in
+                for await connectionState in await webSocket.connection.statusUpdates() {
                     await MainActor.run {
-                        self?.status = "Disconnected"
-                        self?.errorMessage = "WebSocket disconnected: \(error.localizedDescription)"
+                        switch connectionState {
+                        case .ready:
+                            self?.status = "Live"
+                        case .disconnected:
+                            self?.status = "Disconnected"
+                        case .reconnecting:
+                            self?.status = "Reconnecting"
+                        case let .authenticationFailed(message):
+                            self?.status = "Error"
+                            self?.errorMessage = "WebSocket authentication failed: \(message)"
+                        case .connecting:
+                            self?.status = "Connecting"
+                        }
                     }
                 }
             }
@@ -908,6 +927,16 @@ final class DashboardViewModel: ObservableObject {
 
         return String(format: "%.2f", value)
     }
+
+    deinit {
+        connectionStatusTask?.cancel()
+        let subscription = stateSubscription
+        let client = webSocketClient
+        Task {
+            await subscription?.cancel()
+            await client?.disconnect()
+        }
+    }
 }
 
 private struct Connection {
@@ -919,6 +948,14 @@ private struct Connection {
 private struct RealtimeHistoryPoint {
     let entityID: String
     let point: HAHistoryPoint
+}
+
+private final class WeakDashboardViewModelBox: @unchecked Sendable {
+    weak var value: DashboardViewModel?
+
+    init(_ value: DashboardViewModel) {
+        self.value = value
+    }
 }
 
 struct HistoryRequest: Hashable {

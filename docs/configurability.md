@@ -130,9 +130,31 @@ deviation.
 `AppConfig.swift`, but they are not yet one typed policy and responsive behavior
 is not implemented.
 
+### 7. WebSocket command and subscription delivery safety
+
+**Intent:** Keep the transport responsive and memory-bounded without making
+protocol correctness optional.
+
+Configure command timeout, per-subscription buffered-delivery capacity, and the
+connection-wide maximum number of concurrently executing subscriber callbacks
+as one typed WebSocket policy. Timeout must remove pending command ownership
+exactly once. Capacity overflow must terminate only the slow subscription; it
+must not block the socket receiver, reorder another subscription, or create an
+unbounded task backlog. Cancellation is requested for in-flight callbacks, but
+arbitrary non-cooperative async callbacks cannot be forcibly stopped; they stay
+explicitly owned and counted against the connection-wide callback limit until
+they return.
+
+**Implementation note:** Module 02 defines `WebSocketPolicy` in
+`AppConfig.swift` with a 10-second command timeout and a 256-event buffered
+capacity. At most four subscriber callbacks execute concurrently, which bounds
+retained in-flight callback work even during repeated subscription churn.
+Reconnect timing remains internal reference-parity behavior rather than a
+selected product configuration surface.
+
 ## Not selected
 
-Render-resolution, connection/retry, axis-density, and off-live-edge update
+Render-resolution, reconnect timing, axis-density, and off-live-edge update
 policies remain historical candidates rather than approved configuration
 requirements. Revisit them only when the user selects them or a current task
 requires a material product choice.
