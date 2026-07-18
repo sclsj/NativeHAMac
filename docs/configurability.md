@@ -76,9 +76,11 @@ Configure typed durations and, where useful, immediate/low-latency and batched
 profiles. Defaults must avoid render storms without starving the final update
 or delaying foreground interaction.
 
-**Implementation note:** The three timings already exist as raw nanosecond
-constants in `AppConfig.swift`; they have not yet been consolidated into a
-typed scheduling policy.
+**Implementation note:** `AppConfig.swift` now groups realtime-state
+coalescing, live-data render delay, and post-interaction defer time in a typed
+`GraphRenderSchedulingPolicy`. Viewport rendering itself uses one serialized
+in-flight render plus one overwriteable latest request; that is a progress and
+ownership invariant rather than a selectable fidelity mode.
 
 ### 4. Graph zoom and pan interaction
 

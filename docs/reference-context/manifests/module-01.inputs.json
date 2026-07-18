@@ -41,7 +41,11 @@
     },
     {
       "path": "Sources/NativeHAMac/GraphRendering.swift",
-      "symbols": ["GraphRenderPipeline"]
+      "symbols": ["GraphBitmapRenderer", "GraphRenderMetrics"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
+      "symbols": ["GraphViewportRenderScheduler"]
     },
     {
       "path": "Tests/NativeHACoreTests/HistoryGraphSupportTests.swift",
@@ -70,6 +74,10 @@
     {
       "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
       "symbols": ["GUIRenderingAndPerformanceTests"]
+    },
+    {
+      "path": "Benchmarks/GraphRendering/GraphRenderingBenchmarks.swift",
+      "symbols": ["GraphRenderingBenchmarkTests", "GraphRenderingLiveBenchmarkTests"]
     },
     {
       "path": "Benchmarks/history-stream/main.swift",

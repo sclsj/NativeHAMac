@@ -69,5 +69,11 @@ let package = Package(
             dependencies: ["NativeHAMac"],
             exclude: ["ReferenceImages"]
         ),
+        .testTarget(
+            name: "GraphRenderingBenchmarks",
+            dependencies: ["NativeHACore", "NativeHAMac"],
+            path: "Benchmarks/GraphRendering",
+            exclude: ["README.md", "results.md"]
+        ),
     ]
 )

@@ -419,7 +419,8 @@ struct BitmapLineChart: View {
     @State private var latestViewportToken = ""
     @State private var latestDataToken = ""
     @State private var desiredRenderToken = ""
-    @State private var renderTask: Task<Void, Never>?
+    @StateObject private var viewportRenderScheduler = GraphViewportRenderScheduler()
+    @State private var liveDataRenderTask: Task<Void, Never>?
     @State private var isRendering = false
     @State private var renderAttempted = false
     @State private var latestInteractionTime = Date.distantPast
@@ -505,7 +506,8 @@ struct BitmapLineChart: View {
                 scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
             .onDisappear {
-                renderTask?.cancel()
+                viewportRenderScheduler.cancel()
+                liveDataRenderTask?.cancel()
             }
         }
     }
@@ -526,7 +528,7 @@ struct BitmapLineChart: View {
         latestViewportToken = viewportToken
         latestDataToken = dataToken
         desiredRenderToken = token
-        renderTask?.cancel()
+        liveDataRenderTask?.cancel()
 
         let hasRenderedImage = rendered != nil
 
@@ -554,26 +556,33 @@ struct BitmapLineChart: View {
         }
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        renderTask = makeRenderTask(
-            size: size,
+        let request = GraphViewportRenderRequest(
             token: token,
+            dataToken: latestDataToken,
+            inputs: inputs,
+            unit: unit,
+            size: size,
             scale: screenScale,
-            delay: 0,
-            priority: .userInitiated
+            zoomScale: zoomScale,
+            panFraction: panFraction
         )
+        viewportRenderScheduler.schedule(request) { delivery in
+            installViewportRender(delivery, replaceExistingWithNil: !hasRenderedImage)
+        }
     }
 
     private func scheduleLiveDataRender(size: CGSize, token: String) {
         isRendering = false
 
         let elapsedSinceInteraction = Date().timeIntervalSince(latestInteractionTime)
-        let interactionDefer = Double(AppConfig.liveGraphInteractionDeferNanoseconds) / 1_000_000_000
+        let policy = AppConfig.graphRenderSchedulingPolicy
+        let interactionDefer = Double(policy.liveDataInteractionDeferNanoseconds) / 1_000_000_000
         let delay = elapsedSinceInteraction < interactionDefer
-            ? AppConfig.liveGraphInteractionDeferNanoseconds
-            : AppConfig.liveGraphDataRenderDelayNanoseconds
+            ? policy.liveDataInteractionDeferNanoseconds
+            : policy.liveDataRenderDelayNanoseconds
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        renderTask = makeRenderTask(
+        liveDataRenderTask = makeRenderTask(
             size: size,
             token: token,
             scale: screenScale,
@@ -632,6 +641,29 @@ struct BitmapLineChart: View {
                 }
             }
         }
+    }
+
+    private func installViewportRender(
+        _ delivery: GraphViewportRenderDelivery,
+        replaceExistingWithNil: Bool
+    ) {
+        // Viewport frames may be a few input events behind, which is desirable:
+        // publishing them avoids a 100% discard rate during a token storm. Data
+        // generations remain strict so old history can never replace new data.
+        guard delivery.request.dataToken == latestDataToken else {
+            return
+        }
+
+        if let result = delivery.result {
+            rendered = result
+            renderedToken = delivery.request.token
+            onRenderReady(result)
+        } else if replaceExistingWithNil, !delivery.wasSuperseded {
+            rendered = nil
+            renderedToken = delivery.request.token
+        }
+        isRendering = false
+        renderAttempted = true
     }
 
     private var isZoomedAwayFromLiveEdge: Bool {

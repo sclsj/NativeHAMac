@@ -222,6 +222,37 @@ struct GraphRenderResult {
     }
 }
 
+struct GraphRenderMetrics: Equatable {
+    let inputPointCount: Int
+    let preparedPointCount: Int
+    let renderedPointCount: Int
+    let bitmapByteCount: Int
+    let seriesPreparationNanoseconds: UInt64
+    let viewportPreparationNanoseconds: UInt64
+    let bitmapAllocationNanoseconds: UInt64
+    let contextSetupNanoseconds: UInt64
+    let backgroundFillNanoseconds: UInt64
+    let pathConstructionNanoseconds: UInt64
+    let pathStrokeNanoseconds: UInt64
+    let imageSnapshotNanoseconds: UInt64
+    let totalNanoseconds: UInt64
+}
+
+private struct GraphBitmapDrawMetrics {
+    let bitmapByteCount: Int
+    let allocationNanoseconds: UInt64
+    let contextSetupNanoseconds: UInt64
+    let backgroundFillNanoseconds: UInt64
+    let pathConstructionNanoseconds: UInt64
+    let pathStrokeNanoseconds: UInt64
+    let imageSnapshotNanoseconds: UInt64
+}
+
+private struct GraphBitmapDrawResult {
+    let image: CGImage
+    let metrics: GraphBitmapDrawMetrics
+}
+
 enum GraphBitmapRenderer {
     static func render(
         inputs: [GraphRenderSeriesInput],
@@ -229,16 +260,21 @@ enum GraphBitmapRenderer {
         size: CGSize,
         scale: CGFloat,
         zoomScale: CGFloat,
-        panFraction: Double
+        panFraction: Double,
+        metrics: ((GraphRenderMetrics) -> Void)? = nil
     ) -> GraphRenderResult? {
+        let totalStart = graphRenderClock()
+        let seriesPreparationStart = graphRenderClock()
         let pointSeries = inputs.compactMap {
             GraphPreparedSeriesCache.shared.series(for: $0, displayUnit: unit)
         }
+        let seriesPreparationNanoseconds = graphRenderElapsed(since: seriesPreparationStart)
 
-        guard !pointSeries.isEmpty else {
+        guard !pointSeries.isEmpty, !graphRenderIsCancelled() else {
             return nil
         }
 
+        let viewportPreparationStart = graphRenderClock()
         let isStateTimeline = unit.lowercased() == "state"
         let dataEnd   = isStateTimeline ? (inputs.compactMap(\.windowEnd).max()   ?? Date().timeIntervalSince1970) : nil
         let dataStart = isStateTimeline ? (inputs.compactMap(\.windowStart).min()) : nil
@@ -303,10 +339,15 @@ enum GraphBitmapRenderer {
             ? GraphAxis(min: -0.05, max: 1.05, ticks: [])
             : niceAxis(values: values)
         let xTicks = linearTicks(min: visibleStart, max: visibleEnd, count: 5)
+        let viewportPreparationNanoseconds = graphRenderElapsed(since: viewportPreparationStart)
 
-        let image: CGImage?
+        guard !graphRenderIsCancelled() else {
+            return nil
+        }
+
+        let bitmap: GraphBitmapDrawResult?
         if isStateTimeline {
-            image = drawTimelineBitmap(
+            bitmap = drawTimelineBitmap(
                 series: visibleSeries,
                 size: size,
                 scale: scale,
@@ -315,7 +356,7 @@ enum GraphBitmapRenderer {
                 visibleEnd: visibleEnd
             )
         } else {
-            image = drawBitmap(
+            bitmap = drawBitmap(
                 series: visibleSeries,
                 size: size,
                 scale: scale,
@@ -327,12 +368,12 @@ enum GraphBitmapRenderer {
             )
         }
 
-        guard let finalImage = image else {
+        guard let bitmap = bitmap else {
             return nil
         }
 
-        return GraphRenderResult(
-            image: finalImage,
+        let result = GraphRenderResult(
+            image: bitmap.image,
             size: size,
             scale: scale,
             plotRect: plotRect,
@@ -347,6 +388,29 @@ enum GraphBitmapRenderer {
             zoomScale: zoomScale,
             panFraction: pan
         )
+
+        metrics?(GraphRenderMetrics(
+            inputPointCount: inputs.reduce(0) { $0 + $1.history.points.count },
+            preparedPointCount: pointSeries.reduce(0) { $0 + $1.points.count },
+            renderedPointCount: visibleSeries.reduce(0) {
+                $0 + $1.points.count + $1.timelineSegments.count
+            },
+            bitmapByteCount: bitmap.metrics.bitmapByteCount,
+            seriesPreparationNanoseconds: seriesPreparationNanoseconds,
+            viewportPreparationNanoseconds: viewportPreparationNanoseconds,
+            bitmapAllocationNanoseconds: bitmap.metrics.allocationNanoseconds,
+            contextSetupNanoseconds: bitmap.metrics.contextSetupNanoseconds,
+            backgroundFillNanoseconds: bitmap.metrics.backgroundFillNanoseconds,
+            pathConstructionNanoseconds: bitmap.metrics.pathConstructionNanoseconds,
+            pathStrokeNanoseconds: bitmap.metrics.pathStrokeNanoseconds,
+            imageSnapshotNanoseconds: bitmap.metrics.imageSnapshotNanoseconds,
+            totalNanoseconds: graphRenderElapsed(since: totalStart)
+        ))
+        return result
+    }
+
+    static func resetPreparedSeriesCache() {
+        GraphPreparedSeriesCache.shared.reset()
     }
 
     private static func drawBitmap(
@@ -358,14 +422,21 @@ enum GraphBitmapRenderer {
         xTicks: [Double],
         visibleStart: Double,
         visibleEnd: Double
-    ) -> CGImage? {
+    ) -> GraphBitmapDrawResult? {
         let width = max(Int(size.width * scale), 1)
         let height = max(Int(size.height * scale), 1)
         let bytesPerRow = width * 4
+        let allocationStart = graphRenderClock()
         var data = [UInt8](repeating: 0, count: bytesPerRow * height)
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let allocationNanoseconds = graphRenderElapsed(since: allocationStart)
 
         return data.withUnsafeMutableBytes { pointer in
+            guard !graphRenderIsCancelled() else {
+                return nil
+            }
+
+            let contextSetupStart = graphRenderClock()
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
             guard let context = CGContext(
                 data: pointer.baseAddress,
                 width: width,
@@ -384,14 +455,23 @@ enum GraphBitmapRenderer {
             // align with the overlay axes and hover geometry.
             context.translateBy(x: 0, y: size.height)
             context.scaleBy(x: 1, y: -1)
-            context.setFillColor(CGColor(red: 0.055, green: 0.06, blue: 0.06, alpha: 1))
-            context.fill(CGRect(origin: .zero, size: size))
-
             context.setLineJoin(.round)
             context.setLineCap(.round)
+            let contextSetupNanoseconds = graphRenderElapsed(since: contextSetupStart)
+
+            let backgroundFillStart = graphRenderClock()
+            context.setFillColor(CGColor(red: 0.055, green: 0.06, blue: 0.06, alpha: 1))
+            context.fill(CGRect(origin: .zero, size: size))
+            let backgroundFillNanoseconds = graphRenderElapsed(since: backgroundFillStart)
+
+            var pathConstructionNanoseconds: UInt64 = 0
+            var pathStrokeNanoseconds: UInt64 = 0
             for item in series {
-                context.setStrokeColor(item.color.cgColor)
-                context.setLineWidth(2)
+                guard !graphRenderIsCancelled() else {
+                    return nil
+                }
+
+                let pathConstructionStart = graphRenderClock()
                 let path = CGMutablePath()
                 for (index, point) in item.points.enumerated() {
                     let mapped = CGPoint(
@@ -404,11 +484,36 @@ enum GraphBitmapRenderer {
                         path.addLine(to: mapped)
                     }
                 }
+                pathConstructionNanoseconds += graphRenderElapsed(since: pathConstructionStart)
+
+                let pathStrokeStart = graphRenderClock()
+                context.setStrokeColor(item.color.cgColor)
+                context.setLineWidth(2)
                 context.addPath(path)
                 context.strokePath()
+                pathStrokeNanoseconds += graphRenderElapsed(since: pathStrokeStart)
             }
 
-            return context.makeImage()
+            guard !graphRenderIsCancelled() else {
+                return nil
+            }
+            let imageSnapshotStart = graphRenderClock()
+            guard let image = context.makeImage() else {
+                return nil
+            }
+            let imageSnapshotNanoseconds = graphRenderElapsed(since: imageSnapshotStart)
+            return GraphBitmapDrawResult(
+                image: image,
+                metrics: GraphBitmapDrawMetrics(
+                    bitmapByteCount: bytesPerRow * height,
+                    allocationNanoseconds: allocationNanoseconds,
+                    contextSetupNanoseconds: contextSetupNanoseconds,
+                    backgroundFillNanoseconds: backgroundFillNanoseconds,
+                    pathConstructionNanoseconds: pathConstructionNanoseconds,
+                    pathStrokeNanoseconds: pathStrokeNanoseconds,
+                    imageSnapshotNanoseconds: imageSnapshotNanoseconds
+                )
+            )
         }
     }
 
@@ -419,14 +524,21 @@ enum GraphBitmapRenderer {
         plotRect: CGRect,
         visibleStart: Double,
         visibleEnd: Double
-    ) -> CGImage? {
+    ) -> GraphBitmapDrawResult? {
         let width = max(Int(size.width * scale), 1)
         let height = max(Int(size.height * scale), 1)
         let bytesPerRow = width * 4
+        let allocationStart = graphRenderClock()
         var data = [UInt8](repeating: 0, count: bytesPerRow * height)
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let allocationNanoseconds = graphRenderElapsed(since: allocationStart)
 
         return data.withUnsafeMutableBytes { pointer in
+            guard !graphRenderIsCancelled() else {
+                return nil
+            }
+
+            let contextSetupStart = graphRenderClock()
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
             guard let context = CGContext(
                 data: pointer.baseAddress,
                 width: width,
@@ -442,18 +554,28 @@ enum GraphBitmapRenderer {
             context.scaleBy(x: scale, y: scale)
             context.translateBy(x: 0, y: size.height)
             context.scaleBy(x: 1, y: -1)
+            let contextSetupNanoseconds = graphRenderElapsed(since: contextSetupStart)
+
+            let backgroundFillStart = graphRenderClock()
             context.setFillColor(CGColor(red: 0.055, green: 0.06, blue: 0.06, alpha: 1))
             context.fill(CGRect(origin: .zero, size: size))
+            let backgroundFillNanoseconds = graphRenderElapsed(since: backgroundFillStart)
 
             let maxRowHeight: CGFloat = 24
             let rowHeight = min(plotRect.height / CGFloat(max(series.count, 1)), maxRowHeight)
             let totalHeight = rowHeight * CGFloat(series.count)
             let startY = plotRect.minY + (plotRect.height - totalHeight) / 2
 
+            var pathConstructionNanoseconds: UInt64 = 0
+            var pathStrokeNanoseconds: UInt64 = 0
             for (index, item) in series.enumerated() {
+                guard !graphRenderIsCancelled() else {
+                    return nil
+                }
                 let yOffset = startY + CGFloat(index) * rowHeight
 
                 for segment in item.timelineSegments {
+                    let pathConstructionStart = graphRenderClock()
                     let startX = max(
                         plotRect.minX,
                         xPosition(segment.clippedStart, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
@@ -463,15 +585,37 @@ enum GraphBitmapRenderer {
                         xPosition(segment.clippedEnd, visibleStart: visibleStart, visibleEnd: visibleEnd, plotRect: plotRect)
                     )
                     let blockWidth = endX - startX
+                    pathConstructionNanoseconds += graphRenderElapsed(since: pathConstructionStart)
                     if blockWidth <= 0 { continue }
 
+                    let pathStrokeStart = graphRenderClock()
                     let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
                     context.setFillColor(timelineColor(for: segment.state, entityID: item.entityID).cgColor)
                     context.fill(blockRect)
+                    pathStrokeNanoseconds += graphRenderElapsed(since: pathStrokeStart)
                 }
             }
 
-            return context.makeImage()
+            guard !graphRenderIsCancelled() else {
+                return nil
+            }
+            let imageSnapshotStart = graphRenderClock()
+            guard let image = context.makeImage() else {
+                return nil
+            }
+            let imageSnapshotNanoseconds = graphRenderElapsed(since: imageSnapshotStart)
+            return GraphBitmapDrawResult(
+                image: image,
+                metrics: GraphBitmapDrawMetrics(
+                    bitmapByteCount: bytesPerRow * height,
+                    allocationNanoseconds: allocationNanoseconds,
+                    contextSetupNanoseconds: contextSetupNanoseconds,
+                    backgroundFillNanoseconds: backgroundFillNanoseconds,
+                    pathConstructionNanoseconds: pathConstructionNanoseconds,
+                    pathStrokeNanoseconds: pathStrokeNanoseconds,
+                    imageSnapshotNanoseconds: imageSnapshotNanoseconds
+                )
+            )
         }
     }
 
@@ -559,6 +703,13 @@ private final class GraphPreparedSeriesCache {
     private var insertionOrder: [String] = []
     private let limit = 96
 
+    func reset() {
+        lock.lock()
+        storage.removeAll(keepingCapacity: true)
+        insertionOrder.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+
     func series(for input: GraphRenderSeriesInput, displayUnit: String) -> GraphRenderedSeries? {
         let key = stableKey(for: input, displayUnit: displayUnit)
         let fingerprint = sourceFingerprint(for: input.history)
@@ -599,23 +750,38 @@ private final class GraphPreparedSeriesCache {
     ) -> GraphPreparedCacheEntry? {
         let parser = GraphDateParser()
         let isStateTimeline = displayUnit.lowercased() == "state"
-        let points = input.history.points.compactMap { point -> GraphRenderedPoint? in
-            guard let timestamp = parser.timestamp(from: point) else {
+        var points: [GraphRenderedPoint] = []
+        points.reserveCapacity(input.history.points.count)
+        var isTimestampSorted = true
+        var previousTimestamp: Double?
+
+        for (index, point) in input.history.points.enumerated() {
+            if index % 1_024 == 0, graphRenderIsCancelled() {
                 return nil
+            }
+            guard let timestamp = parser.timestamp(from: point) else {
+                continue
             }
             let value = numericValue(point.state)
             if value == nil && !isStateTimeline {
-                return nil
+                continue
             }
 
-            return GraphRenderedPoint(
+            if let previousTimestamp = previousTimestamp, timestamp < previousTimestamp {
+                isTimestampSorted = false
+            }
+            previousTimestamp = timestamp
+            points.append(GraphRenderedPoint(
                 t: timestamp,
                 y: value ?? 0,
                 display: displayValue(point.state, unit: displayUnit)
-            )
+            ))
         }
-        .sorted { $0.t < $1.t }
-        .removingRedundantStatePoints(enabled: isStateTimeline)
+
+        if !isTimestampSorted {
+            points.sort { $0.t < $1.t }
+        }
+        points = points.removingRedundantStatePoints(enabled: isStateTimeline)
 
         guard !points.isEmpty else {
             return nil
@@ -677,7 +843,10 @@ private final class GraphPreparedSeriesCache {
         if newSourceStart < input.history.points.endIndex {
             points.reserveCapacity(points.count + input.history.points.distance(from: newSourceStart, to: input.history.points.endIndex))
 
-            for point in input.history.points[newSourceStart...] {
+            for (offset, point) in input.history.points[newSourceStart...].enumerated() {
+                if offset % 1_024 == 0, graphRenderIsCancelled() {
+                    return nil
+                }
                 guard let timestamp = parser.timestamp(from: point) else {
                     continue
                 }
@@ -751,6 +920,18 @@ private final class GraphPreparedSeriesCache {
             contentRevision: history.contentRevision
         )
     }
+}
+
+private func graphRenderClock() -> UInt64 {
+    DispatchTime.now().uptimeNanoseconds
+}
+
+private func graphRenderElapsed(since start: UInt64) -> UInt64 {
+    DispatchTime.now().uptimeNanoseconds - start
+}
+
+private func graphRenderIsCancelled() -> Bool {
+    withUnsafeCurrentTask { $0?.isCancelled ?? false }
 }
 
 private struct GraphPreparedCacheEntry {

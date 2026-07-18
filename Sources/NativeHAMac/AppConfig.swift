@@ -24,9 +24,11 @@ enum AppConfig {
     static var defaultGraphHours: Int { graphTimeRangePolicy.defaultSelection.hours }
     static var graphHourOptions: [Int] { graphTimeRangePolicy.availableSelections.map(\.hours) }
     static let graphMaxZoomVisibleSamplePercentage: CGFloat = 0.10
-    static let realtimeUpdateCoalesceNanoseconds: UInt64 = 50_000_000
-    static let liveGraphDataRenderDelayNanoseconds: UInt64 = 120_000_000
-    static let liveGraphInteractionDeferNanoseconds: UInt64 = 500_000_000
+    static let graphRenderSchedulingPolicy = GraphRenderSchedulingPolicy(
+        realtimeStateCoalesceNanoseconds: 50_000_000,
+        liveDataRenderDelayNanoseconds: 120_000_000,
+        liveDataInteractionDeferNanoseconds: 500_000_000
+    )
     static let webSocketPolicy = WebSocketPolicy(
         commandTimeout: 120,
         subscriptionDeliveryCapacity: 256,
@@ -101,6 +103,12 @@ struct WebSocketPolicy {
     let commandTimeout: TimeInterval
     let subscriptionDeliveryCapacity: Int
     let maximumConcurrentCallbackTasks: Int
+}
+
+struct GraphRenderSchedulingPolicy {
+    let realtimeStateCoalesceNanoseconds: UInt64
+    let liveDataRenderDelayNanoseconds: UInt64
+    let liveDataInteractionDeferNanoseconds: UInt64
 }
 
 struct CardColumnRule {

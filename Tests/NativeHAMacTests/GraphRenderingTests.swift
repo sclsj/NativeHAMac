@@ -200,6 +200,102 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertNotEqual(first.history.contentRevision, replacement.history.contentRevision)
     }
 
+    func testViewportRenderSchedulerPublishesDuringEightMillisecondTokenStorm() {
+        let scheduler = GraphViewportRenderScheduler { _ in
+            Thread.sleep(forTimeInterval: 0.020)
+            return nil
+        }
+        var deliveredTokens: [String] = []
+        let eventCount = 24
+
+        for index in 0..<eventCount {
+            scheduler.schedule(viewportRequest(token: "viewport-\(index)")) { delivery in
+                deliveredTokens.append(delivery.request.token)
+            }
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.008))
+        }
+
+        let deliveriesBeforeGestureEnd = deliveredTokens.count
+        let deadline = Date(timeIntervalSinceNow: 1)
+        while deliveredTokens.last != "viewport-\(eventCount - 1)", Date() < deadline {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.005))
+        }
+
+        XCTAssertGreaterThanOrEqual(
+            deliveriesBeforeGestureEnd,
+            3,
+            "A render slower than the event cadence must still publish intermediate frames."
+        )
+        XCTAssertEqual(deliveredTokens.last, "viewport-\(eventCount - 1)")
+        XCTAssertEqual(scheduler.statistics.scheduledCount, eventCount)
+        XCTAssertLessThan(scheduler.statistics.startedCount, eventCount)
+        XCTAssertGreaterThan(scheduler.statistics.replacedPendingCount, 0)
+        XCTAssertEqual(scheduler.statistics.maximumConcurrentCount, 1)
+    }
+
+    func testRenderMetricsSeparatePreparationAndBitmapStages() throws {
+        let input = numericInput()
+        var captured: GraphRenderMetrics?
+        let result = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [input],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            scale: 2,
+            zoomScale: 1,
+            panFraction: 1,
+            metrics: { captured = $0 }
+        ))
+        let metrics = try XCTUnwrap(captured)
+
+        XCTAssertEqual(metrics.inputPointCount, input.history.points.count)
+        XCTAssertEqual(metrics.preparedPointCount, input.history.points.count)
+        XCTAssertEqual(metrics.renderedPointCount, result.series.first?.points.count)
+        XCTAssertEqual(metrics.bitmapByteCount, 640 * 320 * 4)
+        XCTAssertGreaterThan(metrics.totalNanoseconds, 0)
+        XCTAssertGreaterThan(metrics.pathConstructionNanoseconds, 0)
+        XCTAssertGreaterThan(metrics.pathStrokeNanoseconds, 0)
+    }
+
+    func testCancelledRenderStopsBeforePublishingABitmap() async {
+        let entityID = "sensor.cancelled_render_\(UUID().uuidString)"
+        let points = (0..<10_000).map { index -> HAHistoryPoint in
+            let timestamp = String(
+                format: "2026-01-01T%02d:%02d:%02dZ",
+                index / 3_600,
+                (index % 3_600) / 60,
+                index % 60
+            )
+            return HAHistoryPoint(
+                entityId: entityID,
+                state: String(index % 100),
+                attributes: nil,
+                lastChanged: timestamp,
+                lastUpdated: timestamp
+            )
+        }
+        let input = GraphRenderSeriesInput(
+            entityID: entityID,
+            name: "Cancellation fixture",
+            unit: "µg/m³",
+            color: graphBlue,
+            history: HAHistorySeries(entityID: entityID, points: points)
+        )
+        let task = Task.detached {
+            GraphBitmapRenderer.render(
+                inputs: [input],
+                unit: "µg/m³",
+                size: CGSize(width: 496, height: 178),
+                scale: 2,
+                zoomScale: 1,
+                panFraction: 1
+            )
+        }
+
+        task.cancel()
+        let result = await task.value
+        XCTAssertNil(result)
+    }
+
     private func numericInput() -> GraphRenderSeriesInput {
         GraphRenderSeriesInput(
             entityID: "sensor.room_temperature",
@@ -236,6 +332,19 @@ final class GraphRenderingTests: XCTestCase {
             ),
             windowStart: baseTimestamp,
             windowEnd: baseTimestamp + 3_600
+        )
+    }
+
+    private func viewportRequest(token: String) -> GraphViewportRenderRequest {
+        GraphViewportRenderRequest(
+            token: token,
+            dataToken: "stable-data",
+            inputs: [],
+            unit: "µg/m³",
+            size: CGSize(width: 496, height: 178),
+            scale: 2,
+            zoomScale: 4,
+            panFraction: 0.5
         )
     }
 }

@@ -1,9 +1,32 @@
 # NativeHA Module 01 continuation handoff
 
-Date: 2026-07-17. This is the authoritative next-agent handoff after Module 01
+Date: 2026-07-18. This is the authoritative next-agent handoff after Module 01
 implementation, two visual-settlement repairs, independent verification, live
 SPS30 stress work, and a final time-boxed GUI regression diagnosis. Do not mark
-Module 01 complete until the two live regressions below are fixed and rechecked.
+Module 01 complete until the remaining live loading/reconnect regression is
+fixed and the module is independently rechecked.
+
+## 2026-07-18 gesture-render repair update
+
+The SPS30 gesture-end-only redraw regression is repaired. Viewport rendering
+now owns one serialized in-flight render and one overwriteable latest pending
+request. A completed frame may publish while a newer viewport is pending only
+when its data-generation token still matches; data replacement and final
+settlement retain strict generation safety. Completion delivery uses the main
+run loop's common modes so it remains available during event tracking.
+
+The tracked `Benchmarks/GraphRendering/` release harness records fresh live 1h
+and 24h SPS30 sizes, cold/warm production stages, candidate decisions,
+min/max-oracle fidelity, and an 8 ms token-storm simulation. In the simulation,
+the old strict-latest model publishes zero in-gesture frames; the bounded
+scheduler publishes eight, remains at one concurrent render, and settles on the
+last token. Fresh live 1h full-resolution rendering measured 3.555 ms median /
+5.360 ms p95. A release-app scroll capture recorded 15 distinct SPS30 plot
+frames among 20 captures taken before the 1.661-second gesture stream ended.
+
+The remaining Module 01 blocker is the separate CO2/VOC loading/shared-socket
+reconnect regression. This repair did not change WebSocket ownership, payload
+limits, backfill semantics, or the approved future cache/prefetch work.
 
 ## Immediate user-reported regressions
 
@@ -11,9 +34,8 @@ Module 01 complete until the two live regressions below are fixed and rechecked.
    `CO2/VOC` history card containing SPS30 entities remains on `Loading history`,
    while the global status alternates between `Live` and `Reconnecting` every
    few seconds.
-2. On an SPS30 graph, including at `1h`, continuous scroll/zoom/pan changes do
-   not visibly redraw the graph until the gesture ends. The user identifies
-   this as a clear regression.
+2. **Resolved 2026-07-18:** SPS30 `1h` continuous scroll/zoom now publishes
+   progressive frames during the gesture and settles on the newest viewport.
 
 The final writer reproduced the first failure in the live app at `1h` after a
 prior reconnect: the status was currently `Live`, `CO2/VOC` was still

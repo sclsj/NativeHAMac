@@ -514,7 +514,9 @@ final class DashboardViewModel: ObservableObject {
 
         isStateFlushScheduled = true
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: AppConfig.realtimeUpdateCoalesceNanoseconds)
+            try? await Task.sleep(
+                nanoseconds: AppConfig.graphRenderSchedulingPolicy.realtimeStateCoalesceNanoseconds
+            )
             self?.flushPendingStates()
         }
     }

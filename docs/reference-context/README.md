@@ -12,7 +12,7 @@ packet.
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
 |---|---|---|---|---|---|
 | 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete | 1 | Use the verified multiplexer contract in Module 01 |
-| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | verification-ready (GUI regression hold) | 1 / Module 02 complete | Repair and live-verify the SPS30 loading/reconnect and in-gesture rendering regressions in `todo.md`, then dispatch a fresh verifier |
+| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | verification-ready (live loading/reconnect hold) | 1 / Module 02 complete | Gesture rendering repaired and live-verified; repair the remaining CO2/VOC loading/shared-socket reconnect regression in `todo.md`, then dispatch a fresh verifier |
 | 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | not created | unresearched | Depends on 02 for fetch path | Dispatch researcher after 01 |
 | 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | unresearched | Independent, but ordered after 04 in the rescue plan | Dispatch researcher after 04 |
 | 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | not created | unresearched | Requires 04; coordinates with 01 | Dispatch researcher after 03 |

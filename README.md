@@ -42,7 +42,8 @@ Current hardcoded runtime config is in `Sources/NativeHAMac/AppConfig.swift`:
 - Token file: `/Users/jin/Documents/Computer/ha_apikey.txt`
 - Primary URL: `http://joyj.me:8123`
 - Fallback URLs: `http://172.20.200.123:8123`, `http://192.168.71.18:8123`
-- Interactive graph rendering: full screen backing resolution by default, controlled by `renderInteractiveGraphsAtFullResolution`.
+- Interactive graph rendering: full screen backing resolution with serialized,
+  latest-request coalescing during gestures.
 
 Supported native Lovelace cards:
 
@@ -66,8 +67,11 @@ The app graph path now uses:
 - Full history fetch from Home Assistant.
 - Cached numeric/date parsing so zoom and pan do not reparse raw Home Assistant history.
 - Binary visible-range slicing so interaction cost scales with pixels drawn, not total history size.
-- Low-detail stride downsampling for immediate pinch/scroll feedback, rendered at full screen backing resolution by default.
-- Debounced high-detail min/max downsampling after interaction pauses, preserving spikes better than stride sampling.
+- Fidelity-preserving min/max downsampling for both active interaction and the
+  settled frame.
+- One in-flight viewport bitmap plus one overwriteable latest request, so
+  continuous gestures publish at render throughput without obsolete render
+  storms or a 100% stale-token discard rate.
 - Nice tick calculation per unit group, with fixed 0/1 scaling for binary state graphs.
 - Off-main CoreGraphics rendering to `CGImage`.
 - SwiftUI display of the rendered bitmap plus cheap axis labels, hover tooltip, pinch zoom, and trackpad panning.

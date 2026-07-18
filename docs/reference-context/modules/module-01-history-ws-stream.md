@@ -9,8 +9,8 @@ depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 0f6a324aa43c5c508a8304c1767483c0d2edc6f4
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602
-last_validated: 2026-07-17
+graph_fingerprint: a434215e524cdc48c7122fe266aa22a2e0ced1ff087ad4396ee0b435a4e2ab3b
+last_validated: 2026-07-18
 ---
 
 # Module 01 evidence packet
@@ -173,7 +173,7 @@ by hand here.
 The generated graph is
 [`module-01.dependencies.json`](../generated/module-01.dependencies.json),
 fingerprint
-`7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602`.
+`a434215e524cdc48c7122fe266aa22a2e0ced1ff087ad4396ee0b435a4e2ab3b`.
 It contains 21 nodes and 143 edges, one editor/card dynamic-import cycle, no
 unresolved edge, and no truncation.
 
@@ -822,7 +822,7 @@ maximum resident set size 1,878,949,888 bytes
 
 The regenerated graph remains 21 nodes/143 edges with no unresolved/truncated
 dependency and fingerprint
-`7db0d643160dc350a5646250e83baa6a432911fca03e02465246870a06b75602`.
+`a434215e524cdc48c7122fe266aa22a2e0ced1ff087ad4396ee0b435a4e2ab3b`.
 The graph check is green and resolver self-test remains green. C01-08 is
 returned to a fresh independent verifier; this repair does not mark it or the
 module complete. Module 01 manifest/generated JSON parsing, packet/index local
@@ -832,20 +832,56 @@ the artifact directory. No new `.DS_Store` is tracked or untracked; the ignored
 root/`Sources`/`Tests`/`docs`/`tools` files are pre-existing and outside this
 repair.
 
-## Live GUI regression hold — 2026-07-17
+## Live GUI regression hold — updated 2026-07-18
 
 Do not mark Module 01 complete. After the visual-only repair, the user reported
 and the final writer reproduced a live `CO2/VOC` history owner stuck loading
 with `Home Assistant WebSocket disconnected`; switching to 12h also cycles the
-shared app status between Live/Reconnecting. The user also reports SPS30
-scroll/zoom/pan redraw only after the gesture ends. The time-boxed pass made no
-application changes because neither root cause was proven enough for a safe
-fix. The self-contained reproduction, likely transport/render causes, exact
-stress evidence, current scope, and next commands are in [`todo.md`](../../../todo.md).
+shared app status between Live/Reconnecting. That connection/loading regression
+remains open. The separate SPS30 gesture-end-only redraw regression is repaired
+and live-verified below. The self-contained transport reproduction, likely
+cause, stress evidence, current scope, and next commands remain in
+[`todo.md`](../../../todo.md).
+
+## Gesture rendering repair — 2026-07-18
+
+The token-starvation cause is confirmed and repaired without changing graph
+fidelity. `BitmapLineChart` no longer cancels and replaces an uncancellable
+detached viewport render for every 8 ms scroll event. A dedicated scheduler
+keeps one render in flight, overwrites one pending slot with the newest
+viewport, publishes completed same-data frames through the main run loop's
+common modes, and immediately renders the newest pending request. Old history
+generations remain strictly rejected. Render preparation/downsampling/bitmap
+boundaries now include cooperative cancellation checks.
+
+The tracked `Benchmarks/GraphRendering/` target contains methodology, live data
+metadata, results, production stage instrumentation, an exact scalar min/max
+oracle, and the scheduler/token-storm benchmark. Fresh live data contained
+13,976 points across four SPS30 series for 1h and 335,776 for 24h. At 2×,
+production warm 1h render time was 3.555 ms median / 5.360 ms p95; 24h was
+7.047 / 10.540 ms. Stroke/rasterization dominated warm work. Cold timestamp
+preparation remained a separate 0.613s/13.615s cost. 1×/2× retained identical
+points, axes, and bounds; the 100,000-point spike/noise fixture exactly matched
+the scalar min/max oracle. Stride and disabled antialiasing were rejected for
+fidelity risk, and alternate line/downsample implementations did not address
+the structural starvation mode.
+
+In the deterministic 8 ms event/20 ms render test, the old strict-token model
+publishes zero in-gesture frames. The new scheduler publishes eight, starts ten
+renders for 24 events, replaces 14 pending requests, never exceeds one active
+render, and settles on the final token. The release app then passed a live 1h
+SPS30 scroll capture: 20 frames were captured before the 1.661-second event
+stream ended, with 15 distinct plot signatures and visible progressive
+x-window/line changes. Focused graph tests, the release deterministic
+benchmark, the opt-in live 1h/24h benchmark, the six-test GUI rendering suite,
+and the full 66-test suite pass (the normal full run skips the two opt-in live
+tests). Module status remains `verification-ready` solely because the separate
+connection/loading hold and a fresh independent verifier remain outstanding.
 
 ## Handoff
 
-First repair and live-verify both GUI regressions in [`todo.md`](../../../todo.md).
+First repair and live-verify the remaining connection/loading regression in
+[`todo.md`](../../../todo.md).
 Then dispatch a fresh independent verifier. It must first run:
 
 ```sh
@@ -905,3 +941,9 @@ contracts pass independently.
   generated and inspected 15 unique artifacts, and documented the in-app
   viewer's inconsistent presentation of identical data URLs. Production source
   remained unchanged; status stays `verification-ready` for a fresh verifier.
+- 2026-07-18: repaired the SPS30 gesture token-starvation regression with one
+  serialized render plus a coalesced latest request; added reusable live 1h/24h
+  stage and scheduler benchmarks, cancellation checkpoints, fidelity oracles,
+  deterministic regression coverage, and live in-gesture frame evidence.
+  Status remains `verification-ready` for the separate loading/reconnect hold
+  and a fresh verifier.
