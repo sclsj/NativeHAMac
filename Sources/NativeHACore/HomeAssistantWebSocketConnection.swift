@@ -81,6 +81,7 @@ public actor HomeAssistantWebSocketConnection {
     public typealias TransportFactory = () throws -> HomeAssistantWebSocketTransport
 
     private struct PendingCommand {
+        let logicalID: UUID
         let continuation: CheckedContinuation<JSONValue, Error>
         let timeoutTask: Task<Void, Never>
     }
@@ -113,8 +114,8 @@ public actor HomeAssistantWebSocketConnection {
     private var state: HAWebSocketConnectionState = .disconnected
     private var disconnectRequested = true
     private var pendingCommands: [Int: PendingCommand] = [:]
-    private var registeringCommandIDs: Set<Int> = []
-    private var cancelledBeforeCommandRegistration: Set<Int> = []
+    private var registeringCommandIDs: Set<UUID> = []
+    private var cancelledBeforeCommandRegistration: Set<UUID> = []
     private var subscriptions: [UUID: SubscriptionRecord] = [:]
     private var wireSubscriptions: [Int: UUID] = [:]
     private var registeringSubscriptionIDs: Set<UUID> = []
@@ -273,17 +274,14 @@ public actor HomeAssistantWebSocketConnection {
             throw HomeAssistantWebSocketError.disconnected
         }
 
-        let id = allocateID()
-        var command = message
-        command["id"] = .int(id)
-        let commandToSend = command
+        let logicalID = UUID()
         let commandGeneration = generation
-        registeringCommandIDs.insert(id)
+        registeringCommandIDs.insert(logicalID)
 
         return try await withTaskCancellationHandler(
             handler: {
                 Task {
-                    await self.cancelPendingCommand(id)
+                    await self.cancelPendingCommand(logicalID)
                 }
             },
             operation: {
@@ -291,8 +289,8 @@ public actor HomeAssistantWebSocketConnection {
                     (continuation: CheckedContinuation<JSONValue, Error>) in
                     Task {
                         await self.registerAndSendPendingCommand(
-                            commandToSend,
-                            id: id,
+                            message,
+                            logicalID: logicalID,
                             generation: commandGeneration,
                             continuation: continuation
                         )
@@ -322,7 +320,6 @@ public actor HomeAssistantWebSocketConnection {
         }
 
         let logicalID = UUID()
-        let id = allocateID()
         let commandGeneration = generation
         registeringSubscriptionIDs.insert(logicalID)
 
@@ -338,7 +335,6 @@ public actor HomeAssistantWebSocketConnection {
                     Task {
                         await self.registerAndSendPendingSubscription(
                             logicalID,
-                            wireID: id,
                             message: message,
                             resubscribe: resubscribe,
                             callback: onMessage,
@@ -351,7 +347,11 @@ public actor HomeAssistantWebSocketConnection {
             }
         )
 
-        return HAWebSocketSubscription(id: id, logicalID: logicalID, connection: self)
+        guard let record = subscriptions[logicalID], let wireID = record.wireID else {
+            throw HomeAssistantWebSocketError.cancelled
+        }
+
+        return HAWebSocketSubscription(id: wireID, logicalID: logicalID, connection: self)
     }
 
     public func subscribeMessage<T: Decodable>(
@@ -640,15 +640,16 @@ public actor HomeAssistantWebSocketConnection {
 
     private func registerAndSendPendingCommand(
         _ command: [String: JSONValue],
-        id: Int,
+        logicalID: UUID,
         generation: Int,
         continuation: CheckedContinuation<JSONValue, Error>
     ) async {
-        registeringCommandIDs.remove(id)
-        if cancelledBeforeCommandRegistration.remove(id) != nil {
+        registeringCommandIDs.remove(logicalID)
+        if cancelledBeforeCommandRegistration.remove(logicalID) != nil {
             continuation.resume(throwing: HomeAssistantWebSocketError.cancelled)
             return
         }
+        let id = allocateID()
         let timeout = commandTimeoutNanoseconds
         let connection = self
         let timeoutTask = Task {
@@ -660,15 +661,17 @@ public actor HomeAssistantWebSocketConnection {
             await connection.timeoutPendingCommand(id)
         }
         pendingCommands[id] = PendingCommand(
+            logicalID: logicalID,
             continuation: continuation,
             timeoutTask: timeoutTask
         )
-        await sendPendingCommand(command, id: id, generation: generation)
+        var commandToSend = command
+        commandToSend["id"] = .int(id)
+        await sendPendingCommand(commandToSend, id: id, generation: generation)
     }
 
     private func registerAndSendPendingSubscription(
         _ logicalID: UUID,
-        wireID: Int,
         message: [String: JSONValue],
         resubscribe: Bool,
         callback: @escaping @Sendable (JSONValue) async -> Void,
@@ -698,6 +701,8 @@ public actor HomeAssistantWebSocketConnection {
             await callbackCoordinator.remove(ownerID: logicalID)
             return
         }
+
+        let wireID = allocateID()
         let timeout = commandTimeoutNanoseconds
         let connection = self
         let timeoutTask = Task {
@@ -854,12 +859,14 @@ public actor HomeAssistantWebSocketConnection {
         await oldTransport?.disconnect()
     }
 
-    private func cancelPendingCommand(_ id: Int) {
-        if pendingCommands[id] == nil, registeringCommandIDs.contains(id) {
-            cancelledBeforeCommandRegistration.insert(id)
+    private func cancelPendingCommand(_ logicalID: UUID) {
+        if registeringCommandIDs.contains(logicalID) {
+            cancelledBeforeCommandRegistration.insert(logicalID)
             return
         }
-        failPendingCommand(id, with: HomeAssistantWebSocketError.cancelled)
+        if let key = pendingCommands.first(where: { $1.logicalID == logicalID })?.key {
+            failPendingCommand(key, with: HomeAssistantWebSocketError.cancelled)
+        }
     }
 
     private func timeoutPendingCommand(_ id: Int) {

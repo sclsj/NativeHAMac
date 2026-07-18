@@ -28,7 +28,7 @@ enum AppConfig {
     static let liveGraphDataRenderDelayNanoseconds: UInt64 = 120_000_000
     static let liveGraphInteractionDeferNanoseconds: UInt64 = 500_000_000
     static let webSocketPolicy = WebSocketPolicy(
-        commandTimeout: 10,
+        commandTimeout: 120,
         subscriptionDeliveryCapacity: 256,
         maximumConcurrentCallbackTasks: 4
     )
