@@ -870,8 +870,8 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
     } else {
         fullStart = Double.greatestFiniteMagnitude
         fullEnd   = -Double.greatestFiniteMagnitude
+        let parser = GraphDateParser()
         for input in inputs {
-            let parser = GraphDateParser()
             if let first = input.history.points.first, let t = parser.timestamp(from: first) {
                 fullStart = min(fullStart, t)
             }

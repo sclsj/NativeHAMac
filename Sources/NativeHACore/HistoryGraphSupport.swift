@@ -404,17 +404,71 @@ public struct HAHistoryTimestampParser {
     public init() {}
 
     public func timestamp(from point: HAHistoryPoint) -> Double? {
-        if let value = point.lastChanged, let date = parse(value) {
-            return date.timeIntervalSince1970
+        if let value = point.lastChanged, let timestamp = parseFast(value) ?? parseSlow(value) {
+            return timestamp
         }
-        if let value = point.lastUpdated, let date = parse(value) {
-            return date.timeIntervalSince1970
+        if let value = point.lastUpdated, let timestamp = parseFast(value) ?? parseSlow(value) {
+            return timestamp
         }
         return nil
     }
 
-    private func parse(_ value: String) -> Date? {
-        fractional.date(from: value) ?? normal.date(from: value)
+    private func parseFast(_ value: String) -> Double? {
+        let utf8 = value.utf8
+        guard utf8.count >= 19 else { return nil }
+        
+        var iter = utf8.makeIterator()
+        
+        func nextInt(_ count: Int) -> Int? {
+            var result = 0
+            for _ in 0..<count {
+                guard let byte = iter.next(), byte >= 48, byte <= 57 else { return nil }
+                result = result * 10 + Int(byte - 48)
+            }
+            return result
+        }
+        
+        guard let year = nextInt(4), iter.next() == 45, // '-'
+              let month = nextInt(2), iter.next() == 45, // '-'
+              let day = nextInt(2), iter.next() == 84, // 'T'
+              let hour = nextInt(2), iter.next() == 58, // ':'
+              let minute = nextInt(2), iter.next() == 58, // ':'
+              let second = nextInt(2) else { return nil }
+        
+        var days = day - 1
+        let isLeap = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+        let monthDays: [Int] = [0, 31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        guard month >= 1, month <= 12, day >= 1, day <= monthDays[month] else { return nil }
+        
+        for m in 1..<month {
+            days += monthDays[m]
+        }
+        
+        let y = year - 1970
+        if y < 0 { return nil }
+        
+        let prevYear = year - 1
+        let leapDays = (prevYear / 4 - prevYear / 100 + prevYear / 400) - (1969 / 4 - 1969 / 100 + 1969 / 400)
+        
+        days += y * 365 + leapDays
+        
+        var timestamp = Double(days * 86400 + hour * 3600 + minute * 60 + second)
+        
+        if let next = iter.next(), next == 46 { // '.'
+            var frac = 0.0
+            var divisor = 10.0
+            while let byte = iter.next(), byte >= 48 && byte <= 57 {
+                frac += Double(byte - 48) / divisor
+                divisor *= 10.0
+            }
+            timestamp += frac
+        }
+        
+        return timestamp
+    }
+
+    private func parseSlow(_ value: String) -> Double? {
+        (fractional.date(from: value) ?? normal.date(from: value))?.timeIntervalSince1970
     }
 }
 
