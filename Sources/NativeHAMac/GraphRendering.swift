@@ -283,8 +283,8 @@ enum GraphBitmapRenderer {
 
         let viewportPreparationStart = graphRenderClock()
         let isStateTimeline = unit.lowercased() == "state"
-        let dataEnd   = isStateTimeline ? (inputs.compactMap(\.windowEnd).max()   ?? Date().timeIntervalSince1970) : nil
-        let dataStart = isStateTimeline ? (inputs.compactMap(\.windowStart).min()) : nil
+        let dataEnd = inputs.compactMap(\.windowEnd).max() ?? Date().timeIntervalSince1970
+        let dataStart = inputs.compactMap(\.windowStart).min()
         let fullBounds = timeBounds(pointSeries, overrideStart: dataStart, overrideEnd: dataEnd)
         let fullInterval = max(fullBounds.end - fullBounds.start, 1)
         let visibleInterval = fullInterval / max(Double(zoomScale), 1)

@@ -331,9 +331,20 @@ struct UnitGraph: View {
     @State private var hoverLocation: CGPoint?
     @State private var zoomScale: CGFloat = 1
     @State private var panFraction: Double = 1
+    /// Stable time anchor for the X-axis coordinate space. Only updated when
+    /// the underlying data changes (new points arrive), NOT on every body
+    /// evaluation. This prevents the coordinate space from sliding forward
+    /// during gesture-driven re-renders.
+    @State private var windowAnchor: Double = Date().timeIntervalSince1970
+
+    /// Token derived from series content to detect actual data changes.
+    private var seriesContentToken: String {
+        series.map { "\($0.entityID):\($0.points.count):\($0.contentRevision)" }
+            .joined(separator: "|")
+    }
 
     private var graphInputs: [GraphRenderSeriesInput] {
-        let windowEnd   = Date().timeIntervalSince1970
+        let windowEnd   = windowAnchor
         let windowStart = windowEnd - Double(model.selectedGraphHours) * 3600
         return series.enumerated().map { index, item in
             GraphRenderSeriesInput(
@@ -402,6 +413,12 @@ struct UnitGraph: View {
                         .foregroundColor(.white.opacity(0.48))
                 }
             }
+        }
+        .onChange(of: seriesContentToken) { _ in
+            // Only advance the time anchor when the underlying data actually
+            // changes (new WebSocket points arrive). This keeps the coordinate
+            // space rock-stable during gesture-driven body re-evaluations.
+            windowAnchor = Date().timeIntervalSince1970
         }
     }
 
@@ -779,8 +796,8 @@ struct BitmapLineChart: View {
         [
             unit,
             "\(Int(size.width))x\(Int(size.height))",
-            String(format: "%.3f", Double(zoomScale)),
-            String(format: "%.3f", panFraction),
+            String(format: "%.6f", Double(zoomScale)),
+            String(format: "%.6f", panFraction),
         ].joined(separator: "::")
     }
 
@@ -950,31 +967,8 @@ private func maxGraphZoom(for inputs: [GraphRenderSeriesInput], size: CGSize) ->
 
     let minTimeRange: Double = 30 * 60 // 30 minutes viewable
 
-    let isStateTimeline = inputs.first.map { $0.unit.lowercased() == "state" } ?? false
-
-    var fullStart: Double
-    var fullEnd: Double
-
-    if isStateTimeline {
-        // For state timelines, anchor to the requested window rather than data-point
-        // timestamps. The last recorded state change can be long before the window
-        // end (e.g. a switch that didn't toggle), which would make fullEnd == fullStart
-        // and collapse maxZoom to 1, disabling zoom entirely.
-        fullEnd   = inputs.compactMap(\.windowEnd).max()   ?? Date().timeIntervalSince1970
-        fullStart = inputs.compactMap(\.windowStart).min() ?? fullEnd - 3600
-    } else {
-        fullStart = Double.greatestFiniteMagnitude
-        fullEnd   = -Double.greatestFiniteMagnitude
-        let parser = GraphDateParser()
-        for input in inputs {
-            if let first = input.history.points.first, let t = parser.timestamp(from: first) {
-                fullStart = min(fullStart, t)
-            }
-            if let last = input.history.points.last, let t = parser.timestamp(from: last) {
-                fullEnd = max(fullEnd, t)
-            }
-        }
-    }
+    let fullEnd = inputs.compactMap(\.windowEnd).max() ?? Date().timeIntervalSince1970
+    let fullStart = inputs.compactMap(\.windowStart).min() ?? fullEnd - 3600
 
     if fullStart < fullEnd {
         let fullInterval = fullEnd - fullStart
