@@ -631,7 +631,13 @@ struct BitmapLineChart: View {
         }
 
         if isZoomedAwayFromLiveEdge {
-            isRendering = false
+            let renderInputs = inputs
+            let renderUnit = unit
+            Task.detached(priority: .utility) {
+                for input in renderInputs {
+                    _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: renderUnit)
+                }
+            }
             return
         }
 

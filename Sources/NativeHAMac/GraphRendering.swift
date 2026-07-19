@@ -811,7 +811,15 @@ private final class GraphPreparedSeriesCache {
         let key = stableKey(for: input, displayUnit: displayUnit)
         let fingerprint = sourceFingerprint(for: input.history)
 
+        let isMainThread = Thread.isMainThread
+        let requestStart = graphRenderClock()
+        
         lock.lock()
+        let lockWaitNanoseconds = graphRenderElapsed(since: requestStart)
+        if lockWaitNanoseconds > 5_000_000 {
+            print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)")
+        }
+
         if let cached = storage[key] {
             if cached.matches(fingerprint) {
                 cacheHitCount += 1
@@ -820,25 +828,35 @@ private final class GraphPreparedSeriesCache {
             }
             lock.unlock()
 
+            let incStart = graphRenderClock()
             if let updated = incrementallyUpdate(
                 cached,
                 input: input,
                 displayUnit: displayUnit,
                 fingerprint: fingerprint
             ) {
+                let incElapsed = graphRenderElapsed(since: incStart)
+                if incElapsed > 5_000_000 {
+                    print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)")
+                }
                 lock.lock()
                 incrementalPreparationCount += 1
                 lock.unlock()
                 store(updated, key: key)
                 return updated.series
+            } else {
+                print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))")
             }
         } else {
             lock.unlock()
         }
 
+        let fullStart = graphRenderClock()
         guard let prepared = prepareFull(input: input, displayUnit: displayUnit, fingerprint: fingerprint) else {
             return nil
         }
+        let fullElapsed = graphRenderElapsed(since: fullStart)
+        print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)")
 
         lock.lock()
         fullPreparationCount += 1
@@ -932,22 +950,52 @@ private final class GraphPreparedSeriesCache {
         fingerprint: GraphSourceFingerprint
     ) -> GraphPreparedCacheEntry? {
         let isStateTimeline = displayUnit.lowercased() == "state"
-        guard
-            !isStateTimeline,
-            cached.isOneToOneStrictlyIncreasingNumericSource,
-            fingerprint.count > 0,
-            !input.history.points.isEmpty,
-            !cached.series.points.isEmpty,
-            let lineage = input.history.cacheLineage,
-            lineage.predecessorRevision == cached.fingerprint.contentRevision,
-            lineage.oldStart >= 0,
-            lineage.newStart >= 0,
-            lineage.count > 0,
-            lineage.oldStart <= cached.series.points.count,
-            lineage.count <= cached.series.points.count - lineage.oldStart,
-            lineage.newStart <= input.history.points.count,
-            lineage.count <= input.history.points.count - lineage.newStart
-        else {
+        guard !isStateTimeline else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: isStateTimeline")
+            return nil
+        }
+        guard cached.isOneToOneStrictlyIncreasingNumericSource else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: not isOneToOneStrictlyIncreasingNumericSource")
+            return nil
+        }
+        guard fingerprint.count > 0 else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: fingerprint.count == 0")
+            return nil
+        }
+        guard !input.history.points.isEmpty else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: input points empty")
+            return nil
+        }
+        guard !cached.series.points.isEmpty else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: cached series empty")
+            return nil
+        }
+        guard let lineage = input.history.cacheLineage else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: lineage is nil")
+            return nil
+        }
+        guard lineage.predecessorRevision == cached.fingerprint.contentRevision else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: predecessor \(lineage.predecessorRevision) != cached \(cached.fingerprint.contentRevision)")
+            return nil
+        }
+        guard lineage.oldStart >= 0, lineage.newStart >= 0, lineage.count > 0 else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: invalid lineage bounds")
+            return nil
+        }
+        guard lineage.oldStart <= cached.series.points.count else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: oldStart > cached count")
+            return nil
+        }
+        guard lineage.count <= cached.series.points.count - lineage.oldStart else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: lineage count exceeds cached")
+            return nil
+        }
+        guard lineage.newStart <= input.history.points.count else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: newStart > input count")
+            return nil
+        }
+        guard lineage.count <= input.history.points.count - lineage.newStart else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: lineage count exceeds input")
             return nil
         }
 
@@ -963,11 +1011,17 @@ private final class GraphPreparedSeriesCache {
                     return false
                 }
                 let source = input.history.points[sourceIndex]
-                guard
-                    let timestamp = parser.timestamp(from: source),
-                    let value = numericValue(source.state),
-                    points.last.map({ timestamp >= $0.t }) ?? true
-                else {
+                let timestampOpt = parser.timestamp(from: source)
+                guard let timestamp = timestampOpt else {
+                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp nil")
+                    return false
+                }
+                guard let value = numericValue(source.state) else {
+                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: value nil")
+                    return false
+                }
+                guard points.last.map({ timestamp >= $0.t }) ?? true else {
+                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)")
                     return false
                 }
                 points.append(GraphRenderedPoint(
@@ -987,7 +1041,8 @@ private final class GraphPreparedSeriesCache {
         let cachedOverlapEnd = lineage.oldStart + lineage.count
         let cachedOverlap = cached.series.points[lineage.oldStart..<cachedOverlapEnd]
         if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
-           overlapFirst.t <= prefixLast.t {
+           overlapFirst.t < prefixLast.t {
+            print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
             return nil
         }
         points.append(contentsOf: cachedOverlap)
@@ -997,13 +1052,24 @@ private final class GraphPreparedSeriesCache {
         yValues.append(contentsOf: cachedYValues[lineage.oldStart..<cachedOverlapEnd])
 
         let suffixStart = lineage.newStart + lineage.count
-        guard
-            !graphRenderIsCancelled(),
-            appendFreshSource(suffixStart..<input.history.points.count),
-            points.count == input.history.points.count,
-            yValues.count == points.count,
-            !points.isEmpty
-        else {
+        guard !graphRenderIsCancelled() else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: cancelled")
+            return nil
+        }
+        guard appendFreshSource(suffixStart..<input.history.points.count) else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: appendFreshSource suffix failed")
+            return nil
+        }
+        guard points.count == input.history.points.count else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: points count mismatch")
+            return nil
+        }
+        guard yValues.count == points.count else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: yValues count mismatch")
+            return nil
+        }
+        guard !points.isEmpty else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: points empty")
             return nil
         }
 
