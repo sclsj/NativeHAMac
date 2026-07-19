@@ -123,7 +123,7 @@ struct GraphSample {
 }
 
 struct GraphRenderResult {
-    let image: CGImage
+    let image: CGImage?
     let size: CGSize
     let scale: CGFloat
     let plotRect: CGRect
@@ -258,21 +258,19 @@ private struct GraphBitmapDrawMetrics {
 }
 
 private struct GraphBitmapDrawResult {
-    let image: CGImage
+    let image: CGImage?
     let metrics: GraphBitmapDrawMetrics
 }
 
 enum GraphBitmapRenderer {
-    static func render(
+    static func prepareViewportData(
         inputs: [GraphRenderSeriesInput],
         unit: String,
         size: CGSize,
         scale: CGFloat,
         zoomScale: CGFloat,
-        panFraction: Double,
-        metrics: ((GraphRenderMetrics) -> Void)? = nil
-    ) -> GraphRenderResult? {
-        let totalStart = graphRenderClock()
+        panFraction: Double
+    ) -> (result: GraphRenderResult, preparedPointCount: Int, seriesPreparationNanoseconds: UInt64, viewportPreparationNanoseconds: UInt64)? {
         let seriesPreparationStart = graphRenderClock()
         let pointSeries = inputs.compactMap {
             GraphPreparedSeriesCache.shared.series(for: $0, displayUnit: unit)
@@ -350,39 +348,8 @@ enum GraphBitmapRenderer {
         let xTicks = linearTicks(min: visibleStart, max: visibleEnd, count: 5)
         let viewportPreparationNanoseconds = graphRenderElapsed(since: viewportPreparationStart)
 
-        guard !graphRenderIsCancelled() else {
-            return nil
-        }
-
-        let bitmap: GraphBitmapDrawResult?
-        if isStateTimeline {
-            bitmap = drawTimelineBitmap(
-                series: visibleSeries,
-                size: size,
-                scale: scale,
-                plotRect: plotRect,
-                visibleStart: visibleStart,
-                visibleEnd: visibleEnd
-            )
-        } else {
-            bitmap = drawBitmap(
-                series: visibleSeries,
-                size: size,
-                scale: scale,
-                plotRect: plotRect,
-                axis: axis,
-                xTicks: xTicks,
-                visibleStart: visibleStart,
-                visibleEnd: visibleEnd
-            )
-        }
-
-        guard let bitmap = bitmap else {
-            return nil
-        }
-
         let result = GraphRenderResult(
-            image: bitmap.image,
+            image: nil,
             size: size,
             scale: scale,
             plotRect: plotRect,
@@ -397,24 +364,118 @@ enum GraphBitmapRenderer {
             zoomScale: zoomScale,
             panFraction: pan
         )
+        
+        return (result, pointSeries.reduce(0) { $0 + $1.points.count }, seriesPreparationNanoseconds, viewportPreparationNanoseconds)
+    }
+
+    static func render(
+        inputs: [GraphRenderSeriesInput],
+        unit: String,
+        size: CGSize,
+        scale: CGFloat,
+        zoomScale: CGFloat,
+        panFraction: Double,
+        metrics: ((GraphRenderMetrics) -> Void)? = nil
+    ) -> GraphRenderResult? {
+        let totalStart = graphRenderClock()
+        
+        guard let prepared = prepareViewportData(
+            inputs: inputs,
+            unit: unit,
+            size: size,
+            scale: scale,
+            zoomScale: zoomScale,
+            panFraction: panFraction
+        ) else {
+            return nil
+        }
+        
+        var result = prepared.result
+        
+        var bitmapByteCount = 0
+        var bitmapAllocationNanoseconds: UInt64 = 0
+        var contextSetupNanoseconds: UInt64 = 0
+        var backgroundFillNanoseconds: UInt64 = 0
+        var pathConstructionNanoseconds: UInt64 = 0
+        var pathStrokeNanoseconds: UInt64 = 0
+        var imageSnapshotNanoseconds: UInt64 = 0
+
+        switch AppConfig.graphRenderEngine {
+        case .coreGraphics:
+            let isStateTimeline = unit.lowercased() == "state"
+            let bitmap: GraphBitmapDrawResult?
+            if isStateTimeline {
+                bitmap = drawTimelineBitmap(
+                    series: result.series,
+                    size: size,
+                    scale: scale,
+                    plotRect: result.plotRect,
+                    visibleStart: result.visibleStart,
+                    visibleEnd: result.visibleEnd
+                )
+            } else {
+                bitmap = drawBitmap(
+                    series: result.series,
+                    size: size,
+                    scale: scale,
+                    plotRect: result.plotRect,
+                    axis: result.axis,
+                    xTicks: result.xTicks,
+                    visibleStart: result.visibleStart,
+                    visibleEnd: result.visibleEnd
+                )
+            }
+
+            guard let bitmap = bitmap else {
+                return nil
+            }
+            
+            result = GraphRenderResult(
+                image: bitmap.image,
+                size: result.size,
+                scale: result.scale,
+                plotRect: result.plotRect,
+                unit: result.unit,
+                series: result.series,
+                axis: result.axis,
+                xTicks: result.xTicks,
+                fullStart: result.fullStart,
+                fullEnd: result.fullEnd,
+                visibleStart: result.visibleStart,
+                visibleEnd: result.visibleEnd,
+                zoomScale: result.zoomScale,
+                panFraction: result.panFraction
+            )
+
+            bitmapByteCount = bitmap.metrics.bitmapByteCount
+            bitmapAllocationNanoseconds = bitmap.metrics.allocationNanoseconds
+            contextSetupNanoseconds = bitmap.metrics.contextSetupNanoseconds
+            backgroundFillNanoseconds = bitmap.metrics.backgroundFillNanoseconds
+            pathConstructionNanoseconds = bitmap.metrics.pathConstructionNanoseconds
+            pathStrokeNanoseconds = bitmap.metrics.pathStrokeNanoseconds
+            imageSnapshotNanoseconds = bitmap.metrics.imageSnapshotNanoseconds
+        case .canvas, .metal:
+            break
+        }
 
         metrics?(GraphRenderMetrics(
             inputPointCount: inputs.reduce(0) { $0 + $1.history.points.count },
-            preparedPointCount: pointSeries.reduce(0) { $0 + $1.points.count },
-            renderedPointCount: visibleSeries.reduce(0) {
+            preparedPointCount: prepared.preparedPointCount,
+            renderedPointCount: result.series.reduce(0) {
                 $0 + $1.points.count + $1.timelineSegments.count
             },
-            bitmapByteCount: bitmap.metrics.bitmapByteCount,
-            seriesPreparationNanoseconds: seriesPreparationNanoseconds,
-            viewportPreparationNanoseconds: viewportPreparationNanoseconds,
-            bitmapAllocationNanoseconds: bitmap.metrics.allocationNanoseconds,
-            contextSetupNanoseconds: bitmap.metrics.contextSetupNanoseconds,
-            backgroundFillNanoseconds: bitmap.metrics.backgroundFillNanoseconds,
-            pathConstructionNanoseconds: bitmap.metrics.pathConstructionNanoseconds,
-            pathStrokeNanoseconds: bitmap.metrics.pathStrokeNanoseconds,
-            imageSnapshotNanoseconds: bitmap.metrics.imageSnapshotNanoseconds,
+            bitmapByteCount: bitmapByteCount,
+            seriesPreparationNanoseconds: prepared.seriesPreparationNanoseconds,
+            viewportPreparationNanoseconds: prepared.viewportPreparationNanoseconds,
+            bitmapAllocationNanoseconds: bitmapAllocationNanoseconds,
+            contextSetupNanoseconds: contextSetupNanoseconds,
+            backgroundFillNanoseconds: backgroundFillNanoseconds,
+            pathConstructionNanoseconds: pathConstructionNanoseconds,
+            pathStrokeNanoseconds: pathStrokeNanoseconds,
+            imageSnapshotNanoseconds: imageSnapshotNanoseconds,
             totalNanoseconds: graphRenderElapsed(since: totalStart)
         ))
+        
         return result
     }
 

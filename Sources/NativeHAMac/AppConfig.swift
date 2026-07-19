@@ -11,6 +11,8 @@ enum AppConfig {
         URL(string: "http://192.168.71.18:8123")!,
     ]
 
+    static var graphRenderEngine: GraphRenderEngine = .metal
+
     static let showEntityIDsByDefault = false
     static let graphTimeRangePolicy = GraphTimeRangePolicy(
         availableSelections: [1, 3, 6, 12].map(GraphTimeRange.init(hours:)),
@@ -76,6 +78,12 @@ enum AppConfig {
         CardColumnRule(column: 2, title: "Sensor"),
         CardColumnRule(column: 2, title: "AC Unit Controller"),
     ]
+}
+
+enum GraphRenderEngine {
+    case coreGraphics
+    case canvas
+    case metal
 }
 
 struct GraphTimeRange: Hashable {

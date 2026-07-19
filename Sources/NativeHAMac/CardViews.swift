@@ -467,11 +467,71 @@ struct BitmapLineChart: View {
                     .fill(Color.black.opacity(0.19))
 
                 if let rendered = rendered {
-                    Image(decorative: rendered.image, scale: rendered.scale, orientation: .up)
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: size.width, height: size.height)
-                        .clipped()
+                    switch AppConfig.graphRenderEngine {
+                    case .coreGraphics:
+                        if let image = rendered.image {
+                            Image(decorative: image, scale: rendered.scale, orientation: .up)
+                                .resizable()
+                                .interpolation(.high)
+                                .frame(width: size.width, height: size.height)
+                                .clipped()
+                        }
+                    case .canvas:
+                        if rendered.unit.lowercased() == "state" {
+                            Canvas { context, size in
+                                let maxRowHeight: CGFloat = 24
+                                let rowHeight = min(rendered.plotRect.height / CGFloat(max(rendered.series.count, 1)), maxRowHeight)
+                                let totalHeight = rowHeight * CGFloat(rendered.series.count)
+                                let startY = rendered.plotRect.minY + (rendered.plotRect.height - totalHeight) / 2
+                                
+                                for (index, item) in rendered.series.enumerated() {
+                                    let yOffset = startY + CGFloat(index) * rowHeight
+                                    for segment in item.timelineSegments {
+                                        let startX = max(
+                                            rendered.plotRect.minX,
+                                            rendered.x(for: segment.clippedStart)
+                                        )
+                                        let endX = min(
+                                            rendered.plotRect.maxX,
+                                            rendered.x(for: segment.clippedEnd)
+                                        )
+                                        let blockWidth = endX - startX
+                                        if blockWidth <= 0 { continue }
+                                        let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
+                                        let hex = HAHistoryTimelineColorResolver.color(for: segment.state, entityID: item.entityID).hex
+                                        let color = GraphColor(hex: hex)?.swiftUIColor ?? Color(red: 0.62, green: 0.62, blue: 0.62)
+                                        context.fill(Path(blockRect), with: .color(color))
+                                    }
+                                }
+                            }
+                            .frame(width: size.width, height: size.height)
+                            .clipped()
+                        } else {
+                            Canvas { context, size in
+                                for item in rendered.series {
+                                    var path = Path()
+                                    for (index, point) in item.points.enumerated() {
+                                        let mapped = CGPoint(
+                                            x: rendered.x(for: point.t),
+                                            y: rendered.y(for: point.y)
+                                        )
+                                        if index == 0 {
+                                            path.move(to: mapped)
+                                        } else {
+                                            path.addLine(to: mapped)
+                                        }
+                                    }
+                                    context.stroke(path, with: .color(item.color.swiftUIColor), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                                }
+                            }
+                            .frame(width: size.width, height: size.height)
+                            .clipped()
+                        }
+                    case .metal:
+                        MetalGraphView(rendered: rendered)
+                            .frame(width: size.width, height: size.height)
+                            .clipped()
+                    }
 
                     axisOverlay(rendered: rendered)
 
@@ -568,18 +628,41 @@ struct BitmapLineChart: View {
         }
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        let request = GraphViewportRenderRequest(
-            token: token,
-            dataToken: latestDataToken,
-            inputs: inputs,
-            unit: unit,
-            size: size,
-            scale: screenScale,
-            zoomScale: zoomScale,
-            panFraction: panFraction
-        )
-        viewportRenderScheduler.schedule(request) { delivery in
-            installViewportRender(delivery, replaceExistingWithNil: !hasRenderedImage)
+
+        switch AppConfig.graphRenderEngine {
+        case .coreGraphics:
+            let request = GraphViewportRenderRequest(
+                token: token,
+                dataToken: latestDataToken,
+                inputs: inputs,
+                unit: unit,
+                size: size,
+                scale: screenScale,
+                zoomScale: zoomScale,
+                panFraction: panFraction
+            )
+            viewportRenderScheduler.schedule(request) { delivery in
+                installViewportRender(delivery, replaceExistingWithNil: !hasRenderedImage)
+            }
+        case .canvas, .metal:
+            let result = GraphBitmapRenderer.render(
+                inputs: inputs,
+                unit: unit,
+                size: size,
+                scale: screenScale,
+                zoomScale: zoomScale,
+                panFraction: panFraction
+            )
+            if let result = result {
+                rendered = result
+                renderedToken = token
+                onRenderReady(result)
+            } else if !hasRenderedImage {
+                rendered = nil
+                renderedToken = token
+            }
+            isRendering = false
+            renderAttempted = true
         }
     }
 
