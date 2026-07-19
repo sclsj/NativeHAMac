@@ -1,0 +1,5 @@
+Entity: sensor.sps30_pm2_5
+Total timestamps: 1173621
+Total unique timestamps: 1173621
+Total duplicated timestamps (types): 0
+Total points involved in duplicates: 0
