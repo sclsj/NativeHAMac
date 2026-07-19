@@ -14,15 +14,15 @@ final class GraphRenderingTests: XCTestCase {
             panFraction: 1
         ))
 
-        XCTAssertEqual(result.image.width, 640)
-        XCTAssertEqual(result.image.height, 320)
+        XCTAssertEqual(result.image!.width, 640)
+        XCTAssertEqual(result.image!.height, 320)
         XCTAssertEqual(result.plotRect, CGRect(x: 42, y: 18, width: 266, height: 116))
         XCTAssertEqual(result.axis.ticks, [15, 20, 25, 30])
         XCTAssertEqual(result.xTicks.count, 5)
         XCTAssertEqual(result.visibleStart, baseTimestamp, accuracy: 0.001)
         XCTAssertEqual(result.visibleEnd, baseTimestamp + 3_600, accuracy: 0.001)
 
-        let pixels = try RGBAPixels(image: result.image)
+        let pixels = try RGBAPixels(image: result.image!)
         XCTAssertGreaterThan(
             pixels.count { pixel in
                 Int(pixel.blue) > Int(pixel.red) + 80 &&
@@ -52,7 +52,7 @@ final class GraphRenderingTests: XCTestCase {
         let sample = try XCTUnwrap(result.sample(atX: sampleX))
         XCTAssertEqual(sample.values.first?.point.display, "on")
 
-        let pixels = try RGBAPixels(image: result.image)
+        let pixels = try RGBAPixels(image: result.image!)
         let dominantSegmentColors = pixels.mostCommon(limit: 5).dropFirst().filter { $0.1 > 5_000 }
         XCTAssertEqual(
             dominantSegmentColors.count,
@@ -152,7 +152,7 @@ final class GraphRenderingTests: XCTestCase {
             zoomScale: 1,
             panFraction: 1
         ))
-        let pixels = try RGBAPixels(image: result.image)
+        let pixels = try RGBAPixels(image: result.image!)
         let expectedX = Int(result.x(for: baseTimestamp + 50) * result.scale)
         let expectedTopY = Int(result.y(for: 10) * result.scale)
         let hasHorizontalStep = pixels.containsBluePixel(
