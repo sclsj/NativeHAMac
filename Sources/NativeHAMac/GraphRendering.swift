@@ -881,7 +881,7 @@ private final class GraphPreparedSeriesCache {
             if let previousTimestamp = previousTimestamp, timestamp < previousTimestamp {
                 isTimestampSorted = false
             }
-            if let previousTimestamp = previousTimestamp, timestamp <= previousTimestamp {
+            if let previousTimestamp = previousTimestamp, timestamp < previousTimestamp {
                 isOneToOneStrictlyIncreasingNumericSource = false
             }
             previousTimestamp = timestamp
@@ -966,7 +966,7 @@ private final class GraphPreparedSeriesCache {
                 guard
                     let timestamp = parser.timestamp(from: source),
                     let value = numericValue(source.state),
-                    points.last.map({ timestamp > $0.t }) ?? true
+                    points.last.map({ timestamp >= $0.t }) ?? true
                 else {
                     return false
                 }
