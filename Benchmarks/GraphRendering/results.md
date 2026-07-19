@@ -1,5 +1,75 @@
 # Recorded graph-rendering results
 
+## 2026-07-19 rolling-history CPU repair and live GUI verification
+
+After the receive-limit repair made 12h reliable, a release-app profiler found
+the remaining settled 12h load was not bitmap rasterization or WebSocket
+decode. Six history owners repeatedly rebuilt every projected timestamp with
+Foundation, and same-count rolling windows forced full prepared-series cache
+rebuilds. The final repair makes overlap provenance event-driven: the history
+accumulator classifies reset, unchanged, normal append/trim, and out-of-order
+reset while it already merges and trims, and publishes retained old/new indices
+with normal updates. `HAHistoryProjectionStore` therefore formats only the
+moving boundary/tail without performing a routine O(n) equality scan. It
+attaches predecessor/index lineage to projected series; the graph cache checks
+that lineage against its cached revision in O(1), freshly prepares a moved
+boundary and new tail, and reuses only the trusted numeric overlap. Raw/manual,
+corrected, reset, and out-of-order publications rebuild fully. Monotonic owner
+generations reject stale callbacks and prevent reconnect/refresh cache bridges.
+
+The deterministic 100,000-point oracle remained exactly equal. In the final
+release run, incremental projection took 3.542 ms versus 592.864 ms for the
+full oracle. The normal full-suite debug run measured 19.218 ms versus
+924.713 ms. Same-shape middle replacement tests prove both projection and
+prepared-series caches rebuild fully rather than hiding a correction.
+A combined rolling-window middle correction plus newer tail deterministically
+renders `[20, 99, 40, 50]` through the full path; the unchanged clean rolling
+fixture still records one full and one incremental preparation.
+The actual 99,999-point moved-cutoff/unchanged-overlap/one-tail fixture exactly
+matches a cold full oracle, retains its new boundary, and records one full plus
+one incremental graph preparation. Final debug graph preparation measured
+10.069 ms incremental versus 274.580 ms cold full; release measured 1.523 ms
+versus 115.503 ms. Neither projection nor graph preparation performs a routine
+O(n) history equality scan on a normal tail.
+
+A fresh verifier then supplied an adversarial reference-compatible shape:
+existing history `[10:X, 30:A, 20:B, 40:C]`, cutoff 25, and an incoming
+duplicate `[40:C]`. Because the incoming first timestamp is not older than the
+existing last timestamp, the reference does not sort and produces
+`[25:B, 30:A, 40:C, 40:C]`. The accumulator now emits overlap only when the
+retained existing indices form one exact contiguous suffix; this case carries
+no lineage and records two full projections plus two full graph preparations,
+both exactly equal to cold oracles. The proof is counted inside the existing
+cutoff filter pass and adds no full-window scan.
+
+An independent release GUI run then loaded the exact CO2/VOC 12h owner in six
+seconds, observed 80/80 `Live` samples over 36 seconds with no reconnect, and
+measured settled CPU samples averaging 26.43%, down 77.5% from the reproduced
+117.7% pre-repair condition. With the optional plot-only overlay disabled,
+17/17 SPS30 gesture frames were unique and the last two settled frames had the
+same SHA-256. Returning to 1h rendered by the second capture, remained `Live`
+for 60/60 samples over 25 seconds, and left no app process running. No
+publication cadence, accepted-sample ordering, merge, deduplication, or wire
+semantics changed.
+
+## 2026-07-19 validated timestamp fast path
+
+After replacing the provisional timestamp parser with fully validated UTC,
+fractional-second, and explicit-offset handling, a five-iteration read-only
+release smoke retained exact 1×/2× points, axes, and visible bounds. The live
+input contained 13,988 points at 1h and 335,700 points at 24h. Cold preparation
+dropped from the 2026-07-18 Foundation-dominated observations below to
+23.6/23.7 ms at 1h and 747.5/571.6 ms at 24h for 1×/2× respectively. Warm
+viewport rendering remained a separate CoreGraphics-dominated cost; this short
+five-sample run is correctness/performance-smoke evidence rather than a new
+portable latency baseline.
+
+The companion parser matrix covers canonical UTC, fractional seconds, positive
+and negative offsets, calendar/clock/offset validation, trailing input, and a
+20,000-point hot-path measurement. The fallback formatters are shared and used
+only for noncanonical ISO-8601 shapes, avoiding formatter construction during
+normal SwiftUI body recomputation.
+
 ## 2026-07-18 local development machine
 
 Commands:

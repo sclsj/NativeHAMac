@@ -66,19 +66,67 @@ public struct HAState: Decodable, Equatable, Identifiable {
     }
 }
 
+/// Transient proof that a series reused an exact slice of its immediate
+/// predecessor. Render caches may consume it only when the predecessor
+/// revision still matches; the metadata is intentionally not encoded.
+public struct HAHistorySeriesCacheLineage: Equatable, Sendable {
+    public let predecessorRevision: UInt64
+    public let oldStart: Int
+    public let newStart: Int
+    public let count: Int
+
+    public init(predecessorRevision: UInt64, oldStart: Int, newStart: Int, count: Int) {
+        self.predecessorRevision = predecessorRevision
+        self.oldStart = oldStart
+        self.newStart = newStart
+        self.count = count
+    }
+}
+
 public struct HAHistorySeries: Equatable, Identifiable, Codable {
     public var id: String { entityID }
 
     public let entityID: String
     public let points: [HAHistoryPoint]
-    /// A deterministic digest of the complete source content. Render caches use
-    /// this instead of assuming that equal counts/endpoints imply equal data.
+    /// A source-content revision token. Standalone values default to a
+    /// deterministic digest; an owner that has already proven an exact rolling
+    /// overlap may supply its monotonic generation instead of re-hashing the
+    /// complete long window. Render caches use the token instead of assuming
+    /// that equal counts/endpoints imply equal data.
     public let contentRevision: UInt64
+    public let cacheLineage: HAHistorySeriesCacheLineage?
 
-    public init(entityID: String, points: [HAHistoryPoint], contentRevision: UInt64? = nil) {
+    public init(
+        entityID: String,
+        points: [HAHistoryPoint],
+        contentRevision: UInt64? = nil,
+        cacheLineage: HAHistorySeriesCacheLineage? = nil
+    ) {
         self.entityID = entityID
         self.points = points
         self.contentRevision = contentRevision ?? Self.revision(entityID: entityID, points: points)
+        self.cacheLineage = cacheLineage
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case entityID
+        case points
+        case contentRevision
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entityID = try container.decode(String.self, forKey: .entityID)
+        points = try container.decode([HAHistoryPoint].self, forKey: .points)
+        contentRevision = try container.decode(UInt64.self, forKey: .contentRevision)
+        cacheLineage = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(entityID, forKey: .entityID)
+        try container.encode(points, forKey: .points)
+        try container.encode(contentRevision, forKey: .contentRevision)
     }
 
     private static func revision(entityID: String, points: [HAHistoryPoint]) -> UInt64 {

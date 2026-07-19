@@ -81,6 +81,38 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         )
     }
 
+    func testGraphHoverOverlayCanBeHiddenWithoutChangingTheUnderlyingPlot() throws {
+        let input = performanceInput(pointCount: 720, entityID: "sensor.hover_overlay")
+        let size = CGSize(width: 496, height: 178)
+
+        func render(hover: CGPoint?, showsHoverOverlay: Bool) throws -> RenderedPNG {
+            try MacViewPNGRenderer.render(
+                BitmapLineChart(
+                    unit: "µg/m³",
+                    inputs: [input],
+                    zoomScale: 1,
+                    panFraction: 1,
+                    showsHoverOverlay: showsHoverOverlay,
+                    hoverLocation: .constant(hover),
+                    onMagnify: { _, _, _ in },
+                    onPan: { _ in }
+                )
+                .frame(width: size.width, height: size.height),
+                size: size,
+                displayScale: 2,
+                settleTime: 0.25
+            )
+        }
+
+        let plotOnly = try render(hover: nil, showsHoverOverlay: false)
+        let hiddenHover = try render(hover: CGPoint(x: 250, y: 80), showsHoverOverlay: false)
+        let visibleHover = try render(hover: CGPoint(x: 250, y: 80), showsHoverOverlay: true)
+
+        XCTAssertEqual(hiddenHover.pngData, plotOnly.pngData)
+        XCTAssertNotEqual(visibleHover.pngData, plotOnly.pngData)
+        XCTAssertGreaterThan(hiddenHover.blueSampleCount, 20)
+    }
+
     func testClimateDialAnimationKeyframesRenderDistinctImages() throws {
         var frameData: [Data] = []
 

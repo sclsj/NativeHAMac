@@ -3,14 +3,14 @@ schema: nativeha-evidence/v1
 module: "01"
 title: History WebSocket stream and dashboard consumers
 plan: ../../rescue-plan/module-01-history-ws-stream.md
-status: verification-ready
-contract_revision: 1
+status: complete
+contract_revision: 2
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 0f6a324aa43c5c508a8304c1767483c0d2edc6f4
+nativeha_revision: 3cd05d510c7249b38540239e448460c7afcac52a
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: a434215e524cdc48c7122fe266aa22a2e0ced1ff087ad4396ee0b435a4e2ab3b
-last_validated: 2026-07-18
+graph_fingerprint: 7fd7546a2f9b860af39694f3a1449d1d0d8e21bab8609e82b31f7c77dc395675
+last_validated: 2026-07-19
 ---
 
 # Module 01 evidence packet
@@ -48,6 +48,13 @@ tracked benchmark, the canonical configuration note, the manifest/generated
 graph, and this packet/index. It did not change the reference checkout, rescue
 plan, canonical user deviations, server state, or Module 02 implementation.
 
+Contract revision 2 is a bounded post-implementation refresh after Gemini
+commits `e4eecb2`, `f8f55f0`, and `3cd05d5`. It adds acceptance coverage for
+the production URLSession receive-size boundary and for visible progress during
+an active gesture. It does not reopen the frontend audit: the existing
+reference anchors are unchanged, while the affected Swift transport, parser,
+render scheduler, and tests are now explicit native anchors.
+
 ## Behavior contracts
 
 | ID | Trigger/input | Observable behavior | Ordering/lifecycle/error rules | Evidence | Swift owner | Verification |
@@ -58,9 +65,20 @@ plan, canonical user deviations, server state, or Module 02 implementation.
 | C01-04 | Initial connection, disconnect/reconnect, or explicit disposal | Create exactly one initial stream using Module 02 `resubscribe: false`. After a disconnect, the next `ready` creates exactly one new request with a recomputed `start_time` and a fresh empty accumulator. Each callback publishes that accumulator's complete combined history. | Module 02's status stream yields its current state immediately, so the coordinator must not double-subscribe on the initial `ready`. Disposal cancels the current subscription and lifecycle listener. Late events and old-generation callbacks cannot publish. Initial subscribe rejection surfaces to the owner; reconnect subscribe failure is contained, exposed as owner error/status, and retried only on a later readiness or explicit refresh—not a busy loop. | HF-01, NPM-01, M02-C06 | History subscription coordinator built only on Module 02 connection/status APIs | Two-transport fake test proving one initial subscription, old history opt-out, a second fresh ISO start and accumulator after `ready`, no stale merge/duplicates, idempotent disposal, failed-resubscribe containment, and final Module 02 ownership counts of zero. |
 | C01-05 | Combined compact history is projected for graph/timeline consumers | Centralize conversion instead of scattering seconds-to-ISO or compact-key logic through views. Preserve every non-empty timeline state including `unknown`, `unavailable`, and `none`; collapse consecutive equal states only in timeline preparation. Numeric line preparation skips values it cannot parse without removing them from stored history. Use `lc` when present, otherwise `lu`, except line data for `climate`, `humidifier`, and `water_heater` uses `lu`; retain the reference line attributes needed by those domains. Current/first attributes remain available for classification and names when minimal responses omit later attributes. | Preserve deterministic timestamp order and fractional precision. Do not mutate the stored compact history merely to satisfy a renderer. | HF-01, HF-T2, SW-01, SW-05 | New centralized compact-to-graph adapter plus existing `HistoryGraphSupport`/render preparation | Timeline unknown/unavailable/none; numeric gaps; repeated state; climate/humidifier/water-heater `lu`; sparse attributes; current-state fallback; compact-to-existing-series precision tests. |
 | C01-06 | Dashboard config loads, global range changes, a detail opens/closes, or visible history owners change | The intended Home dashboard owns foreground subscriptions for visible history cards only; each card publishes only to its own state. Effective range comes from a typed `AppConfig` policy with available selections, default, global scope, and detail default. Subscription/cache identity includes deterministic card identity, ordered entity IDs, and effective range; it must not depend on regenerated `UUID()` values. Preserve raw decoded `hoursToShow`. Detail history uses the configured detail range and cancels when its sheet disappears or identity changes. | Range changes cancel old owners before publishing a new generation. Overlapping entity sets remain isolated. Until Module 12 exists, do not subscribe the hidden maintenance views. Do not append `state_changed` events into an active history stream; state events continue to update current entity state only. | HF-02, HF-03, UD-01, CFG-01, SW-04, SW-05 | `AppConfig`, `DashboardViewModel`, `DashboardView`, `HistoryGraphCard`, `DetailHistoryGraph` | Two-card isolation, stable identity across recomputation, ordered-ID distinction, 1h/3h/12h global changes, raw-hours preservation, detail lifecycle, and no double append from state changes. Replace the obsolete per-card-hours expected failure with a passing approved-policy test. |
-| C01-07 | Loading, replay, update, cancellation, server rejection, overflow, profile/connection change, or owner disappearance | Expose deterministic per-owner loading, ready-data, and error outcomes. One failed or slow history owner cannot erase/block another. Cancellation/profile teardown removes the owner promptly; an old callback cannot recreate UI state or prepared data. Explicit refresh renews the affected subscriptions. | Generation checks precede main-actor publication. UI publication is main-actor isolated, while decode/merge/preparation must not monopolize it. Delivery overflow and non-disconnect termination surface concise owner errors. | HF-02, HF-03, M02-C03, M02-C04, M02-C07 | History coordinator and `DashboardViewModel` ownership | Fake rejection/overflow/late-event tests, cancellation during replay/merge, profile teardown, simultaneous owners with one blocked, weak-release/lifecycle probe, and exact final connection counts. |
-| C01-08 | Replay or incremental content reaches a rendered card/detail | Loading settles to a graph/timeline; every accepted combined-history publication invalidates the relevant prepared/render state even when count and first/last timestamps happen to match prior data. Incremental history updates only the affected visual owner. Selected range defines the initial viewport. | Render preparation stays asynchronous/cancellable, foreground work outranks future cache/prefetch, and stale render generations cannot replace newer data. No scheduler-driven animation is required by the stream itself. | HF-02, HF-03, SW-06 | Dashboard graph inputs and prepared-series invalidation/generation | Offscreen loading→replay→incremental states; same-count/same-endpoint content replacement regression; bounded settlement; replay/update PNG distinction; dismissal remains responsive during a gated slow merge/render. |
+| C01-07 | Loading, replay, update, cancellation, server rejection, overflow, profile/connection change, owner disappearance, or an accepted large replay frame | Expose deterministic per-owner loading, ready-data, and error outcomes. One failed or slow history owner cannot erase/block another. A replay within the configured bounded receive policy, including a frame larger than URLSession's 1 MiB default, must not tear down the shared connection. Cancellation/profile teardown removes the owner promptly; an old callback cannot recreate UI state or prepared data. Explicit refresh renews the affected subscriptions. | Generation checks precede main-actor publication. UI publication is main-actor isolated, while decode/merge/preparation must not monopolize it. Delivery overflow and non-disconnect termination surface concise owner errors. Command acknowledgement timeout and maximum receive size are separate typed policies; extending the former is not a substitute for configuring the latter. | HF-02, HF-03, M02-C03, M02-C04, M02-C07 | History coordinator, production URLSession transport, and `DashboardViewModel` ownership | Fake rejection/overflow/late-event tests, strict mixed-command wire ordering, production-adapter receive above 1 MiB, cancellation during replay/merge, profile teardown, simultaneous owners with one blocked, weak-release/lifecycle probe, and exact final connection counts. |
+| C01-08 | Replay or incremental content reaches a rendered card/detail, or the user continuously zooms/pans it | Loading settles to a graph/timeline; every accepted combined-history publication invalidates the relevant prepared/render state even when count and first/last timestamps happen to match prior data. Incremental history updates only the affected visual owner. Selected range defines the initial viewport. During a continuous gesture, publish bounded intermediate same-data frames and then settle on the newest viewport. | Render preparation stays asynchronous/cooperatively cancellable, foreground work outranks future cache/prefetch, and stale data generations cannot replace newer data. Viewport frames may be slightly behind the latest event when they share the current data generation; final settlement remains strict. No scheduler-driven animation is required by the stream itself. | HF-02, HF-03, SW-06 | Dashboard graph inputs, prepared-series invalidation/generation, and viewport render scheduler | Offscreen loading→replay→incremental states; same-count/same-endpoint content replacement regression; token-storm progressive publications with concurrency one and exact final token; active-gesture live captures before and after a failed 12h load; bounded settlement; replay/update PNG distinction; dismissal remains responsive during a gated slow merge/render. |
 | C01-09 | Normal app history path versus command-line benchmark/probe path | `NativeHAMac` history cards and detail graphs use WebSocket `history/stream`, not REST `/api/history/period`. Keep `HomeAssistantRESTClient.fetchHistory` and REST-shaped models available for `GraphBench`, `GraphPyramidBench`, and `HAProbe` until separately migrated or retired. | No silent REST fallback in normal rendering: it would change streaming/error semantics and hide failures. Stream and REST decoders remain distinct. | SW-01, SW-02, SW-04 | App orchestration; existing REST client remains tool-owned | App integration spy proves zero REST history calls; existing REST tests and tool builds still pass; stream fixtures fail the REST decoder and vice versa. |
+
+Contract-revision-2 clarification for C01-02/C01-04/C01-07/C01-08: the
+accumulator emits typed reset, unchanged, normal-overlap, or out-of-order-reset
+facts while merging. Publications carry monotonic owner generation; the first
+publication after initial subscribe, reconnect, or refresh is a reset. Pending
+reset dominates normal work, unchanged cannot overwrite pending work, and two
+undelivered normal publications collapse to reset because their indices are
+relative to different snapshots. Projection rejects older generations without
+mutation, and dashboard consumers check cancellation again after awaited
+projection. The existing raw callback remains compatible and takes the safe
+full-projection path.
 
 ## Source anchors
 
@@ -173,7 +191,7 @@ by hand here.
 The generated graph is
 [`module-01.dependencies.json`](../generated/module-01.dependencies.json),
 fingerprint
-`a434215e524cdc48c7122fe266aa22a2e0ced1ff087ad4396ee0b435a4e2ab3b`.
+`12aefac3a68ade57a9ae26c20997e983f3956afbcdd1dd82fa369eb08e449710`.
 It contains 21 nodes and 143 edges, one editor/card dynamic-import cycle, no
 unresolved edge, and no truncation.
 
@@ -215,10 +233,11 @@ unresolved edge, and no truncation.
 |---|---|---|---|---|
 | C01-01, C01-02, C01-05 | New `Sources/NativeHACore/HomeAssistantHistoryStream.swift` | compact models, accumulator, projection | Pure/sendable values with injected clock | Keep compact seconds authoritative; centralize any legacy-series adapter. |
 | C01-03, C01-04, C01-07 | `HomeAssistantWebSocketClient.swift` plus the new history file | typed subscription/coordinator | Current wire handle, lifecycle task, generation, fresh accumulator | Built only on Module 02; exactly one initial subscription despite immediate status yield. |
+| C01-07 | `HomeAssistantWebSocketConnection.swift`, `HomeAssistantWebSocketTransport.swift`, `AppConfig.swift` | serialized command send and bounded production receive policy | one shared receiver; monotonically increasing wire sends; typed frame budget | A slow replay event is not a slow acknowledgement. Test the real adapter seam above 1 MiB and the exact live CO2/VOC card at 12h. |
 | C01-06 | `Sources/NativeHAMac/AppConfig.swift` | typed graph time-range policy | available/default/global/detail values | Future expansion/cache fields may be represented, but their behavior is deferred below. |
 | C01-06, C01-07, C01-09 | `Sources/NativeHAMac/DashboardViewModel.swift` | card/detail owner registry and published history | main-actor publication; async owner tasks | Remove app REST loads and realtime double-append path for active streams. |
 | C01-06, C01-08 | `DashboardView.swift`, `CardViews.swift` | global selector, card/detail lifecycle | visible Home card/detail ownership | Preserve raw config and cancel on disappearance/key change. |
-| C01-05, C01-08 | `HistoryGraphSupport.swift`, `GraphRendering.swift` | compact projection and prepared-series invalidation | cancellable background preparation with generation | Fix same-shape replacement invalidation without turning Module 01 into a graph-render rewrite. |
+| C01-05, C01-08 | `HistoryGraphSupport.swift`, `GraphRendering.swift`, `GraphRenderScheduling.swift` | compact projection, prepared-series invalidation, and viewport coalescing | cancellable background preparation; predecessor-matched projection lineage before rendered-point reuse; one render in flight plus one latest pending request | Preserve same-shape/middle-correction invalidation and final-generation correctness while publishing visible progress during event tracking. |
 | C01-09 | `HomeAssistantRESTClient.swift`, benchmark/probe targets | existing REST client | tool-only until later migration | Do not delete or silently use as app fallback. |
 
 ## Decisions and native deviations
@@ -231,11 +250,17 @@ unresolved edge, and no truncation.
 | D01-01 | Use Swift value types/actors and an injected clock rather than mutable JavaScript objects/listeners. | Native platform convention and determinism | Same wire fields, rolling window, ordering, and fresh reconnect outcomes. | C01-01 through C01-04 | Fake clock/transport suite | implemented |
 | D01-02 | Safely accept missing `a` and empty per-entity arrays instead of crashing on malformed/sparse server data. | Native robustness | Valid server history behavior and attributes remain unchanged. | C01-01/C01-02 | Sparse/malformed fixtures | implemented |
 | D01-03 | Use an exact stable two-way merge when existing and incoming arrays are each ordered, with a full stable-sort fallback for unsorted input. | Swift performance optimization proven against the reference output | Equal-timestamp arrival order, duplicates, cutoff behavior, and all projected values remain byte-for-byte equivalent in the tracked fixture. | C01-02, HF-01 | Unit fixtures plus `HistoryStreamBench` | implemented; benchmarked |
+| D01-04 | Serialize viewport rendering as one in-flight render plus one overwriteable latest pending request, publishing completed same-data frames during a gesture. | Swift-native scheduling required to preserve the reference's continuous visible redraw | Data-generation safety and exact final viewport remain strict; intermediate viewport frames may intentionally trail the newest input event. | C01-08, `f8f55f0` | Deterministic 8 ms token storm, fidelity oracle, live pre-gesture-end capture | implemented; independent post-12h GUI verification passed |
+| D01-05 | Replace Foundation parsing in the hot history path only with a parser that exactly preserves accepted ISO-8601 timestamps and rejects malformed input. | Measured Swift performance | Timestamp meaning, fractional precision, timezone handling, and fallback behavior must not change. | C01-05, `3cd05d5` plus contract-revision-2 repair | UTC/fractional/offset/malformed matrix plus benchmark | implemented; canonical validation and noncanonical fallback pass |
+| HOLD-01 | Configure a typed, bounded URLSession WebSocket receive-size policy above the largest accepted dashboard replay; do not treat a longer command timeout as the fix. | Swift URLSession integration requirement | Home Assistant's valid history event is delivered unchanged and the shared connection remains ready. | C01-07, production measurements | Adapter frame above 1 MiB plus exact 1h/12h CO2/VOC live soak | implemented at 32 MiB; independent verifier passed |
 | GAP-01 | Do not implement recorder statistics merge in this rescue module. | Explicit rescue-plan scope boundary, not an approved product deviation | State history streaming is preserved; future statistics parity remains visible. | HF-02/HF-03 | N/A for completion; retain documented gap | deferred parity work |
 
-There is no unresolved product choice. Implementation mechanics such as a
-dedicated coordinator actor versus actor-isolated client state are left to the
-single Swift writer as long as the contracts and Module 02 ownership hold.
+There is no unresolved product choice. The receive budget is a typed native
+policy constrained by measured payloads, and parser/scheduler correctness is
+evidence-driven. The implementation owner may revert or replace the unsafe
+parts of `e4eecb2`/`3cd05d5` in a new commit while preserving history; a
+120-second acknowledgement timeout and an incompletely validated custom parser
+are not completion requirements.
 
 ## Approved future work — not Module 01 completion gates
 
@@ -272,17 +297,23 @@ fixtures for semantics; generated fixtures cover scale. At minimum:
   cleared `lc`, exact-cutoff behavior, and safe empty entity arrays.
 - C01-03: exact command dictionary and every attribute-policy branch.
 - C01-04/C01-07: event before/after acknowledgement as supported by Module 02,
-  one initial owner, fresh reconnect request/accumulator, resubscribe failure,
-  repeated cancel, late callbacks, profile teardown, owner-specific overflow,
-  and zero final pending/subscription/wire/buffer/receive ownership.
+  one initial owner, strict increasing wire-send IDs under mixed concurrent
+  call/subscription registration, fresh reconnect request/accumulator,
+  resubscribe failure, a production-adapter receive larger than 1 MiB under a
+  typed bound, repeated cancel, late callbacks, profile teardown,
+  owner-specific overflow, and zero final pending/subscription/wire/buffer/
+  receive ownership.
 - C01-05: domain timestamp/attribute policy, unknown/unavailable/none timeline,
-  numeric nonnumeric gaps without stored-data deletion, and current-state
-  fallback.
+  numeric nonnumeric gaps without stored-data deletion, current-state fallback,
+  and timestamp equivalence for UTC/fractional/offset inputs plus rejection or
+  fallback for malformed hour/minute/second/trailing data.
 - C01-06: two overlapping cards remain isolated; deterministic card identity;
   ordered IDs; global 1h/3h/12h changes; raw `hoursToShow` unchanged; detail
   open/close; state changes do not double append.
 - C01-08: same count/first/last with changed state content invalidates prepared
-  output; old generation cannot publish after a replacement.
+  output; old generation cannot publish after a replacement; an 8 ms token
+  storm publishes intermediate frames with concurrency one and settles on the
+  final token.
 - C01-09: app REST history call count remains zero while REST tests and all
   benchmark/probe targets compile.
 
@@ -298,7 +329,12 @@ locations. On one authenticated Module 02 connection:
 4. cancel and confirm final ownership is zero;
 5. force one read-only reconnect, observe a later `ready`, and verify one fresh
    start time/fresh accumulator with no old merge;
-6. repeat a representative 24-hour read for performance/correctness evidence.
+6. load the exact visible CO2/VOC owner at 1h and 12h; verify the measured 12h
+   replay above 1 MiB settles without a shared reconnect and that returning to
+   1h recovers all owners;
+7. verify SPS30 publishes distinct frames before a continuous gesture ends on
+   a fresh 1h launch and again after the 12h transport exercise;
+8. repeat a representative 24-hour read for performance/correctness evidence.
 
 No service call or state mutation is needed. A live smoke validates integration,
 not accumulator edge cases.
@@ -354,6 +390,33 @@ dismissal or unrelated controls.
 - **Timestamp policy:** blindly adapting compact states to an ISO model whose
   parser always prefers `last_changed` breaks the reference's `lu` rule for
   climate/humidifier/water-heater line data.
+- **Timestamp fast-path correctness:** `3cd05d5` removed the dominant formatter
+  cost, but its custom parser returns a value without fully validating
+  hour/minute/second/trailing data and does not apply explicit numeric offsets.
+  Tests cover only a normal UTC example. Revert or replace it unless an
+  equivalence/malformed matrix proves the optimized path preserves semantics.
+- **Production WebSocket frame limit (confirmed):**
+  `URLSessionHomeAssistantWebSocketTransport` does not configure
+  `URLSessionWebSocketTask.maximumMessageSize`. The current default is
+  1,048,576 bytes. The exact visible CO2/VOC `history/stream` replay measured
+  about 406 KB at 1h and 4,912,600 bytes / 102,618 points at 12h. A clean
+  `3cd05d5` app reproduces 12h `Loading history` plus repeated
+  Live/Reconnecting while 1h succeeds. This is a Swift-native transport
+  boundary, not different intended frontend behavior.
+- **ID send order versus receive size:** `e4eecb2` moved command-ID allocation
+  into actor-isolated registration/send, addressing a real `id_reuse` race
+  introduced by unstructured Swift tasks. The reference JS connection assigns
+  and sends in one synchronous turn. No deterministic mixed-command wire-order
+  regression was added, and this fix cannot make a 4.9 MB frame fit a 1 MiB
+  receive limit. The same commit's 120-second command timeout is not supported
+  by this incident: the subscription acknowledgement measured about 7 ms and
+  the oversized replay arrives afterward.
+- **Gesture result versus current symptom:** `f8f55f0` has strong deterministic
+  and live evidence for the original token-starvation mechanism, but the user
+  again observed lag while the 12h card failed. Verify fresh 1h interaction
+  before selecting 12h and repeat after the reconnect loop; transport/decode
+  CPU pressure may mask a correct scheduler, but the current user-visible
+  symptom remains a completion hold until reproduced cleanly.
 - **Prepared-cache invalidation:** current fingerprints use count and first/last
   timestamps. Fresh replay content with the same shape can be stale unless the
   stream generation/content participates in invalidation.
@@ -364,9 +427,9 @@ dismissal or unrelated controls.
   expands range/interaction; recorder statistics remains a visible parity gap.
   Module 01 should expose ownership seams, not implement those modules now.
 
-None of these is a material behavior question: each has a contract and
-deterministic acceptance test. The implementation owner addressed the current
-Module 01 risks; the approved future work remains explicitly deferred.
+None of these requires a new product choice, but HOLD-01 and the parser test gap
+are not yet addressed at `3cd05d5`. The approved future work remains explicitly
+deferred.
 
 ## Implementation result
 
@@ -402,6 +465,19 @@ Actual implementation paths are pinned by the graph and comprise:
   integration tests, and focused graph/GUI regression additions;
 - `Benchmarks/history-stream/`, `docs/configurability.md`, and the Module 01
   manifest/generated graph/packet/index.
+
+Post-checkpoint Gemini commits are preserved in history:
+
+- `e4eecb2` serializes wire-ID allocation with actor-isolated registration/send
+  and changes the app command timeout from 10 to 120 seconds. The ordering
+  repair is plausible but lacks its required mixed-command wire-order test; the
+  timeout change does not fix the confirmed oversized receive.
+- `f8f55f0` adds `GraphViewportRenderScheduler`, cooperative rendering checks,
+  deterministic scheduler/fidelity benchmarks, and live in-gesture capture
+  evidence. It addresses the original strict-latest token starvation.
+- `3cd05d5` hoists a formatter allocation from `maxGraphZoom` and adds a custom
+  timestamp fast path. It targets a measured CPU hotspot, but the fast parser's
+  timezone/malformed-input equivalence is not yet established.
 
 ## Implementer verification
 
@@ -832,16 +908,34 @@ the artifact directory. No new `.DS_Store` is tracked or untracked; the ignored
 root/`Sources`/`Tests`/`docs`/`tools` files are pre-existing and outside this
 repair.
 
-## Live GUI regression hold — updated 2026-07-18
+## Live GUI regression repair — updated 2026-07-19
 
-Do not mark Module 01 complete. After the visual-only repair, the user reported
-and the final writer reproduced a live `CO2/VOC` history owner stuck loading
-with `Home Assistant WebSocket disconnected`; switching to 12h also cycles the
-shared app status between Live/Reconnecting. That connection/loading regression
-remains open. The separate SPS30 gesture-end-only redraw regression is repaired
-and live-verified below. The self-contained transport reproduction, likely
-cause, stress evidence, current scope, and next commands remain in
-[`todo.md`](../../../todo.md).
+Do not mark Module 01 complete before fresh independent verification. After the
+visual-only repair, the user reported and the final writer reproduced a live
+`CO2/VOC` history owner stuck loading with `Home Assistant WebSocket
+disconnected`; switching to 12h also cycled the shared app status between
+Live/Reconnecting. The production-matching replay was about 4,912,600 bytes /
+102,618 points, exceeding URLSession's 1,048,576-byte default; 1h was about
+406 KB and succeeded. The receive-size cause was a Swift-native transport
+boundary, while `e4eecb2`'s 120-second acknowledgement timeout did not address
+it.
+
+The repair adds a typed 32 MiB receive policy and applies it to the concrete
+URLSession WebSocket task before `resume`. This is a finite per-message upper
+bound, not eager allocation; it covers the measured 26,490,281-byte 24-hour
+four-series SPS30 response. The app command timeout is restored to the
+evidence-backed 10 seconds. A production-adapter seam test delivers a frame one
+byte above the platform default without disconnecting, and a strict scripted
+transport now rejects any non-increasing actual wire-send ID.
+
+The read-only release live smoke passed the exact `CO2/VOC` owner at 1h
+(8,530 points / 0.495s), 12h (102,565 points / four callbacks / 6.087s), and
+recovery to 1h (8,528 points / 0.470s). No reconnecting or other non-ready
+connection state occurred during the sequence, no owner reported an error, and
+ownership returned to zero after every window. A representative 24-hour stream
+also passed with 56,470 points in 2.716s. The scheduler mechanism below remains
+reopened only for the required fresh/post-12h live gesture captures by the
+independent verifier.
 
 ## Gesture rendering repair — 2026-07-18
 
@@ -875,14 +969,196 @@ stream ended, with 15 distinct plot signatures and visible progressive
 x-window/line changes. Focused graph tests, the release deterministic
 benchmark, the opt-in live 1h/24h benchmark, the six-test GUI rendering suite,
 and the full 66-test suite pass (the normal full run skips the two opt-in live
-tests). Module status remains `verification-ready` solely because the separate
-connection/loading hold and a fresh independent verifier remain outstanding.
+tests). This proves the token-starvation repair, not current end-to-end behavior
+under a reconnect loop. Module status remains `verification-ready` for the
+transport repair, before/after interaction check, parser correctness gap, and
+a fresh independent verifier.
 
-## Handoff
+## Contract revision 2 implementation — 2026-07-19
 
-First repair and live-verify the remaining connection/loading regression in
-[`todo.md`](../../../todo.md).
-Then dispatch a fresh independent verifier. It must first run:
+The sole Swift writer implemented the receive-bound, parser, strict-send-order,
+and configurable hover-capture work without reopening the frontend audit:
+
+- `HomeAssistantWebSocketReceivePolicy` is threaded through the public client,
+  connection, concrete transport, and app policy. The URLSession task receives
+  the bound before resume. Normal library callers retain the platform default;
+  the app deliberately selects 32 MiB.
+- Concurrent command/subscription/unsubscribe work is exercised through a fake
+  transport that enforces strictly increasing actual send order. Sixty-four
+  commands plus sixty-four subscriptions and their cancellations pass with
+  zero wire-order violations and zero final ownership.
+- Canonical HA timestamps now validate every calendar, clock, fractional,
+  timezone-offset, and trailing field before returning a value. Invalid
+  canonical-looking strings cannot fall into Foundation's permissive
+  normalization. A locked shared formatter pair preserves the compatibility
+  fallback for noncanonical forms without constructing formatters during
+  normal SwiftUI recomputation.
+- `GraphInteractionPolicy` keeps the floating sample overlay enabled normally
+  and permits `NATIVEHA_GRAPH_HOVER_OVERLAY=0` for unobscured live captures.
+  Only overlay drawing is gated; the gesture view and zoom/pan callbacks remain
+  present. Pure policy and rendered-PNG tests cover the seam.
+
+Focused verification passed 19 WebSocket tests, 32 combined history/
+integration/graph/GUI tests, the timestamp matrix/performance tests, the
+production configuration assertions, and the release deterministic scheduler
+benchmark. The five-iteration read-only live graph benchmark retained exact
+1x/2x points/axes/bounds; cold preparation was 23.6/23.7 ms for 13,988 1h
+points and 747.5/571.6 ms for 335,700 24h points, replacing the provisional
+Foundation-dominated multi-second path. Exact transport live-smoke results are
+recorded above.
+
+## Post-transport CPU repair and independent GUI verification — 2026-07-19
+
+Once the 32 MiB receive policy made the exact 12h replay reliable, independent
+release-app verification exposed a second, distinct Swift-native bottleneck:
+settled 12h CPU remained about 117.7%. Sampling attributed the dominant work to
+six owner chains repeatedly performing full compact-history projection and
+`ISO8601DateFormatter.string`; an additional cluster came from full prepared-
+series rebuilds because a rolling window often retains the same point count.
+Socket receive and JSON decode were negligible in that settled profile.
+
+The bounded repair adds one `HAHistoryProjectionStore` per history/detail
+owner. The final hardening makes overlap proof event-driven: the accumulator
+classifies reset, unchanged, normal append/rolling trim, and out-of-order reset
+while it already merges and trims. Normal publications carry retained old/new
+compact indices only when the retained existing indices form one contiguous
+suffix; an entity with a gapped retained slice projects fully. Rare
+out-of-order input resets every entity. The projection
+store uses those facts with O(1) bounds/endpoint validation and formats only the
+rolling boundary/prefix and new suffix, without a routine full-array equality
+scan. Raw/manual callers, context changes, resets, and middle corrections take
+full projection. The graph prepared-series cache may reuse a rolling overlap
+only when `HAHistoryProjectionStore` supplies its predecessor revision and
+exact old/new indices, and that predecessor matches the cached revision. It
+freshly prepares the prefix/boundary and suffix/tail and reuses only the indexed
+one-to-one sorted numeric slice; the graph layer does not repeat an O(n) source
+equality scan. Standalone/full series have no lineage. Typed publications carry
+monotonic owner generations: a newer generation clears and fully projects,
+while an older generation returns no result and cannot mutate lineage. Same-end
+middle replacement and middle correction plus a newer tail both remain full
+rebuilds. This changes no history publication
+cadence, accepted-sample set/order, cutoff, duplicate, merge, wire, or reconnect
+semantics.
+
+Deterministic tests compare the 100,000-point incremental projection exactly to
+the full oracle and record one full plus one incremental build. Final release
+timing was 3.542 ms incremental versus 592.864 ms full; the full-suite debug
+run measured 19.218 versus 924.713 ms. Separate same-shape middle-correction
+tests prove full rebuild and exact corrected output in both projection and
+prepared-series caches. A bounded verifier regression combines a rolling middle
+correction with a newer tail and requires exact rendered values
+`[20, 99, 40, 50]` plus two full preparations and zero incremental
+preparations; the clean equal-count rolling fixture still requires one full and
+one incremental preparation. The common 99,999-point moved synthetic cutoff,
+unchanged overlap, and one new tail also matches a cold full oracle exactly,
+keeps the freshly projected boundary, and records one full plus one incremental
+preparation. A no-lineage rolling fixture, projection middle correction, and
+post-reset generation all record full preparation/no lineage.
+
+The coordinator preserves relative overlap safety while coalescing: reset
+dominates an undelivered normal update, unchanged cannot erase pending work,
+and two undelivered normals collapse to a reset because the second indices are
+relative to a skipped snapshot. Dashboard consumers check cancellation again
+after awaited projection. The existing raw `onHistory` API remains compatible;
+the typed publication overload is additive, and raw projection remains the safe
+full path.
+
+The fresh independent release GUI verifier then passed the previously reopened
+C01-07/C01-08 path:
+
+- fresh 1h rendered all owners and stayed `Live` for 20/20 status samples;
+- exact CO2/VOC 12h rendered by the sixth capture and stayed `Live` for 80/80
+  samples over 36 seconds, with no reconnect/disconnect;
+- settled 12h CPU samples averaged 26.43%, down 77.5% from the reproduced
+  117.7%, while observed app memory stayed 119–131 MB;
+- with `NATIVEHA_GRAPH_HOVER_OVERLAY=0`, all 17 captured SPS30 plot frames
+  during zoom/pan were unique and the final two settled frame hashes matched;
+- return to 1h was fully rendered by the second capture and stayed `Live` for
+  60/60 samples over 25 seconds; the verifier terminated the PID and confirmed
+  no app process remained.
+
+The current-tree release live ownership harness independently passed exact
+CO2/VOC 1h (8,516 points / 0.437s), 12h (102,527 points / four callbacks /
+4.852s), and recovery 1h (8,516 points / 0.429s), plus representative 24h
+(56,470 points / 2.688s). It observed no reconnect/non-ready state or owner
+error during the exact sequence and exact zero pending/subscription/wire/
+delivery/buffer/task ownership after every cancellation and at final teardown.
+
+Final deterministic validation after retained-suffix hardening passed 87 tests
+with two intentional live-gated skips and zero failures in 52.858 seconds.
+Focused `GraphRenderingTests` passed 17/17,
+`HomeAssistantHistoryStreamTests` passed 17/17, and
+`HomeAssistantHistoryStreamPerformanceTests` passed 6/6. All five products
+built before the proof-only follow-up; release
+`GraphRenderingBenchmarkTests` passed 2/2 with one-render concurrency, eight
+in-gesture publications, and exact final settlement; `git diff --check`, graph
+checker, and resolver self-test are green. The final graph has 21 nodes/143
+edges with fingerprint
+`7fd7546a2f9b860af39694f3a1449d1d0d8e21bab8609e82b31f7c77dc395675`;
+the 28-node/59-edge resolver self-test fingerprint is
+`ab069e007ec7bfe3e9fb3019c9c58563ba9294af47b2ddb4fdc8bce4ef0a1f1a`.
+The independent verifier's GUI
+artifacts are retained at `/tmp/nativeha-final-verify-artifacts` for the current
+machine/session. GUI accessibility does not expose Module 02 ownership counts,
+so exact final ownership comes from the current-tree live harness above.
+
+## Fresh independent bounded verification — 2026-07-19
+
+Verdict: remain `verification-ready`. The verifier did not re-audit the
+frontend because the context graph was green. The transport, parser,
+configuration, projection, live ownership, release rendering, and retained GUI
+evidence all passed, but inspection found one C01-08 semantic counterexample in
+the prepared-series cache.
+
+Validation run on the exact working-tree diff:
+
+- graph staleness check: green; resolver self-test: 28 nodes/59 edges,
+  fingerprint `07fbefb2ed438ebf93157065e91cb44a5af6bba999b609bd37e37079f5d69684`;
+- targeted WebSocket/transport/multiplexer: 16/16; history/parser/integration:
+  30/30; graph/GUI/configuration: 22/22;
+- full `swift test`: exit 0, 77 tests with two intentional opt-in live skips;
+  release scheduler benchmark: 2/2; `swift build -c release` linked all five
+  executable products;
+- current-tree read-only live ownership harness: exact CO2/VOC 1h (8,508
+  points/0.438s), 12h (102,506 points/2 callbacks/4.660s), recovery 1h (8,506
+  points/0.403s), and representative 24h (56,465 points/2.602s). It reported
+  zero owner error, reconnect/non-ready transition, and final internal owner;
+- five-iteration release live graph benchmark: 13,952 1h points and 335,692
+  24h points; 24h cold preparation was 552.164/550.115 ms at 1x/2x, with
+  identical points, axes, and bounds at both scales;
+- retained GUI artifacts independently show CO2/VOC loading at 2s and rendered
+  at 6s, rendered 1h recovery by 4s, 17/17 distinct in-gesture SPS30 hashes,
+  and identical final settled hashes. The artifact directory contains no raw
+  status/CPU log, so the recorded 80/80 Live and 26.43% mean CPU figures cannot
+  be recomputed from files alone; the current-tree live harness independently
+  supplies the zero-reconnect/non-ready/error and zero-ownership evidence.
+
+Exact failed counterexample: begin with a prepared series whose compact source
+contains points `A B C D`. A later valid history publication contains
+`A B C' C D E`, where `C'` is an out-of-order correction/late sample before
+the prior last timestamp and `E` is a newer tail. `HAHistoryProjectionStore`
+correctly rejects incremental reuse because it cannot prove an exact compact
+overlap, performs a full projection, and includes `C'`. However,
+`GraphPreparedSeriesCache.incrementallyUpdate` currently requires only that the
+incoming last timestamp is newer and the old last timestamp `D` is present.
+It therefore reuses the cached prefix through `D` and appends only `E`, dropping
+`C'` from rendered output. The existing same-end correction test and clean
+equal-count rolling test pass separately and do not exercise this combined
+case.
+
+The bounded repair must make prepared-series incremental reuse depend on proven
+exact source overlap/provenance (or exact-compare the reused source segment),
+then add a deterministic combined middle-correction/out-of-order-insertion plus
+new-tail oracle. That test must assert the incremental path is not used and the
+rendered output exactly equals full preparation. No sample, duplicate, order,
+cutoff, cadence, wire, or reconnect semantic may change.
+
+## Superseded handoff — prepared-series counterexample
+
+The transport, wire-order, timeout, parser, configurability, projection, live
+CO2/VOC, and gesture repairs are green. Do not mark the module complete or
+commit the repair as final until the prepared-series counterexample above is
+fixed and freshly reverified. The next verifier should first run:
 
 ```sh
 node tools/reference-context/check-context.mjs \
@@ -890,25 +1166,176 @@ node tools/reference-context/check-context.mjs \
 node tools/reference-context/test-resolver.mjs
 ```
 
-If green, inspect the actual diff and graph-pinned implementation paths, then
-verify C01-01 through C01-09 against this packet without re-auditing the entire
-frontend or redoing Module 02. Rerun focused history/integration/render tests,
-the full suite, all five products, the release benchmark, PNG checks, lifecycle
-ownership checks, and the opt-in read-only live one-hour/reconnect/24-hour smoke
-when the configured server is reachable. Confirm normal app history has zero
-REST fallback/double append and that approved future cache/prefetch/expansion,
-recorder statistics, Module 09, and Module 12 work did not leak into scope.
+If green, inspect only the bounded cache repair and its combined correction plus
+new-tail oracle; do not re-audit the entire frontend or redo Module 02. Retain
+the already-green transport/live/GUI evidence unless a relevant functional path
+changes. Commit intentionally and mark complete only after no C01-01-through-
+C01-09 discrepancy remains. Future finite backfill/live-tail, prefetch/cache
+expansion, recorder statistics, Module 09, and Module 12 remain out of scope.
 
-Independently re-verify C01-08's consecutive label-specific settlement and
-blank-band regressions plus the bounded C01-04/C01-07 repair above. Inspect the
-15 uniquely named original-resolution PNGs and raw label crops; account for the
-documented in-app preview inconsistency by comparing source bytes/components if
-two identical data URLs appear different. Explicitly confirm numeric replay has
-`1h` and timeline replay has `1h` plus five separated bottom-axis labels. The
-verifier remains read-only with respect to Swift unless the orchestrator starts
-a separate repair task. Mark the module complete only after every replay and
-update capture contains the complete header/range/axis/data surface and all C01
-contracts pass independently.
+### Fresh moving-cutoff cache verification — 2026-07-19
+
+Status remains `verification-ready`. The correction-plus-new-tail safeguard is
+correct and worth retaining, but the current exact-prefix proof rejects the
+normal Home Assistant rolling-window shape. A read-only 99,999-point harness
+used an old synthetic cutoff followed by unchanged history, then a moved
+synthetic cutoff, the unchanged retained history, and one new tail. The second
+render was exact against a cold full oracle, but cache statistics were two full
+preparations and zero incremental preparations. The compared incoming prefix
+includes the changed synthetic boundary, so it cannot equal the cached suffix.
+
+An optimized 99,999-point `HAHistoryPoint` equality scan measured 5.634 ms per
+proof (mean of 100), while the debug harness's rejected second update spent
+380.056 ms in full series preparation. The guard should not be removed: a real
+middle correction or out-of-order insertion is rare on an uninterrupted HA
+recorder stream, but the reference explicitly accepts out-of-order chunks, and
+reconnect/replay or delayed delivery can expose one. Silently omitting it would
+be a correctness failure. The bounded repair is to freshly prepare the one
+moving boundary, prove exact equality for the retained source overlap, reuse
+that overlap, and append the new tail. It must preserve both the common moving-
+cutoff oracle and the adversarial correction-plus-tail full-path oracle.
+
+Staleness remained green and the resolver self-test passed 28 nodes / 59 edges
+with fingerprint
+`07fbefb2ed438ebf93157065e91cb44a5af6bba999b609bd37e37079f5d69684`.
+After the bounded repair, dispatch a fresh verifier for these two cache shapes;
+the frontend, transport, and retained live GUI evidence do not need re-audit.
+
+### Bounded projection-lineage repair — 2026-07-19
+
+Status remains `verification-ready` for the fresh bounded verifier. The sole
+Swift writer replaced the graph layer's duplicate O(n) `HAHistoryPoint`
+equality scan with transient provenance produced by the actor that already
+proved the compact overlap. `HAHistorySeriesCacheLineage` carries predecessor
+revision, old start, new start, and count; it is an additive public cross-target
+type but is deliberately excluded from `HAHistorySeries` Codable data and
+decodes as nil. The graph cache accepts it only when the predecessor revision
+matches and the prior prepared source was one-to-one, numeric, and strictly
+ordered. It freshly prepares prefix/suffix and reuses the indexed overlap.
+
+Full projection, middle correction, standalone series, lineage absence, and
+owner-generation reset carry no lineage and take the full path. Dashboard
+history/detail owners reset their projection store on `.loading`, which occurs
+before initial, refresh, and reconnect replay, preventing cross-generation
+lineage. Codable, correction, absent-lineage, and reset tests pin these rules.
+
+The production-shaped 99,999-point moved cutoff + unchanged overlap + one tail
+matches its cold full oracle exactly, includes the new boundary, and records
+full=1/incremental=1. Graph-only debug timing was 9.846 ms incremental versus
+280.460 ms cold full; release was 0.861 ms versus 110.403 ms. The adversarial
+middle-correction + tail remains exact at full=2/incremental=0. Focused graph
+16/16, history 14/14, and history-performance 6/6 pass. The full suite passes
+83 tests with two intentional live-gated skips and zero failures in 52.775s.
+
+### Event-driven lineage hardening — 2026-07-19
+
+Status remains `verification-ready` for one fresh bounded verifier. The prior
+lineage design was correct but still performed a routine O(n) compact-array
+equality proof in `HAHistoryProjectionStore` on every normal tail. The sole
+Swift writer moved that classification to `HAHistoryStreamAccumulator`, where
+merge/trim already knows whether a publication is initial/reset, unchanged,
+normal append/rolling trim, or an out-of-order reset, and already knows the
+retained old/new indices. The projection and graph layers no longer contain
+`elementsEqual`, retained source-array search, or another full history scan on
+the normal tail path.
+
+A fresh verifier found that retained indices are not necessarily contiguous
+when the existing array is already unsorted and the incoming first timestamp
+is not older than its last timestamp, because reference behavior deliberately
+does not sort that shape. For existing `[10:X, 30:A, 20:B, 40:C]`, cutoff 25,
+and incoming duplicate `[40:C]`, the exact result is
+`[25:B, 30:A, 40:C, 40:C]`. The accumulator now counts retained existing
+indices during the existing cutoff pass and emits overlap only when that count
+equals the suffix length from the first retained index. Otherwise it omits that
+entity's overlap, so projection and graph preparation both take their safe full
+paths. This adds no extra full-window scan.
+
+The typed client overload is additive and the raw callback remains compatible.
+The coordinator attaches owner generation, makes reset dominate unsafe pending
+relative updates, and turns two skipped normal snapshots into a reset. The
+projection store clears/full-projects a newer generation and returns nil for an
+older generation without mutation. Dashboard history/detail callbacks check
+cancellation after the awaited store call and again inside the final MainActor
+hop. Deterministic tests pin every
+transition classification, reconnect reset/generation, coalescing safety,
+stale-generation rejection with no subsequent lineage seed, raw correction full
+fallback, and cancellation suppression.
+
+Final focused results are history 17/17, graph 17/17, history performance 6/6,
+and integration 3/3. Full `swift test` passes 87 tests with two intentional
+live-gated skips and zero failures in 52.858s. The production-shaped 99,999-
+point graph oracle remains exact at full=1/incremental=1; final debug timing is
+10.069 ms versus 274.580 ms cold, and release is 1.523 ms versus 115.503 ms.
+The 100,000-point history projection oracle remains exact at full=1/
+incremental=1; final debug timing is 19.218 ms versus 924.713 ms full, and
+release is 3.542 ms versus 592.864 ms. `git diff --check` is green. The
+regenerated graph is green at 21 nodes / 143 edges with fingerprint
+`7fd7546a2f9b860af39694f3a1449d1d0d8e21bab8609e82b31f7c77dc395675`;
+the resolver self-test passes 28 nodes / 59 edges with fingerprint
+`ab069e007ec7bfe3e9fb3019c9c58563ba9294af47b2ddb4fdc8bce4ef0a1f1a`.
+
+## Final fresh independent verification — 2026-07-19
+
+Verdict: **complete**. A fresh Phase 3 verifier inspected the exact settled
+working-tree diff and found no C01-01-through-C01-09 discrepancy. The green
+dependency graph was reused without reopening the frontend audit, and the
+previous current-tree read-only live transport and final GUI evidence were
+retained because the last proof-only hardening did not alter wire or drawing
+behavior.
+
+The bounded review specifically confirmed:
+
+- the reference-valid unsorted cutoff-gap plus duplicate endpoint omits
+  lineage and takes exact full projection and graph-preparation paths;
+- normal publications use accumulator-produced contiguous-suffix provenance,
+  with no routine `elementsEqual`, retained-source, or `sourcePoints` scan;
+- reset/unchanged/normal/out-of-order transitions and publication coalescing do
+  not reuse indices relative to a skipped snapshot;
+- newer owner generations clear lineage, stale generations return without
+  mutation, and dashboard callbacks check cancellation after projection and
+  inside the final main-actor publication hop;
+- the 100,000-point rolling projection and 99,999-point prepared-series paths
+  exactly match cold full oracles while using one full plus one incremental
+  build; middle corrections, missing lineage, reset generations, and gapped
+  retained input take the full path;
+- the configured URLSession receive bound is applied before resume and accepts
+  a frame above the platform's 1 MiB default, while the hover environment seam
+  changes overlay drawing without removing graph gesture input.
+
+Fresh command evidence:
+
+```text
+check-context: GREEN
+resolver: PASS, 28 nodes / 59 edges,
+  ab069e007ec7bfe3e9fb3019c9c58563ba9294af47b2ddb4fdc8bce4ef0a1f1a
+
+HomeAssistantWebSocket*: 19/19
+HomeAssistantHistoryStreamTests: 17/17
+HomeAssistantHistoryStreamPerformanceTests: 6/6
+HistoryStreamIntegrationTests: 3/3
+GraphRenderingTests: 17/17
+swift test: exit 0; 87 tests, two intentional live-gated skips, zero failures
+
+NativeHAMac, ha-probe, GraphBench, GraphPyramidBench, HistoryStreamBench: built
+release GraphRenderingBenchmarkTests: 2/2
+release 100,000-point projection: exact, 4.079 ms incremental / 537.212 ms full
+release 99,999-point graph preparation: exact, 1.125 ms incremental / 108.199 ms full
+release HistoryStreamBench: exact checksum 8026277772552279935;
+  stable merge 89.480 ms / full stable sort 144.857 ms / 1.62x
+git diff --check: pass
+```
+
+The two expected Module 09 hover/step parity markers remain out of this module's
+scope. `sample.txt` remains untouched. Module 01 is complete and ready for the
+orchestrator's intentional commit; the next rescue workflow action is Module
+04 research.
+
+## Handoff
+
+Module 01 is independently complete at contract revision 2. Preserve the
+recorded current-tree live/GUI evidence and the exact projection/cache oracles.
+Do not reopen this module during Module 04 unless its dependency graph becomes
+yellow/red or a new regression changes a C01 contract surface.
 
 ## Change log
 
@@ -947,3 +1374,44 @@ contracts pass independently.
   deterministic regression coverage, and live in-gesture frame evidence.
   Status remains `verification-ready` for the separate loading/reconnect hold
   and a fresh verifier.
+- 2026-07-19: bounded contract-revision-2 refresh confirmed the 12h failure as
+  URLSession's unconfigured 1 MiB receive limit (4,912,600-byte production
+  replay), recorded the scope and test gaps of `e4eecb2`, `f8f55f0`, and
+  `3cd05d5`, and reopened end-to-end gesture verification before/after 12h.
+- 2026-07-19: configured the typed 32 MiB receive policy, restored the
+  evidence-backed 10-second command timeout, validated strict actual-wire ID
+  ordering and canonical timestamp semantics, and added plot-only capture
+  configurability. After the repaired 12h path exposed a separate settled CPU
+  bottleneck, added exact-overlap projection/prepared-series reuse with full
+  fallback for corrections. The fresh independent release GUI verifier passed
+  1h/12h/recovery health, resource, gesture-progress, and settlement checks;
+  the current-tree full suite, five products, release benchmarks, and live
+  ownership harness passed. Status remains `verification-ready` for the final
+  orchestrator's bounded review/commit decision.
+- 2026-07-19: bounded review found that the prepared-series rolling fast path
+  located the old tail but did not prove the source values before it were
+  unchanged. The same sole writer retained the prior source array and now
+  requires exact old-suffix/new-prefix equality before reusing rendered points.
+  Added a middle-correction-plus-new-tail full-path oracle while retaining the
+  clean rolling incremental oracle; focused and 78-test full suites pass.
+- 2026-07-19: a fresh bounded verifier passed all transport, parser,
+  projection, live ownership, release benchmark, and retained GUI gates, but
+  found that a middle correction/out-of-order insertion combined with a newer
+  tail can bypass exact-overlap proof in `GraphPreparedSeriesCache` and omit the
+  corrected sample. Status remains `verification-ready` for one bounded cache
+  repair and fresh verification of that counterexample.
+- 2026-07-19: the next read-only verifier confirmed the correction safeguard
+  but found the exact proof also rejects HA's normal moved-cutoff plus retained-
+  overlap plus new-tail shape. A 99,999-point oracle remained exact only through
+  a second full preparation; optimized equality proof cost was 5.634 ms. Status
+  remains `verification-ready` for a boundary-aware exact-overlap repair.
+- 2026-07-19: replaced the duplicate graph-layer equality proof with transient
+  predecessor/index lineage emitted by `HAHistoryProjectionStore`; reset
+  lineage on owner loading/reconnect/refresh, kept transient provenance out of
+  Codable output, and added exact moving-boundary, absent-lineage, correction,
+  and generation-reset tests. The 99,999-point release graph update measured
+  0.861 ms versus 110.403 ms cold full; focused and 83-test full suites pass.
+- 2026-07-19: final fresh independent verification passed C01-01 through
+  C01-09. Exact unsorted-gap/full-fallback, generation/cancellation,
+  coalescing, 100k fast-path, receive-bound, hover-policy, focused/full-suite,
+  five-product-build, and release-benchmark gates are green; status `complete`.

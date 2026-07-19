@@ -4,6 +4,7 @@ import Foundation
 enum ScriptedTransportError: Error {
     case injectedFailure
     case exhaustedFactory
+    case nonIncreasingCommandID(previous: Int, next: Int)
 }
 
 actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
@@ -16,18 +17,26 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
     private var receiveCalls = 0
     private var disconnectCalls = 0
     private var failNextSend = false
+    private var lastSentCommandID: Int?
+    private var strictCommandIDViolationCount = 0
 
     let automaticAuthentication: Bool
     let automaticSubscriptionAcknowledgement: Bool
+    let automaticCommandAcknowledgement: Bool
+    let requiresStrictlyIncreasingCommandIDs: Bool
     let version: String
 
     init(
         automaticAuthentication: Bool = false,
         automaticSubscriptionAcknowledgement: Bool = false,
+        automaticCommandAcknowledgement: Bool = false,
+        requiresStrictlyIncreasingCommandIDs: Bool = false,
         version: String = "2025.7.0"
     ) {
         self.automaticAuthentication = automaticAuthentication
         self.automaticSubscriptionAcknowledgement = automaticSubscriptionAcknowledgement
+        self.automaticCommandAcknowledgement = automaticCommandAcknowledgement
+        self.requiresStrictlyIncreasingCommandIDs = requiresStrictlyIncreasingCommandIDs
         self.version = version
     }
 
@@ -48,6 +57,13 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
         }
 
         let object = try decodeObject(frame)
+        if requiresStrictlyIncreasingCommandIDs, let id = object["id"]?.testInt {
+            if let previous = lastSentCommandID, id <= previous {
+                strictCommandIDViolationCount += 1
+                throw ScriptedTransportError.nonIncreasingCommandID(previous: previous, next: id)
+            }
+            lastSentCommandID = id
+        }
         sent.append(object)
 
         if automaticAuthentication, object["type"] == .string("auth") {
@@ -67,6 +83,19 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
                 "type": .string("result"),
                 "success": .bool(true),
                 "result": .null,
+            ])))
+        }
+
+        if automaticCommandAcknowledgement,
+           let id = object["id"]?.testInt,
+           !["subscribe_events", "history/stream", "weather/subscribe_forecast", "unsubscribe_events"]
+               .contains(object["type"]?.testString ?? "")
+        {
+            deliver(.success(try self.frame(for: [
+                "id": .int(id),
+                "type": .string("result"),
+                "success": .bool(true),
+                "result": .int(id),
             ])))
         }
     }
@@ -128,6 +157,10 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
 
     func metrics() -> (receiveCalls: Int, maximumConcurrentReceives: Int, activeReceives: Int, disconnectCalls: Int) {
         (receiveCalls, maximumConcurrentReceives, activeReceives, disconnectCalls)
+    }
+
+    func commandIDMetrics() -> (lastSent: Int?, violationCount: Int) {
+        (lastSentCommandID, strictCommandIDViolationCount)
     }
 
     private func deliver(_ result: Result<HAWebSocketFrame, Error>) {

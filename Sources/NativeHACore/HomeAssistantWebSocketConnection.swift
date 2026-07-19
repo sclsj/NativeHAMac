@@ -126,6 +126,7 @@ public actor HomeAssistantWebSocketConnection {
         configuration: HomeAssistantConfiguration,
         session: URLSession = .shared,
         commandTimeout: TimeInterval? = nil,
+        receivePolicy: HomeAssistantWebSocketReceivePolicy = .platformDefault,
         deliveryCapacity: Int = 256,
         maximumConcurrentCallbackTasks: Int = 4
     ) {
@@ -141,7 +142,11 @@ public actor HomeAssistantWebSocketConnection {
         }
         transportFactory = {
             let url = try Self.webSocketURL(from: configuration.baseURL)
-            return URLSessionHomeAssistantWebSocketTransport(url: url, session: session)
+            return URLSessionHomeAssistantWebSocketTransport(
+                url: url,
+                session: session,
+                receivePolicy: receivePolicy
+            )
         }
     }
 

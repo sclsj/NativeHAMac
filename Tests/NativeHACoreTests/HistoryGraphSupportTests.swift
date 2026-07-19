@@ -53,6 +53,84 @@ final class HistoryGraphSupportTests: XCTestCase {
         XCTAssertEqual(timestamp, expected.timeIntervalSince1970)
     }
 
+    func testTimestampParserMatchesFoundationForUTCOffsetsAndFractionalSeconds() throws {
+        let values = [
+            "2026-01-01T00:00:10Z",
+            "2026-01-01T00:00:10.125Z",
+            "2026-01-01T08:00:10+08:00",
+            "2025-12-31T18:30:10-05:30",
+            "2026-01-01T08:00:10.125+08:00",
+        ]
+        let normal = ISO8601DateFormatter()
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let parser = HAHistoryTimestampParser()
+
+        for value in values {
+            let expected = try XCTUnwrap(fractional.date(from: value) ?? normal.date(from: value), value)
+            let point = HAHistoryPoint(
+                entityId: "sensor.timestamp",
+                state: "1",
+                attributes: nil,
+                lastChanged: value,
+                lastUpdated: nil
+            )
+            XCTAssertEqual(
+                try XCTUnwrap(parser.timestamp(from: point), value),
+                expected.timeIntervalSince1970,
+                accuracy: 0.000_001,
+                value
+            )
+        }
+    }
+
+    func testTimestampParserRejectsMalformedCanonicalFieldsAndTrailingInput() {
+        let malformed = [
+            "2026-13-01T00:00:10Z",
+            "2026-02-30T00:00:10Z",
+            "2026-01-01T24:00:10Z",
+            "2026-01-01T00:60:10Z",
+            "2026-01-01T00:00:60Z",
+            "2026-01-01T00:00:10.Z",
+            "2026-01-01T00:00:10Ztrailing",
+            "2026-01-01T00:00:10+08:60",
+        ]
+        let parser = HAHistoryTimestampParser()
+
+        for value in malformed {
+            let point = HAHistoryPoint(
+                entityId: "sensor.timestamp",
+                state: "1",
+                attributes: nil,
+                lastChanged: value,
+                lastUpdated: nil
+            )
+            XCTAssertNil(parser.timestamp(from: point), value)
+        }
+    }
+
+    func testTimestampParserCanonicalFastPathPerformance() {
+        let parser = HAHistoryTimestampParser()
+        let points = (0..<20_000).map { index in
+            HAHistoryPoint(
+                entityId: "sensor.timestamp",
+                state: "1",
+                attributes: nil,
+                lastChanged: String(format: "2026-01-01T00:%02d:%02d.%03dZ", (index / 60) % 60, index % 60, index % 1_000),
+                lastUpdated: nil
+            )
+        }
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3
+        measure(metrics: [XCTClockMetric(), XCTCPUMetric(), XCTMemoryMetric()], options: options) {
+            var checksum = 0.0
+            for point in points {
+                checksum += parser.timestamp(from: point) ?? 0
+            }
+            XCTAssertGreaterThan(checksum, 0)
+        }
+    }
+
     func testUnknownAndUnavailableRemainSegmentsWithDistinctColors() {
         let segments = HAHistoryTimelineBuilder.segments(
             from: [

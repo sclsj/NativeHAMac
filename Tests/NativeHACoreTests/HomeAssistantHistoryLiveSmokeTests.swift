@@ -3,7 +3,7 @@ import XCTest
 @testable import NativeHACore
 
 final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
-    func testReadOnlyOneHourTwentyFourHourAndReconnectSmoke() async throws {
+    func testReadOnlyOneHourTwelveHourTwentyFourHourAndReconnectSmoke() async throws {
         guard ProcessInfo.processInfo.environment["NATIVEHA_RUN_LIVE_HISTORY_SMOKE"] == "1" else {
             throw XCTSkip("Set NATIVEHA_RUN_LIVE_HISTORY_SMOKE=1 for the authorized read-only live smoke")
         }
@@ -23,7 +23,10 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         )
         let client = HomeAssistantWebSocketClient(
             configuration: configuration,
-            commandTimeout: 15,
+            commandTimeout: 10,
+            receivePolicy: HomeAssistantWebSocketReceivePolicy(
+                maximumMessageBytes: 32 * 1_024 * 1_024
+            ),
             subscriptionDeliveryCapacity: 256,
             maximumConcurrentCallbackTasks: 4
         )
@@ -37,6 +40,11 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         )
         XCTAssertFalse(requested.isEmpty)
         let stateMap = Dictionary(uniqueKeysWithValues: currentStates.map { ($0.entityId, $0) })
+        let co2VOCEntities = try XCTUnwrap(
+            historyEntityIDs(in: lovelace, cardTitle: "CO2/VOC"),
+            "The live dashboard must retain the exact card that reproduced the oversized replay"
+        )
+        XCTAssertFalse(co2VOCEntities.isEmpty)
 
         let oneHour = LiveHistoryLog()
         let oneHourStart = ProcessInfo.processInfo.systemUptime
@@ -76,6 +84,43 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         await reconnectOwner.cancel()
         try await requireZeroHistoryOwnership(client.connection)
 
+        let connectionLog = LiveConnectionLog()
+        let connectionStates = await client.connection.statusUpdates()
+        let connectionLogTask = Task {
+            for await state in connectionStates {
+                await connectionLog.append(state)
+            }
+        }
+        defer { connectionLogTask.cancel() }
+
+        var exactWindowSnapshots: [(hours: Int, snapshot: LiveHistorySnapshot, elapsed: TimeInterval)] = []
+        for hours in [1, 12, 1] {
+            let log = LiveHistoryLog()
+            let start = ProcessInfo.processInfo.systemUptime
+            let owner = try await client.subscribeHistoryStatesTimeWindow(
+                entityIDs: co2VOCEntities,
+                hoursToShow: hours,
+                currentStates: stateMap,
+                onStatus: { await log.append(status: $0) },
+                onHistory: { await log.append(history: $0) }
+            )
+            try await liveWait(timeout: hours == 12 ? 60 : 20) { await log.callbackCount > 0 }
+            let snapshot = await log.snapshot()
+            exactWindowSnapshots.append((
+                hours: hours,
+                snapshot: snapshot,
+                elapsed: ProcessInfo.processInfo.systemUptime - start
+            ))
+            XCTAssertGreaterThan(snapshot.pointCount, 0, "CO2/VOC \(hours)h replay was empty")
+            XCTAssertEqual(snapshot.errorCount, 0, "CO2/VOC \(hours)h owner reported an error")
+            await owner.cancel()
+            try await requireZeroHistoryOwnership(client.connection)
+        }
+        let reconnectingCount = await connectionLog.reconnectingCount
+        let nonReadyCount = await connectionLog.nonReadyCount
+        XCTAssertEqual(reconnectingCount, 0)
+        XCTAssertEqual(nonReadyCount, 0)
+
         let twentyFourHour = LiveHistoryLog()
         let twentyFourStart = ProcessInfo.processInfo.systemUptime
         let twentyFourOwner = try await client.subscribeHistoryStatesTimeWindow(
@@ -96,6 +141,9 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         print("LIVE_HISTORY no_attributes=\(HAHistoryAttributePolicy.noAttributes(entityIDs: requested, currentStates: stateMap))")
         print("LIVE_HISTORY 1h callbacks=\(oneHourSnapshot.callbackCount) points=\(oneHourSnapshot.pointCount) attributes=\(oneHourSnapshot.attributePointCount) fractional=\(oneHourSnapshot.fractionalTimestampCount) elapsed=\(String(format: "%.3f", oneHourElapsed))s")
         print("LIVE_HISTORY reconnect callbacks=\(reconnectSnapshot.callbackCount) loading=\(reconnectSnapshot.loadingCount) points=\(reconnectSnapshot.pointCount)")
+        for result in exactWindowSnapshots {
+            print("LIVE_HISTORY CO2_VOC \(result.hours)h callbacks=\(result.snapshot.callbackCount) points=\(result.snapshot.pointCount) elapsed=\(String(format: "%.3f", result.elapsed))s")
+        }
         print("LIVE_HISTORY 24h callbacks=\(twentyFourSnapshot.callbackCount) points=\(twentyFourSnapshot.pointCount) attributes=\(twentyFourSnapshot.attributePointCount) fractional=\(twentyFourSnapshot.fractionalTimestampCount) elapsed=\(String(format: "%.3f", twentyFourElapsed))s")
 
         await client.disconnect()
@@ -152,6 +200,30 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         return historyEntities.filter { seen.insert($0).inserted }.prefix(3).map { $0 }
     }
 
+    private func historyEntityIDs(
+        in config: LovelaceConfig,
+        cardTitle: String
+    ) -> [String]? {
+        func find(in cards: [LovelaceCard]) -> [String]? {
+            for card in cards {
+                if card.type == "history-graph", card.title == cardTitle {
+                    return card.entities?.compactMap(\.entity) ?? []
+                }
+                if let nested = card.cards, let result = find(in: nested) {
+                    return result
+                }
+            }
+            return nil
+        }
+
+        for view in config.views {
+            if let result = find(in: view.cards) {
+                return result
+            }
+        }
+        return nil
+    }
+
     private func requireZeroHistoryOwnership(
         _ connection: HomeAssistantWebSocketConnection
     ) async throws {
@@ -173,6 +245,12 @@ private actor LiveHistoryLog {
 
     var callbackCount: Int { histories.count }
     var loadingCount: Int { statuses.filter { $0 == .loading }.count }
+    var errorCount: Int {
+        statuses.filter {
+            if case .error = $0 { return true }
+            return false
+        }.count
+    }
 
     func append(history: [String: [HACompactHistoryState]]) {
         histories.append(history)
@@ -189,6 +267,7 @@ private actor LiveHistoryLog {
             history: history,
             callbackCount: histories.count,
             loadingCount: loadingCount,
+            errorCount: errorCount,
             pointCount: points.count,
             attributePointCount: points.filter { !$0.attributes.isEmpty }.count,
             fractionalTimestampCount: points.filter {
@@ -202,9 +281,29 @@ private struct LiveHistorySnapshot {
     let history: [String: [HACompactHistoryState]]
     let callbackCount: Int
     let loadingCount: Int
+    let errorCount: Int
     let pointCount: Int
     let attributePointCount: Int
     let fractionalTimestampCount: Int
+}
+
+private actor LiveConnectionLog {
+    private var states: [HAWebSocketConnectionState] = []
+
+    var reconnectingCount: Int {
+        states.filter {
+            if case .reconnecting = $0 { return true }
+            return false
+        }.count
+    }
+
+    var nonReadyCount: Int {
+        states.filter { $0 != .ready }.count
+    }
+
+    func append(_ state: HAWebSocketConnectionState) {
+        states.append(state)
+    }
 }
 
 private enum LiveHistoryWaitError: Error { case timedOut }

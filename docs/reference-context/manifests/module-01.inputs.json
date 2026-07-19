@@ -5,7 +5,7 @@
   "nativeEntries": [
     {
       "path": "Sources/NativeHACore/Models.swift",
-      "symbols": ["HAHistorySeries", "HAHistoryPoint", "LovelaceCard"]
+      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage", "HAHistoryPoint", "LovelaceCard"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
@@ -17,11 +17,15 @@
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
-      "symbols": ["HACompactHistoryState", "HAHistoryStreamAccumulator", "HAHistoryProjection", "HAHistoryStreamCoordinator"]
+      "symbols": ["HACompactHistoryState", "HAHistoryStreamAccumulator", "HAHistoryProjection", "HAHistoryProjectionStore", "HAHistoryStreamCoordinator"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
       "symbols": ["subscribeRaw", "subscribeMessage", "statusUpdates"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
+      "symbols": ["URLSessionHomeAssistantWebSocketTransport", "URLSessionWebSocketTaskAdapter"]
     },
     {
       "path": "Sources/NativeHACore/HistoryGraphSupport.swift",
@@ -62,6 +66,14 @@
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
       "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
+      "symbols": ["HomeAssistantWebSocketConnectionTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/URLSessionHomeAssistantWebSocketTransportTests.swift",
+      "symbols": ["URLSessionHomeAssistantWebSocketTransportTests"]
     },
     {
       "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",

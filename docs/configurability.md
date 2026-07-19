@@ -89,11 +89,18 @@ trackpad-first use.
 
 Configure zoom/sample limits, minimum visible duration, pan sensitivity,
 activation thresholds, live-edge thresholds, beyond-default-range behavior,
-and optional per-graph overrides. Normalize and document how time- and
-sample-based limits interact.
+optional per-graph overrides, and whether the floating hover/crosshair sample
+overlay is shown. Normalize and document how time- and sample-based limits
+interact. Hiding hover diagnostics must not disable scroll, zoom, or pan input.
 
 **Implementation note:** One zoom value is in `AppConfig.swift`, while other
-limits and thresholds remain distributed literals.
+limits and thresholds remain distributed literals. A typed
+`GraphInteractionPolicy` now keeps the hover overlay enabled by default. For
+repeatable visual/gesture capture without changing code, launch with
+`NATIVEHA_GRAPH_HOVER_OVERLAY=0` (also accepts `false`, `no`, or `off`);
+`1`, `true`, `yes`, and `on` explicitly enable it. Unknown values preserve the
+normal enabled default. This setting gates only overlay drawing; the gesture
+overlay and its zoom/pan callbacks remain installed.
 
 ### 5. History and prepared-series memory cache
 
@@ -139,22 +146,28 @@ is not implemented.
 **Intent:** Keep the transport responsive and memory-bounded without making
 protocol correctness optional.
 
-Configure command timeout, per-subscription buffered-delivery capacity, and the
-connection-wide maximum number of concurrently executing subscriber callbacks
-as one typed WebSocket policy. Timeout must remove pending command ownership
-exactly once. Capacity overflow must terminate only the slow subscription; it
-must not block the socket receiver, reorder another subscription, or create an
-unbounded task backlog. Cancellation is requested for in-flight callbacks, but
-arbitrary non-cooperative async callbacks cannot be forcibly stopped; they stay
-explicitly owned and counted against the connection-wide callback limit until
-they return.
+Configure command timeout, the maximum accepted incoming WebSocket message,
+per-subscription buffered-delivery capacity, and the connection-wide maximum
+number of concurrently executing subscriber callbacks as one typed WebSocket
+policy. Timeout must remove pending command ownership exactly once. The receive
+limit is a per-message upper bound, not eager allocation, and must be applied to
+the concrete URLSession task before it resumes. Capacity overflow must terminate
+only the slow subscription; it must not block the socket receiver, reorder
+another subscription, or create an unbounded task backlog. Cancellation is
+requested for in-flight callbacks, but arbitrary non-cooperative async callbacks
+cannot be forcibly stopped; they stay explicitly owned and counted against the
+connection-wide callback limit until they return.
 
 **Implementation note:** Module 02 defines `WebSocketPolicy` in
 `AppConfig.swift` with a 10-second command timeout and a 256-event buffered
-capacity. At most four subscriber callbacks execute concurrently, which bounds
-retained in-flight callback work even during repeated subscription churn.
-Reconnect timing remains internal reference-parity behavior rather than a
-selected product configuration surface.
+capacity. Module 01 adds a typed 32 MiB (`33_554_432` byte) receive policy.
+That bound covers the measured 24-hour four-series SPS30 response of
+26,490,281 bytes and the exact 12-hour CO2/VOC stream replay of 4,912,600
+bytes, while remaining finite; URLSession's 1 MiB default rejected the latter
+and tore down the shared connection. At most four subscriber callbacks execute
+concurrently, which bounds retained in-flight callback work even during
+repeated subscription churn. Reconnect timing remains internal reference-parity
+behavior rather than a selected product configuration surface.
 
 ## Not selected
 

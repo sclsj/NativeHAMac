@@ -456,6 +456,7 @@ final class DashboardViewModel: ObservableObject {
             let webSocket = HomeAssistantWebSocketClient(
                 configuration: connection.configuration,
                 commandTimeout: AppConfig.webSocketPolicy.commandTimeout,
+                receivePolicy: AppConfig.webSocketPolicy.receivePolicy,
                 subscriptionDeliveryCapacity: AppConfig.webSocketPolicy.subscriptionDeliveryCapacity,
                 maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
             )
@@ -567,6 +568,10 @@ final class DashboardViewModel: ObservableObject {
         historyStatuses[key] = .loading
         let weakModel = WeakDashboardViewModelBox(self)
         let processingHook = historyProcessingHook
+        let projectionStore = HAHistoryProjectionStore(
+            orderedEntityIDs: request.entityIDs,
+            currentStates: stateSnapshot
+        )
 
         do {
             let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
@@ -580,15 +585,13 @@ final class DashboardViewModel: ObservableObject {
                         weakModel.value?.historyStatuses[key] = status
                     }
                 },
-                onHistory: { history in
+                onPublication: { publication in
                     await processingHook()
                     guard !Task.isCancelled else { return }
-                    let projected = HAHistoryProjection.series(
-                        from: history,
-                        orderedEntityIDs: request.entityIDs,
-                        currentStates: stateSnapshot
-                    )
+                    guard let projected = await projectionStore.series(from: publication) else { return }
+                    guard !Task.isCancelled else { return }
                     await MainActor.run {
+                        guard !Task.isCancelled else { return }
                         guard weakModel.value?.historyGenerations[key] == generation else { return }
                         weakModel.value?.histories[key] = projected
                     }
@@ -634,6 +637,10 @@ final class DashboardViewModel: ObservableObject {
         detailHistoryStatuses[key] = .loading
         let weakModel = WeakDashboardViewModelBox(self)
         let processingHook = historyProcessingHook
+        let projectionStore = HAHistoryProjectionStore(
+            orderedEntityIDs: [entityID],
+            currentStates: stateSnapshot
+        )
         do {
             let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
                 entityIDs: [entityID],
@@ -646,15 +653,13 @@ final class DashboardViewModel: ObservableObject {
                         weakModel.value?.detailHistoryStatuses[key] = status
                     }
                 },
-                onHistory: { history in
+                onPublication: { publication in
                     await processingHook()
                     guard !Task.isCancelled else { return }
-                    let projection = HAHistoryProjection.series(
-                        from: history,
-                        orderedEntityIDs: [entityID],
-                        currentStates: stateSnapshot
-                    ).first
+                    guard let projection = await projectionStore.series(from: publication)?.first else { return }
+                    guard !Task.isCancelled else { return }
                     await MainActor.run {
+                        guard !Task.isCancelled else { return }
                         guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
                         weakModel.value?.detailHistories[key] = projection
                     }

@@ -7,6 +7,7 @@ public final class HomeAssistantWebSocketClient {
         configuration: HomeAssistantConfiguration,
         session: URLSession = .shared,
         commandTimeout: TimeInterval? = nil,
+        receivePolicy: HomeAssistantWebSocketReceivePolicy = .platformDefault,
         subscriptionDeliveryCapacity: Int = 256,
         maximumConcurrentCallbackTasks: Int = 4
     ) {
@@ -14,6 +15,7 @@ public final class HomeAssistantWebSocketClient {
             configuration: configuration,
             session: session,
             commandTimeout: commandTimeout,
+            receivePolicy: receivePolicy,
             deliveryCapacity: subscriptionDeliveryCapacity,
             maximumConcurrentCallbackTasks: maximumConcurrentCallbackTasks
         )
@@ -59,13 +61,33 @@ public final class HomeAssistantWebSocketClient {
         onStatus: @escaping @Sendable (HAHistoryStreamOwnerStatus) async -> Void = { _ in },
         onHistory: @escaping @Sendable ([String: [HACompactHistoryState]]) async -> Void
     ) async throws -> HAHistoryStreamSubscription {
+        try await subscribeHistoryStatesTimeWindow(
+            entityIDs: entityIDs,
+            hoursToShow: hoursToShow,
+            currentStates: currentStates,
+            now: now,
+            onStatus: onStatus,
+            onPublication: { publication in
+                await onHistory(publication.history)
+            }
+        )
+    }
+
+    public func subscribeHistoryStatesTimeWindow(
+        entityIDs: [String],
+        hoursToShow: Int,
+        currentStates: [String: HAState],
+        now: @escaping @Sendable () -> Date = { Date() },
+        onStatus: @escaping @Sendable (HAHistoryStreamOwnerStatus) async -> Void = { _ in },
+        onPublication: @escaping @Sendable (HAHistoryStreamPublication) async -> Void
+    ) async throws -> HAHistoryStreamSubscription {
         let coordinator = HAHistoryStreamCoordinator(
             connection: connection,
             entityIDs: entityIDs,
             range: TimeInterval(max(hoursToShow, 1) * 60 * 60),
             currentStates: currentStates,
             now: now,
-            onUpdate: onHistory,
+            onUpdate: onPublication,
             onStatus: onStatus
         )
         try await coordinator.start()

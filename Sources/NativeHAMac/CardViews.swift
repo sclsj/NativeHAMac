@@ -410,6 +410,7 @@ struct BitmapLineChart: View {
     let inputs: [GraphRenderSeriesInput]
     let zoomScale: CGFloat
     let panFraction: Double
+    let showsHoverOverlay: Bool
     @Binding var hoverLocation: CGPoint?
     let onMagnify: (CGFloat, Double, CGFloat) -> Void
     let onPan: (CGFloat) -> Void
@@ -430,6 +431,7 @@ struct BitmapLineChart: View {
         inputs: [GraphRenderSeriesInput],
         zoomScale: CGFloat,
         panFraction: Double,
+        showsHoverOverlay: Bool = AppConfig.graphInteractionPolicy.hoverOverlayEnabled(),
         hoverLocation: Binding<CGPoint?>,
         onMagnify: @escaping (CGFloat, Double, CGFloat) -> Void,
         onPan: @escaping (CGFloat) -> Void,
@@ -439,6 +441,7 @@ struct BitmapLineChart: View {
         self.inputs = inputs
         self.zoomScale = zoomScale
         self.panFraction = panFraction
+        self.showsHoverOverlay = showsHoverOverlay
         _hoverLocation = hoverLocation
         self.onMagnify = onMagnify
         self.onPan = onPan
@@ -466,7 +469,10 @@ struct BitmapLineChart: View {
 
                     axisOverlay(rendered: rendered)
 
-                    if let hoverLocation = hoverLocation, let sample = rendered.sample(atX: hoverLocation.x) {
+                    if showsHoverOverlay,
+                       let hoverLocation = hoverLocation,
+                       let sample = rendered.sample(atX: hoverLocation.x)
+                    {
                         hoverOverlay(sample: sample, rendered: rendered, size: size)
                     }
                 } else if isRendering || !renderAttempted {

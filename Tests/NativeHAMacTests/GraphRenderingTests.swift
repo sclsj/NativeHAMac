@@ -172,6 +172,7 @@ final class GraphRenderingTests: XCTestCase {
     }
 
     func testSameShapeContentReplacementInvalidatesPreparedSeries() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
         let first = GraphRenderSeriesInput(
             entityID: "sensor.same_shape",
             name: "Same shape",
@@ -198,6 +199,368 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertEqual(initial.series.first?.points.map(\.y), [10, 20, 30])
         XCTAssertEqual(updated.series.first?.points.map(\.y), [10, 99, 30])
         XCTAssertNotEqual(first.history.contentRevision, replacement.history.contentRevision)
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testEqualCountRollingTailUsesIncrementalPreparedSeriesPath() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let firstHistory = history(
+            entityID: "sensor.rolling",
+            samples: [(0, "10"), (100, "20"), (200, "30"), (300, "40")]
+        )
+        let first = GraphRenderSeriesInput(
+            entityID: "sensor.rolling",
+            name: "Rolling",
+            unit: "°C",
+            color: graphBlue,
+            history: firstHistory
+        )
+        let rollingPoints = history(
+            entityID: "sensor.rolling",
+            samples: [(100, "20"), (200, "30"), (300, "40"), (400, "50")]
+        ).points
+        let rolling = GraphRenderSeriesInput(
+            entityID: "sensor.rolling",
+            name: "Rolling",
+            unit: "°C",
+            color: graphBlue,
+            history: HAHistorySeries(
+                entityID: "sensor.rolling",
+                points: rollingPoints,
+                contentRevision: firstHistory.contentRevision &+ 1,
+                cacheLineage: HAHistorySeriesCacheLineage(
+                    predecessorRevision: firstHistory.contentRevision,
+                    oldStart: 1,
+                    newStart: 0,
+                    count: 3
+                )
+            )
+        )
+
+        _ = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [first], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+        let updated = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [rolling], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+
+        XCTAssertEqual(updated.series.first?.points.map(\.y), [20, 30, 40, 50])
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 1,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testRollingTailWithMiddleCorrectionFallsBackToFullPreparation() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let first = GraphRenderSeriesInput(
+            entityID: "sensor.corrected_rolling",
+            name: "Corrected rolling",
+            unit: "°C",
+            color: graphBlue,
+            history: history(
+                entityID: "sensor.corrected_rolling",
+                samples: [(0, "10"), (100, "20"), (200, "30"), (300, "40")]
+            )
+        )
+        let correctedRolling = GraphRenderSeriesInput(
+            entityID: "sensor.corrected_rolling",
+            name: "Corrected rolling",
+            unit: "°C",
+            color: graphBlue,
+            history: history(
+                entityID: "sensor.corrected_rolling",
+                samples: [(100, "20"), (200, "99"), (300, "40"), (400, "50")]
+            )
+        )
+
+        _ = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [first], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+        let updated = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [correctedRolling], unit: "°C", size: CGSize(width: 320, height: 160), scale: 1,
+            zoomScale: 1, panFraction: 1
+        ))
+
+        XCTAssertEqual(updated.series.first?.points.map(\.y), [20, 99, 40, 50])
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testRollingTailWithoutProjectionLineageFallsBackToFullPreparation() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let first = GraphRenderSeriesInput(
+            entityID: "sensor.no_lineage",
+            name: "No lineage",
+            unit: "°C",
+            color: graphBlue,
+            history: history(
+                entityID: "sensor.no_lineage",
+                samples: [(0, "10"), (100, "20"), (200, "30"), (300, "40")]
+            )
+        )
+        let rolling = GraphRenderSeriesInput(
+            entityID: "sensor.no_lineage",
+            name: "No lineage",
+            unit: "°C",
+            color: graphBlue,
+            history: history(
+                entityID: "sensor.no_lineage",
+                samples: [(100, "20"), (200, "30"), (300, "40"), (400, "50")]
+            )
+        )
+
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(first, displayUnit: "°C"))
+        let updated = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(rolling, displayUnit: "°C")
+        )
+
+        XCTAssertEqual(updated.points.map(\.y), [20, 30, 40, 50])
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testMovingSyntheticBoundaryReusesProjectionLineageAndKeepsNewBoundary() async throws {
+        let entityID = "sensor.moving_boundary"
+        let initial = [
+            compactGraphState("10", offset: 0),
+            compactGraphState("20", offset: 100),
+            compactGraphState("30", offset: 200),
+            compactGraphState("40", offset: 300),
+        ]
+        var accumulator = HAHistoryStreamAccumulator(
+            range: 250,
+            now: { Date(timeIntervalSince1970: baseTimestamp + 400) }
+        )
+        let initialAccumulation = accumulator.processPublication(
+            HAHistoryStreamMessage(states: [entityID: initial])
+        )
+        let rollingAccumulation = accumulator.processPublication(
+            HAHistoryStreamMessage(states: [
+                entityID: [compactGraphState("50", offset: 400)],
+            ])
+        )
+        let projectionStore = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
+        let firstProjection = await projectionStore.series(from: HAHistoryStreamPublication(
+            history: initialAccumulation.history,
+            transition: initialAccumulation.transition,
+            ownerGeneration: 1
+        ))
+        let firstSeries = try XCTUnwrap(firstProjection?.first)
+        let movedProjection = await projectionStore.series(from: HAHistoryStreamPublication(
+            history: rollingAccumulation.history,
+            transition: rollingAccumulation.transition,
+            ownerGeneration: 1
+        ))
+        let movedSeries = try XCTUnwrap(movedProjection?.first)
+        let first = graphInput(entityID: entityID, series: firstSeries)
+        let movedBoundary = graphInput(entityID: entityID, series: movedSeries)
+
+        XCTAssertEqual(
+            movedSeries.cacheLineage,
+            HAHistorySeriesCacheLineage(
+                predecessorRevision: firstSeries.contentRevision,
+                oldStart: 2,
+                newStart: 1,
+                count: 2
+            )
+        )
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(first, displayUnit: "°C"))
+        let incremental = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(movedBoundary, displayUnit: "°C")
+        )
+        let incrementalStats = GraphBitmapRenderer.preparedSeriesCacheStatistics()
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let coldOracle = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(movedBoundary, displayUnit: "°C")
+        )
+
+        XCTAssertEqual(incremental.points, coldOracle.points)
+        XCTAssertEqual(incremental.points.map(\.y), [20, 30, 40, 50])
+        XCTAssertEqual(try XCTUnwrap(incremental.points.first?.t), baseTimestamp + 150, accuracy: 0.001)
+        XCTAssertEqual(
+            incrementalStats,
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 1,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testUnsortedCutoffGapFallsBackToExactFullGraphPreparation() async throws {
+        let entityID = "sensor.unsorted_cutoff"
+        var accumulator = HAHistoryStreamAccumulator(
+            range: 15,
+            now: { Date(timeIntervalSince1970: baseTimestamp + 40) }
+        )
+        let initial = accumulator.processPublication(HAHistoryStreamMessage(states: [
+            entityID: [
+                compactGraphState("10", offset: 10),
+                compactGraphState("30", offset: 30),
+                compactGraphState("20", offset: 20),
+                compactGraphState("40", offset: 40),
+            ],
+        ]))
+        let update = accumulator.processPublication(HAHistoryStreamMessage(states: [
+            entityID: [compactGraphState("40", offset: 40)],
+        ]))
+        let store = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
+        let initialProjection = await store.series(from: HAHistoryStreamPublication(
+            history: initial.history,
+            transition: initial.transition,
+            ownerGeneration: 1
+        ))
+        let initialSeries = try XCTUnwrap(initialProjection?.first)
+        let updatedProjection = await store.series(from: HAHistoryStreamPublication(
+            history: update.history,
+            transition: update.transition,
+            ownerGeneration: 1
+        ))
+        let updatedSeries = try XCTUnwrap(updatedProjection?.first)
+        XCTAssertNil(updatedSeries.cacheLineage)
+        let projectionStatistics = await store.statistics()
+        XCTAssertEqual(
+            projectionStatistics,
+            HAHistoryProjectionStoreStatistics(
+                fullEntityProjectionCount: 2,
+                incrementalEntityProjectionCount: 0,
+                reusedEntityProjectionCount: 0
+            )
+        )
+
+        let initialInput = graphInput(entityID: entityID, series: initialSeries)
+        let updatedInput = graphInput(entityID: entityID, series: updatedSeries)
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(initialInput, displayUnit: "µg/m³")
+        )
+        let prepared = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(updatedInput, displayUnit: "µg/m³")
+        )
+        let preparedStats = GraphBitmapRenderer.preparedSeriesCacheStatistics()
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let oracle = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(updatedInput, displayUnit: "µg/m³")
+        )
+        XCTAssertEqual(prepared.points, oracle.points)
+        XCTAssertEqual(prepared.points.map(\.y), [20, 30, 40, 40])
+        XCTAssertEqual(
+            preparedStats,
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0
+            )
+        )
+    }
+
+    func testHundredThousandPointMovingBoundaryMatchesColdOracleIncrementally() async throws {
+        let entityID = "sensor.large_moving_boundary"
+        let initial = (0..<99_999).map { offset in
+            compactGraphState(
+                String(offset % 100),
+                offset: offset,
+                syntheticBoundary: offset == 0
+            )
+        }
+        var accumulator = HAHistoryStreamAccumulator(
+            range: 99_997.5,
+            now: { Date(timeIntervalSince1970: baseTimestamp + 99_999) }
+        )
+        let initialAccumulation = accumulator.processPublication(
+            HAHistoryStreamMessage(states: [entityID: initial])
+        )
+        let rollingAccumulation = accumulator.processPublication(
+            HAHistoryStreamMessage(states: [
+                entityID: [compactGraphState("99", offset: 99_999)],
+            ])
+        )
+        let rolling = try XCTUnwrap(rollingAccumulation.history[entityID])
+        let projectionStore = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
+        let firstProjection = await projectionStore.series(from: HAHistoryStreamPublication(
+            history: initialAccumulation.history,
+            transition: initialAccumulation.transition,
+            ownerGeneration: 1
+        ))
+        let firstSeries = try XCTUnwrap(firstProjection?.first)
+        let movedProjection = await projectionStore.series(from: HAHistoryStreamPublication(
+            history: rollingAccumulation.history,
+            transition: rollingAccumulation.transition,
+            ownerGeneration: 1
+        ))
+        let movedSeries = try XCTUnwrap(movedProjection?.first)
+        let first = graphInput(entityID: entityID, series: firstSeries)
+        let movedBoundary = graphInput(entityID: entityID, series: movedSeries)
+
+        XCTAssertEqual(movedSeries.cacheLineage?.predecessorRevision, firstSeries.contentRevision)
+        XCTAssertEqual(movedSeries.cacheLineage?.oldStart, 2)
+        XCTAssertEqual(movedSeries.cacheLineage?.newStart, 1)
+        XCTAssertEqual(movedSeries.cacheLineage?.count, 99_997)
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(first, displayUnit: "µg/m³"))
+        let incrementalStart = DispatchTime.now().uptimeNanoseconds
+        let incremental = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(movedBoundary, displayUnit: "µg/m³")
+        )
+        let incrementalNanoseconds = DispatchTime.now().uptimeNanoseconds - incrementalStart
+        let incrementalStats = GraphBitmapRenderer.preparedSeriesCacheStatistics()
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let fullStart = DispatchTime.now().uptimeNanoseconds
+        let coldOracle = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(movedBoundary, displayUnit: "µg/m³")
+        )
+        let fullNanoseconds = DispatchTime.now().uptimeNanoseconds - fullStart
+
+        XCTAssertEqual(incremental.points, coldOracle.points)
+        XCTAssertEqual(incremental.points.count, rolling.count)
+        XCTAssertEqual(try XCTUnwrap(incremental.points.first?.t), baseTimestamp + 1.5, accuracy: 0.001)
+        XCTAssertEqual(incremental.points.first?.y, 1)
+        XCTAssertEqual(
+            incrementalStats,
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 1,
+                cacheHitCount: 0
+            )
+        )
+        print(
+            "GRAPH_MOVING_BOUNDARY points=\(rolling.count) " +
+            "incremental_ms=\(Double(incrementalNanoseconds) / 1_000_000) " +
+            "full_oracle_ms=\(Double(fullNanoseconds) / 1_000_000)"
+        )
     }
 
     func testViewportRenderSchedulerPublishesDuringEightMillisecondTokenStorm() {
@@ -351,6 +714,29 @@ final class GraphRenderingTests: XCTestCase {
 
 @MainActor
 final class CardReferenceContractTests: XCTestCase {
+    func testGraphHoverOverlayPolicyDefaultsEnabledAndAcceptsEnvironmentOverride() {
+        let policy = GraphInteractionPolicy(
+            hoverOverlayDefault: .enabled,
+            hoverOverlayEnvironmentVariable: "NATIVEHA_GRAPH_HOVER_OVERLAY"
+        )
+
+        XCTAssertTrue(policy.hoverOverlayEnabled(environment: [:]))
+        XCTAssertFalse(policy.hoverOverlayEnabled(environment: ["NATIVEHA_GRAPH_HOVER_OVERLAY": "0"]))
+        XCTAssertFalse(policy.hoverOverlayEnabled(environment: ["NATIVEHA_GRAPH_HOVER_OVERLAY": "off"]))
+        XCTAssertTrue(policy.hoverOverlayEnabled(environment: ["NATIVEHA_GRAPH_HOVER_OVERLAY": "1"]))
+        XCTAssertTrue(policy.hoverOverlayEnabled(environment: ["NATIVEHA_GRAPH_HOVER_OVERLAY": "invalid"]))
+    }
+
+    func testProductionWebSocketPolicyKeepsTimeoutAndReceiveBoundIndependent() {
+        XCTAssertEqual(AppConfig.webSocketPolicy.commandTimeout, 10)
+        XCTAssertEqual(
+            AppConfig.webSocketPolicy.receivePolicy.maximumMessageBytes,
+            32 * 1_024 * 1_024
+        )
+        XCTAssertEqual(AppConfig.webSocketPolicy.subscriptionDeliveryCapacity, 256)
+        XCTAssertEqual(AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks, 4)
+    }
+
     func testHistoryCardUsesApprovedGlobalRangeWithoutMutatingRawHours() {
         let model = DashboardViewModel()
         model.selectedGraphHours = 1
@@ -392,6 +778,30 @@ private func history(entityID: String, samples: [(Int, String)]) -> HAHistorySer
                 lastUpdated: timestamp
             )
         }
+    )
+}
+
+private func graphInput(entityID: String, series: HAHistorySeries) -> GraphRenderSeriesInput {
+    GraphRenderSeriesInput(
+        entityID: entityID,
+        name: entityID,
+        unit: "µg/m³",
+        color: graphBlue,
+        history: series
+    )
+}
+
+private func compactGraphState(
+    _ state: String,
+    offset: Int,
+    syntheticBoundary: Bool = false
+) -> HACompactHistoryState {
+    let timestamp = baseTimestamp + Double(offset)
+    return HACompactHistoryState(
+        state: state,
+        attributes: [:],
+        lastChangedSeconds: syntheticBoundary ? nil : timestamp,
+        lastUpdatedSeconds: timestamp
     )
 }
 

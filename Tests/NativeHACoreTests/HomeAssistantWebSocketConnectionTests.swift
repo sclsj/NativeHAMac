@@ -102,6 +102,62 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testConcurrentMixedCommandsAndSubscriptionsSendStrictlyIncreasingWireIDs() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true,
+            automaticCommandAcknowledgement: true,
+            requiresStrictlyIncreasingCommandIDs: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+
+        let subscriptionTasks = (0..<64).map { index in
+            Task {
+                try await connection.subscribeRaw([
+                    "type": .string("subscribe_events"),
+                    "event_type": .string("strict-subscription-\(index)"),
+                ]) { _ in }
+            }
+        }
+        let commandTasks = (0..<64).map { index in
+            Task {
+                try await connection.callRaw([
+                    "type": .string("strict/command"),
+                    "sequence": .int(index),
+                ])
+            }
+        }
+
+        var subscriptions: [HAWebSocketSubscription] = []
+        for task in subscriptionTasks {
+            subscriptions.append(try await task.value)
+        }
+        for task in commandTasks {
+            _ = try await task.value
+        }
+        for subscription in subscriptions {
+            await subscription.cancel()
+        }
+
+        let wireIDs = await transport.sentObjects().compactMap { $0["id"]?.testInt }
+        XCTAssertEqual(wireIDs.count, 1 + 64 + 64 + 64)
+        XCTAssertTrue(
+            zip(wireIDs, wireIDs.dropFirst()).allSatisfy(<),
+            "Home Assistant rejects a command ID that does not increase in actual send order."
+        )
+        let strictMetrics = await transport.commandIDMetrics()
+        XCTAssertEqual(strictMetrics.violationCount, 0)
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.state, .ready)
+        XCTAssertEqual(snapshot.pendingCommandCount, 0)
+        XCTAssertEqual(snapshot.subscriptionCount, 0)
+        XCTAssertEqual(snapshot.wireSubscriptionCount, 0)
+        XCTAssertEqual(snapshot.deliveryOwnerCount, 0)
+
+        await connection.disconnect()
+    }
+
     func testEarlyEventAndCoalescedOutOfOrderResultsRouteToTheirOwners() async throws {
         let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
         let connection = makeConnection(transports: [transport])

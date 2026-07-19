@@ -5,6 +5,19 @@ public enum HAWebSocketFrame {
     case data(Data)
 }
 
+public struct HomeAssistantWebSocketReceivePolicy: Equatable {
+    public let maximumMessageBytes: Int
+
+    public init(maximumMessageBytes: Int) {
+        precondition(maximumMessageBytes > 0, "WebSocket receive size must be positive")
+        self.maximumMessageBytes = maximumMessageBytes
+    }
+
+    public static let platformDefault = HomeAssistantWebSocketReceivePolicy(
+        maximumMessageBytes: 1_048_576
+    )
+}
+
 public protocol HomeAssistantWebSocketTransport: AnyObject {
     func connect() async throws
     func send(_ frame: HAWebSocketFrame) async throws
@@ -13,6 +26,8 @@ public protocol HomeAssistantWebSocketTransport: AnyObject {
 }
 
 protocol URLSessionWebSocketTaskAdapter: AnyObject {
+    var maximumMessageSize: Int { get set }
+
     func resume()
     func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     func send(
@@ -33,15 +48,25 @@ final class URLSessionHomeAssistantWebSocketTransport: HomeAssistantWebSocketTra
     }
 
     private let taskFactory: () -> URLSessionWebSocketTaskAdapter
+    private let receivePolicy: HomeAssistantWebSocketReceivePolicy
     private let lock = NSLock()
     private var task: URLSessionWebSocketTaskAdapter?
     private var pendingReceive: PendingReceive?
 
-    init(url: URL, session: URLSession) {
+    init(
+        url: URL,
+        session: URLSession,
+        receivePolicy: HomeAssistantWebSocketReceivePolicy = .platformDefault
+    ) {
+        self.receivePolicy = receivePolicy
         taskFactory = { session.webSocketTask(with: url) }
     }
 
-    init(taskFactory: @escaping () -> URLSessionWebSocketTaskAdapter) {
+    init(
+        receivePolicy: HomeAssistantWebSocketReceivePolicy = .platformDefault,
+        taskFactory: @escaping () -> URLSessionWebSocketTaskAdapter
+    ) {
+        self.receivePolicy = receivePolicy
         self.taskFactory = taskFactory
     }
 
@@ -58,6 +83,7 @@ final class URLSessionHomeAssistantWebSocketTransport: HomeAssistantWebSocketTra
             return
         }
         let task = taskFactory()
+        task.maximumMessageSize = receivePolicy.maximumMessageBytes
         self.task = task
         task.resume()
         lock.unlock()

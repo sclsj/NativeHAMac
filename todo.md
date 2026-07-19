@@ -1,10 +1,130 @@
 # NativeHA Module 01 continuation handoff
 
-Date: 2026-07-18. This is the authoritative next-agent handoff after Module 01
-implementation, two visual-settlement repairs, independent verification, live
-SPS30 stress work, and a final time-boxed GUI regression diagnosis. Do not mark
-Module 01 complete until the remaining live loading/reconnect regression is
-fixed and the module is independently rechecked.
+Date: 2026-07-19. This is the authoritative final-orchestrator handoff after
+Module 01 implementation, visual repairs, live SPS30 stress work, Gemini's
+three follow-up commits, the contract-revision-2 transport/parser repair, the
+rolling-history CPU repair, and fresh independent GUI verification. The packet
+is now `complete` after fresh bounded independent verification; the
+orchestrator only needs to commit the intentional settled tree. Do not re-audit
+the frontend while its regenerated graph stays green.
+
+## 2026-07-19 contract-revision-2 repair status
+
+The confirmed 12h transport regression is repaired in the current working tree.
+A typed `HomeAssistantWebSocketReceivePolicy` is applied to the concrete
+URLSession WebSocket task before `resume`; normal library callers keep the
+1 MiB platform default while `NativeHAMac` selects a finite 32 MiB per-message
+cap. The cap covers the measured 26,490,281-byte 24h four-series SPS30 response
+and is not eager allocation. The unsupported 120-second command timeout is
+restored to 10 seconds.
+
+Deterministic coverage now includes a production-adapter receive one byte above
+the platform default and 64 concurrent commands plus 64 subscriptions and their
+unsubscribes on a fake transport that rejects non-increasing actual wire IDs.
+Both pass with zero final ownership. The timestamp fast path now validates UTC,
+fractional seconds, positive/negative offsets, calendar/clock/offset bounds,
+and trailing input; malformed canonical shapes cannot fall through to
+Foundation normalization. Noncanonical fallback formatters are shared instead
+of being constructed during SwiftUI recomputation.
+
+The read-only release live smoke passed exact `CO2/VOC` 1h → 12h → 1h with the
+production policy: 8,530 points / 0.495s; 102,565 points / four callbacks /
+6.087s; 8,528 points / 0.470s. It observed zero reconnecting or non-ready states,
+zero owner errors, and zero ownership after every window. Representative 24h
+also passed with 56,470 points in 2.716s. The release SPS30 graph benchmark
+retained exact 1x/2x points, axes, and bounds for 13,988 1h and 335,700 24h
+points. Cold preparation was 23.6/23.7 ms at 1h and 747.5/571.6 ms at 24h.
+
+The floating sample hover/crosshair overlay remains normally enabled and can be
+disabled for repeatable captures without code edits using
+`NATIVEHA_GRAPH_HOVER_OVERLAY=0`. This gates drawing only; scroll/zoom/pan input
+remains installed and has focused policy/PNG coverage.
+
+Current local deterministic results: WebSocket 19/19; combined history,
+integration, graph, and GUI 32/32 (with the two pre-existing expected Module 09
+parity markers); timestamp matrix/performance and focused configuration tests
+green; release scheduler benchmark 2/2. The module graph is regenerated at 21
+nodes / 143 edges with fingerprint
+`7fd7546a2f9b860af39694f3a1449d1d0d8e21bab8609e82b31f7c77dc395675`,
+checker green; resolver self-test passes 28 nodes / 59 edges with fingerprint
+`ab069e007ec7bfe3e9fb3019c9c58563ba9294af47b2ddb4fdc8bce4ef0a1f1a`.
+Final current-tree validation after the event-driven projection-lineage repair
+passed 87 tests with two intentional live-gated skips and zero failures in
+52.858 seconds; all five products built before that proof-only follow-up; the
+release scheduler benchmark passed 2/2; and the 100,000-point exact rolling
+projection measured 3.542 ms incremental versus 592.864 ms full in release.
+Preserve the
+pre-existing untracked `sample.txt`.
+
+Fresh independent release GUI verification passed: 12h CO2/VOC rendered by the
+sixth capture, stayed `Live` for 80/80 samples over 36 seconds, and settled at
+26.43% mean CPU versus the reproduced 117.7% before the exact-overlap repair.
+All 17 SPS30 gesture captures were distinct with matching final two settled
+hashes. Return to 1h rendered by the second capture and stayed `Live` for 60/60
+samples over 25 seconds. The verifier terminated the app and confirmed no PID
+remained. Exact final transport ownership is separately proven by the live
+harness because the GUI exposes no ownership counter.
+
+The final bounded reviews found both a prepared-series safety gap and an
+over-strict common-path regression. The completed design is event-driven:
+`HAHistoryStreamAccumulator` classifies reset, unchanged, normal append/trim,
+and rare out-of-order reset while it merges, then publishes retained old/new
+indices only when retained existing indices form one contiguous suffix. A
+gapped retained entity projects fully. `HAHistoryProjectionStore` no longer performs a routine O(n) compact
+equality scan. It attaches predecessor/index lineage; the graph cache checks
+the predecessor in O(1), freshly prepares boundary/tail, and reuses only the
+trusted one-to-one numeric slice. Raw/corrected/reset series rebuild fully.
+Typed publications carry monotonic owner generation, so reconnect/refresh
+cannot bridge caches and stale callbacks return nil without mutation. Transient
+lineage is excluded from Codable output.
+
+The correction plus newer tail renders `[20, 99, 40, 50]` through two full
+preparations and zero incremental preparations. The actual 99,999-point moved
+synthetic cutoff + unchanged overlap + one-tail fixture exactly matches cold
+full output, contains its new boundary, and records full=1/incremental=1.
+Release graph preparation is 1.523 ms versus 115.503 ms cold full (debug 10.069
+vs 274.580 ms). No-lineage and reset-generation fixtures rebuild fully.
+Focused graph 17/17, history 17/17, history-performance 6/6, and integration
+3/3 pass.
+
+## 2026-07-19 pre-repair cause snapshot (now resolved)
+
+Gemini's work is already committed as `e4eecb2` (wire-ID registration/send
+ordering plus a 120-second command timeout), `f8f55f0` (serialized/coalesced
+viewport scheduler), and `3cd05d5` (timestamp fast path and formatter hoist).
+The only pre-existing untracked file at this refresh is `sample.txt`; do not
+modify or commit it as part of Module 01.
+
+The 12h failure is now confirmed at the production adapter boundary. The exact
+visible CO2/VOC `history/stream` replay is about 4,912,600 bytes / 102,618
+points. `URLSessionWebSocketTask.maximumMessageSize` defaults to 1,048,576
+bytes, and `URLSessionHomeAssistantWebSocketTransport` does not configure it.
+The same card's 1h replay is about 406 KB and succeeds. A clean current-HEAD app
+reproduces 12h `Loading history` plus Live/Reconnecting. The subscription
+acknowledgement measured about 7 ms, so the 120-second command timeout is not
+the receive fix and may be reverted to the evidence-backed value.
+
+`e4eecb2` separately addresses a real regression: Swift allocated IDs before
+unstructured send tasks, which could put a larger ID on the wire first. The
+frontend allocates and sends synchronously. Retain the serialized behavior, but
+add a deterministic mixed call/subscription test that asserts strictly
+increasing wire-send order.
+
+`f8f55f0` strongly fixes the original strict-latest token-starvation mechanism,
+but the user again observed lag while 12h was failing. Verify progressive SPS30
+frames on a fresh 1h launch, then repeat after the 12h load/recovery. This
+distinguishes a scheduler failure from CPU pressure caused by the reconnect/
+decode loop. Do not mark the graph symptom resolved on benchmark evidence alone.
+
+`3cd05d5` targets a real formatter hotspot, but its fast parser does not fully
+validate hour/minute/second/trailing input and does not apply explicit timezone
+offsets. Add equivalence tests for UTC, fractional, offset, and malformed input;
+revert or replace the fast path in a new commit if it cannot preserve semantics.
+
+The typed receive policy, production-adapter regression, focused/full suites,
+exact live 1h/12h/recovery checks, other-owner health, and pre/post-12h gesture
+verification called for by this snapshot are now implemented and passed. See
+the authoritative repair status above and the packet's post-transport section.
 
 ## 2026-07-18 gesture-render repair update
 
@@ -24,18 +144,21 @@ last token. Fresh live 1h full-resolution rendering measured 3.555 ms median /
 5.360 ms p95. A release-app scroll capture recorded 15 distinct SPS30 plot
 frames among 20 captures taken before the 1.661-second gesture stream ended.
 
-The remaining Module 01 blocker is the separate CO2/VOC loading/shared-socket
-reconnect regression. This repair did not change WebSocket ownership, payload
-limits, backfill semantics, or the approved future cache/prefetch work.
+At the time of this scheduler-only repair, the remaining blocker was the
+separate CO2/VOC loading/shared-socket reconnect regression. It is now resolved
+by the bounded transport and projection/cache repairs recorded above. The
+scheduler repair itself did not change WebSocket ownership, payload limits,
+backfill semantics, or the approved future cache/prefetch work.
 
-## Immediate user-reported regressions
+## Original user-reported regressions (both now repaired and verified)
 
 1. In the running `NativeHAMac`, switch the global graph range to `12h`. The
    `CO2/VOC` history card containing SPS30 entities remains on `Loading history`,
    while the global status alternates between `Live` and `Reconnecting` every
    few seconds.
-2. **Resolved 2026-07-18:** SPS30 `1h` continuous scroll/zoom now publishes
-   progressive frames during the gesture and settles on the newest viewport.
+2. **Scheduler mechanism repaired 2026-07-18; end-to-end check reopened
+   2026-07-19:** SPS30 `1h` had progressive live capture, but the user again
+   observed lag while 12h failed. Verify it before and after exercising 12h.
 
 The final writer reproduced the first failure in the live app at `1h` after a
 prior reconnect: the status was currently `Live`, `CO2/VOC` was still
@@ -59,16 +182,15 @@ proven for a safe last-minute edit.
   label: `DashboardViewModel.load` maps
   `HomeAssistantWebSocketConnection.statusUpdates()` directly to
   `Live`/`Reconnecting` around lines 479-497.
-- Likely transport cause: `URLSessionHomeAssistantWebSocketTransport` creates a
+- Confirmed transport cause: `URLSessionHomeAssistantWebSocketTransport` creates a
   `URLSessionWebSocketTask` without configuring `maximumMessageSize`
   (`Sources/NativeHACore/HomeAssistantWebSocketTransport.swift`, task factory
   around lines 35-42). A multi-entity, high-cadence SPS30 replay can be a large
   single WebSocket message. A receive failure reaches
   `HomeAssistantWebSocketConnection.runReceiveLoop` (lines 511-524), tears down
   the shared socket in `handleConnectionFailure` (765-804), and schedules the
-  reconnect loop (806-844). This matches the symptom but remains **likely, not
-  confirmed**, until the concrete URLSession error/close code and frame size
-  are recorded.
+  reconnect loop (806-844). The exact 12h frame is 4,912,600 bytes / 102,618
+  points versus the 1,048,576-byte default; 1h is about 406 KB and succeeds.
 - `HAHistoryStreamCoordinator` deliberately uses `resubscribe: false` and
   recreates a fresh owner from connection status
   (`Sources/NativeHACore/HomeAssistantHistoryStream.swift`, `subscribeFresh`
@@ -160,7 +282,8 @@ C01 wire semantics without packet/test updates.
 
 ## Module 01 and visual verification state
 
-The packet remains `verification-ready`, not complete:
+The packet is `complete`. Historical verifier/repair rounds below explain how
+the final evidence was reached:
 `docs/reference-context/modules/module-01-history-ws-stream.md`.
 
 - The first fresh verifier passed C01-01 through C01-07 and C01-09 but rejected
@@ -179,19 +302,11 @@ The packet remains `verification-ready`, not complete:
 
 ## Current worktree scope
 
-No source/test fix was made during this final regression pass. `todo.md` and a
-short packet hold note are the only intended additions from it. The broader
-uncommitted Module 01 implementation already contains:
-
-- Modified: `Package.swift`, seven Module 01 core/macOS source files,
-  `Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift`,
-  `Tests/NativeHAMacTests/GraphRenderingTests.swift`, configurability/reference
-  docs, Module 01 manifest/generated graph/packet/index.
-- Untracked intended deliverables: three `Benchmarks/history-stream` files,
-  `Sources/NativeHACore/HomeAssistantHistoryStream.swift`, three core history
-  test files, and `Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift`.
-- Do not stage/commit until the orchestrator/user requests it. Preserve all
-  current changes. The hass-frontend checkout was read-only and clean.
+Module 01 and Gemini's follow-ups are committed through `3cd05d5`. At the start
+of this bounded refresh, the tracked worktree was clean and only the pre-existing
+`sample.txt` was untracked. This refresh changes only the Module 01 manifest,
+generated graph, evidence packet/index, and this handoff. The hass-frontend
+checkout remains read-only.
 
 ## Exact next steps and commands
 
@@ -206,26 +321,13 @@ uncommitted Module 01 implementation already contains:
    sed -n '1,260p' todo.md
    ```
 
-2. Reproduce on the current configured server with one diagnostic run. Record
-   timestamped connection state, concrete URLSession receive error/domain/code,
-   WebSocket close code/reason if available, active history owner key/entity
-   count/range, incoming frame byte count, and connection debug snapshot. Never
-   log the token or full payload. Check `URLSessionWebSocketTask.maximumMessageSize`
-   before `resume`; test a safely bounded increase with a fake-adapter regression
-   before any live trial.
-3. Determine the exact CO2/VOC entity list and measure its 1h/12h result bytes.
-   Compare a single entity with the whole card and confirm whether failure is a
-   size limit, server/proxy close, decode failure, timeout, overflow, or owner
-   restart loop. Do not infer from global `disconnected` alone.
-4. Instrument the live gesture path with counts/timestamps for scroll callbacks,
-   state/token changes, render task starts/cancellations/completions, cache hit,
-   preparation duration, and publication. Establish whether SwiftUI defers the
-   viewport state during event tracking or uncancellable renders pile up.
-5. Implement the smallest evidence-backed repair with deterministic tests.
-   Candidate architecture is isolated finite backfill + live tail and a
-   cancellable/coalesced prepared rendering pipeline, but neither is a trivial
-   one-line change. Preserve latest-generation publication semantics.
-6. Minimum validation after a repair:
+2. Inspect the current diff and the contract-revision-2 implementation section
+   in the packet. Do not redo the frontend audit while graph/checker stay green.
+3. Review the recorded fresh independent GUI verdict and current-tree live
+   ownership evidence in the packet. Do not repeat the GUI run unless the diff
+   contains a functional change after the verifier snapshot; the only later
+   source change was a documentation comment in `Models.swift`.
+4. Validation is already recorded; rerun only if the orchestrator changes code:
 
    ```sh
    swift test --filter HomeAssistantWebSocket
@@ -234,22 +336,24 @@ uncommitted Module 01 implementation already contains:
    swift test --filter GraphRenderingTests
    swift test --filter GUIRenderingAndPerformanceTests
    swift test
+   swift build --product NativeHAMac
+   swift build --product ha-probe
+   swift build --product GraphBench
+   swift build --product GraphPyramidBench
+   swift build --product HistoryStreamBench
+   swift test -c release --filter GraphRenderingBenchmarkTests
    git diff --check
    ```
 
-   Then manually confirm 1h and 12h CO2/VOC settle without global reconnect,
-   continuous zoom/pan visibly redraws during the gesture, other history owners
-   remain live, and final ownership is zero after teardown. Update the Module 01
-   packet/graph and dispatch a fresh independent verifier.
+5. Inspect the refreshed graph/checker/resolver output and `git diff --check`,
+   commit the intentional Module 01 files without `sample.txt`, and mark Module
+   01 complete only if no C01-01-through-C01-09 discrepancy remains.
 
-## Unfinished work
+## Remaining follow-up
 
-- Confirm/fix the 12h CO2/VOC shared-socket reconnect/loading regression.
-- Confirm/fix continuous SPS30 gesture redraw without weakening cancellation or
-  visual correctness.
+- Keep `sample.txt` untouched and perform the intentional Module 01 commit.
+- Begin Module 04 research from the reference-context index after the commit.
 - Convert temporary stress evidence into a deliberate tracked diagnostic/test
   only if it is maintainable; do not copy the multi-megabyte raw JSON fixtures.
 - Decide and document finite backfill/live-tail ownership, payload limits,
   progressive preparation/downsampling, memory budget, and cancellation.
-- Re-run the fresh independent Module 01 verifier and only then decide whether
-  status may become `complete`.

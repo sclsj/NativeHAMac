@@ -56,6 +56,46 @@ public struct HAHistoryStreamMessage: Codable, Equatable {
     }
 }
 
+public struct HAHistoryStreamEntityOverlap: Equatable, Sendable {
+    public let oldStart: Int
+    public let newStart: Int
+    public let count: Int
+
+    public init(oldStart: Int, newStart: Int, count: Int) {
+        self.oldStart = oldStart
+        self.newStart = newStart
+        self.count = count
+    }
+}
+
+public enum HAHistoryStreamTransition: Equatable, Sendable {
+    case reset
+    case unchanged
+    case normal([String: HAHistoryStreamEntityOverlap])
+    case outOfOrderReset
+}
+
+public struct HAHistoryStreamAccumulation: Equatable {
+    public let history: [String: [HACompactHistoryState]]
+    public let transition: HAHistoryStreamTransition
+}
+
+public struct HAHistoryStreamPublication: Equatable {
+    public let history: [String: [HACompactHistoryState]]
+    public let transition: HAHistoryStreamTransition
+    public let ownerGeneration: UInt64
+
+    public init(
+        history: [String: [HACompactHistoryState]],
+        transition: HAHistoryStreamTransition,
+        ownerGeneration: UInt64
+    ) {
+        self.history = history
+        self.transition = transition
+        self.ownerGeneration = ownerGeneration
+    }
+}
+
 public struct HAHistoryStreamAccumulator {
     public private(set) var combinedHistory: [String: [HACompactHistoryState]] = [:]
 
@@ -74,25 +114,38 @@ public struct HAHistoryStreamAccumulator {
     public mutating func process(
         _ message: HAHistoryStreamMessage
     ) -> [String: [HACompactHistoryState]] {
+        processPublication(message).history
+    }
+
+    @discardableResult
+    public mutating func processPublication(
+        _ message: HAHistoryStreamMessage
+    ) -> HAHistoryStreamAccumulation {
         if combinedHistory.isEmpty {
             combinedHistory = message.states
-            return combinedHistory
+            return HAHistoryStreamAccumulation(history: combinedHistory, transition: .reset)
         }
         guard !message.states.isEmpty else {
-            return combinedHistory
+            return HAHistoryStreamAccumulation(history: combinedHistory, transition: .unchanged)
         }
 
         let cutoff = range.map { now().timeIntervalSince1970 - $0 }
         var merged: [String: [HACompactHistoryState]] = [:]
         merged.reserveCapacity(combinedHistory.count + message.states.count)
+        var overlaps: [String: HAHistoryStreamEntityOverlap] = [:]
+        var requiresOutOfOrderReset = false
 
         for entityID in combinedHistory.keys {
-            process(
+            let result = process(
                 entityID: entityID,
                 incoming: message.states[entityID],
-                cutoff: cutoff,
-                into: &merged
+                cutoff: cutoff
             )
+            merged[entityID] = result.states
+            if let overlap = result.overlap {
+                overlaps[entityID] = overlap
+            }
+            requiresOutOfOrderReset = requiresOutOfOrderReset || result.requiresOutOfOrderReset
         }
         for entityID in message.states.keys where combinedHistory[entityID] == nil {
             // Reference behavior returns before trimming a newly introduced
@@ -101,17 +154,26 @@ public struct HAHistoryStreamAccumulator {
         }
 
         combinedHistory = merged
-        return combinedHistory
+        return HAHistoryStreamAccumulation(
+            history: combinedHistory,
+            transition: requiresOutOfOrderReset ? .outOfOrderReset : .normal(overlaps)
+        )
+    }
+
+    private struct EntityProcessResult {
+        let states: [HACompactHistoryState]
+        let overlap: HAHistoryStreamEntityOverlap?
+        let requiresOutOfOrderReset: Bool
     }
 
     private func process(
         entityID: String,
         incoming: [HACompactHistoryState]?,
-        cutoff: Double?,
-        into merged: inout [String: [HACompactHistoryState]]
-    ) {
+        cutoff: Double?
+    ) -> EntityProcessResult {
         let existing = combinedHistory[entityID] ?? []
         var states = existing
+        var requiresOutOfOrderReset = false
 
         if let incoming = incoming {
             states.append(contentsOf: incoming)
@@ -120,6 +182,7 @@ public struct HAHistoryStreamAccumulator {
                 let existingLast = existing.last,
                 incomingFirst.lastUpdatedSeconds < existingLast.lastUpdatedSeconds
             {
+                requiresOutOfOrderReset = true
                 if isTimestampSorted(existing), isTimestampSorted(incoming) {
                     states = stableMerge(existing, incoming)
                 } else {
@@ -134,28 +197,70 @@ public struct HAHistoryStreamAccumulator {
         }
 
         guard let cutoff = cutoff else {
-            merged[entityID] = states
-            return
+            return EntityProcessResult(
+                states: states,
+                overlap: normalOverlap(
+                    existingCount: existing.count,
+                    oldStart: 0,
+                    newStart: 0,
+                    requiresOutOfOrderReset: requiresOutOfOrderReset
+                ),
+                requiresOutOfOrderReset: requiresOutOfOrderReset
+            )
         }
 
         var kept: [HACompactHistoryState] = []
         kept.reserveCapacity(states.count)
         var lastExpired: HACompactHistoryState?
-        for state in states {
+        var firstRetainedExistingIndex: Int?
+        var retainedExistingCount = 0
+        for (index, state) in states.enumerated() {
             if state.lastUpdatedSeconds < cutoff {
                 lastExpired = state
             } else {
+                if index < existing.count {
+                    retainedExistingCount += 1
+                    if firstRetainedExistingIndex == nil {
+                        firstRetainedExistingIndex = index
+                    }
+                }
                 kept.append(state)
             }
         }
 
+        // The reference preserves an already-unsorted existing array unless
+        // the incoming first timestamp is older than its last timestamp. In
+        // that shape, filtering can retain noncontiguous existing indices.
+        // Only a contiguous retained suffix maps to one reusable slice.
+        let retainedExistingSuffixStart = firstRetainedExistingIndex.flatMap { start in
+            retainedExistingCount == existing.count - start ? start : nil
+        }
+
         guard let expired = lastExpired else {
-            merged[entityID] = states
-            return
+            return EntityProcessResult(
+                states: states,
+                overlap: normalOverlap(
+                    existingCount: existing.count,
+                    oldStart: 0,
+                    newStart: 0,
+                    requiresOutOfOrderReset: requiresOutOfOrderReset
+                ),
+                requiresOutOfOrderReset: requiresOutOfOrderReset
+            )
         }
         if kept.first?.lastUpdatedSeconds == cutoff {
-            merged[entityID] = kept
-            return
+            return EntityProcessResult(
+                states: kept,
+                overlap: retainedExistingSuffixStart.flatMap {
+                    normalOverlap(
+                        existingCount: existing.count,
+                        oldStart: $0,
+                        newStart: 0,
+                        requiresOutOfOrderReset: requiresOutOfOrderReset
+                    )
+                },
+                requiresOutOfOrderReset: requiresOutOfOrderReset
+            )
         }
         kept.insert(
             HACompactHistoryState(
@@ -166,7 +271,35 @@ public struct HAHistoryStreamAccumulator {
             ),
             at: 0
         )
-        merged[entityID] = kept
+        return EntityProcessResult(
+            states: kept,
+            overlap: retainedExistingSuffixStart.flatMap {
+                normalOverlap(
+                    existingCount: existing.count,
+                    oldStart: $0,
+                    newStart: 1,
+                    requiresOutOfOrderReset: requiresOutOfOrderReset
+                )
+            },
+            requiresOutOfOrderReset: requiresOutOfOrderReset
+        )
+    }
+
+    private func normalOverlap(
+        existingCount: Int,
+        oldStart: Int,
+        newStart: Int,
+        requiresOutOfOrderReset: Bool
+    ) -> HAHistoryStreamEntityOverlap? {
+        let count = existingCount - oldStart
+        guard !requiresOutOfOrderReset, oldStart >= 0, count > 0 else {
+            return nil
+        }
+        return HAHistoryStreamEntityOverlap(
+            oldStart: oldStart,
+            newStart: newStart,
+            count: count
+        )
     }
 
     private func isTimestampSorted(_ states: [HACompactHistoryState]) -> Bool {
@@ -254,37 +387,298 @@ public enum HAHistoryProjection {
             guard seen.insert(entityID).inserted, let compact = history[entityID] else {
                 return nil
             }
-            let firstAttributes = compact.first(where: { !$0.attributes.isEmpty })?.attributes
-            let fallbackAttributes = firstAttributes ?? currentStates[entityID]?.attributes
-            let useLastUpdated = domainsUsingLastUpdated.contains(domain(entityID))
-            let points = compact.map { state -> HAHistoryPoint in
-                let timestamp = useLastUpdated
-                    ? state.lastUpdatedSeconds
-                    : (state.lastChangedSeconds ?? state.lastUpdatedSeconds)
-                let attributes: [String: JSONValue]?
-                if useLastUpdated {
-                    let source = state.attributes.isEmpty ? (fallbackAttributes ?? [:]) : state.attributes
-                    let retained = source.filter { lineAttributes.contains($0.key) }
-                    attributes = retained.isEmpty ? nil : retained
-                } else if !state.attributes.isEmpty {
-                    attributes = state.attributes
-                } else {
-                    attributes = fallbackAttributes
+            let context = projectionContext(
+                entityID: entityID,
+                compact: compact,
+                currentStates: currentStates
+            )
+            return HAHistorySeries(
+                entityID: entityID,
+                points: compact.map {
+                    project($0, entityID: entityID, context: context, formatter: formatter)
                 }
-                return HAHistoryPoint(
-                    entityId: entityID,
-                    state: state.state,
-                    attributes: attributes,
-                    lastChanged: formatter.string(from: Date(timeIntervalSince1970: timestamp)),
-                    lastUpdated: formatter.string(from: Date(timeIntervalSince1970: state.lastUpdatedSeconds))
-                )
-            }
-            return HAHistorySeries(entityID: entityID, points: points)
+            )
         }
+    }
+
+    fileprivate static func projectionContext(
+        entityID: String,
+        compact: [HACompactHistoryState],
+        currentStates: [String: HAState]
+    ) -> HAHistoryProjectionContext {
+        let firstAttributes = compact.first(where: { !$0.attributes.isEmpty })?.attributes
+        return HAHistoryProjectionContext(
+            fallbackAttributes: firstAttributes ?? currentStates[entityID]?.attributes,
+            useLastUpdated: domainsUsingLastUpdated.contains(domain(entityID))
+        )
+    }
+
+    fileprivate static func project(
+        _ state: HACompactHistoryState,
+        entityID: String,
+        context: HAHistoryProjectionContext,
+        formatter: ISO8601DateFormatter
+    ) -> HAHistoryPoint {
+        let timestamp = context.useLastUpdated
+            ? state.lastUpdatedSeconds
+            : (state.lastChangedSeconds ?? state.lastUpdatedSeconds)
+        let attributes: [String: JSONValue]?
+        if context.useLastUpdated {
+            let source = state.attributes.isEmpty
+                ? (context.fallbackAttributes ?? [:])
+                : state.attributes
+            let retained = source.filter { lineAttributes.contains($0.key) }
+            attributes = retained.isEmpty ? nil : retained
+        } else if !state.attributes.isEmpty {
+            attributes = state.attributes
+        } else {
+            attributes = context.fallbackAttributes
+        }
+        return HAHistoryPoint(
+            entityId: entityID,
+            state: state.state,
+            attributes: attributes,
+            lastChanged: formatter.string(from: Date(timeIntervalSince1970: timestamp)),
+            lastUpdated: formatter.string(from: Date(timeIntervalSince1970: state.lastUpdatedSeconds))
+        )
     }
 
     private static func domain(_ entityID: String) -> String {
         String(entityID.split(separator: ".", maxSplits: 1).first ?? "")
+    }
+
+}
+
+fileprivate struct HAHistoryProjectionContext: Equatable {
+    let fallbackAttributes: [String: JSONValue]?
+    let useLastUpdated: Bool
+}
+
+public struct HAHistoryProjectionStoreStatistics: Equatable {
+    public let fullEntityProjectionCount: Int
+    public let incrementalEntityProjectionCount: Int
+    public let reusedEntityProjectionCount: Int
+}
+
+/// Reuses the immutable projected prefix/suffix of rolling history. A live
+/// tail normally changes only the cutoff boundary and appends a few states;
+/// rebuilding every ISO-8601 string for the entire window on each tail event
+/// is unnecessary and can permanently saturate a core for long windows.
+public actor HAHistoryProjectionStore {
+    private struct Entry {
+        let compact: [HACompactHistoryState]
+        let context: HAHistoryProjectionContext
+        let series: HAHistorySeries
+    }
+
+    private let orderedEntityIDs: [String]
+    private let currentStates: [String: HAState]
+    private let formatter: ISO8601DateFormatter
+    private var entries: [String: Entry] = [:]
+    private var highestOwnerGeneration: UInt64?
+    private var fullEntityProjectionCount = 0
+    private var incrementalEntityProjectionCount = 0
+    private var reusedEntityProjectionCount = 0
+
+    public init(
+        orderedEntityIDs: [String],
+        currentStates: [String: HAState] = [:]
+    ) {
+        self.orderedEntityIDs = orderedEntityIDs
+        self.currentStates = currentStates
+        formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    }
+
+    public func series(
+        from history: [String: [HACompactHistoryState]]
+    ) -> [HAHistorySeries] {
+        // Raw/manual callers provide no trusted transition. Clear all lineage
+        // and take the safe full-projection path.
+        highestOwnerGeneration = nil
+        entries.removeAll(keepingCapacity: true)
+        return project(history: history, transition: .reset)
+    }
+
+    public func series(
+        from publication: HAHistoryStreamPublication
+    ) -> [HAHistorySeries]? {
+        if let highestOwnerGeneration = highestOwnerGeneration {
+            guard publication.ownerGeneration >= highestOwnerGeneration else {
+                return nil
+            }
+            if publication.ownerGeneration > highestOwnerGeneration {
+                self.highestOwnerGeneration = publication.ownerGeneration
+                entries.removeAll(keepingCapacity: true)
+                return project(history: publication.history, transition: .reset)
+            }
+        } else {
+            highestOwnerGeneration = publication.ownerGeneration
+            entries.removeAll(keepingCapacity: true)
+            return project(history: publication.history, transition: .reset)
+        }
+
+        switch publication.transition {
+        case .reset, .outOfOrderReset:
+            entries.removeAll(keepingCapacity: true)
+            return project(history: publication.history, transition: .reset)
+        case .unchanged, .normal:
+            return project(history: publication.history, transition: publication.transition)
+        }
+    }
+
+    private func project(
+        history: [String: [HACompactHistoryState]],
+        transition: HAHistoryStreamTransition
+    ) -> [HAHistorySeries] {
+        var seen = Set<String>()
+        let order = orderedEntityIDs + history.keys.sorted().filter { !orderedEntityIDs.contains($0) }
+        var output: [HAHistorySeries] = []
+        output.reserveCapacity(order.count)
+
+        for entityID in order {
+            guard seen.insert(entityID).inserted, let compact = history[entityID] else {
+                continue
+            }
+            if case .unchanged = transition, let cached = entries[entityID] {
+                reusedEntityProjectionCount += 1
+                output.append(cached.series)
+                continue
+            }
+            let context = HAHistoryProjection.projectionContext(
+                entityID: entityID,
+                compact: compact,
+                currentStates: currentStates
+            )
+            let entry: Entry
+            if
+                case .normal(let overlaps) = transition,
+                let overlap = overlaps[entityID],
+                let cached = entries[entityID],
+                cached.context == context,
+                let incremental = incrementallyProject(
+                    entityID: entityID,
+                    compact: compact,
+                    context: context,
+                    cached: cached,
+                    overlap: overlap
+                )
+            {
+                incrementalEntityProjectionCount += 1
+                entry = incremental
+            } else {
+                fullEntityProjectionCount += 1
+                entry = fullProjection(
+                    entityID: entityID,
+                    compact: compact,
+                    context: context
+                )
+            }
+            entries[entityID] = entry
+            output.append(entry.series)
+        }
+
+        entries = entries.filter { history[$0.key] != nil }
+        return output
+    }
+
+    public func statistics() -> HAHistoryProjectionStoreStatistics {
+        HAHistoryProjectionStoreStatistics(
+            fullEntityProjectionCount: fullEntityProjectionCount,
+            incrementalEntityProjectionCount: incrementalEntityProjectionCount,
+            reusedEntityProjectionCount: reusedEntityProjectionCount
+        )
+    }
+
+    /// Starts a new owner generation. Statistics remain cumulative, but no
+    /// exact-overlap proof is allowed to bridge refresh/reconnect ownership.
+    public func reset() {
+        entries.removeAll(keepingCapacity: true)
+        highestOwnerGeneration = nil
+    }
+
+    private func fullProjection(
+        entityID: String,
+        compact: [HACompactHistoryState],
+        context: HAHistoryProjectionContext
+    ) -> Entry {
+        let points = compact.map {
+            HAHistoryProjection.project(
+                $0,
+                entityID: entityID,
+                context: context,
+                formatter: formatter
+            )
+        }
+        return Entry(
+            compact: compact,
+            context: context,
+            series: HAHistorySeries(entityID: entityID, points: points)
+        )
+    }
+
+    private func incrementallyProject(
+        entityID: String,
+        compact: [HACompactHistoryState],
+        context: HAHistoryProjectionContext,
+        cached: Entry,
+        overlap: HAHistoryStreamEntityOverlap
+    ) -> Entry? {
+        guard
+            cached.compact.count == cached.series.points.count,
+            overlap.oldStart >= 0,
+            overlap.newStart >= 0,
+            overlap.count > 0,
+            overlap.oldStart <= cached.compact.count,
+            overlap.count <= cached.compact.count - overlap.oldStart,
+            overlap.newStart <= compact.count,
+            overlap.count <= compact.count - overlap.newStart,
+            cached.compact[overlap.oldStart] == compact[overlap.newStart],
+            cached.compact[overlap.oldStart + overlap.count - 1] ==
+                compact[overlap.newStart + overlap.count - 1]
+        else { return nil }
+
+        var points: [HAHistoryPoint] = []
+        points.reserveCapacity(compact.count)
+        for state in compact[..<overlap.newStart] {
+            points.append(HAHistoryProjection.project(
+                state,
+                entityID: entityID,
+                context: context,
+                formatter: formatter
+            ))
+        }
+        points.append(contentsOf: cached.series.points[
+            overlap.oldStart..<(overlap.oldStart + overlap.count)
+        ])
+        let suffixStart = overlap.newStart + overlap.count
+        if suffixStart < compact.count {
+            for state in compact[suffixStart...] {
+                points.append(HAHistoryProjection.project(
+                    state,
+                    entityID: entityID,
+                    context: context,
+                    formatter: formatter
+                ))
+            }
+        }
+        guard points.count == compact.count else { return nil }
+
+        return Entry(
+            compact: compact,
+            context: context,
+            series: HAHistorySeries(
+                entityID: entityID,
+                points: points,
+                contentRevision: cached.series.contentRevision &+ 1,
+                cacheLineage: HAHistorySeriesCacheLineage(
+                    predecessorRevision: cached.series.contentRevision,
+                    oldStart: overlap.oldStart,
+                    newStart: overlap.newStart,
+                    count: overlap.count
+                )
+            )
+        )
     }
 
 }
@@ -312,7 +706,7 @@ public final class HAHistoryStreamSubscription {
 }
 
 actor HAHistoryStreamCoordinator {
-    typealias Update = @Sendable ([String: [HACompactHistoryState]]) async -> Void
+    typealias Update = @Sendable (HAHistoryStreamPublication) async -> Void
     typealias Status = @Sendable (HAHistoryStreamOwnerStatus) async -> Void
 
     private let connection: HomeAssistantWebSocketConnection
@@ -336,8 +730,7 @@ actor HAHistoryStreamCoordinator {
     private var lastConnectionState: HAWebSocketConnectionState = .ready
 
     private struct PendingPublication {
-        let generation: UInt64
-        let history: [String: [HACompactHistoryState]]
+        let publication: HAHistoryStreamPublication
     }
 
     init(
@@ -473,12 +866,20 @@ actor HAHistoryStreamCoordinator {
         guard !disposed, generation == ownerGeneration, var accumulator = accumulator else {
             return
         }
-        let history = accumulator.process(message)
+        let accumulation = accumulator.processPublication(message)
         self.accumulator = accumulator
-        pendingPublication = PendingPublication(
-            generation: ownerGeneration,
-            history: history
+        let publication = HAHistoryStreamPublication(
+            history: accumulation.history,
+            transition: accumulation.transition,
+            ownerGeneration: ownerGeneration
         )
+        if let pendingPublication = pendingPublication {
+            self.pendingPublication = PendingPublication(
+                publication: Self.coalescing(pendingPublication.publication, with: publication)
+            )
+        } else {
+            pendingPublication = PendingPublication(publication: publication)
+        }
         startPublicationTaskIfNeeded()
     }
 
@@ -507,14 +908,14 @@ actor HAHistoryStreamCoordinator {
             !Task.isCancelled,
             let publication = pendingPublication,
             !disposed,
-            generation == publication.generation
+            generation == publication.publication.ownerGeneration
         {
             pendingPublication = nil
-            await onUpdate(publication.history)
+            await onUpdate(publication.publication)
             guard
                 !Task.isCancelled,
                 !disposed,
-                generation == publication.generation
+                generation == publication.publication.ownerGeneration
             else { break }
             await onStatus(.ready)
         }
@@ -524,6 +925,33 @@ actor HAHistoryStreamCoordinator {
         publicationTaskID = nil
         if pendingPublication != nil {
             startPublicationTaskIfNeeded()
+        }
+    }
+
+    static func coalescing(
+        _ pending: HAHistoryStreamPublication,
+        with next: HAHistoryStreamPublication
+    ) -> HAHistoryStreamPublication {
+        guard pending.ownerGeneration == next.ownerGeneration else {
+            return HAHistoryStreamPublication(
+                history: next.history,
+                transition: .reset,
+                ownerGeneration: next.ownerGeneration
+            )
+        }
+        switch (pending.transition, next.transition) {
+        case (_, .unchanged):
+            return pending
+        case (.unchanged, _):
+            return next
+        case (_, .reset), (_, .outOfOrderReset):
+            return next
+        case (.reset, _), (.outOfOrderReset, _), (.normal, .normal):
+            return HAHistoryStreamPublication(
+                history: next.history,
+                transition: .reset,
+                ownerGeneration: next.ownerGeneration
+            )
         }
     }
 

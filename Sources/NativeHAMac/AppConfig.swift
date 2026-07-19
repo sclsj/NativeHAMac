@@ -29,8 +29,15 @@ enum AppConfig {
         liveDataRenderDelayNanoseconds: 120_000_000,
         liveDataInteractionDeferNanoseconds: 500_000_000
     )
+    static let graphInteractionPolicy = GraphInteractionPolicy(
+        hoverOverlayDefault: .enabled,
+        hoverOverlayEnvironmentVariable: "NATIVEHA_GRAPH_HOVER_OVERLAY"
+    )
     static let webSocketPolicy = WebSocketPolicy(
-        commandTimeout: 120,
+        commandTimeout: 10,
+        receivePolicy: HomeAssistantWebSocketReceivePolicy(
+            maximumMessageBytes: 32 * 1_024 * 1_024
+        ),
         subscriptionDeliveryCapacity: 256,
         maximumConcurrentCallbackTasks: 4
     )
@@ -101,8 +108,35 @@ struct GraphTimeRangePolicy {
 
 struct WebSocketPolicy {
     let commandTimeout: TimeInterval
+    let receivePolicy: HomeAssistantWebSocketReceivePolicy
     let subscriptionDeliveryCapacity: Int
     let maximumConcurrentCallbackTasks: Int
+}
+
+enum GraphHoverOverlayDefault: Equatable {
+    case enabled
+    case disabled
+
+    var isEnabled: Bool { self == .enabled }
+}
+
+struct GraphInteractionPolicy {
+    let hoverOverlayDefault: GraphHoverOverlayDefault
+    let hoverOverlayEnvironmentVariable: String
+
+    func hoverOverlayEnabled(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        guard let value = environment[hoverOverlayEnvironmentVariable]?.lowercased() else {
+            return hoverOverlayDefault.isEnabled
+        }
+        switch value {
+        case "0", "false", "no", "off":
+            return false
+        case "1", "true", "yes", "on":
+            return true
+        default:
+            return hoverOverlayDefault.isEnabled
+        }
+    }
 }
 
 struct GraphRenderSchedulingPolicy {
