@@ -145,7 +145,8 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.homeCards.isEmpty {
+        let columns = model.dashboardColumns
+        if columns.allSatisfy(\.isEmpty) {
             VStack(spacing: 12) {
                 ProgressView()
                     .progressViewStyle(.circular)
@@ -157,7 +158,7 @@ struct DashboardView: View {
         } else {
             ScrollView([.vertical, .horizontal]) {
                 HStack(alignment: .top, spacing: AppConfig.dashboardColumnSpacing) {
-                    ForEach(Array(model.dashboardColumns.enumerated()), id: \.offset) { _, column in
+                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
                         VStack(spacing: AppConfig.dashboardColumnSpacing) {
                             ForEach(column, id: \.nativeID) { card in
                                 CardRenderer(card: card)

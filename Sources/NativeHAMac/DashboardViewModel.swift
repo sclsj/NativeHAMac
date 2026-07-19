@@ -480,18 +480,22 @@ final class DashboardViewModel: ObservableObject {
             connectionStatusTask = Task { [weak self, webSocket] in
                 for await connectionState in await webSocket.connection.statusUpdates() {
                     await MainActor.run {
+                        let nextStatus: String
                         switch connectionState {
                         case .ready:
-                            self?.status = "Live"
+                            nextStatus = "Live"
                         case .disconnected:
-                            self?.status = "Disconnected"
+                            nextStatus = "Disconnected"
                         case .reconnecting:
-                            self?.status = "Reconnecting"
+                            nextStatus = "Reconnecting"
                         case let .authenticationFailed(message):
-                            self?.status = "Error"
+                            nextStatus = "Error"
                             self?.errorMessage = "WebSocket authentication failed: \(message)"
                         case .connecting:
-                            self?.status = "Connecting"
+                            nextStatus = "Connecting"
+                        }
+                        if self?.status != nextStatus {
+                            self?.status = nextStatus
                         }
                     }
                 }
@@ -528,8 +532,12 @@ final class DashboardViewModel: ObservableObject {
             return
         }
 
-        for (entityID, state) in pendingStates {
-            states[entityID] = state
+        if pendingStates.contains(where: { states[$0.key] != $0.value }) {
+            var updatedStates = states
+            for (entityID, state) in pendingStates {
+                updatedStates[entityID] = state
+            }
+            states = updatedStates
         }
         pendingStates.removeAll()
         isStateFlushScheduled = false
@@ -582,10 +590,12 @@ final class DashboardViewModel: ObservableObject {
                 onStatus: { status in
                     await MainActor.run {
                         guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        guard weakModel.value?.historyStatuses[key] != status else { return }
                         weakModel.value?.historyStatuses[key] = status
                     }
                 },
                 onPublication: { publication in
+                    if case .unchanged = publication.transition { return }
                     await processingHook()
                     guard !Task.isCancelled else { return }
                     guard let projected = await projectionStore.series(from: publication) else { return }
@@ -650,10 +660,12 @@ final class DashboardViewModel: ObservableObject {
                 onStatus: { status in
                     await MainActor.run {
                         guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
+                        guard weakModel.value?.detailHistoryStatuses[key] != status else { return }
                         weakModel.value?.detailHistoryStatuses[key] = status
                     }
                 },
                 onPublication: { publication in
+                    if case .unchanged = publication.transition { return }
                     await processingHook()
                     guard !Task.isCancelled else { return }
                     guard let projection = await projectionStore.series(from: publication)?.first else { return }

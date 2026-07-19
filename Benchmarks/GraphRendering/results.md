@@ -1,5 +1,39 @@
 # Recorded graph-rendering results
 
+## 2026-07-19 settled 12h append/coalescing repair
+
+The new deterministic end-to-end case models four numeric entities with
+25,000 points each, then twenty five-point-per-entity rolling updates. It
+delivers every fourth update so the measured path includes accumulator work,
+publication coalescing, compact projection, prepared numeric series, and
+min/max sampling instead of timing those stages in isolation.
+
+At `bbe0768`, every group of normal append publications collapsed to a reset.
+That caused 24 full entity projections and 24 full prepared-series builds. The
+single baseline release run measured 56.125 ms in accumulation, 3,179.182 ms
+in projection, and 677.397 ms in preparation/min-max work: 3,912.705 ms total.
+
+The repaired path composes the exact intersection of consecutive snapshot
+lineages, mutates uniquely owned rolling arrays in place, retains copy-on-write
+snapshot safety when a callback is still using an older array, and does not
+retain the prior compact window in the projection cache. The three final
+release runs had a 714.208 ms median total (24.700 ms accumulation, 566.287 ms
+projection, 120.439 ms preparation/min-max), a 5.48× end-to-end improvement
+over the captured baseline. Every run reported:
+
+- zero coalesced resets and zero accumulator full fallbacks;
+- 80 reusable entity paths across the twenty updates;
+- four initial full plus twenty incremental entity projections;
+- four initial full plus twenty incremental prepared-series builds;
+- exact final projected points against the cold full oracle.
+
+The same release verification kept all correction, out-of-order, missing-
+lineage, reconnect-generation, and unsorted/gapped retained-input fixtures on
+their conservative full paths. The 100×200 out-of-order history benchmark
+remains exact; the release `HistoryStreamBench` result improved from the prior
+89.480 ms recorded at `bbe0768` to 47.714 ms while retaining checksum
+`8026277772552279935`.
+
 ## 2026-07-19 rolling-history CPU repair and live GUI verification
 
 After the receive-limit repair made 12h reliable, a release-app profiler found

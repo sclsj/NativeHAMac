@@ -37,15 +37,13 @@ final class HomeAssistantHistoryStreamPerformanceTests: XCTestCase {
 
         let store = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
         let initialProjection = await store.series(from: HAHistoryStreamPublication(
-            history: initialAccumulation.history,
-            transition: initialAccumulation.transition,
+            accumulation: initialAccumulation,
             ownerGeneration: 1
         ))
         let initialSeries = try XCTUnwrap(initialProjection?.first)
         let incrementalStart = ProcessInfo.processInfo.systemUptime
         let incremental = await store.series(from: HAHistoryStreamPublication(
-            history: rollingAccumulation.history,
-            transition: rollingAccumulation.transition,
+            accumulation: rollingAccumulation,
             ownerGeneration: 1
         ))
         let incrementalElapsed = ProcessInfo.processInfo.systemUptime - incrementalStart

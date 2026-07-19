@@ -34,6 +34,7 @@ struct GraphColor: Hashable {
 }
 
 struct GraphRenderSeriesInput {
+    let cacheScope: String
     let entityID: String
     let name: String
     let unit: String
@@ -46,6 +47,7 @@ struct GraphRenderSeriesInput {
     let windowEnd: Double?
 
     init(
+        cacheScope: String = "",
         entityID: String,
         name: String,
         unit: String,
@@ -54,6 +56,7 @@ struct GraphRenderSeriesInput {
         windowStart: Double? = nil,
         windowEnd: Double? = nil
     ) {
+        self.cacheScope = cacheScope
         self.entityID = entityID
         self.name = name
         self.unit = unit
@@ -792,6 +795,10 @@ private final class GraphPreparedSeriesCache {
         let isStateTimeline = displayUnit.lowercased() == "state"
         var points: [GraphRenderedPoint] = []
         points.reserveCapacity(input.history.points.count)
+        var yValues: [Double] = []
+        if !isStateTimeline {
+            yValues.reserveCapacity(input.history.points.count)
+        }
         var isTimestampSorted = true
         var isOneToOneStrictlyIncreasingNumericSource = !isStateTimeline
         var previousTimestamp: Double?
@@ -822,10 +829,16 @@ private final class GraphPreparedSeriesCache {
                 y: value ?? 0,
                 display: displayValue(point.state, unit: displayUnit)
             ))
+            if !isStateTimeline {
+                yValues.append(value ?? 0)
+            }
         }
 
         if !isTimestampSorted {
             points.sort { $0.t < $1.t }
+            if !isStateTimeline {
+                yValues = points.map(\.y)
+            }
         }
         points = points.removingRedundantStatePoints(enabled: isStateTimeline)
 
@@ -843,7 +856,10 @@ private final class GraphPreparedSeriesCache {
                 unit: input.unit,
                 color: input.color,
                 points: points,
-                minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(points: points)
+                minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(
+                    points: points,
+                    yValues: yValues
+                )
             )
         )
     }
@@ -877,6 +893,8 @@ private final class GraphPreparedSeriesCache {
         let parser = GraphDateParser()
         var points: [GraphRenderedPoint] = []
         points.reserveCapacity(input.history.points.count)
+        var yValues: [Double] = []
+        yValues.reserveCapacity(input.history.points.count)
 
         func appendFreshSource(_ range: Range<Int>) -> Bool {
             for (offset, sourceIndex) in range.enumerated() {
@@ -896,6 +914,7 @@ private final class GraphPreparedSeriesCache {
                     y: value,
                     display: displayValue(source.state, unit: displayUnit)
                 ))
+                yValues.append(value)
             }
             return true
         }
@@ -911,12 +930,17 @@ private final class GraphPreparedSeriesCache {
             return nil
         }
         points.append(contentsOf: cachedOverlap)
+        guard let cachedYValues = cached.series.minMaxCache?.yValues else {
+            return nil
+        }
+        yValues.append(contentsOf: cachedYValues[lineage.oldStart..<cachedOverlapEnd])
 
         let suffixStart = lineage.newStart + lineage.count
         guard
             !graphRenderIsCancelled(),
             appendFreshSource(suffixStart..<input.history.points.count),
             points.count == input.history.points.count,
+            yValues.count == points.count,
             !points.isEmpty
         else {
             return nil
@@ -931,7 +955,7 @@ private final class GraphPreparedSeriesCache {
                 unit: input.unit,
                 color: input.color,
                 points: points,
-                minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(points: points)
+                minMaxCache: GraphMinMaxCache(points: points, yValues: yValues)
             )
         )
     }
@@ -952,6 +976,7 @@ private final class GraphPreparedSeriesCache {
 
     private func stableKey(for input: GraphRenderSeriesInput, displayUnit: String) -> String {
         [
+            input.cacheScope,
             input.entityID,
             input.name,
             input.unit,
@@ -1061,11 +1086,17 @@ private func upperBound(in points: [GraphRenderedPoint], timestamp: Double) -> I
 
 struct GraphMinMaxCache {
     let points: [GraphRenderedPoint]
-    private let yValues: [Double]
+    fileprivate let yValues: [Double]
 
     init(points: [GraphRenderedPoint]) {
         self.points = points
         self.yValues = points.map { $0.y }
+    }
+
+    fileprivate init(points: [GraphRenderedPoint], yValues: [Double]) {
+        precondition(points.count == yValues.count)
+        self.points = points
+        self.yValues = yValues
     }
 
     func downsample(in range: Range<Int>, target: Int) -> [GraphRenderedPoint] {

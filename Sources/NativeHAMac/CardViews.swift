@@ -241,7 +241,11 @@ struct HistoryGraphCard: View {
             if let series = model.historySeries(for: card), !series.isEmpty {
                 let groups = groupedSeries(series)
                 ForEach(groups, id: \.unit) { group in
-                    UnitGraph(unit: group.unit, series: group.series)
+                    UnitGraph(
+                        cacheScope: "card:\(card.nativeID):\(model.selectedGraphHours)h:\(group.unit)",
+                        unit: group.unit,
+                        series: group.series
+                    )
 
                     if group.unit != groups.last?.unit {
                         Divider()
@@ -321,6 +325,7 @@ private struct SeriesGroup {
 
 struct UnitGraph: View {
     @EnvironmentObject private var model: DashboardViewModel
+    let cacheScope: String
     let unit: String
     let series: [HAHistorySeries]
     @State private var hoverLocation: CGPoint?
@@ -332,6 +337,7 @@ struct UnitGraph: View {
         let windowStart = windowEnd - Double(model.selectedGraphHours) * 3600
         return series.enumerated().map { index, item in
             GraphRenderSeriesInput(
+                cacheScope: cacheScope,
                 entityID: item.entityID,
                 name: model.displayName(for: item.entityID),
                 unit: unit,
@@ -1792,6 +1798,7 @@ struct DetailHistoryGraph: View {
                     unit: displayUnit,
                     inputs: [
                         GraphRenderSeriesInput(
+                            cacheScope: "detail:\(entityID):\(effectiveHours)h",
                             entityID: entityID,
                             name: model.displayName(for: entityID),
                             unit: displayUnit,

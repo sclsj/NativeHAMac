@@ -8,6 +8,42 @@ is now `complete` after fresh bounded independent verification; the
 orchestrator only needs to commit the intentional settled tree. Do not re-audit
 the frontend while its regenerated graph stays green.
 
+## 2026-07-19 settled-append performance follow-up
+
+The persistent 12h settled lag is repaired on top of `bbe0768`. The remaining
+hot path was not another WebSocket correction: the coordinator converted every
+pair/group of undelivered normal append publications into reset, while the
+accumulator still allocated a filtered full-window array per entity and the
+projection cache retained the previous compact window, forcing copy-on-write.
+
+Consecutive normal publications now carry accumulator-minted snapshot
+revisions and compose only the exact overlap intersection relative to the last
+delivered snapshot. Broken lineage, out-of-order/corrected/gapped/unsorted
+input, reconnect, owner-generation change, and manual/untrusted input still
+take conservative full paths. Normal rolling trim mutates uniquely owned array
+capacity in place with Swift copy-on-write snapshot safety; projection keeps
+only the context/projection needed for reuse; graph preparation builds y-value
+storage in the point pass and scopes prepared cache entries per card/detail
+owner. Redundant ready/unchanged/state/connection publications and the
+dashboard's duplicate `homeCards` computation are suppressed. The broader
+single-`ObservableObject` view fan-out remains intentionally deferred.
+
+The tracked four-entity/100,000-point release pipeline improved from a captured
+3,912.705 ms baseline to a 714.208 ms three-run median (5.48x). It proves zero
+coalesced resets, zero accumulator full fallbacks, full=4/incremental=20 for
+both projection and prepared-series work, and exact cold-oracle output.
+`HistoryStreamBench` remains exact and improved from 89.480 to 47.714 ms.
+
+Final validation is 92 tests with two intentional live-gated skips and zero
+failures; all five release products and the three-test release graph benchmark
+pass. Fresh read-only live CO2/VOC 1h -> 12h -> 1h and representative 24h pass
+without an owner error, as does live 1x/2x graph fidelity. A bounded release GUI
+launch rendered all 12h CO2/VOC/SPS30 plots, stayed `Live`, showed no loading
+owner, and was terminated without touching the user's pre-existing debug app.
+The Module 01 graph is green at 21 nodes/143 edges with fingerprint
+`7f40511c8dee7ca35452bc2bf345ffcccc1b5f66c34c34c1c3174ebdbceecf0d`.
+Preserve untracked `sample.txt`.
+
 ## 2026-07-19 contract-revision-2 repair status
 
 The confirmed 12h transport regression is repaired in the current working tree.

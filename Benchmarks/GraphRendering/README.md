@@ -9,7 +9,14 @@ The deterministic cases run with the normal test suite and verify two things:
 - the Accelerate min/max implementation exactly matches a scalar min/max
   oracle on smooth, noisy, and adversarial spike data;
 - 8 ms viewport events with a 20 ms renderer produce intermediate frames,
-  keep only one render in flight, and settle on the newest token.
+  keep only one render in flight, and settle on the newest token;
+- a production-shaped four-entity/100,000-point rolling stream carries 20
+  append/trim updates through accumulator, publication coalescing, projection,
+  prepared-series construction, and min/max sampling. Four updates are
+  intentionally coalesced into each delivery. The benchmark requires exact
+  equality with a cold projection oracle, zero normal-traffic resets/full
+  accumulator fallbacks, and one incremental projection/preparation per entity
+  and delivered update after the initial cold build.
 
 The live case fetches the four SPS30 particulate sensors from Home Assistant
 over the existing read-only REST benchmark path for both `1h` and `24h`. For

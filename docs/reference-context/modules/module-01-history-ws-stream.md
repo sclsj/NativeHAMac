@@ -9,7 +9,7 @@ depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 3cd05d510c7249b38540239e448460c7afcac52a
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 7fd7546a2f9b860af39694f3a1449d1d0d8e21bab8609e82b31f7c77dc395675
+graph_fingerprint: 7f40511c8dee7ca35452bc2bf345ffcccc1b5f66c34c34c1c3174ebdbceecf0d
 last_validated: 2026-07-19
 ---
 
@@ -74,11 +74,13 @@ accumulator emits typed reset, unchanged, normal-overlap, or out-of-order-reset
 facts while merging. Publications carry monotonic owner generation; the first
 publication after initial subscribe, reconnect, or refresh is a reset. Pending
 reset dominates normal work, unchanged cannot overwrite pending work, and two
-undelivered normal publications collapse to reset because their indices are
-relative to different snapshots. Projection rejects older generations without
-mutation, and dashboard consumers check cancellation again after awaited
-projection. The existing raw callback remains compatible and takes the safe
-full-projection path.
+undelivered normal publications compose only when accumulator-minted snapshot
+revisions prove a contiguous predecessor chain. Their reusable overlap is the
+exact intersection mapped from the last delivered snapshot to the newest one;
+a broken chain resets. Projection rejects older generations or untrusted
+lineage without mutation, and dashboard consumers check cancellation again
+after awaited projection. The existing raw callback remains compatible and
+takes the safe full-projection path.
 
 ## Source anchors
 
@@ -1056,12 +1058,12 @@ preparation. A no-lineage rolling fixture, projection middle correction, and
 post-reset generation all record full preparation/no lineage.
 
 The coordinator preserves relative overlap safety while coalescing: reset
-dominates an undelivered normal update, unchanged cannot erase pending work,
-and two undelivered normals collapse to a reset because the second indices are
-relative to a skipped snapshot. Dashboard consumers check cancellation again
-after awaited projection. The existing raw `onHistory` API remains compatible;
-the typed publication overload is additive, and raw projection remains the safe
-full path.
+dominates an undelivered normal update and unchanged cannot erase pending work.
+The later settled-append repair below replaces the conservative two-normal
+reset with revision-checked overlap composition. Dashboard consumers check
+cancellation again after awaited projection. The existing raw `onHistory` API
+remains compatible; the typed publication overload is additive, and raw
+projection remains the safe full path.
 
 The fresh independent release GUI verifier then passed the previously reopened
 C01-07/C01-08 path:
@@ -1252,7 +1254,8 @@ paths. This adds no extra full-window scan.
 
 The typed client overload is additive and the raw callback remains compatible.
 The coordinator attaches owner generation, makes reset dominate unsafe pending
-relative updates, and turns two skipped normal snapshots into a reset. The
+relative updates. At this hardening revision, two skipped normal snapshots
+still became a reset; the later settled-append repair safely composes them. The
 projection store clears/full-projects a newer generation and returns nil for an
 older generation without mutation. Dashboard history/detail callbacks check
 cancellation after the awaited store call and again inside the final MainActor
@@ -1289,8 +1292,9 @@ The bounded review specifically confirmed:
   lineage and takes exact full projection and graph-preparation paths;
 - normal publications use accumulator-produced contiguous-suffix provenance,
   with no routine `elementsEqual`, retained-source, or `sourcePoints` scan;
-- reset/unchanged/normal/out-of-order transitions and publication coalescing do
-  not reuse indices relative to a skipped snapshot;
+- reset/unchanged/normal/out-of-order transitions and publication coalescing
+  reuse a skipped snapshot only through accumulator-minted revision continuity
+  and exact overlap intersection;
 - newer owner generations clear lineage, stale generations return without
   mutation, and dashboard callbacks check cancellation after projection and
   inside the final main-actor publication hop;
@@ -1329,6 +1333,76 @@ The two expected Module 09 hover/step parity markers remain out of this module's
 scope. `sample.txt` remains untouched. Module 01 is complete and ready for the
 orchestrator's intentional commit; the next rescue workflow action is Module
 04 research.
+
+## Post-completion settled-append repair — 2026-07-19
+
+Status remains **complete**. A bounded regression follow-up reproduced the
+remaining 12-hour lag in a production-shaped four-entity/100,000-point
+pipeline. At `bbe0768`, four undelivered normal append/trim publications were
+conservatively coalesced to reset. Across five deliveries this produced 24 full
+entity projections and 24 full prepared-series builds. The single captured
+release baseline was 3,912.705 ms end to end: 56.125 ms accumulator,
+3,179.182 ms projection, and 677.397 ms prepared/min-max work.
+
+The repair keeps the existing correction/reconnect safety boundaries while
+removing avoidable settled work:
+
+- accumulator-minted predecessor/current revisions prove a consecutive
+  snapshot chain; coalescing maps the exact intersection of consecutive entity
+  overlaps back to the last delivered snapshot, and resets if the chain is
+  broken;
+- normal sorted append/rolling-prefix trim removes and mutates a uniquely owned
+  array in place. Swift copy-on-write preserves an older publication when a
+  callback still retains it. Unsorted/gapped filtering, correction,
+  out-of-order input, reconnect, and untrusted/manual input remain full paths;
+- projection no longer retains the entire previous compact array merely to
+  validate its next overlap. Revision continuity supplies that proof, while
+  cached first-attribute provenance keeps sparse/minimal-response context exact
+  without another normal full-window scan;
+- prepared numeric construction builds min/max scalar storage in the same pass
+  instead of mapping a second complete y-value array, and per-card/detail cache
+  scopes prevent overlapping owners from replacing each other's lineage;
+- repeated `.ready`, unchanged-history, identical state, and identical global
+  connection-status publications no longer trigger redundant broad
+  `ObservableObject` invalidation. The dashboard body also computes cleaned
+  card columns once per update instead of recomputing `homeCards` separately.
+
+Three final release end-to-end runs had a 714.208 ms median total (24.700 ms
+accumulator, 566.287 ms projection, 120.439 ms prepared/min-max), 5.48× faster
+than the captured baseline. Every run proved zero coalesced resets, zero
+accumulator full fallbacks, 80 reusable entity paths, full=4/incremental=20 for
+both projection and prepared-series work, and exact points against a cold full
+oracle. Release `HistoryStreamBench` retained exact checksum
+`8026277772552279935` and improved from the prior 89.480 ms to 47.714 ms.
+
+Deterministic validation passed 92 tests with two intentional live-gated skips
+and zero failures in 56.234 seconds. Focused history 20/20, graph 18/18,
+integration 3/3, history-performance 6/6, and release graph benchmark 3/3
+passed; all five release products built. The existing two expected Module 09
+parity markers remain unchanged.
+
+Fresh authenticated read-only verification passed exact CO2/VOC 1h (8,537
+points/0.443s), 12h (102,364 points/five callbacks/4.608s), recovery 1h (8,536
+points/0.439s), and representative 24h (56,488 points/2.719s), plus the forced
+reconnect owner test. The live graph benchmark retained identical 1×/2×
+points, axes, and bounds for 13,964 1h and 335,708 24h points; cold 24h
+preparation was 572.115/546.582 ms.
+
+A bounded release GUI launch selected 12h and, after ten seconds, Accessibility
+reported `Live`, complete CO2/VOC/SPS30 axes and series, and no `Loading
+history`; direct inspection of `/tmp/nativeha-array-reuse-12h.png` confirmed the
+rendered graphs. One process snapshot at 48 seconds was 10.1% CPU and 266,064
+KiB RSS. The verifier terminated only its release PID and confirmed it was
+gone, leaving the user's pre-existing debug app process untouched. The launch
+did emit the existing SwiftUI warning that an `onChange(of: String)` action
+updated multiple times in one frame. Splitting the broad dashboard observation
+architecture and eliminating any remaining SwiftUI fan-out are intentionally
+deferred; they are not needed for the now-bounded settled append pipeline.
+
+The regenerated graph remains 21 nodes/143 edges with fingerprint
+`7f40511c8dee7ca35452bc2bf345ffcccc1b5f66c34c34c1c3174ebdbceecf0d`;
+the resolver self-test passes 28 nodes/59 edges with fingerprint
+`5082aedcd141cbbdeb05d5809a1324449bc001dbd1059b71a0fd50f56616e1f5`.
 
 ## Handoff
 
@@ -1415,3 +1489,10 @@ yellow/red or a new regression changes a C01 contract surface.
   C01-09. Exact unsorted-gap/full-fallback, generation/cancellation,
   coalescing, 100k fast-path, receive-bound, hover-policy, focused/full-suite,
   five-product-build, and release-benchmark gates are green; status `complete`.
+- 2026-07-19: post-completion settled-append repair composed consecutive normal
+  snapshot lineage instead of resetting, reused rolling accumulator storage,
+  removed retained compact-window and duplicate min/max passes, scoped prepared
+  caches per owner, and suppressed redundant dashboard publications. The exact
+  four-entity/100k end-to-end release median improved 5.48× with zero avoidable
+  resets/full fallbacks; deterministic, live 1h/12h/recovery/24h, live graph,
+  and bounded release-GUI checks pass; status remains `complete`.

@@ -264,6 +264,86 @@ final class GraphRenderingTests: XCTestCase {
         )
     }
 
+    func testPreparedSeriesCacheScopesPreventOverlappingOwnersFromEvictingLineage() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let entityID = "sensor.shared_owner"
+        let firstA = history(
+            entityID: entityID,
+            samples: [(0, "10"), (100, "20"), (200, "30"), (300, "40")]
+        )
+        let firstB = history(
+            entityID: entityID,
+            samples: [(1_000, "50"), (1_100, "60"), (1_200, "70"), (1_300, "80")]
+        )
+        let updatedA = HAHistorySeries(
+            entityID: entityID,
+            points: history(
+                entityID: entityID,
+                samples: [(100, "20"), (200, "30"), (300, "40"), (400, "50")]
+            ).points,
+            contentRevision: firstA.contentRevision &+ 1,
+            cacheLineage: HAHistorySeriesCacheLineage(
+                predecessorRevision: firstA.contentRevision,
+                oldStart: 1,
+                newStart: 0,
+                count: 3
+            )
+        )
+        let updatedB = HAHistorySeries(
+            entityID: entityID,
+            points: history(
+                entityID: entityID,
+                samples: [(1_100, "60"), (1_200, "70"), (1_300, "80"), (1_400, "90")]
+            ).points,
+            contentRevision: firstB.contentRevision &+ 1,
+            cacheLineage: HAHistorySeriesCacheLineage(
+                predecessorRevision: firstB.contentRevision,
+                oldStart: 1,
+                newStart: 0,
+                count: 3
+            )
+        )
+
+        func input(scope: String, history: HAHistorySeries) -> GraphRenderSeriesInput {
+            GraphRenderSeriesInput(
+                cacheScope: scope,
+                entityID: entityID,
+                name: "Shared owner",
+                unit: "°C",
+                color: graphBlue,
+                history: history
+            )
+        }
+
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(scope: "card-a", history: firstA),
+            displayUnit: "°C"
+        ))
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(scope: "card-b", history: firstB),
+            displayUnit: "°C"
+        ))
+        let resultA = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(scope: "card-a", history: updatedA),
+            displayUnit: "°C"
+        ))
+        let resultB = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(scope: "card-b", history: updatedB),
+            displayUnit: "°C"
+        ))
+
+        XCTAssertEqual(resultA.points.map(\.y), [20, 30, 40, 50])
+        XCTAssertEqual(resultB.points.map(\.y), [60, 70, 80, 90])
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 2,
+                cacheHitCount: 0
+            )
+        )
+    }
+
     func testRollingTailWithMiddleCorrectionFallsBackToFullPreparation() throws {
         GraphBitmapRenderer.resetPreparedSeriesCache()
         let first = GraphRenderSeriesInput(
@@ -368,14 +448,12 @@ final class GraphRenderingTests: XCTestCase {
         )
         let projectionStore = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
         let firstProjection = await projectionStore.series(from: HAHistoryStreamPublication(
-            history: initialAccumulation.history,
-            transition: initialAccumulation.transition,
+            accumulation: initialAccumulation,
             ownerGeneration: 1
         ))
         let firstSeries = try XCTUnwrap(firstProjection?.first)
         let movedProjection = await projectionStore.series(from: HAHistoryStreamPublication(
-            history: rollingAccumulation.history,
-            transition: rollingAccumulation.transition,
+            accumulation: rollingAccumulation,
             ownerGeneration: 1
         ))
         let movedSeries = try XCTUnwrap(movedProjection?.first)
@@ -436,14 +514,12 @@ final class GraphRenderingTests: XCTestCase {
         ]))
         let store = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
         let initialProjection = await store.series(from: HAHistoryStreamPublication(
-            history: initial.history,
-            transition: initial.transition,
+            accumulation: initial,
             ownerGeneration: 1
         ))
         let initialSeries = try XCTUnwrap(initialProjection?.first)
         let updatedProjection = await store.series(from: HAHistoryStreamPublication(
-            history: update.history,
-            transition: update.transition,
+            accumulation: update,
             ownerGeneration: 1
         ))
         let updatedSeries = try XCTUnwrap(updatedProjection?.first)
@@ -509,14 +585,12 @@ final class GraphRenderingTests: XCTestCase {
         let rolling = try XCTUnwrap(rollingAccumulation.history[entityID])
         let projectionStore = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
         let firstProjection = await projectionStore.series(from: HAHistoryStreamPublication(
-            history: initialAccumulation.history,
-            transition: initialAccumulation.transition,
+            accumulation: initialAccumulation,
             ownerGeneration: 1
         ))
         let firstSeries = try XCTUnwrap(firstProjection?.first)
         let movedProjection = await projectionStore.series(from: HAHistoryStreamPublication(
-            history: rollingAccumulation.history,
-            transition: rollingAccumulation.transition,
+            accumulation: rollingAccumulation,
             ownerGeneration: 1
         ))
         let movedSeries = try XCTUnwrap(movedProjection?.first)

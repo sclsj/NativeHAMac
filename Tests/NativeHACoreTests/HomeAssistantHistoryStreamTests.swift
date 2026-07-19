@@ -176,13 +176,11 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
 
         let store = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
         _ = await store.series(from: HAHistoryStreamPublication(
-            history: initial.history,
-            transition: initial.transition,
+            accumulation: initial,
             ownerGeneration: 1
         ))
         let updatedProjection = await store.series(from: HAHistoryStreamPublication(
-            history: update.history,
-            transition: update.transition,
+            accumulation: update,
             ownerGeneration: 1
         ))
         let projected = try XCTUnwrap(updatedProjection?.first)
@@ -211,26 +209,34 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
         let reset = HAHistoryStreamPublication(
             history: old,
             transition: .reset,
-            ownerGeneration: 7
+            ownerGeneration: 7,
+            predecessorRevision: nil,
+            historyRevision: 1
         )
         let firstNormal = HAHistoryStreamPublication(
             history: middle,
             transition: .normal([
                 "sensor.a": HAHistoryStreamEntityOverlap(oldStart: 0, newStart: 0, count: 1),
             ]),
-            ownerGeneration: 7
+            ownerGeneration: 7,
+            predecessorRevision: 1,
+            historyRevision: 2
         )
         let secondNormal = HAHistoryStreamPublication(
             history: latest,
             transition: .normal([
                 "sensor.a": HAHistoryStreamEntityOverlap(oldStart: 0, newStart: 0, count: 1),
             ]),
-            ownerGeneration: 7
+            ownerGeneration: 7,
+            predecessorRevision: 2,
+            historyRevision: 3
         )
         let unchanged = HAHistoryStreamPublication(
             history: latest,
             transition: .unchanged,
-            ownerGeneration: 7
+            ownerGeneration: 7,
+            predecessorRevision: 3,
+            historyRevision: 3
         )
 
         let resetThenNormal = HAHistoryStreamCoordinator.coalescing(reset, with: firstNormal)
@@ -239,13 +245,103 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
 
         let twoNormals = HAHistoryStreamCoordinator.coalescing(firstNormal, with: secondNormal)
         XCTAssertEqual(twoNormals.history, latest)
-        XCTAssertEqual(twoNormals.transition, .reset)
+        XCTAssertEqual(
+            twoNormals.transition,
+            .normal([
+                "sensor.a": HAHistoryStreamEntityOverlap(oldStart: 0, newStart: 0, count: 1),
+            ])
+        )
+        XCTAssertEqual(twoNormals.predecessorRevision, 1)
+        XCTAssertEqual(twoNormals.historyRevision, 3)
 
         XCTAssertEqual(
             HAHistoryStreamCoordinator.coalescing(resetThenNormal, with: unchanged),
             resetThenNormal,
             "An empty update cannot erase a pending reset"
         )
+    }
+
+    func testAccumulatorMultiEntityRollingFastPathPreservesPublishedSnapshots() throws {
+        var accumulator = HAHistoryStreamAccumulator(
+            range: 20,
+            now: { Date(timeIntervalSince1970: 100) }
+        )
+        let initial = accumulator.processPublication(message([
+            "sensor.a": [state("a-old", at: 70), state("a-live", at: 90)],
+            "sensor.b": [state("b-old", at: 60), state("b-live", at: 85)],
+        ]))
+        let rolling = accumulator.processPublication(message([
+            "sensor.a": [state("a-tail", at: 100)],
+            "sensor.b": [],
+        ]))
+
+        XCTAssertEqual(
+            initial.history["sensor.a"]?.map(\.state),
+            ["a-old", "a-live"],
+            "A retained publication must stay immutable when the accumulator mutates again"
+        )
+        XCTAssertEqual(initial.history["sensor.b"]?.map(\.state), ["b-old", "b-live"])
+        XCTAssertEqual(rolling.history["sensor.a"]?.map(\.state), ["a-old", "a-live", "a-tail"])
+        XCTAssertEqual(rolling.history["sensor.a"]?.map(\.lastUpdatedSeconds), [80, 90, 100])
+        XCTAssertEqual(rolling.history["sensor.b"]?.map(\.lastUpdatedSeconds), [80, 85])
+        XCTAssertEqual(
+            accumulator.statistics(),
+            HAHistoryStreamAccumulatorStatistics(
+                resetPublicationCount: 1,
+                unchangedPublicationCount: 0,
+                normalPublicationCount: 1,
+                outOfOrderResetPublicationCount: 0,
+                reusableEntityPathCount: 2,
+                fullEntityRebuildCount: 0
+            )
+        )
+
+        let correction = accumulator.processPublication(message([
+            "sensor.a": [state("a-correction", at: 95)],
+        ]))
+        XCTAssertEqual(correction.transition, .outOfOrderReset)
+        XCTAssertEqual(correction.history["sensor.a"]?.map(\.state), [
+            "a-old", "a-live", "a-correction", "a-tail",
+        ])
+        XCTAssertEqual(accumulator.statistics().fullEntityRebuildCount, 1)
+        XCTAssertEqual(accumulator.statistics().outOfOrderResetPublicationCount, 1)
+    }
+
+    func testCoordinatorPublishesReadyOnlyWhenOwnerStatusChanges() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(ScriptedTransportFactory([transport]))
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let deliveries = HistoryPublicationLog()
+        let statuses = HistoryStatusLog()
+        let owner = try await client.subscribeHistoryStatesTimeWindow(
+            entityIDs: ["sensor.a"],
+            hoursToShow: 1,
+            currentStates: ["sensor.a": HAState(entityId: "sensor.a", state: "1")],
+            onStatus: { await statuses.append($0) },
+            onPublication: { await deliveries.append($0) }
+        )
+        let command = try await sentHistoryCommand(transport)
+        let id = try XCTUnwrap(command["id"]?.testInt)
+
+        try await transport.push(historyEvent(id: id, states: [
+            "sensor.a": [state("initial", at: 100)],
+        ]))
+        try await waitUntil { await deliveries.count() == 1 }
+        try await transport.push(historyEvent(id: id, states: [
+            "sensor.a": [state("tail", at: 101)],
+        ]))
+        try await waitUntil { await deliveries.count() == 2 }
+        try await transport.push(historyEvent(id: id, states: [:]))
+        try await waitUntil { await deliveries.count() == 3 }
+
+        let statusSnapshot = await statuses.snapshot()
+        XCTAssertEqual(statusSnapshot, [.loading, .ready])
+        await owner.cancel()
+        await connection.disconnect()
     }
 
     func testRequestBuilderPinsWireParametersAndEveryAttributePolicyBranch() {
@@ -354,6 +450,31 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
         XCTAssertEqual(statistics.incrementalEntityProjectionCount, 0)
     }
 
+    func testProjectionStoreTreatsManualUnchangedPublicationAsUntrusted() async throws {
+        let entityID = "sensor.manual_unchanged"
+        let initial = [state("10", at: 1_000), state("20", at: 1_100)]
+        let corrected = [state("10", at: 1_000), state("99", at: 1_100)]
+        let store = HAHistoryProjectionStore(orderedEntityIDs: [entityID])
+
+        _ = await store.series(from: HAHistoryStreamPublication(
+            history: [entityID: initial],
+            transition: .reset,
+            ownerGeneration: 1
+        ))
+        let replacement = await store.series(from: HAHistoryStreamPublication(
+            history: [entityID: corrected],
+            transition: .unchanged,
+            ownerGeneration: 1
+        ))
+        let series = try XCTUnwrap(replacement?.first)
+        let statistics = await store.statistics()
+
+        XCTAssertEqual(series.points.map(\.state), ["10", "99"])
+        XCTAssertNil(series.cacheLineage)
+        XCTAssertEqual(statistics.fullEntityProjectionCount, 2)
+        XCTAssertEqual(statistics.reusedEntityProjectionCount, 0)
+    }
+
     func testProjectionStoreResetPreventsLineageAcrossOwnerGenerations() async throws {
         let entityID = "sensor.generation"
         let initial = [
@@ -373,7 +494,9 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
         let initialProjection = await store.series(from: HAHistoryStreamPublication(
             history: [entityID: initial],
             transition: .reset,
-            ownerGeneration: 1
+            ownerGeneration: 1,
+            predecessorRevision: nil,
+            historyRevision: 1
         ))
         let initialSeries = try XCTUnwrap(initialProjection?.first)
         let incrementalProjection = await store.series(from: HAHistoryStreamPublication(
@@ -381,7 +504,9 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
             transition: .normal([
                 entityID: HAHistoryStreamEntityOverlap(oldStart: 2, newStart: 1, count: 2),
             ]),
-            ownerGeneration: 1
+            ownerGeneration: 1,
+            predecessorRevision: 1,
+            historyRevision: 2
         ))
         let incremental = try XCTUnwrap(incrementalProjection?.first)
         XCTAssertNil(initialSeries.cacheLineage)
@@ -390,7 +515,9 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
         let freshProjection = await store.series(from: HAHistoryStreamPublication(
             history: [entityID: rolling],
             transition: .reset,
-            ownerGeneration: 2
+            ownerGeneration: 2,
+            predecessorRevision: nil,
+            historyRevision: 1
         ))
         let freshGeneration = try XCTUnwrap(freshProjection?.first)
         let stale = await store.series(from: HAHistoryStreamPublication(
@@ -398,7 +525,9 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
             transition: .normal([
                 entityID: HAHistoryStreamEntityOverlap(oldStart: 0, newStart: 0, count: 1),
             ]),
-            ownerGeneration: 1
+            ownerGeneration: 1,
+            predecessorRevision: 2,
+            historyRevision: 3
         ))
         let freshTail = rolling + [state("60", at: 1_500)]
         let afterStale = await store.series(from: HAHistoryStreamPublication(
@@ -406,7 +535,9 @@ final class HomeAssistantHistoryStreamTests: XCTestCase {
             transition: .normal([
                 entityID: HAHistoryStreamEntityOverlap(oldStart: 0, newStart: 0, count: 4),
             ]),
-            ownerGeneration: 2
+            ownerGeneration: 2,
+            predecessorRevision: 1,
+            historyRevision: 2
         ))
         let afterStaleSeries = try XCTUnwrap(afterStale?.first)
         let statistics = await store.statistics()

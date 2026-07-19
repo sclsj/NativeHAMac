@@ -5,6 +5,121 @@ import XCTest
 @testable import NativeHAMac
 
 final class GraphRenderingBenchmarkTests: XCTestCase {
+    func testProductionShapedHundredThousandPointSettledAppendPipeline() async throws {
+        let entityIDs = (0..<4).map { "sensor.pipeline_\($0)" }
+        let pointsPerEntity = 25_000
+        let baseTimestamp = 1_700_000_000.0
+        var initialStates: [String: [HACompactHistoryState]] = [:]
+        for (entity, entityID) in entityIDs.enumerated() {
+            initialStates[entityID] = (0..<pointsPerEntity).map { index in
+                pipelineState(entity: entity, index: index, baseTimestamp: baseTimestamp)
+            }
+        }
+        let chunks: [HAHistoryStreamMessage] = (0..<20).map { chunk -> HAHistoryStreamMessage in
+            var states: [String: [HACompactHistoryState]] = [:]
+            for (entity, entityID) in entityIDs.enumerated() {
+                states[entityID] = (0..<5).map { offset in
+                    let index = pointsPerEntity + chunk * 5 + offset
+                    return pipelineState(entity: entity, index: index, baseTimestamp: baseTimestamp)
+                }
+            }
+            return HAHistoryStreamMessage(states: states)
+        }
+        let clock = GraphBenchmarkClock(Date(timeIntervalSince1970: baseTimestamp + 25_000))
+        var accumulator = HAHistoryStreamAccumulator(
+            range: 24_999.25,
+            now: { clock.now() }
+        )
+        let projectionStore = HAHistoryProjectionStore(orderedEntityIDs: entityIDs)
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+
+        var accumulatorNanoseconds: UInt64 = 0
+        var projectionNanoseconds: UInt64 = 0
+        var preparationNanoseconds: UInt64 = 0
+        var coalescedResetCount = 0
+        var deliveredNormalCount = 0
+
+        let initialStart = DispatchTime.now().uptimeNanoseconds
+        let initial = accumulator.processPublication(HAHistoryStreamMessage(states: initialStates))
+        accumulatorNanoseconds += DispatchTime.now().uptimeNanoseconds - initialStart
+        let initialPublication = HAHistoryStreamPublication(accumulation: initial, ownerGeneration: 1)
+        let initialProjectionStart = DispatchTime.now().uptimeNanoseconds
+        let initialProjected = await projectionStore.series(from: initialPublication)
+        var latestSeries = try XCTUnwrap(initialProjected)
+        projectionNanoseconds += DispatchTime.now().uptimeNanoseconds - initialProjectionStart
+        let initialPreparationStart = DispatchTime.now().uptimeNanoseconds
+        try preparePipelineSeries(latestSeries)
+        preparationNanoseconds += DispatchTime.now().uptimeNanoseconds - initialPreparationStart
+
+        var pending: HAHistoryStreamPublication?
+        for (index, chunk) in chunks.enumerated() {
+            clock.advance(by: 5)
+            let accumulatorStart = DispatchTime.now().uptimeNanoseconds
+            let accumulation = accumulator.processPublication(chunk)
+            accumulatorNanoseconds += DispatchTime.now().uptimeNanoseconds - accumulatorStart
+            let publication = HAHistoryStreamPublication(accumulation: accumulation, ownerGeneration: 1)
+            if let previous = pending {
+                pending = HAHistoryStreamCoordinator.coalescing(previous, with: publication)
+            } else {
+                pending = publication
+            }
+
+            guard (index + 1).isMultiple(of: 4), let delivery = pending else { continue }
+            pending = nil
+            switch delivery.transition {
+            case .reset, .outOfOrderReset:
+                coalescedResetCount += 1
+            case .normal:
+                deliveredNormalCount += 1
+            case .unchanged:
+                break
+            }
+            let projectionStart = DispatchTime.now().uptimeNanoseconds
+            let projected = await projectionStore.series(from: delivery)
+            latestSeries = try XCTUnwrap(projected)
+            projectionNanoseconds += DispatchTime.now().uptimeNanoseconds - projectionStart
+            let preparationStart = DispatchTime.now().uptimeNanoseconds
+            try preparePipelineSeries(latestSeries)
+            preparationNanoseconds += DispatchTime.now().uptimeNanoseconds - preparationStart
+        }
+
+        let finalHistory = accumulator.combinedHistory
+        let oracle = HAHistoryProjection.series(from: finalHistory, orderedEntityIDs: entityIDs)
+        XCTAssertEqual(latestSeries.map(\.points), oracle.map(\.points))
+        let accumulatorStatistics = accumulator.statistics()
+        let projectionStatistics = await projectionStore.statistics()
+        let preparationStatistics = GraphBitmapRenderer.preparedSeriesCacheStatistics()
+        XCTAssertEqual(coalescedResetCount, 0)
+        XCTAssertEqual(deliveredNormalCount, 5)
+        XCTAssertEqual(accumulatorStatistics.resetPublicationCount, 1)
+        XCTAssertEqual(accumulatorStatistics.normalPublicationCount, 20)
+        XCTAssertEqual(accumulatorStatistics.outOfOrderResetPublicationCount, 0)
+        XCTAssertEqual(accumulatorStatistics.fullEntityRebuildCount, 0)
+        XCTAssertEqual(accumulatorStatistics.reusableEntityPathCount, 80)
+        XCTAssertEqual(projectionStatistics.fullEntityProjectionCount, 4)
+        XCTAssertEqual(projectionStatistics.incrementalEntityProjectionCount, 20)
+        XCTAssertEqual(preparationStatistics.fullPreparationCount, 4)
+        XCTAssertEqual(preparationStatistics.incrementalPreparationCount, 20)
+        let totalMilliseconds = Double(
+            accumulatorNanoseconds + projectionNanoseconds + preparationNanoseconds
+        ) / 1_000_000
+        print(
+            "GRAPH_SETTLED_PIPELINE entities=4 points=\(latestSeries.reduce(0) { $0 + $1.points.count }) " +
+            "updates=20 deliveries=5 coalesced_resets=\(coalescedResetCount) " +
+            "delivered_normals=\(deliveredNormalCount) " +
+            "accumulator_full_fallbacks=\(accumulatorStatistics.fullEntityRebuildCount) " +
+            "accumulator_reusable=\(accumulatorStatistics.reusableEntityPathCount) " +
+            "projection_full=\(projectionStatistics.fullEntityProjectionCount) " +
+            "projection_incremental=\(projectionStatistics.incrementalEntityProjectionCount) " +
+            "prepared_full=\(preparationStatistics.fullPreparationCount) " +
+            "prepared_incremental=\(preparationStatistics.incrementalPreparationCount) " +
+            "accumulator_ms=\(formatMilliseconds(accumulatorNanoseconds)) " +
+            "projection_ms=\(formatMilliseconds(projectionNanoseconds)) " +
+            "prepared_minmax_ms=\(formatMilliseconds(preparationNanoseconds)) " +
+            "total_ms=\(String(format: "%.3f", totalMilliseconds))"
+        )
+    }
+
     func testAdversarialMinMaxMatchesScalarOracle() {
         let points = (0..<100_000).map { index -> GraphRenderedPoint in
             var value = sin(Double(index) / 37) * 4 + cos(Double(index) / 113)
@@ -76,6 +191,65 @@ final class GraphRenderingBenchmarkTests: XCTestCase {
             "max_concurrent=\(scheduler.statistics.maximumConcurrentCount)"
         )
     }
+}
+
+private final class GraphBenchmarkClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Date
+
+    init(_ value: Date) {
+        self.value = value
+    }
+
+    func now() -> Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.lock()
+        value = value.addingTimeInterval(interval)
+        lock.unlock()
+    }
+}
+
+private func preparePipelineSeries(_ series: [HAHistorySeries]) throws {
+    for (index, history) in series.enumerated() {
+        let input = GraphRenderSeriesInput(
+            entityID: history.entityID,
+            name: history.entityID,
+            unit: "µg/m³",
+            color: GraphColor(
+                red: CGFloat(index + 1) / CGFloat(series.count + 1),
+                green: 0.6,
+                blue: 0.9,
+                alpha: 1
+            ),
+            history: history
+        )
+        let prepared = try XCTUnwrap(
+            GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: "µg/m³")
+        )
+        let cache = try XCTUnwrap(prepared.minMaxCache)
+        _ = cache.downsample(in: 0..<prepared.points.count, target: 442)
+    }
+}
+
+private func formatMilliseconds(_ nanoseconds: UInt64) -> String {
+    String(format: "%.3f", Double(nanoseconds) / 1_000_000)
+}
+
+private func pipelineState(
+    entity: Int,
+    index: Int,
+    baseTimestamp: Double
+) -> HACompactHistoryState {
+    HACompactHistoryState(
+        state: String((entity * 17 + index) % 500),
+        lastChangedSeconds: baseTimestamp + Double(index) + 0.125,
+        lastUpdatedSeconds: baseTimestamp + Double(index) + 0.625
+    )
 }
 
 final class GraphRenderingLiveBenchmarkTests: XCTestCase {
