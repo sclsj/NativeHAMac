@@ -954,10 +954,6 @@ private final class GraphPreparedSeriesCache {
             print("[LAG-DEBUG] incrementallyUpdate failed: isStateTimeline")
             return nil
         }
-        guard cached.isOneToOneStrictlyIncreasingNumericSource else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: not isOneToOneStrictlyIncreasingNumericSource")
-            return nil
-        }
         guard fingerprint.count > 0 else {
             print("[LAG-DEBUG] incrementallyUpdate failed: fingerprint.count == 0")
             return nil
@@ -980,14 +976,6 @@ private final class GraphPreparedSeriesCache {
         }
         guard lineage.oldStart >= 0, lineage.newStart >= 0, lineage.count > 0 else {
             print("[LAG-DEBUG] incrementallyUpdate failed: invalid lineage bounds")
-            return nil
-        }
-        guard lineage.oldStart <= cached.series.points.count else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: oldStart > cached count")
-            return nil
-        }
-        guard lineage.count <= cached.series.points.count - lineage.oldStart else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: lineage count exceeds cached")
             return nil
         }
         guard lineage.newStart <= input.history.points.count else {
@@ -1038,18 +1026,42 @@ private final class GraphPreparedSeriesCache {
             return nil
         }
 
-        let cachedOverlapEnd = lineage.oldStart + lineage.count
-        let cachedOverlap = cached.series.points[lineage.oldStart..<cachedOverlapEnd]
-        if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
-           overlapFirst.t < prefixLast.t {
-            print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
-            return nil
+        var overlapStartTime: Double? = nil
+        for i in lineage.newStart..<(lineage.newStart + lineage.count) {
+            let pt = input.history.points[i]
+            if let ts = parser.timestamp(from: pt), numericValue(pt.state) != nil {
+                overlapStartTime = ts
+                break
+            }
         }
-        points.append(contentsOf: cachedOverlap)
-        guard let cachedYValues = cached.series.minMaxCache?.yValues else {
-            return nil
+        
+        var overlapEndTime: Double? = nil
+        for i in (lineage.newStart..<(lineage.newStart + lineage.count)).reversed() {
+            let pt = input.history.points[i]
+            if let ts = parser.timestamp(from: pt), numericValue(pt.state) != nil {
+                overlapEndTime = ts
+                break
+            }
         }
-        yValues.append(contentsOf: cachedYValues[lineage.oldStart..<cachedOverlapEnd])
+
+        if let startTime = overlapStartTime, let endTime = overlapEndTime {
+            let cacheStartIndex = lowerBound(in: cached.series.points, timestamp: startTime)
+            let cacheEndIndex = upperBound(in: cached.series.points, timestamp: endTime)
+            
+            if cacheStartIndex < cacheEndIndex {
+                let cachedOverlap = cached.series.points[cacheStartIndex..<cacheEndIndex]
+                if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
+                   overlapFirst.t < prefixLast.t {
+                    print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
+                    return nil
+                }
+                points.append(contentsOf: cachedOverlap)
+                
+                if let cachedYValues = cached.series.minMaxCache?.yValues, cacheEndIndex <= cachedYValues.count {
+                    yValues.append(contentsOf: cachedYValues[cacheStartIndex..<cacheEndIndex])
+                }
+            }
+        }
 
         let suffixStart = lineage.newStart + lineage.count
         guard !graphRenderIsCancelled() else {
@@ -1058,10 +1070,6 @@ private final class GraphPreparedSeriesCache {
         }
         guard appendFreshSource(suffixStart..<input.history.points.count) else {
             print("[LAG-DEBUG] incrementallyUpdate failed: appendFreshSource suffix failed")
-            return nil
-        }
-        guard points.count == input.history.points.count else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: points count mismatch")
             return nil
         }
         guard yValues.count == points.count else {
