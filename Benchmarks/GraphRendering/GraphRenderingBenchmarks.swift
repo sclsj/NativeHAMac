@@ -348,6 +348,7 @@ private func measuredRender(
         scale: scale,
         zoomScale: zoomScale,
         panFraction: panFraction,
+        engine: .coreGraphics,
         metrics: { captured = $0 }
     ))
     return MeasuredRender(result: result, metrics: try XCTUnwrap(captured))
@@ -402,18 +403,15 @@ private func graphInputs(_ history: [HAHistorySeries]) -> [GraphRenderSeriesInpu
 private func liveClient() async throws -> HomeAssistantRESTClient {
     let environment = ProcessInfo.processInfo.environment
     let token = try environment["HA_TOKEN"] ?? String(
-        contentsOfFile: "/Users/jin/Documents/Computer/ha_apikey.txt",
+        contentsOfFile: AppConfig.tokenFilePath,
         encoding: .utf8
     ).trimmingCharacters(in: .whitespacesAndNewlines)
     let configured = environment["HA_BASE_URL"].flatMap(URL.init(string:))
-    let baseURLs = [configured].compactMap { $0 } + [
-        "http://joyj.me:8123",
-        "http://172.20.200.123:8123",
-        "http://192.168.71.18:8123",
-    ].compactMap(URL.init(string:))
+    let baseURLs = [configured].compactMap { $0 } + AppConfig.baseURLs
 
     var lastError: Error?
-    for baseURL in baseURLs {
+    var attempted: Set<URL> = []
+    for baseURL in baseURLs where attempted.insert(baseURL).inserted {
         let configuration = HomeAssistantConfiguration(
             baseURL: baseURL,
             accessToken: token,

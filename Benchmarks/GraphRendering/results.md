@@ -186,16 +186,56 @@ frame during continuous scrolling.
 
 Times are observations for this machine and live data, not portable limits.
 
-## 2026-07-19 Engine Rendering Performance Comparison
+## 2026-07-20 three-engine pure-render and present-ready latency
 
-A comparative benchmark was added to evaluate pixel rendering/stroking phase time across the three supported engines for drawing chart geometry: `.coreGraphics`, `.metal`, and `.canvas`.
+Command:
 
-The measurement isolates only the stroking/rasterization or vertex-buffer construction stages by simulating a realistic pan interaction for a 1-day SPS30 dataset (~13,000 points across 4 series).
+```sh
+NATIVEHA_LIVE_GRAPH_BENCHMARK=1 \
+NATIVEHA_GRAPH_BENCH_ITERATIONS=20 \
+swift test -c release --filter GraphEngineBenchmarks
+```
 
-| Engine | Stage | Median Time (ms) |
-|---|---|---:|
-| CoreGraphics | Path Construction + Stroke | 4.479 ms |
-| Canvas (SwiftUI) | Path Construction Simulation | 0.254 ms |
-| Metal | Vertex Generation + Buffer Simulation | 0.202 ms |
+Machine: Joy's MBP (2). Release build; 496×178 points, 2× scale, 4× zoom,
+three warm-up frames, twenty measured consecutive rolling revisions per case.
+The live 1h fetch contained 13,988 points / 1,104,584 encoded bytes across four
+series. The live 24h fetch contained 335,536 points / 26,516,025 encoded bytes.
+Each dataset was fetched once and the same immutable frame/viewport sequence
+was reused for Metal, Core Graphics, and Canvas.
 
-Canvas and Metal both drastically reduce the main-thread or pre-render setup time when compared to CoreGraphics because they push rasterization fully to the GPU/system compositor, achieving sub-millisecond execution for the application-side plotting code.
+Pure-render starts with a prepared/downsampled viewport and ends after a
+Core Graphics image snapshot, forced production Canvas offscreen bitmap, or
+completed production Metal offscreen command buffer. Present-ready starts
+before logical frame dispatch/cache access and includes incremental preparation,
+downsampling/viewport geometry, renderer work, dispatch, and completion of that
+same frame. Both exclude compositor scanout and physical screen presentation.
+
+| Window | Engine | n | Pure p50 | Pure p95 | Pure max | Present-ready p50 | Present-ready p95 | Present-ready max |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1h | Metal | 20 | 0.708 ms | 1.155 ms | 2.386 ms | 0.967 ms | 1.398 ms | 3.177 ms |
+| 1h | Core Graphics | 20 | 3.332 ms | 3.612 ms | 4.006 ms | 3.644 ms | 4.155 ms | 4.539 ms |
+| 1h | Canvas | 20 | 3.493 ms | 3.669 ms | 3.674 ms | 4.022 ms | 12.433 ms | 14.942 ms |
+| 24h | Metal | 20 | 0.881 ms | 1.740 ms | 3.342 ms | 3.465 ms | 3.989 ms | 5.294 ms |
+| 24h | Core Graphics | 20 | 7.979 ms | 9.493 ms | 9.572 ms | 10.465 ms | 13.610 ms | 14.847 ms |
+| 24h | Canvas | 20 | 7.922 ms | 9.246 ms | 9.509 ms | 10.501 ms | 11.577 ms | 11.856 ms |
+
+Optional p50 stage breakdown (milliseconds):
+
+| Window | Engine | Prepared series | Downsampling / viewport geometry | Renderer | Scheduling / waiting |
+|---|---|---:|---:|---:|---:|
+| 1h | Metal | 0.151 | 0.034 | 0.738 | 0.044 |
+| 1h | Core Graphics | 0.164 | 0.034 | 3.322 | 0.067 |
+| 1h | Canvas | 0.167 | 0.036 | 3.537 | 0.283 |
+| 24h | Metal | 2.309 | 0.243 | 0.874 | 0.063 |
+| 24h | Core Graphics | 2.286 | 0.249 | 7.984 | 0.089 |
+| 24h | Canvas | 2.015 | 0.236 | 8.135 | 0.076 |
+
+All 120 present-ready requested frames completed, and all 120 pure-render
+samples returned nonempty renderer artifacts. Each pure-render and present-ready phase also verified four initial
+full prepared-series builds and then four incremental preparations for every
+subsequent logical frame. No renderer-selection default was changed.
+
+The older 2026-07-19 comparison was removed because it timed actual
+Core Graphics work against an unused Canvas `Path` and Metal buffer simulation,
+covered only an absolute-path 24h fixture, and could not support total-latency
+or renderer-completion claims.

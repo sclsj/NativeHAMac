@@ -428,6 +428,82 @@ struct UnitGraph: View {
 
 }
 
+enum GraphCanvasGeometry {
+    static func numericPath(
+        for item: GraphRenderedSeries,
+        rendered: GraphRenderResult
+    ) -> Path {
+        var path = Path()
+        for (index, point) in item.points.enumerated() {
+            let mapped = CGPoint(
+                x: rendered.x(for: point.t),
+                y: rendered.y(for: point.y)
+            )
+            if index == 0 {
+                path.move(to: mapped)
+            } else {
+                path.addLine(to: mapped)
+            }
+        }
+        return path
+    }
+}
+
+/// The production Canvas plot extracted so the benchmark can force the same
+/// drawing closure through an offscreen AppKit display pass.
+struct GraphCanvasPlot: View {
+    let rendered: GraphRenderResult
+
+    var body: some View {
+        Canvas { context, _ in
+            if rendered.unit.lowercased() == "state" {
+                drawTimeline(context: &context)
+            } else {
+                for item in rendered.series {
+                    context.stroke(
+                        GraphCanvasGeometry.numericPath(for: item, rendered: rendered),
+                        with: .color(item.color.swiftUIColor),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+                    )
+                }
+            }
+        }
+    }
+
+    private func drawTimeline(context: inout GraphicsContext) {
+        let maxRowHeight: CGFloat = 24
+        let rowHeight = min(
+            rendered.plotRect.height / CGFloat(max(rendered.series.count, 1)),
+            maxRowHeight
+        )
+        let totalHeight = rowHeight * CGFloat(rendered.series.count)
+        let startY = rendered.plotRect.minY + (rendered.plotRect.height - totalHeight) / 2
+
+        for (index, item) in rendered.series.enumerated() {
+            let yOffset = startY + CGFloat(index) * rowHeight
+            for segment in item.timelineSegments {
+                let startX = max(rendered.plotRect.minX, rendered.x(for: segment.clippedStart))
+                let endX = min(rendered.plotRect.maxX, rendered.x(for: segment.clippedEnd))
+                let blockWidth = endX - startX
+                if blockWidth <= 0 { continue }
+                let blockRect = CGRect(
+                    x: startX,
+                    y: yOffset + 2,
+                    width: blockWidth,
+                    height: max(rowHeight - 4, 1)
+                )
+                let hex = HAHistoryTimelineColorResolver.color(
+                    for: segment.state,
+                    entityID: item.entityID
+                ).hex
+                let color = GraphColor(hex: hex)?.swiftUIColor ??
+                    Color(red: 0.62, green: 0.62, blue: 0.62)
+                context.fill(Path(blockRect), with: .color(color))
+            }
+        }
+    }
+}
+
 struct BitmapLineChart: View {
     let unit: String
     let inputs: [GraphRenderSeriesInput]
@@ -444,10 +520,10 @@ struct BitmapLineChart: View {
     @State private var latestDataToken = ""
     @State private var desiredRenderToken = ""
     @StateObject private var viewportRenderScheduler = GraphViewportRenderScheduler()
+    @StateObject private var dataRevisionPreparationScheduler =
+        GraphDataRevisionPreparationScheduler()
     @State private var liveDataRenderTask: Task<Void, Never>?
     @State private var isRendering = false
-
-    private let cacheWarmQueue = DispatchQueue(label: "com.nativeha.graphCacheWarm", qos: .utility)
     @State private var renderAttempted = false
     @State private var latestInteractionTime = Date.distantPast
 
@@ -496,56 +572,9 @@ struct BitmapLineChart: View {
                                 .clipped()
                         }
                     case .canvas:
-                        if rendered.unit.lowercased() == "state" {
-                            Canvas { context, size in
-                                let maxRowHeight: CGFloat = 24
-                                let rowHeight = min(rendered.plotRect.height / CGFloat(max(rendered.series.count, 1)), maxRowHeight)
-                                let totalHeight = rowHeight * CGFloat(rendered.series.count)
-                                let startY = rendered.plotRect.minY + (rendered.plotRect.height - totalHeight) / 2
-                                
-                                for (index, item) in rendered.series.enumerated() {
-                                    let yOffset = startY + CGFloat(index) * rowHeight
-                                    for segment in item.timelineSegments {
-                                        let startX = max(
-                                            rendered.plotRect.minX,
-                                            rendered.x(for: segment.clippedStart)
-                                        )
-                                        let endX = min(
-                                            rendered.plotRect.maxX,
-                                            rendered.x(for: segment.clippedEnd)
-                                        )
-                                        let blockWidth = endX - startX
-                                        if blockWidth <= 0 { continue }
-                                        let blockRect = CGRect(x: startX, y: yOffset + 2, width: blockWidth, height: max(rowHeight - 4, 1))
-                                        let hex = HAHistoryTimelineColorResolver.color(for: segment.state, entityID: item.entityID).hex
-                                        let color = GraphColor(hex: hex)?.swiftUIColor ?? Color(red: 0.62, green: 0.62, blue: 0.62)
-                                        context.fill(Path(blockRect), with: .color(color))
-                                    }
-                                }
-                            }
+                        GraphCanvasPlot(rendered: rendered)
                             .frame(width: size.width, height: size.height)
                             .clipped()
-                        } else {
-                            Canvas { context, size in
-                                for item in rendered.series {
-                                    var path = Path()
-                                    for (index, point) in item.points.enumerated() {
-                                        let mapped = CGPoint(
-                                            x: rendered.x(for: point.t),
-                                            y: rendered.y(for: point.y)
-                                        )
-                                        if index == 0 {
-                                            path.move(to: mapped)
-                                        } else {
-                                            path.addLine(to: mapped)
-                                        }
-                                    }
-                                    context.stroke(path, with: .color(item.color.swiftUIColor), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                                }
-                            }
-                            .frame(width: size.width, height: size.height)
-                            .clipped()
-                        }
                     case .metal:
                         MetalGraphView(rendered: rendered)
                             .frame(width: size.width, height: size.height)
@@ -621,18 +650,12 @@ struct BitmapLineChart: View {
         desiredRenderToken = token
 
         if dataChanged {
-            // FIRE AND FORGET CACHE WARMUP!
-            // We enqueue every data change on a serial queue. This ensures the
-            // cache receives every pipeline revision in perfect FIFO order, keeping
-            // the cacheLineage chain unbroken. We do this independently of whether
-            // the actual bitmap render is debounced or cancelled below.
-            let renderInputs = inputs
-            let renderUnit = unit
-            cacheWarmQueue.async {
-                for input in renderInputs {
-                    _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: renderUnit)
-                }
-            }
+            // Prepared-series lineage consumes every revision independently of
+            // the cancellable/debounced visual frame below.
+            dataRevisionPreparationScheduler.submit(
+                inputs: inputs,
+                displayUnit: unit
+            )
         }
 
         liveDataRenderTask?.cancel()

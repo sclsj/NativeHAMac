@@ -20,7 +20,7 @@ packet.
 | 06 | [Entity display](../rescue-plan/module-06-entities-state-display.md) | not created | unresearched | Requires 04 and 05 | Card/detail phase |
 | 07 | [Weather](../rescue-plan/module-07-weather-card.md) | not created | unresearched | Requires 02, 04, and 05 | Card/detail phase |
 | 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | not created | unresearched | Requires 02 and 04 | Card/detail phase |
-| 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | not created | unresearched | Requires 01 and 05 | Card/detail phase |
+| 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | [Module 09 bounded evidence](modules/module-09-graph-rendering.md) | bounded follow-up validated; module unresearched | 1 / Module 01 complete; broader parity unresearched | Start broader Module 09 research only in a later scoped task |
 | 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 03, 05, and 06 | Card/detail phase |
 | 11 | [Fan detail](../rescue-plan/module-11-fan-detail.md) | not created | unresearched | Requires 05 and 06 | Card/detail phase |
 

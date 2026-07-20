@@ -264,6 +264,106 @@ final class GraphRenderingTests: XCTestCase {
         )
     }
 
+    func testSkippedVisualRevisionStillWarmsImmediatePredecessorForNextRevision() throws {
+        let entityID = "sensor.skipped_visual_revision"
+        let initialHistory = history(
+            entityID: entityID,
+            samples: [(0, "10"), (100, "20"), (200, "30"), (300, "40")]
+        )
+
+        func rollingHistory(
+            samples: [(Int, String)],
+            revision: UInt64,
+            predecessor: UInt64
+        ) -> HAHistorySeries {
+            HAHistorySeries(
+                entityID: entityID,
+                points: history(entityID: entityID, samples: samples).points,
+                contentRevision: revision,
+                cacheLineage: HAHistorySeriesCacheLineage(
+                    predecessorRevision: predecessor,
+                    oldStart: 1,
+                    newStart: 0,
+                    count: 3
+                )
+            )
+        }
+
+        let revisionN = rollingHistory(
+            samples: [(100, "20"), (200, "30"), (300, "40"), (400, "50")],
+            revision: initialHistory.contentRevision &+ 1,
+            predecessor: initialHistory.contentRevision
+        )
+        let revisionNPlusOne = rollingHistory(
+            samples: [(200, "30"), (300, "40"), (400, "50"), (500, "60")],
+            revision: revisionN.contentRevision &+ 1,
+            predecessor: revisionN.contentRevision
+        )
+
+        func input(_ history: HAHistorySeries) -> GraphRenderSeriesInput {
+            GraphRenderSeriesInput(
+                cacheScope: "skipped-visual-regression",
+                entityID: entityID,
+                name: "Skipped visual revision",
+                unit: "°C",
+                color: graphBlue,
+                history: history
+            )
+        }
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(initialHistory),
+            displayUnit: "°C"
+        ))
+
+        let scheduler = GraphDataRevisionPreparationScheduler(
+            label: "com.nativeha.tests.skippedVisualRevision"
+        )
+        let revisionNConsumed = expectation(description: "revision N consumed")
+        let revisionNPlusOneConsumed = expectation(description: "revision N+1 consumed")
+
+        // Revision N's visual render is intentionally absent. Cache maintenance
+        // is the only production operation allowed to consume it.
+        scheduler.submit(inputs: [input(revisionN)], displayUnit: "°C") {
+            revisionNConsumed.fulfill()
+        }
+        scheduler.submit(inputs: [input(revisionNPlusOne)], displayUnit: "°C") {
+            revisionNPlusOneConsumed.fulfill()
+        }
+
+        wait(for: [revisionNConsumed, revisionNPlusOneConsumed], timeout: 1)
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 2,
+                cacheHitCount: 0
+            ),
+            "Skipping visual revision N must not break N+1's predecessor lineage."
+        )
+
+        // Deterministic old-behavior control: bypassing N leaves N-1 cached, so
+        // N+1 cannot incrementally consume a predecessor it never saw.
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(initialHistory),
+            displayUnit: "°C"
+        ))
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(revisionNPlusOne),
+            displayUnit: "°C"
+        ))
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0
+            )
+        )
+    }
+
     func testPreparedSeriesCacheScopesPreventOverlappingOwnersFromEvictingLineage() throws {
         GraphBitmapRenderer.resetPreparedSeriesCache()
         let entityID = "sensor.shared_owner"

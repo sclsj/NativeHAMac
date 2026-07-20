@@ -2,6 +2,44 @@ import Combine
 import CoreGraphics
 import Foundation
 
+/// Advances prepared-series lineage for every accepted data revision,
+/// independently of whether that revision's visual frame is later rendered.
+/// One scheduler is owned by one chart so submissions for that chart remain
+/// FIFO without changing the shared cache's broader concurrency semantics.
+final class GraphDataRevisionPreparationScheduler: ObservableObject {
+    typealias Preparer = (GraphRenderSeriesInput, String) -> Void
+
+    private let queue: DispatchQueue
+    private let preparer: Preparer
+
+    init(
+        label: String = "com.nativeha.graphDataRevisionPreparation",
+        preparer: @escaping Preparer = { input, displayUnit in
+            _ = GraphBitmapRenderer.preparedSeriesForTesting(
+                input,
+                displayUnit: displayUnit
+            )
+        }
+    ) {
+        queue = DispatchQueue(label: label, qos: .utility)
+        self.preparer = preparer
+    }
+
+    func submit(
+        inputs: [GraphRenderSeriesInput],
+        displayUnit: String,
+        completion: (() -> Void)? = nil
+    ) {
+        let preparer = preparer
+        queue.async {
+            for input in inputs {
+                preparer(input, displayUnit)
+            }
+            completion?()
+        }
+    }
+}
+
 struct GraphViewportRenderRequest {
     let token: String
     let dataToken: String

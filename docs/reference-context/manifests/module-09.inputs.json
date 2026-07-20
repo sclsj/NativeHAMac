@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "09",
+  "title": "Graph revision scheduling and engine benchmarks",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
+      "symbols": ["HAHistoryProjectionStore"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig", "GraphRenderEngine"]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": ["BitmapLineChart"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRendering.swift",
+      "symbols": ["GraphBitmapRenderer", "GraphPreparedSeriesCacheStatistics", "GraphRenderMetrics"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
+      "symbols": ["GraphViewportRenderScheduler"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphMetalRenderer.swift",
+      "symbols": ["GraphMetalRenderer"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
+      "symbols": ["GraphRenderingTests"]
+    },
+    {
+      "path": "Benchmarks/GraphRendering/GraphRenderingBenchmarks.swift",
+      "symbols": ["GraphRenderingBenchmarkTests", "GraphRenderingLiveBenchmarkTests"]
+    },
+    {
+      "path": "Benchmarks/GraphRendering/GraphEngineBenchmarks.swift",
+      "symbols": ["GraphEngineBenchmarks"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/data/history.ts",
+      "symbols": ["HistoryStream"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "symbols": ["HuiHistoryGraphCard"]
+    },
+    {
+      "path": "src/components/chart/state-history-chart-line.ts",
+      "symbols": ["StateHistoryChartLine"]
+    },
+    {
+      "path": "src/components/chart/state-history-chart-line-data.ts",
+      "symbols": ["generateStateHistoryChartLineData"]
+    },
+    {
+      "path": "src/components/chart/ha-chart-base.ts",
+      "symbols": ["HaChartBase"]
+    }
+  ],
+  "followPackages": [],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}

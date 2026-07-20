@@ -375,6 +375,7 @@ enum GraphBitmapRenderer {
         scale: CGFloat,
         zoomScale: CGFloat,
         panFraction: Double,
+        engine: GraphRenderEngine = AppConfig.graphRenderEngine,
         metrics: ((GraphRenderMetrics) -> Void)? = nil
     ) -> GraphRenderResult? {
         let totalStart = graphRenderClock()
@@ -400,52 +401,13 @@ enum GraphBitmapRenderer {
         var pathStrokeNanoseconds: UInt64 = 0
         var imageSnapshotNanoseconds: UInt64 = 0
 
-        switch AppConfig.graphRenderEngine {
+        switch engine {
         case .coreGraphics:
-            let isStateTimeline = unit.lowercased() == "state"
-            let bitmap: GraphBitmapDrawResult?
-            if isStateTimeline {
-                bitmap = drawTimelineBitmap(
-                    series: result.series,
-                    size: size,
-                    scale: scale,
-                    plotRect: result.plotRect,
-                    visibleStart: result.visibleStart,
-                    visibleEnd: result.visibleEnd
-                )
-            } else {
-                bitmap = drawBitmap(
-                    series: result.series,
-                    size: size,
-                    scale: scale,
-                    plotRect: result.plotRect,
-                    axis: result.axis,
-                    xTicks: result.xTicks,
-                    visibleStart: result.visibleStart,
-                    visibleEnd: result.visibleEnd
-                )
-            }
-
-            guard let bitmap = bitmap else {
+            guard let renderedBitmap = renderPreparedCoreGraphics(result) else {
                 return nil
             }
-            
-            result = GraphRenderResult(
-                image: bitmap.image,
-                size: result.size,
-                scale: result.scale,
-                plotRect: result.plotRect,
-                unit: result.unit,
-                series: result.series,
-                axis: result.axis,
-                xTicks: result.xTicks,
-                fullStart: result.fullStart,
-                fullEnd: result.fullEnd,
-                visibleStart: result.visibleStart,
-                visibleEnd: result.visibleEnd,
-                zoomScale: result.zoomScale,
-                panFraction: result.panFraction
-            )
+            result = renderedBitmap.result
+            let bitmap = renderedBitmap.bitmap
 
             bitmapByteCount = bitmap.metrics.bitmapByteCount
             bitmapAllocationNanoseconds = bitmap.metrics.allocationNanoseconds
@@ -492,6 +454,64 @@ enum GraphBitmapRenderer {
         displayUnit: String
     ) -> GraphRenderedSeries? {
         GraphPreparedSeriesCache.shared.series(for: input, displayUnit: displayUnit)
+    }
+
+    /// Renderer-only seam used by the engine benchmark after common viewport
+    /// preparation has completed. Completion means the CGImage snapshot exists.
+    static func renderPreparedCoreGraphicsForBenchmark(
+        _ prepared: GraphRenderResult
+    ) -> GraphRenderResult? {
+        renderPreparedCoreGraphics(prepared)?.result
+    }
+
+    private static func renderPreparedCoreGraphics(
+        _ prepared: GraphRenderResult
+    ) -> (result: GraphRenderResult, bitmap: GraphBitmapDrawResult)? {
+        let bitmap: GraphBitmapDrawResult?
+        if prepared.unit.lowercased() == "state" {
+            bitmap = drawTimelineBitmap(
+                series: prepared.series,
+                size: prepared.size,
+                scale: prepared.scale,
+                plotRect: prepared.plotRect,
+                visibleStart: prepared.visibleStart,
+                visibleEnd: prepared.visibleEnd
+            )
+        } else {
+            bitmap = drawBitmap(
+                series: prepared.series,
+                size: prepared.size,
+                scale: prepared.scale,
+                plotRect: prepared.plotRect,
+                axis: prepared.axis,
+                xTicks: prepared.xTicks,
+                visibleStart: prepared.visibleStart,
+                visibleEnd: prepared.visibleEnd
+            )
+        }
+        guard let bitmap = bitmap else {
+            return nil
+        }
+
+        return (
+            GraphRenderResult(
+                image: bitmap.image,
+                size: prepared.size,
+                scale: prepared.scale,
+                plotRect: prepared.plotRect,
+                unit: prepared.unit,
+                series: prepared.series,
+                axis: prepared.axis,
+                xTicks: prepared.xTicks,
+                fullStart: prepared.fullStart,
+                fullEnd: prepared.fullEnd,
+                visibleStart: prepared.visibleStart,
+                visibleEnd: prepared.visibleEnd,
+                zoomScale: prepared.zoomScale,
+                panFraction: prepared.panFraction
+            ),
+            bitmap
+        )
     }
 
     private static func drawBitmap(
