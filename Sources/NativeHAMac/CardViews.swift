@@ -446,6 +446,8 @@ struct BitmapLineChart: View {
     @StateObject private var viewportRenderScheduler = GraphViewportRenderScheduler()
     @State private var liveDataRenderTask: Task<Void, Never>?
     @State private var isRendering = false
+
+    private let cacheWarmQueue = DispatchQueue(label: "com.nativeha.graphCacheWarm", qos: .utility)
     @State private var renderAttempted = false
     @State private var latestInteractionTime = Date.distantPast
 
@@ -617,6 +619,22 @@ struct BitmapLineChart: View {
         latestViewportToken = viewportToken
         latestDataToken = dataToken
         desiredRenderToken = token
+
+        if dataChanged {
+            // FIRE AND FORGET CACHE WARMUP!
+            // We enqueue every data change on a serial queue. This ensures the
+            // cache receives every pipeline revision in perfect FIFO order, keeping
+            // the cacheLineage chain unbroken. We do this independently of whether
+            // the actual bitmap render is debounced or cancelled below.
+            let renderInputs = inputs
+            let renderUnit = unit
+            cacheWarmQueue.async {
+                for input in renderInputs {
+                    _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: renderUnit)
+                }
+            }
+        }
+
         liveDataRenderTask?.cancel()
 
         let hasRenderedImage = rendered != nil
@@ -631,13 +649,6 @@ struct BitmapLineChart: View {
         }
 
         if isZoomedAwayFromLiveEdge {
-            let renderInputs = inputs
-            let renderUnit = unit
-            Task.detached(priority: .utility) {
-                for input in renderInputs {
-                    _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: renderUnit)
-                }
-            }
             return
         }
 
