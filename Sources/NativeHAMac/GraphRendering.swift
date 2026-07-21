@@ -986,26 +986,6 @@ private final class GraphPreparedSeriesCache {
             print("[LAG-DEBUG] incrementallyUpdate failed: cached series empty")
             return nil
         }
-        guard let lineage = input.history.cacheLineage else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: lineage is nil")
-            return nil
-        }
-        guard lineage.predecessorRevision == cached.fingerprint.contentRevision else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: predecessor \(lineage.predecessorRevision) != cached \(cached.fingerprint.contentRevision)")
-            return nil
-        }
-        guard lineage.oldStart >= 0, lineage.newStart >= 0, lineage.count > 0 else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: invalid lineage bounds")
-            return nil
-        }
-        guard lineage.newStart <= input.history.points.count else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: newStart > input count")
-            return nil
-        }
-        guard lineage.count <= input.history.points.count - lineage.newStart else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: lineage count exceeds input")
-            return nil
-        }
 
         let parser = GraphDateParser()
         var points: [GraphRenderedPoint] = []
@@ -1042,53 +1022,69 @@ private final class GraphPreparedSeriesCache {
             return true
         }
 
-        guard appendFreshSource(0..<lineage.newStart) else {
-            return nil
-        }
-
+        // Use timestamp bounds to find the overlapping region, ignoring strict lineage indices
+        // to gracefully handle skipped revisions from SwiftUI coalescing.
         var overlapStartTime: Double? = nil
-        for i in lineage.newStart..<(lineage.newStart + lineage.count) {
+        var firstValidNewIndex = 0
+        for i in 0..<input.history.points.count {
             let pt = input.history.points[i]
             if let ts = parser.timestamp(from: pt), numericValue(pt.state) != nil {
                 overlapStartTime = ts
+                firstValidNewIndex = i
                 break
             }
         }
         
-        var overlapEndTime: Double? = nil
-        for i in (lineage.newStart..<(lineage.newStart + lineage.count)).reversed() {
+        guard let startTime = overlapStartTime else { return nil }
+        
+        // Find the last timestamp in the cache
+        let lastCachedPoint = cached.series.points.last!
+        
+        // If the new raw data starts AFTER the cache ends, there is absolutely no overlap.
+        // We cannot use the cache at all, so we must fall back to prepareFull.
+        guard startTime <= lastCachedPoint.t else {
+            print("[LAG-DEBUG] incrementallyUpdate failed: no overlap (startTime \(startTime) > cache.last \(lastCachedPoint.t))")
+            return nil
+        }
+        
+        let cacheStartIndex = lowerBound(in: cached.series.points, timestamp: startTime)
+        
+        // Find where the new suffix begins in the raw input
+        var suffixStartRawIndex = input.history.points.count
+        for i in (0..<input.history.points.count).reversed() {
             let pt = input.history.points[i]
             if let ts = parser.timestamp(from: pt), numericValue(pt.state) != nil {
-                overlapEndTime = ts
-                break
-            }
-        }
-
-        if let startTime = overlapStartTime, let endTime = overlapEndTime {
-            let cacheStartIndex = lowerBound(in: cached.series.points, timestamp: startTime)
-            let cacheEndIndex = upperBound(in: cached.series.points, timestamp: endTime)
-            
-            if cacheStartIndex < cacheEndIndex {
-                let cachedOverlap = cached.series.points[cacheStartIndex..<cacheEndIndex]
-                if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
-                   overlapFirst.t < prefixLast.t {
-                    print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
-                    return nil
-                }
-                points.append(contentsOf: cachedOverlap)
-                
-                if let cachedYValues = cached.series.minMaxCache?.yValues, cacheEndIndex <= cachedYValues.count {
-                    yValues.append(contentsOf: cachedYValues[cacheStartIndex..<cacheEndIndex])
+                if ts <= lastCachedPoint.t {
+                    suffixStartRawIndex = i + 1
+                    break
                 }
             }
         }
-
-        let suffixStart = lineage.newStart + lineage.count
+        
+        // Parse the fresh prefix (if any)
+        guard appendFreshSource(0..<firstValidNewIndex) else {
+            return nil
+        }
+        
+        // Append the overlapping cache slice
+        let cachedOverlap = cached.series.points[cacheStartIndex...]
+        if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
+           overlapFirst.t < prefixLast.t {
+            print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
+            return nil
+        }
+        points.append(contentsOf: cachedOverlap)
+        
+        if let cachedYValues = cached.series.minMaxCache?.yValues, cacheStartIndex < cachedYValues.count {
+            yValues.append(contentsOf: cachedYValues[cacheStartIndex...])
+        }
+        
+        // Parse the fresh suffix (if any)
         guard !graphRenderIsCancelled() else {
             print("[LAG-DEBUG] incrementallyUpdate failed: cancelled")
             return nil
         }
-        guard appendFreshSource(suffixStart..<input.history.points.count) else {
+        guard appendFreshSource(suffixStartRawIndex..<input.history.points.count) else {
             print("[LAG-DEBUG] incrementallyUpdate failed: appendFreshSource suffix failed")
             return nil
         }
