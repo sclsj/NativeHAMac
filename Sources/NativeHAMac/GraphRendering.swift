@@ -837,7 +837,7 @@ private final class GraphPreparedSeriesCache {
         lock.lock()
         let lockWaitNanoseconds = graphRenderElapsed(since: requestStart)
         if lockWaitNanoseconds > 5_000_000 {
-            print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)")
+            AppLog("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)", category: .rendering)
         }
 
         if let cached = storage[key] {
@@ -857,7 +857,7 @@ private final class GraphPreparedSeriesCache {
             ) {
                 let incElapsed = graphRenderElapsed(since: incStart)
                 if incElapsed > 5_000_000 {
-                    print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)")
+                    AppLog("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)", category: .rendering)
                 }
                 lock.lock()
                 incrementalPreparationCount += 1
@@ -865,7 +865,7 @@ private final class GraphPreparedSeriesCache {
                 store(updated, key: key)
                 return updated.series
             } else {
-                print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))")
+                AppLog("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))", category: .rendering)
             }
         } else {
             lock.unlock()
@@ -876,7 +876,7 @@ private final class GraphPreparedSeriesCache {
             return nil
         }
         let fullElapsed = graphRenderElapsed(since: fullStart)
-        print("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)")
+        AppLog("[LAG-DEBUG] [\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)", category: .rendering)
 
         lock.lock()
         fullPreparationCount += 1
@@ -971,19 +971,19 @@ private final class GraphPreparedSeriesCache {
     ) -> GraphPreparedCacheEntry? {
         let isStateTimeline = displayUnit.lowercased() == "state"
         guard !isStateTimeline else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: isStateTimeline")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: isStateTimeline", category: .rendering)
             return nil
         }
         guard fingerprint.count > 0 else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: fingerprint.count == 0")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: fingerprint.count == 0", category: .rendering)
             return nil
         }
         guard !input.history.points.isEmpty else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: input points empty")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: input points empty", category: .rendering)
             return nil
         }
         guard !cached.series.points.isEmpty else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: cached series empty")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: cached series empty", category: .rendering)
             return nil
         }
 
@@ -994,28 +994,27 @@ private final class GraphPreparedSeriesCache {
         yValues.reserveCapacity(input.history.points.count)
 
         func appendFreshSource(_ range: Range<Int>) -> Bool {
-            for (offset, sourceIndex) in range.enumerated() {
-                if offset % 1_024 == 0, graphRenderIsCancelled() {
+            for i in range {
+                if i % 1_024 == 0, graphRenderIsCancelled() {
                     return false
                 }
-                let source = input.history.points[sourceIndex]
-                let timestampOpt = parser.timestamp(from: source)
-                guard let timestamp = timestampOpt else {
-                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp nil")
+                let pt = input.history.points[i]
+                guard let timestamp = parser.timestamp(from: pt) else {
+                    AppLog("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp nil", category: .rendering)
                     return false
                 }
-                guard let value = numericValue(source.state) else {
-                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: value nil")
+                guard let value = numericValue(pt.state) else {
+                    AppLog("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: value nil", category: .rendering)
                     return false
                 }
-                guard points.last.map({ timestamp >= $0.t }) ?? true else {
-                    print("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)")
+                if let last = points.last, timestamp < last.t {
+                    AppLog("[LAG-DEBUG] incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)", category: .rendering)
                     return false
                 }
                 points.append(GraphRenderedPoint(
                     t: timestamp,
                     y: value,
-                    display: displayValue(source.state, unit: displayUnit)
+                    display: displayValue(pt.state, unit: displayUnit)
                 ))
                 yValues.append(value)
             }
@@ -1043,7 +1042,7 @@ private final class GraphPreparedSeriesCache {
         // If the new raw data starts AFTER the cache ends, there is absolutely no overlap.
         // We cannot use the cache at all, so we must fall back to prepareFull.
         guard startTime <= lastCachedPoint.t else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: no overlap (startTime \(startTime) > cache.last \(lastCachedPoint.t))")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: no overlap (startTime \(startTime) > cache.last \(lastCachedPoint.t))", category: .rendering)
             return nil
         }
         
@@ -1070,7 +1069,7 @@ private final class GraphPreparedSeriesCache {
         let cachedOverlap = cached.series.points[cacheStartIndex...]
         if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
            overlapFirst.t < prefixLast.t {
-            print("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)", category: .rendering)
             return nil
         }
         points.append(contentsOf: cachedOverlap)
@@ -1081,19 +1080,19 @@ private final class GraphPreparedSeriesCache {
         
         // Parse the fresh suffix (if any)
         guard !graphRenderIsCancelled() else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: cancelled")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: cancelled", category: .rendering)
             return nil
         }
         guard appendFreshSource(suffixStartRawIndex..<input.history.points.count) else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: appendFreshSource suffix failed")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: appendFreshSource suffix failed", category: .rendering)
             return nil
         }
         guard yValues.count == points.count else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: yValues count mismatch")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: yValues count mismatch", category: .rendering)
             return nil
         }
         guard !points.isEmpty else {
-            print("[LAG-DEBUG] incrementallyUpdate failed: points empty")
+            AppLog("[LAG-DEBUG] incrementallyUpdate failed: points empty", category: .rendering)
             return nil
         }
 

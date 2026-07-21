@@ -170,6 +170,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func connect() async throws {
+        AppLog("WebSocket connect() called", category: .network)
         if state == .ready {
             return
         }
@@ -217,6 +218,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func disconnect() async {
+        AppLog("WebSocket disconnect() called", category: .network)
         disconnectRequested = true
         connectionTask?.cancel()
         connectionTask = nil
@@ -929,6 +931,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
+        AppLog("WebSocket send: \(text)", category: .network)
         try await transport.send(.string(text))
     }
 
@@ -937,8 +940,10 @@ public actor HomeAssistantWebSocketConnection {
         switch frame {
         case let .string(value):
             data = Data(value.utf8)
+            AppLog("WebSocket receive: \(value)", category: .network)
         case let .data(value):
             data = value
+            AppLog("WebSocket receive: \(value.count) bytes", category: .network)
         }
         let decoded = try JSONDecoder().decode(JSONValue.self, from: data)
         switch decoded {
@@ -968,6 +973,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     private func transition(to newState: HAWebSocketConnectionState) {
+        AppLog("WebSocket connection state transitioned to: \(newState)", category: .network)
         state = newState
         for continuation in statusListeners.values {
             continuation.yield(newState)

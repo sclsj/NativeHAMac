@@ -11,7 +11,7 @@ enum AppConfig {
         URL(string: "http://192.168.71.18:8123")!,
     ]
 
-    static var graphRenderEngine: GraphRenderEngine = .metal
+    static var graphRenderEngine: GraphRenderEngine = .coreGraphics
 
     static let showEntityIDsByDefault = false
     static let graphTimeRangePolicy = GraphTimeRangePolicy(
@@ -78,6 +78,14 @@ enum AppConfig {
         CardColumnRule(column: 2, title: "Sensor"),
         CardColumnRule(column: 2, title: "AC Unit Controller"),
     ]
+
+    static let loggingPolicy = LoggingPolicy(
+        network: true,
+        rendering: true,
+        interaction: true,
+        lifecycle: true,
+        general: true
+    )
 }
 
 enum GraphRenderEngine {

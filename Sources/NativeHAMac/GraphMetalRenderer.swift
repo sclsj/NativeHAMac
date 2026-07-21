@@ -122,7 +122,7 @@ class GraphMetalRenderer: NSObject, MTKViewDelegate {
             descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
             pipelineState = try device.makeRenderPipelineState(descriptor: descriptor)
         } catch {
-            print("Failed to compile Metal shaders: \(error)")
+            AppLog("Failed to compile Metal shaders: \(error)", category: .rendering)
         }
     }
 

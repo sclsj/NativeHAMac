@@ -66,6 +66,7 @@ struct DashboardView: View {
 
             ForEach(AppConfig.graphHourOptions, id: \.self) { hours in
                 Button(action: {
+                    AppLog("Switched graph hours to \(hours)", category: .interaction)
                     model.setGraphHours(hours)
                 }) {
                     Text("\(hours)h")

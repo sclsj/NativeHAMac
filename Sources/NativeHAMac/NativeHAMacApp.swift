@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import NativeHACore
 
 @main
 struct NativeHAMacApp: App {
@@ -19,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
+        activeLoggingPolicy = AppConfig.loggingPolicy
+        _ = AppLogger.shared // Initialize logger table
+        
+        AppLog("Application launched, SQLite logger initialized", category: .lifecycle)
+
         DispatchQueue.main.async {
             guard let window = NSApp.windows.first else {
                 return
@@ -30,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             if let visibleFrame = NSScreen.main?.visibleFrame {
                 window.setFrame(visibleFrame, display: true)
+                AppLog("Main window configured with visible frame \(visibleFrame)", category: .lifecycle)
             }
         }
     }

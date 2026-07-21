@@ -1086,12 +1086,25 @@ struct GraphInteractionOverlay: NSViewRepresentable {
         override func magnify(with event: NSEvent) {
             let point = convert(event.locationInWindow, from: nil)
             onHover(point)
+            
+            if event.phase == .began {
+                AppLog("Magnification gesture began at \(point)", category: .interaction)
+            } else if event.phase == .ended || event.phase == .cancelled {
+                AppLog("Magnification gesture ended", category: .interaction)
+            }
+            
             onMagnify(event.magnification, point)
         }
 
         override func scrollWheel(with event: NSEvent) {
             let point = convert(event.locationInWindow, from: nil)
             onHover(point)
+            
+            if event.phase == .began || event.momentumPhase == .began {
+                AppLog("Scroll/pan gesture began at \(point)", category: .interaction)
+            } else if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended || event.momentumPhase == .cancelled {
+                AppLog("Scroll/pan gesture ended", category: .interaction)
+            }
 
             if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
                 onMagnify(event.scrollingDeltaY / 360, point)

@@ -466,6 +466,7 @@ final class DashboardViewModel: ObservableObject {
             webSocketClient = webSocket
 
             status = "Live"
+            AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
             let weakModel = WeakDashboardViewModelBox(self)
             stateSubscription = try await webSocket.subscribeToStateChanges { state in
                 await MainActor.run {
