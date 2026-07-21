@@ -415,10 +415,23 @@ struct UnitGraph: View {
             }
         }
         .onChange(of: seriesContentToken) { _ in
-            // Only advance the time anchor when the underlying data actually
-            // changes (new WebSocket points arrive). This keeps the coordinate
-            // space rock-stable during gesture-driven body re-evaluations.
-            windowAnchor = Date().timeIntervalSince1970
+            // Only advance the time anchor when the underlying data actually changes.
+            // Furthermore, freeze the anchor entirely if the user is zoomed into
+            // historical data, so the coordinate space remains perfectly stable
+            // and the x-axis does not randomly shift while they pan.
+            if zoomScale <= 1.01 && panFraction >= 0.995 {
+                windowAnchor = Date().timeIntervalSince1970
+            }
+        }
+        .onChange(of: zoomScale) { _ in
+            if zoomScale <= 1.01 && panFraction >= 0.995 {
+                windowAnchor = Date().timeIntervalSince1970
+            }
+        }
+        .onChange(of: panFraction) { _ in
+            if zoomScale <= 1.01 && panFraction >= 0.995 {
+                windowAnchor = Date().timeIntervalSince1970
+            }
         }
     }
 
@@ -1904,6 +1917,7 @@ struct DetailHistoryGraph: View {
     @State private var hoverLocation: CGPoint?
     @State private var zoomScale: CGFloat = 1
     @State private var panFraction: Double = 1
+    @State private var windowAnchor: Double = Date().timeIntervalSince1970
 
     var body: some View {
         let effectiveHours = AppConfig.graphTimeRangePolicy.detailDefault.hours
@@ -1924,6 +1938,8 @@ struct DetailHistoryGraph: View {
                     currentAttributes: model.states[entityID]?.attributes,
                     history: history
                 )
+                let windowEnd = windowAnchor
+                let windowStart = windowEnd - Double(effectiveHours) * 3600
                 BitmapLineChart(
                     unit: displayUnit,
                     inputs: [
@@ -1933,7 +1949,9 @@ struct DetailHistoryGraph: View {
                             name: model.displayName(for: entityID),
                             unit: displayUnit,
                             color: graphColor(for: entityID),
-                            history: history
+                            history: history,
+                            windowStart: windowStart,
+                            windowEnd: windowEnd
                         ),
                     ],
                     zoomScale: zoomScale,
@@ -1956,6 +1974,21 @@ struct DetailHistoryGraph: View {
                     panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
                 }
                 .frame(height: 230)
+                .onChange(of: "\(history.points.count):\(history.contentRevision)") { _ in
+                    if zoomScale <= 1.01 && panFraction >= 0.995 {
+                        windowAnchor = Date().timeIntervalSince1970
+                    }
+                }
+                .onChange(of: zoomScale) { _ in
+                    if zoomScale <= 1.01 && panFraction >= 0.995 {
+                        windowAnchor = Date().timeIntervalSince1970
+                    }
+                }
+                .onChange(of: panFraction) { _ in
+                    if zoomScale <= 1.01 && panFraction >= 0.995 {
+                        windowAnchor = Date().timeIntervalSince1970
+                    }
+                }
             } else if case let .error(message)? = model.detailHistoryStatus(
                 entityID: entityID,
                 hours: effectiveHours
