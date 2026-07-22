@@ -15,11 +15,27 @@
 - This Home Assistant deployment is local. Its server URLs, token, and other HA
   credentials do not need redaction or special hiding; the user will rotate the
   token when development finishes.
-- `docs/user-deviations.md` and `docs/configurability.md` are canonical product
-  intent, not historical planning material. Read them when the task touches a
-  product deviation, configuration surface, or recorded status or assumption.
-  Update them in the same commit only when the work changes one of those durable
-  records.
+
+## Durable knowledge and maintenance
+
+- `docs/knowledge-base.md` records durable, non-obvious facts and assumptions
+  that are not reliably discoverable from the current code. Read relevant
+  entries before making assumptions about the live deployment, local benchmark
+  behavior, or previously investigated pitfalls. Update it when an experiment,
+  user correction, or investigation establishes, changes, or invalidates such
+  knowledge.
+- `docs/user-deviations.md` is the canonical record of user-approved product
+  behavior that intentionally differs from hass-frontend or overrides an
+  earlier product assumption. Read it when interpreting intended behavior. When
+  the user asks for a particular behavior, policy, or implementation direction
+  that creates or changes a durable product decision, update it in the same
+  commit. Do not record one-off task mechanics or implementation details that do
+  not represent product intent.
+- `docs/configurability.md` is the canonical record of approved configuration
+  surfaces. Read and update it when work adds, removes, or changes a typed value
+  or policy in `Sources/NativeHAMac/AppConfig.swift`.
+- Keep maintenance edits proportional to the task. Do not churn these documents
+  when their recorded facts, decisions, statuses, and assumptions are unchanged.
 
 ## Task routing
 
@@ -29,14 +45,14 @@ explicitly request more than one route; otherwise prefer the narrowest route
 that fully satisfies the prompt.
 
 - **Planning:** Plan or audit future work. Read
-  `docs/agent-instructions/planning.md`.
+  `docs/planning.md`.
 - **Debugging:** Investigate or repair a specific bug. Read
-  `docs/agent-instructions/debugging.md`.
+  `docs/debugging.md`.
 - **Implementation:** Build a feature or module, carry out a planned stage,
   perform a broad refactor, or close a general parity gap. Read
-  `docs/agent-instructions/implementation.md`.
+  `docs/implementation.md`.
 - **Verification:** Independently verify, test, or review an already-completed
-  change or behavior. Read `docs/agent-instructions/verification.md`.
+  change or behavior. Read `docs/verification.md`.
 
 A specific bug is a concrete observed failure, regression, crash, incorrect
 result, or narrowly bounded behavioral mismatch. A code edit does not by itself

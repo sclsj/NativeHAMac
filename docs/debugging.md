@@ -41,6 +41,9 @@ refactor, or unrelated cleanup.
   surface, or recorded module contract must update the corresponding canonical
   document. A repair that does not change those records must not create
   documentation churn.
+- When investigation establishes or invalidates a durable, non-obvious fact
+  about the deployment, data, local performance, or a recurring reasoning
+  pitfall, update `docs/knowledge-base.md` with its scope and evidence.
 - An existing module evidence packet needs an update only when the repair
   changes one of its recorded contracts, decisions, validation results, status,
   or assumptions. Standalone bugs do not require a new packet.

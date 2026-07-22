@@ -27,6 +27,9 @@ the debugging repair or implementation route.
   `1h` and `24h` data, check cold and warm behavior where relevant, and compare
   correctness as well as speed and memory. Do not sacrifice rendering accuracy
   merely for speed.
+- Update `docs/knowledge-base.md` when verification confirms, refines, or
+  disproves a durable assumption or local performance fact relevant to future
+  work.
 
 Before a handoff, compaction, or session end, update an applicable module
 evidence packet with validation results, exact failures, status, remaining gaps,

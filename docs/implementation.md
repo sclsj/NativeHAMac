@@ -32,6 +32,12 @@ to rediscover scope already supplied by the task and its evidence packet.
 - Preserve unrelated and uncommitted work. For uncertain changes or mixed agent
   contributions, use reversible isolation and inspect exact diffs before
   applying or recovering work.
+- Maintain `docs/knowledge-base.md` when implementation measurements or
+  discoveries establish or invalidate a durable, non-obvious fact that future
+  work should not have to rediscover.
+- When a user-directed behavior or implementation policy creates or changes a
+  durable intentional deviation from hass-frontend or an earlier product
+  assumption, update `docs/user-deviations.md` in the same commit.
 
 ## Algorithm selection and benchmarks
 

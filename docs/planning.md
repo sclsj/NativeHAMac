@@ -26,6 +26,9 @@ edits unless the current prompt explicitly adds the implementation route.
   discovery would otherwise consume the future implementation context.
 - Retain setup facts already supplied. Ask about material product choices, not
   repeatedly about established setup.
+- Update `docs/knowledge-base.md` when planning research confirms, refines, or
+  invalidates a durable, non-obvious deployment assumption, local measurement,
+  or recurring reasoning pitfall.
 
 Before a handoff, compaction, or session end, update the applicable module
 evidence packet with status, decisions, actual artifact scope, validation,
