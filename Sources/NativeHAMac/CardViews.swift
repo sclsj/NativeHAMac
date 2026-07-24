@@ -2073,6 +2073,7 @@ private func roundActionButton(systemName: String, action: @escaping () -> Void)
         Image(systemName: systemName)
             .font(.system(size: 24, weight: .medium))
             .frame(width: 48, height: 48)
+            .contentShape(Circle())
             .background(Circle().stroke(Color.white.opacity(0.45), lineWidth: 1))
     }
     .buttonStyle(.plain)

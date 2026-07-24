@@ -72,6 +72,7 @@ struct DashboardView: View {
                     Text("\(hours)h")
                         .font(.system(size: 13, weight: .semibold))
                         .frame(width: 54, height: 48)
+                        .contentShape(Rectangle())
                         .foregroundColor(model.selectedGraphHours == hours ? .white : .white.opacity(0.62))
                         .background(
                             Rectangle()
