@@ -10,6 +10,8 @@ struct MetalGraphView: NSViewRepresentable {
         mtkView.device = MTLCreateSystemDefaultDevice()
         mtkView.clearColor = graphMetalClearColor
         mtkView.sampleCount = GraphMetalRenderer.sampleCount
+        mtkView.enableSetNeedsDisplay = true
+        mtkView.isPaused = true
         mtkView.delegate = context.coordinator
 
         if let device = mtkView.device {

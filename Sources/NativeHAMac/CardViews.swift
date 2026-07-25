@@ -418,23 +418,25 @@ struct UnitGraph: View {
             }
         }
         .onChange(of: seriesContentToken) { _ in
-            // Only advance the time anchor when the underlying data actually changes.
-            // Furthermore, freeze the anchor entirely if the user is zoomed into
-            // historical data, so the coordinate space remains perfectly stable
-            // and the x-axis does not randomly shift while they pan.
+            let oldAnchor = windowAnchor
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            AppLog("onChange(seriesContentToken): zoom=\(zoomScale) pan=\(panFraction) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
         }
-        .onChange(of: zoomScale) { _ in
+        .onChange(of: zoomScale) { newValue in
+            let oldAnchor = windowAnchor
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            AppLog("onChange(zoomScale): zoom=\(newValue) pan=\(panFraction) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
         }
-        .onChange(of: panFraction) { _ in
+        .onChange(of: panFraction) { newValue in
+            let oldAnchor = windowAnchor
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            AppLog("onChange(panFraction): zoom=\(zoomScale) pan=\(newValue) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
         }
     }
 
@@ -702,41 +704,24 @@ struct BitmapLineChart: View {
 
         let screenScale = NSScreen.main?.backingScaleFactor ?? 2
 
-        switch AppConfig.graphRenderEngine {
-        case .coreGraphics:
-            let request = GraphViewportRenderRequest(
-                token: token,
-                dataToken: latestDataToken,
-                inputs: inputs,
-                unit: unit,
-                size: size,
-                scale: screenScale,
-                zoomScale: zoomScale,
-                panFraction: panFraction
-            )
-            viewportRenderScheduler.schedule(request) { delivery in
-                installViewportRender(delivery, replaceExistingWithNil: !hasRenderedImage)
-            }
-        case .canvas, .metal:
-            let result = GraphBitmapRenderer.render(
-                inputs: inputs,
-                unit: unit,
-                size: size,
-                scale: screenScale,
-                zoomScale: zoomScale,
-                panFraction: panFraction
-            )
-            if let result = result {
-                rendered = result
-                renderedToken = token
-                onRenderReady(result)
-            } else if !hasRenderedImage {
-                rendered = nil
-                renderedToken = token
-            }
-            isRendering = false
-            renderAttempted = true
+        let result = GraphBitmapRenderer.render(
+            inputs: inputs,
+            unit: unit,
+            size: size,
+            scale: screenScale,
+            zoomScale: zoomScale,
+            panFraction: panFraction
+        )
+        if let result = result {
+            rendered = result
+            renderedToken = token
+            onRenderReady(result)
+        } else if !hasRenderedImage {
+            rendered = nil
+            renderedToken = token
         }
+        isRendering = false
+        renderAttempted = true
     }
 
     private func scheduleLiveDataRender(size: CGSize, token: String) {
