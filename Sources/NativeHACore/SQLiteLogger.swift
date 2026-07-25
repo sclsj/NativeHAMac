@@ -152,10 +152,7 @@ public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity =
     
     guard isEnabled else { return }
     
-    var msg = message()
-    if msg.hasPrefix("[LAG-DEBUG] ") {
-        msg = String(msg.dropFirst(12))
-    }
+    let msg = message()
     
     let sev = severity.rawValue
     let cat = category.rawValue
