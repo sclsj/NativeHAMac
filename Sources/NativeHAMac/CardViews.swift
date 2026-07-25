@@ -574,38 +574,48 @@ struct BitmapLineChart: View {
             let dataToken = renderDataToken()
             let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
             let maxZoom = maxGraphZoom(for: inputs, size: size)
+            
+            let currentRender = size.width > 1 && size.height > 1 ? GraphBitmapRenderer.render(
+                inputs: inputs,
+                unit: unit,
+                size: size,
+                scale: NSScreen.main?.backingScaleFactor ?? 2,
+                zoomScale: zoomScale,
+                panFraction: panFraction
+            ) : nil
+            let displayRender = currentRender ?? rendered
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.black.opacity(0.19))
 
-                if let rendered = rendered {
+                if let renderedResult = displayRender {
                     switch AppConfig.graphRenderEngine {
                     case .coreGraphics:
-                        if let image = rendered.image {
-                            Image(decorative: image, scale: rendered.scale, orientation: .up)
+                        if let image = renderedResult.image {
+                            Image(decorative: image, scale: renderedResult.scale, orientation: .up)
                                 .resizable()
                                 .interpolation(.high)
                                 .frame(width: size.width, height: size.height)
                                 .clipped()
                         }
                     case .canvas:
-                        GraphCanvasPlot(rendered: rendered)
+                        GraphCanvasPlot(rendered: renderedResult)
                             .frame(width: size.width, height: size.height)
                             .clipped()
                     case .metal:
-                        MetalGraphView(rendered: rendered)
+                        MetalGraphView(rendered: renderedResult)
                             .frame(width: size.width, height: size.height)
                             .clipped()
                     }
 
-                    axisOverlay(rendered: rendered)
+                    axisOverlay(rendered: renderedResult)
 
                     if showsHoverOverlay,
                        let hoverLocation = hoverLocation,
-                       let sample = rendered.sample(atX: hoverLocation.x)
+                       let sample = renderedResult.sample(atX: hoverLocation.x)
                     {
-                        hoverOverlay(sample: sample, rendered: rendered, size: size)
+                        hoverOverlay(sample: sample, rendered: renderedResult, size: size)
                     }
                 } else if isRendering || !renderAttempted {
                     VStack(spacing: 8) {
@@ -641,6 +651,11 @@ struct BitmapLineChart: View {
                 scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
             .onChange(of: token) { _ in
+                if let currentRender = currentRender {
+                    rendered = currentRender
+                    renderedToken = token
+                    onRenderReady(currentRender)
+                }
                 scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
             }
             .onDisappear {
@@ -680,9 +695,8 @@ struct BitmapLineChart: View {
 
         let hasRenderedImage = rendered != nil
 
-        if !hasRenderedImage || viewportChanged {
-            scheduleViewportRender(size: size, token: token, hasRenderedImage: hasRenderedImage)
-            return
+        if !hasRenderedImage {
+            isRendering = true
         }
 
         guard dataChanged else {
@@ -697,31 +711,7 @@ struct BitmapLineChart: View {
     }
 
     private func scheduleViewportRender(size: CGSize, token: String, hasRenderedImage: Bool) {
-        isRendering = !hasRenderedImage
-        if !hasRenderedImage {
-            renderAttempted = false
-        }
-
-        let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-
-        let result = GraphBitmapRenderer.render(
-            inputs: inputs,
-            unit: unit,
-            size: size,
-            scale: screenScale,
-            zoomScale: zoomScale,
-            panFraction: panFraction
-        )
-        if let result = result {
-            rendered = result
-            renderedToken = token
-            onRenderReady(result)
-        } else if !hasRenderedImage {
-            rendered = nil
-            renderedToken = token
-        }
-        isRendering = false
-        renderAttempted = true
+        // Obsolete, render is now inline
     }
 
     private func scheduleLiveDataRender(size: CGSize, token: String) {
@@ -1035,16 +1025,15 @@ struct GraphInteractionOverlay: NSViewRepresentable {
         nsView.onPan = onPan
     }
 
-    final class TrackingView: NSView {
+    class TrackingView: NSView {
         var onHover: (CGPoint?) -> Void
         var onMagnify: (CGFloat, CGPoint) -> Void
         var onPan: (CGFloat) -> Void
 
-        init(
-            onHover: @escaping (CGPoint?) -> Void,
-            onMagnify: @escaping (CGFloat, CGPoint) -> Void,
-            onPan: @escaping (CGFloat) -> Void
-        ) {
+        enum GestureAxis { case pan, zoom }
+        private var currentAxis: GestureAxis? = nil
+
+        init(onHover: @escaping (CGPoint?) -> Void, onMagnify: @escaping (CGFloat, CGPoint) -> Void, onPan: @escaping (CGFloat) -> Void) {
             self.onHover = onHover
             self.onMagnify = onMagnify
             self.onPan = onPan
@@ -1101,16 +1090,27 @@ struct GraphInteractionOverlay: NSViewRepresentable {
             let point = convert(event.locationInWindow, from: nil)
             onHover(point)
             
-            if event.phase == .began || event.momentumPhase == .began {
-                AppLog("Scroll/pan gesture began at \(point)", category: .interaction)
-            } else if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended || event.momentumPhase == .cancelled {
-                AppLog("Scroll/pan gesture ended", category: .interaction)
+            let hasPhase = !event.phase.isEmpty || !event.momentumPhase.isEmpty
+            
+            if hasPhase, currentAxis == nil {
+                if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
+                    currentAxis = .zoom
+                } else {
+                    currentAxis = .pan
+                }
             }
-
-            if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
+            
+            let axis = currentAxis ?? (abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) ? .zoom : .pan)
+            
+            if axis == .zoom {
                 onMagnify(event.scrollingDeltaY / 360, point)
             } else {
                 onPan(event.scrollingDeltaX)
+            }
+            
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) || event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled) {
+                currentAxis = nil
+                AppLog("Scroll/pan gesture ended", severity: .debug, category: .interaction)
             }
         }
     }
