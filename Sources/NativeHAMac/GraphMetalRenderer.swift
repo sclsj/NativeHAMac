@@ -2,33 +2,7 @@ import MetalKit
 import SwiftUI
 import NativeHACore
 
-struct MetalGraphView: NSViewRepresentable {
-    let rendered: GraphRenderResult
 
-    func makeNSView(context: Context) -> MTKView {
-        let mtkView = MTKView()
-        mtkView.device = MTLCreateSystemDefaultDevice()
-        mtkView.clearColor = graphMetalClearColor
-        mtkView.sampleCount = GraphMetalRenderer.sampleCount
-        mtkView.enableSetNeedsDisplay = true
-        mtkView.isPaused = true
-        mtkView.delegate = context.coordinator
-
-        if let device = mtkView.device {
-            context.coordinator.setup(device: device)
-        }
-        return mtkView
-    }
-
-    func updateNSView(_ mtkView: MTKView, context: Context) {
-        context.coordinator.update(rendered: rendered)
-        mtkView.setNeedsDisplay(mtkView.bounds)
-    }
-
-    func makeCoordinator() -> GraphMetalRenderer {
-        GraphMetalRenderer()
-    }
-}
 
 private let graphMetalClearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
@@ -54,7 +28,7 @@ struct GraphMetalRenderCompletion {
     let commandNanoseconds: UInt64
 }
 
-class GraphMetalRenderer: NSObject, MTKViewDelegate {
+class GraphMetalRenderer: NSObject {
     static let sampleCount = 4
 
     private var commandQueue: MTLCommandQueue?
@@ -128,30 +102,7 @@ class GraphMetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    func update(rendered: GraphRenderResult) {
-        self.rendered = rendered
-    }
 
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
-
-    func draw(in view: MTKView) {
-        guard let drawable = view.currentDrawable,
-              let renderPassDescriptor = view.currentRenderPassDescriptor,
-              let rendered = rendered,
-              let commandBuffer = commandQueue?.makeCommandBuffer(),
-              let encoder = commandBuffer.makeRenderCommandEncoder(
-                descriptor: renderPassDescriptor
-              ),
-              let prepared = makePreparedFrame(rendered: rendered, size: view.bounds.size)
-        else {
-            return
-        }
-
-        encode(prepared, with: encoder)
-        encoder.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
-    }
 
     /// Offscreen production renderer completion used by performance benchmarks.
     /// It waits for the requested Metal command buffer, but not compositor
@@ -225,6 +176,102 @@ class GraphMetalRenderer: NSObject, MTKViewDelegate {
             geometryNanoseconds: geometryNanoseconds,
             commandNanoseconds: commandNanoseconds
         )
+    }
+
+    func renderToCGImage(
+        rendered: GraphRenderResult
+    ) -> CGImage? {
+        guard let device = device,
+              let commandQueue = commandQueue,
+              pipelineState != nil else {
+            return nil
+        }
+
+        guard let prepared = makePreparedFrame(rendered: rendered, size: rendered.size),
+              prepared.vertexCount > 0 else {
+            return nil
+        }
+
+        let width = max(Int(rendered.size.width * rendered.scale), 1)
+        let height = max(Int(rendered.size.height * rendered.scale), 1)
+        let multisampleDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        multisampleDescriptor.textureType = .type2DMultisample
+        multisampleDescriptor.sampleCount = Self.sampleCount
+        multisampleDescriptor.storageMode = .private
+        multisampleDescriptor.usage = [.renderTarget]
+
+        let resolveDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm,
+            width: width,
+            height: height,
+            mipmapped: false
+        )
+        resolveDescriptor.storageMode = .shared
+        resolveDescriptor.usage = [.renderTarget, .shaderRead]
+
+        guard let multisampleTexture = device.makeTexture(descriptor: multisampleDescriptor),
+              let resolveTexture = device.makeTexture(descriptor: resolveDescriptor),
+              let commandBuffer = commandQueue.makeCommandBuffer() else {
+            return nil
+        }
+
+        let renderPass = MTLRenderPassDescriptor()
+        renderPass.colorAttachments[0].texture = multisampleTexture
+        renderPass.colorAttachments[0].resolveTexture = resolveTexture
+        renderPass.colorAttachments[0].loadAction = .clear
+        renderPass.colorAttachments[0].storeAction = .multisampleResolve
+        renderPass.colorAttachments[0].clearColor = graphMetalClearColor
+
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
+            return nil
+        }
+        encode(prepared, with: encoder)
+        encoder.endEncoding()
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        guard commandBuffer.status == .completed, commandBuffer.error == nil else {
+            return nil
+        }
+
+        let bytesPerRow = width * 4
+        var data = [UInt8](repeating: 0, count: bytesPerRow * height)
+        let region = MTLRegionMake2D(0, 0, width, height)
+        resolveTexture.getBytes(&data, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        
+        guard let context = CGContext(
+            data: &data,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ) else {
+            return nil
+        }
+        
+        // Flip into SwiftUI/AppKit's top-left layout convention so graph pixels align
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1, y: -1)
+        
+        guard let image = context.makeImage() else { return nil }
+        
+        // Re-draw into a properly oriented CGImage if needed? No, translate/scale won't work on the data directly.
+        // Wait, the data is just bytes. If we want it flipped, we can just flip the context we draw into?
+        // Wait, texture from Metal is already in the Metal coordinate space. 
+        // We can just return the image and let SwiftUI flip it or we can flip it manually.
+        // Actually, CoreGraphics image is drawn with Image(..., orientation: .up)
+        // Let's just return context.makeImage() and see. If it's upside down, we can fix it.
+        return image
     }
 
     private func encode(

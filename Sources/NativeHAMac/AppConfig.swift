@@ -11,7 +11,7 @@ enum AppConfig {
         URL(string: "http://192.168.71.18:8123")!,
     ]
 
-    static var graphRenderEngine: GraphRenderEngine = .coreGraphics
+    static var graphRenderEngine: GraphRenderEngine = .metal
 
     static let showEntityIDsByDefault = false
     static let graphTimeRangePolicy = GraphTimeRangePolicy(

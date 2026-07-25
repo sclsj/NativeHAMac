@@ -370,6 +370,15 @@ enum GraphBitmapRenderer {
         return (result, pointSeries.reduce(0) { $0 + $1.points.count }, seriesPreparationNanoseconds, viewportPreparationNanoseconds)
     }
 
+    private static let metalRenderer: GraphMetalRenderer? = {
+        let renderer = GraphMetalRenderer()
+        if let device = MTLCreateSystemDefaultDevice() {
+            renderer.setup(device: device)
+            return renderer
+        }
+        return nil
+    }()
+
     static func render(
         inputs: [GraphRenderSeriesInput],
         unit: String,
@@ -403,14 +412,14 @@ enum GraphBitmapRenderer {
         var pathStrokeNanoseconds: UInt64 = 0
         var imageSnapshotNanoseconds: UInt64 = 0
 
-        switch engine {
+        switch AppConfig.graphRenderEngine {
         case .coreGraphics:
             guard let renderedBitmap = renderPreparedCoreGraphics(result) else {
                 return nil
             }
             result = renderedBitmap.result
             let bitmap = renderedBitmap.bitmap
-
+            
             bitmapByteCount = bitmap.metrics.bitmapByteCount
             bitmapAllocationNanoseconds = bitmap.metrics.allocationNanoseconds
             contextSetupNanoseconds = bitmap.metrics.contextSetupNanoseconds
@@ -418,8 +427,27 @@ enum GraphBitmapRenderer {
             pathConstructionNanoseconds = bitmap.metrics.pathConstructionNanoseconds
             pathStrokeNanoseconds = bitmap.metrics.pathStrokeNanoseconds
             imageSnapshotNanoseconds = bitmap.metrics.imageSnapshotNanoseconds
-        case .canvas, .metal:
+        case .canvas:
             break
+        case .metal:
+            if let cgImage = metalRenderer?.renderToCGImage(rendered: result) {
+                result = GraphRenderResult(
+                    image: cgImage,
+                    size: result.size,
+                    scale: result.scale,
+                    plotRect: result.plotRect,
+                    unit: result.unit,
+                    series: result.series,
+                    axis: result.axis,
+                    xTicks: result.xTicks,
+                    fullStart: result.fullStart,
+                    fullEnd: result.fullEnd,
+                    visibleStart: result.visibleStart,
+                    visibleEnd: result.visibleEnd,
+                    zoomScale: result.zoomScale,
+                    panFraction: result.panFraction
+                )
+            }
         }
 
         metrics?(GraphRenderMetrics(

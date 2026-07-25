@@ -591,7 +591,7 @@ struct BitmapLineChart: View {
 
                 if let renderedResult = displayRender {
                     switch AppConfig.graphRenderEngine {
-                    case .coreGraphics:
+                    case .coreGraphics, .metal:
                         if let image = renderedResult.image {
                             Image(decorative: image, scale: renderedResult.scale, orientation: .up)
                                 .resizable()
@@ -601,10 +601,6 @@ struct BitmapLineChart: View {
                         }
                     case .canvas:
                         GraphCanvasPlot(rendered: renderedResult)
-                            .frame(width: size.width, height: size.height)
-                            .clipped()
-                    case .metal:
-                        MetalGraphView(rendered: renderedResult)
                             .frame(width: size.width, height: size.height)
                             .clipped()
                     }
