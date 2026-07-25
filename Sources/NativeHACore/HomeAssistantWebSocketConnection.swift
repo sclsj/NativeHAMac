@@ -931,7 +931,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
-        AppLog("WebSocket send: \(text)", category: .network)
+        AppLog("WebSocket send: \(text)", severity: .debug, category: .network)
         try await transport.send(.string(text))
     }
 
@@ -940,10 +940,10 @@ public actor HomeAssistantWebSocketConnection {
         switch frame {
         case let .string(value):
             data = Data(value.utf8)
-            AppLog("WebSocket receive: \(value)", category: .network)
+            AppLog("WebSocket receive: \(value)", severity: .debug, category: .network)
         case let .data(value):
             data = value
-            AppLog("WebSocket receive: \(value.count) bytes", category: .network)
+            AppLog("WebSocket receive: \(value.count) bytes", severity: .debug, category: .network)
         }
         let decoded = try JSONDecoder().decode(JSONValue.self, from: data)
         switch decoded {

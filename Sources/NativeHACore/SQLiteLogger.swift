@@ -9,6 +9,15 @@ public enum LogCategory: String {
     case general
 }
 
+public enum LogSeverity: String {
+    case debug
+    case info
+    case warning
+    case error
+}
+
+let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
 public struct LoggingPolicy {
     public var network: Bool
     public var rendering: Bool
@@ -70,6 +79,7 @@ public final class AppLogger {
         CREATE TABLE IF NOT EXISTS \(tableName) (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp REAL,
+            severity TEXT,
             category TEXT,
             file TEXT,
             function TEXT,
@@ -90,9 +100,10 @@ public final class AppLogger {
         }
         sqlite3_finalize(createTableStatement)
         
-        let insertString = "INSERT INTO \(tableName) (timestamp, category, file, function, line, message) VALUES (?, ?, ?, ?, ?, ?);"
+        let insertString = "INSERT INTO \(tableName) (timestamp, severity, category, file, function, line, message) VALUES (?, ?, ?, ?, ?, ?, ?);"
         if sqlite3_prepare_v2(db, insertString, -1, &insertStatement, nil) != SQLITE_OK {
-            print("Failed to prepare insert statement")
+            let errmsg = String(cString: sqlite3_errmsg(db)!)
+            print("Failed to prepare insert statement: \(errmsg)")
         }
     }
     
@@ -105,19 +116,21 @@ public final class AppLogger {
         }
     }
     
-    public func log(timestamp: Double, category: String, file: String, function: String, line: Int, message: String) {
+    public func log(timestamp: Double, severity: String, category: String, file: String, function: String, line: Int, message: String) {
         queue.async { [weak self] in
             guard let self = self, let statement = self.insertStatement else { return }
             
             sqlite3_bind_double(statement, 1, timestamp)
-            sqlite3_bind_text(statement, 2, (category as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 3, (file as NSString).utf8String, -1, nil)
-            sqlite3_bind_text(statement, 4, (function as NSString).utf8String, -1, nil)
-            sqlite3_bind_int(statement, 5, Int32(line))
-            sqlite3_bind_text(statement, 6, (message as NSString).utf8String, -1, nil)
+            sqlite3_bind_text(statement, 2, (severity as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 3, (category as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 4, (file as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 5, (function as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_int(statement, 6, Int32(line))
+            sqlite3_bind_text(statement, 7, (message as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
             if sqlite3_step(statement) != SQLITE_DONE {
-                print("Failed to insert log entry")
+                let errmsg = String(cString: sqlite3_errmsg(self.db)!)
+                print("Failed to insert log entry: \(errmsg)")
             }
             
             sqlite3_reset(statement)
@@ -126,7 +139,7 @@ public final class AppLogger {
 }
 
 @inlinable
-public func AppLog(_ message: @autoclosure () -> String, category: LogCategory = .general, file: StaticString = #file, function: StaticString = #function, line: UInt = #line) {
+public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity = .info, category: LogCategory = .general, file: StaticString = #file, function: StaticString = #function, line: UInt = #line) {
     #if DEBUG
     var isEnabled = false
     switch category {
@@ -139,12 +152,17 @@ public func AppLog(_ message: @autoclosure () -> String, category: LogCategory =
     
     guard isEnabled else { return }
     
-    let msg = message()
+    var msg = message()
+    if msg.hasPrefix("[LAG-DEBUG] ") {
+        msg = String(msg.dropFirst(12))
+    }
+    
+    let sev = severity.rawValue
     let cat = category.rawValue
-    let f = String(describing: file)
+    let f = (String(describing: file) as NSString).lastPathComponent
     let fun = String(describing: function)
     let t = Date().timeIntervalSince1970
     
-    AppLogger.shared.log(timestamp: t, category: cat, file: f, function: fun, line: Int(line), message: msg)
+    AppLogger.shared.log(timestamp: t, severity: sev, category: cat, file: f, function: fun, line: Int(line), message: msg)
     #endif
 }

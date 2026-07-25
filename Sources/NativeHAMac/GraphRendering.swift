@@ -292,6 +292,8 @@ enum GraphBitmapRenderer {
         let pan = min(max(panFraction, 0), 1)
         let visibleStart = fullBounds.start + scrollableInterval * pan
         let visibleEnd = visibleStart + visibleInterval
+        
+        AppLog("RenderBounds: pan=\(pan), zoom=\(zoomScale), fullStart=\(fullBounds.start), fullEnd=\(fullBounds.end), visibleStart=\(visibleStart), visibleEnd=\(visibleEnd)", severity: .debug, category: .rendering)
 
         let plotRect = CGRect(
             x: 42,

@@ -378,11 +378,14 @@ struct UnitGraph: View {
                     oldPanFraction: panFraction,
                     anchorFraction: anchorFraction
                 )
+                AppLog("onMagnify: delta=\(delta) newZoom=\(zoomScale) newPan=\(panFraction)", severity: .debug, category: .interaction)
             } onPan: { delta in
                 guard zoomScale > 1.01 else {
                     return
                 }
+                let old = panFraction
                 panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
+                AppLog("onPan: scrollDelta=\(delta) oldPan=\(old) newPan=\(panFraction)", severity: .debug, category: .interaction)
             }
             .frame(height: chartHeight)
 
@@ -1967,11 +1970,14 @@ struct DetailHistoryGraph: View {
                         oldPanFraction: panFraction,
                         anchorFraction: anchorFraction
                     )
+                    AppLog("onMagnify: delta=\(delta) newZoom=\(zoomScale) newPan=\(panFraction)", severity: .debug, category: .interaction)
                 } onPan: { delta in
                     guard zoomScale > 1.01 else {
                         return
                     }
+                    let old = panFraction
                     panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
+                    AppLog("onPan: scrollDelta=\(delta) oldPan=\(old) newPan=\(panFraction)", severity: .debug, category: .interaction)
                 }
                 .frame(height: 230)
                 .onChange(of: "\(history.points.count):\(history.contentRevision)") { _ in
