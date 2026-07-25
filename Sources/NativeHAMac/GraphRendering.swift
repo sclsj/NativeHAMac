@@ -839,7 +839,7 @@ private final class GraphPreparedSeriesCache {
         lock.lock()
         let lockWaitNanoseconds = graphRenderElapsed(since: requestStart)
         if lockWaitNanoseconds > 5_000_000 {
-            AppLog("[\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)", category: .rendering)
+            AppLog("[\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)", severity: .warning, category: .rendering)
         }
 
         if let cached = storage[key] {
@@ -859,7 +859,7 @@ private final class GraphPreparedSeriesCache {
             ) {
                 let incElapsed = graphRenderElapsed(since: incStart)
                 if incElapsed > 5_000_000 {
-                    AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)", category: .rendering)
+                    AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)", severity: .debug, category: .rendering)
                 }
                 lock.lock()
                 incrementalPreparationCount += 1
@@ -867,7 +867,7 @@ private final class GraphPreparedSeriesCache {
                 store(updated, key: key)
                 return updated.series
             } else {
-                AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))", category: .rendering)
+                AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))", severity: .debug, category: .rendering)
             }
         } else {
             lock.unlock()
@@ -878,7 +878,7 @@ private final class GraphPreparedSeriesCache {
             return nil
         }
         let fullElapsed = graphRenderElapsed(since: fullStart)
-        AppLog("[\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)", category: .rendering)
+        AppLog("[\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)", severity: .debug, category: .rendering)
 
         lock.lock()
         fullPreparationCount += 1
@@ -973,19 +973,19 @@ private final class GraphPreparedSeriesCache {
     ) -> GraphPreparedCacheEntry? {
         let isStateTimeline = displayUnit.lowercased() == "state"
         guard !isStateTimeline else {
-            AppLog("incrementallyUpdate failed: isStateTimeline", category: .rendering)
+            AppLog("incrementallyUpdate failed: isStateTimeline", severity: .debug, category: .rendering)
             return nil
         }
         guard fingerprint.count > 0 else {
-            AppLog("incrementallyUpdate failed: fingerprint.count == 0", category: .rendering)
+            AppLog("incrementallyUpdate failed: fingerprint.count == 0", severity: .debug, category: .rendering)
             return nil
         }
         guard !input.history.points.isEmpty else {
-            AppLog("incrementallyUpdate failed: input points empty", category: .rendering)
+            AppLog("incrementallyUpdate failed: input points empty", severity: .debug, category: .rendering)
             return nil
         }
         guard !cached.series.points.isEmpty else {
-            AppLog("incrementallyUpdate failed: cached series empty", category: .rendering)
+            AppLog("incrementallyUpdate failed: cached series empty", severity: .debug, category: .rendering)
             return nil
         }
 
@@ -1002,15 +1002,15 @@ private final class GraphPreparedSeriesCache {
                 }
                 let pt = input.history.points[i]
                 guard let timestamp = parser.timestamp(from: pt) else {
-                    AppLog("incrementallyUpdate appendFreshSource failed: timestamp nil", category: .rendering)
+                    AppLog("incrementallyUpdate appendFreshSource failed: timestamp nil", severity: .debug, category: .rendering)
                     return false
                 }
                 guard let value = numericValue(pt.state) else {
-                    AppLog("incrementallyUpdate appendFreshSource failed: value nil", category: .rendering)
+                    AppLog("incrementallyUpdate appendFreshSource failed: value nil", severity: .debug, category: .rendering)
                     return false
                 }
                 if let last = points.last, timestamp < last.t {
-                    AppLog("incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)", category: .rendering)
+                    AppLog("incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)", severity: .debug, category: .rendering)
                     return false
                 }
                 points.append(GraphRenderedPoint(
@@ -1044,7 +1044,7 @@ private final class GraphPreparedSeriesCache {
         // If the new raw data starts AFTER the cache ends, there is absolutely no overlap.
         // We cannot use the cache at all, so we must fall back to prepareFull.
         guard startTime <= lastCachedPoint.t else {
-            AppLog("incrementallyUpdate failed: no overlap (startTime \(startTime) > cache.last \(lastCachedPoint.t))", category: .rendering)
+            AppLog("incrementallyUpdate failed: no overlap (startTime \(startTime) > cache.last \(lastCachedPoint.t))", severity: .debug, category: .rendering)
             return nil
         }
         
@@ -1071,7 +1071,7 @@ private final class GraphPreparedSeriesCache {
         let cachedOverlap = cached.series.points[cacheStartIndex...]
         if let prefixLast = points.last, let overlapFirst = cachedOverlap.first,
            overlapFirst.t < prefixLast.t {
-            AppLog("incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)", category: .rendering)
+            AppLog("incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)", severity: .debug, category: .rendering)
             return nil
         }
         points.append(contentsOf: cachedOverlap)
@@ -1082,19 +1082,19 @@ private final class GraphPreparedSeriesCache {
         
         // Parse the fresh suffix (if any)
         guard !graphRenderIsCancelled() else {
-            AppLog("incrementallyUpdate failed: cancelled", category: .rendering)
+            AppLog("incrementallyUpdate failed: cancelled", severity: .debug, category: .rendering)
             return nil
         }
         guard appendFreshSource(suffixStartRawIndex..<input.history.points.count) else {
-            AppLog("incrementallyUpdate failed: appendFreshSource suffix failed", category: .rendering)
+            AppLog("incrementallyUpdate failed: appendFreshSource suffix failed", severity: .debug, category: .rendering)
             return nil
         }
         guard yValues.count == points.count else {
-            AppLog("incrementallyUpdate failed: yValues count mismatch", category: .rendering)
+            AppLog("incrementallyUpdate failed: yValues count mismatch", severity: .debug, category: .rendering)
             return nil
         }
         guard !points.isEmpty else {
-            AppLog("incrementallyUpdate failed: points empty", category: .rendering)
+            AppLog("incrementallyUpdate failed: points empty", severity: .debug, category: .rendering)
             return nil
         }
 
