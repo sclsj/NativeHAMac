@@ -1112,20 +1112,35 @@ struct GraphInteractionOverlay: NSViewRepresentable {
             onMagnify(event.magnification, point)
         }
 
+        enum ScrollAxis { case horizontal, vertical }
+        private var scrollAxisLock: ScrollAxis?
+
         override func scrollWheel(with event: NSEvent) {
             let point = convert(event.locationInWindow, from: nil)
             onHover(point)
             
+            // Reset axis lock on gesture start or end
             if event.phase == .began || event.momentumPhase == .began {
-                AppLog("Scroll/pan gesture began at \(point)", category: .interaction)
+                scrollAxisLock = nil
             } else if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended || event.momentumPhase == .cancelled {
-                AppLog("Scroll/pan gesture ended", category: .interaction)
+                scrollAxisLock = nil
             }
-
-            if abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) {
-                onMagnify(event.scrollingDeltaY / 360, point)
-            } else {
+            
+            // Determine dominant axis if not locked yet
+            if scrollAxisLock == nil && (abs(event.scrollingDeltaX) > 1 || abs(event.scrollingDeltaY) > 1) {
+                scrollAxisLock = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) ? .horizontal : .vertical
+            }
+            
+            let isHorizontal = (scrollAxisLock == .horizontal) || (scrollAxisLock == nil && abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY))
+            
+            if isHorizontal {
                 onPan(event.scrollingDeltaX)
+            } else {
+                if event.modifierFlags.contains(.option) {
+                    onMagnify(event.scrollingDeltaY / 360, point)
+                } else {
+                    super.scrollWheel(with: event)
+                }
             }
         }
     }
