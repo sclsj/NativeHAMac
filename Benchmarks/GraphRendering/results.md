@@ -239,3 +239,50 @@ The older 2026-07-19 comparison was removed because it timed actual
 Core Graphics work against an unused Canvas `Path` and Metal buffer simulation,
 covered only an absolute-path 24h fixture, and could not support total-latency
 or renderer-completion claims.
+
+## 2026-07-25 production-image benchmark correction
+
+Command:
+
+```sh
+NATIVEHA_LIVE_GRAPH_BENCHMARK=1 \
+NATIVEHA_GRAPH_BENCH_ITERATIONS=5 \
+swift test -c release --filter GraphEngineBenchmarks
+```
+
+Machine: Joy's MBP (2). Release build; 496×178 points, 2× scale, 4× zoom,
+three warm-up frames, five measured consecutive rolling revisions per case.
+The live 1h fetch contained 13,972 points / 1,105,826 encoded bytes across four
+series. The live 24h fetch contained 332,203 points / 26,227,623 encoded bytes.
+
+This run corrects two benchmark defects exposed by the production Metal image
+path: explicit engine requests now reach the requested renderer, and
+present-ready Metal validates the `CGImage` returned by
+`GraphBitmapRenderer.render` instead of submitting the prepared graph to Metal
+a second time. Pure Metal now includes shared-texture readback and `CGImage`
+creation, matching production.
+
+| Window | Engine | n | Pure p50 | Pure p95 | Pure max | Present-ready p50 | Present-ready p95 | Present-ready max |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1h | Metal | 5 | 1.432 ms | 1.675 ms | 1.675 ms | 1.645 ms | 1.720 ms | 1.720 ms |
+| 1h | Core Graphics | 5 | 3.392 ms | 3.819 ms | 3.819 ms | 3.700 ms | 4.015 ms | 4.015 ms |
+| 1h | Canvas | 5 | 3.649 ms | 3.930 ms | 3.930 ms | 4.044 ms | 5.013 ms | 5.013 ms |
+| 24h | Metal | 5 | 1.478 ms | 1.807 ms | 1.807 ms | 4.174 ms | 4.614 ms | 4.614 ms |
+| 24h | Core Graphics | 5 | 7.503 ms | 9.741 ms | 9.741 ms | 10.405 ms | 12.828 ms | 12.828 ms |
+| 24h | Canvas | 5 | 7.493 ms | 9.674 ms | 9.674 ms | 10.325 ms | 13.000 ms | 13.000 ms |
+
+Optional p50 stage breakdown (milliseconds):
+
+| Window | Engine | Prepared series | Downsampling / viewport geometry | Renderer | Scheduling / waiting |
+|---|---|---:|---:|---:|---:|
+| 1h | Metal | 0.182 | 0.036 | 1.297 | 0.042 |
+| 1h | Core Graphics | 0.131 | 0.031 | 3.441 | 0.052 |
+| 1h | Canvas | 0.164 | 0.034 | 3.633 | 0.100 |
+| 24h | Metal | 2.320 | 0.236 | 1.426 | 0.051 |
+| 24h | Core Graphics | 2.463 | 0.238 | 7.366 | 0.075 |
+| 24h | Canvas | 2.202 | 0.241 | 7.940 | 0.074 |
+
+All 30 present-ready requested frames and 30 pure-render samples completed
+with nonempty artifacts. The 2026-07-20 results above measured the earlier
+Metal completion boundary and are retained as historical data; their Metal
+latencies are not directly comparable to this production-image run.

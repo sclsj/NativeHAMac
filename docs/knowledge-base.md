@@ -54,14 +54,16 @@ evidence.
 
 ### Metal is materially faster for the measured graph workload
 
-- **Claim:** On Joy's MBP (2), the 2026-07-20 release benchmark favored Metal for
+- **Claim:** On Joy's MBP (2), the 2026-07-25 release benchmark favored Metal for
   the measured four-series SPS30 graph workload at 496×178 points, 2× scale, and
-  4× zoom. Present-ready p50/p95 was 0.967/1.398 ms at `1h` and 3.465/3.989 ms at
-  `24h` for Metal, versus 3.644/4.155 ms and 10.465/13.610 ms for Core Graphics.
+  4× zoom even when Metal includes command completion, shared-texture readback,
+  and production `CGImage` creation. Present-ready p50/p95 was 1.645/1.720 ms at
+  `1h` and 4.174/4.614 ms at `24h` for Metal, versus 3.700/4.015 ms and
+  10.405/12.828 ms for Core Graphics.
 - **Status:** Measured local observation, not a cross-machine guarantee or a
   permanent implementation decision.
-- **Evidence:** `Benchmarks/GraphRendering/results.md`, section “2026-07-20
-  three-engine pure-render and present-ready latency,” using twenty measured
+- **Evidence:** `Benchmarks/GraphRendering/results.md`, section “2026-07-25
+  production-image benchmark correction,” using five measured
   consecutive rolling revisions after three warm-up frames and the same
   immutable live frame sequence for each engine.
 - **Revalidate when:** Rendering algorithms, preparation/downsampling,

@@ -4,13 +4,13 @@ module: "09"
 title: Graph revision scheduling and engine benchmarks
 plan: ../../rescue-plan/module-09-graph-rendering.md
 status: bounded-follow-up-validated-broader-module-unresearched
-contract_revision: 1
+contract_revision: 2
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: cd45663ef6ae41902f2d0a4f16a8467a17be8a53
+nativeha_revision: e3ff4b0e67305204593e44b1b3b73b8ebddf1bf8
 graph_file: ../generated/module-09.dependencies.json
 graph_fingerprint: 4b7b0f295034f3d44db1b2eb77c57b1105971ff555d0d83e4d2f58406b817458
-last_validated: 2026-07-20
+last_validated: 2026-07-25
 ---
 
 # Module 09 bounded follow-up evidence
@@ -21,6 +21,13 @@ This packet covers only the cache-warming regression test and the three-engine
 performance benchmark requested after the graph-smoothness investigation. It
 does not claim that broader Module 09 parity is researched or complete, and it
 does not authorize a prepared-cache concurrency/correctness redesign.
+
+The 2026-07-25 follow-up retains synchronous Metal-to-`CGImage` viewport
+rendering but memoizes its result for the stable SwiftUI chart lifetime. The
+cache identity includes data and presentation metadata, exact viewport, scale,
+and engine. Unrelated view reevaluations reuse the image; real viewport/data
+changes still render synchronously. The obsolete delayed live-data render,
+which duplicated the already completed synchronous render, was removed.
 
 Commit `5861848ba9e6b1c5108596cb194870d66822a6e7` fixed the measured lag by
 submitting every changed data revision to prepared-series maintenance before
@@ -38,6 +45,7 @@ incremental lineage names N as its immediate predecessor.
 | C09-BENCH-01 | A preprepared frame is sent to any supported engine | Report actual production-side pure-render work for Core Graphics, Canvas, and Metal with `n`, p50, p95, and max. | Identical input, viewport sequence, iterations, scale, and warm-up. | Production renderer helpers plus benchmark harness | Every engine returns nonempty work/output. |
 | C09-BENCH-02 | A consecutive logical update is submitted | Present-ready timing begins before dispatch/cache access and ends after preparation, downsampling/geometry, renderer dispatch, and requested-frame completion. | Match each submitted frame with its completion. Compositor scanout is excluded and must not be claimed. | Production graph preparation and engine completion adapters | All requested frames complete; report `n`, p50, p95, and max plus optional stages. |
 | C09-BENCH-03 | Compare 1h and 24h cases | All six engine/window cases use the same live series, revision sequence, viewport sequence, size, scale, iteration count, and warm-up policy. | Do not mutate global renderer configuration; use explicit engine injection or restore changes. | Graph benchmark target | Assert fixture metadata and completion counts; no machine-specific paths or pass/fail latency threshold. |
+| C09-CACHE-01 | SwiftUI reevaluates a chart without changing data, viewport, scale, or engine | Reuse the last synchronous render result without invoking the renderer. | A data, viewport, scale, or engine change is a cache miss and remains synchronous. | `GraphSynchronousRenderCache` owned by `BitmapLineChart` | Repeated same-key requests render once; zoom and engine changes each render again. |
 
 ## Source anchors
 
@@ -106,6 +114,10 @@ tooltip parity, and other visual behavior do not determine this scheduling fix.
 
 ### Offline deterministic tests
 
+- Three focused render-cache/engine/metrics regressions passed. Six same-key
+  cache requests rendered once; a zoom key and an engine key each caused one
+  new render; explicit Core Graphics and Canvas requests overrode the global
+  Metal setting.
 - `swift test --filter 'NativeHAMacTests.GraphRenderingTests/testSkippedVisualRevisionStillWarmsImmediatePredecessorForNextRevision'`
   passed. The production FIFO scheduler produced `full=1, incremental=2`; the
   explicit bypass control produced `full=2, incremental=0`.
@@ -119,7 +131,7 @@ tooltip parity, and other visual behavior do not determine this scheduling fix.
 ### Read-only live smoke
 
 The authorized read-only release benchmark fetched four configured SPS30
-series for both 1h (13,988 points) and 24h (335,536 points). No server state
+series for both 1h (13,972 points) and 24h (332,203 points). No server state
 was changed.
 
 ### Visual and animation oracle
@@ -129,12 +141,14 @@ not graph visual-parity changes.
 
 ### Performance and lifecycle
 
-`NATIVEHA_LIVE_GRAPH_BENCHMARK=1 NATIVEHA_GRAPH_BENCH_ITERATIONS=20 swift test
+`NATIVEHA_LIVE_GRAPH_BENCHMARK=1 NATIVEHA_GRAPH_BENCH_ITERATIONS=5 swift test
 -c release --filter GraphEngineBenchmarks` passed Metal, Core Graphics, and
-Canvas at 1h/24h. All 120 present-ready frames and 120 pure-render samples
-completed with nonempty artifacts. Exact distributions and stage p50 values
-are recorded in `Benchmarks/GraphRendering/results.md`. The present-ready
-endpoint excludes compositor scanout.
+Canvas at 1h/24h. All 30 present-ready frames and 30 pure-render samples
+completed with nonempty artifacts. Metal now includes production shared-texture
+readback and `CGImage` creation, and present-ready validates the returned image
+without a second Metal submission. Exact distributions and stage p50 values are
+recorded in `Benchmarks/GraphRendering/results.md`. The present-ready endpoint
+excludes compositor scanout.
 
 ## Open questions and risks
 

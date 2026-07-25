@@ -22,12 +22,6 @@ private struct GraphMetalPreparedFrame {
     let vertexCount: Int
 }
 
-struct GraphMetalRenderCompletion {
-    let vertexCount: Int
-    let geometryNanoseconds: UInt64
-    let commandNanoseconds: UInt64
-}
-
 class GraphMetalRenderer: NSObject {
     static let sampleCount = 4
 
@@ -101,83 +95,6 @@ class GraphMetalRenderer: NSObject {
             AppLog("Failed to compile Metal shaders: \(error)", severity: .error, category: .rendering)
         }
     }
-
-
-
-    /// Offscreen production renderer completion used by performance benchmarks.
-    /// It waits for the requested Metal command buffer, but not compositor
-    /// presentation or display scanout.
-    func renderOffscreenForBenchmark(
-        rendered: GraphRenderResult
-    ) -> GraphMetalRenderCompletion? {
-        guard let device = device,
-              let commandQueue = commandQueue,
-              pipelineState != nil else {
-            return nil
-        }
-
-        let geometryStart = DispatchTime.now().uptimeNanoseconds
-        guard let prepared = makePreparedFrame(rendered: rendered, size: rendered.size),
-              prepared.vertexCount > 0 else {
-            return nil
-        }
-        let geometryNanoseconds = DispatchTime.now().uptimeNanoseconds - geometryStart
-
-        let width = max(Int(rendered.size.width * rendered.scale), 1)
-        let height = max(Int(rendered.size.height * rendered.scale), 1)
-        let multisampleDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
-            width: width,
-            height: height,
-            mipmapped: false
-        )
-        multisampleDescriptor.textureType = .type2DMultisample
-        multisampleDescriptor.sampleCount = Self.sampleCount
-        multisampleDescriptor.storageMode = .private
-        multisampleDescriptor.usage = [.renderTarget]
-
-        let resolveDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: .bgra8Unorm,
-            width: width,
-            height: height,
-            mipmapped: false
-        )
-        resolveDescriptor.storageMode = .shared
-        resolveDescriptor.usage = [.renderTarget, .shaderRead]
-
-        guard let multisampleTexture = device.makeTexture(descriptor: multisampleDescriptor),
-              let resolveTexture = device.makeTexture(descriptor: resolveDescriptor),
-              let commandBuffer = commandQueue.makeCommandBuffer() else {
-            return nil
-        }
-
-        let renderPass = MTLRenderPassDescriptor()
-        renderPass.colorAttachments[0].texture = multisampleTexture
-        renderPass.colorAttachments[0].resolveTexture = resolveTexture
-        renderPass.colorAttachments[0].loadAction = .clear
-        renderPass.colorAttachments[0].storeAction = .multisampleResolve
-        renderPass.colorAttachments[0].clearColor = graphMetalClearColor
-
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass) else {
-            return nil
-        }
-        let commandStart = DispatchTime.now().uptimeNanoseconds
-        encode(prepared, with: encoder)
-        encoder.endEncoding()
-        commandBuffer.commit()
-        commandBuffer.waitUntilCompleted()
-        let commandNanoseconds = DispatchTime.now().uptimeNanoseconds - commandStart
-
-        guard commandBuffer.status == .completed, commandBuffer.error == nil else {
-            return nil
-        }
-        return GraphMetalRenderCompletion(
-            vertexCount: prepared.vertexCount,
-            geometryNanoseconds: geometryNanoseconds,
-            commandNanoseconds: commandNanoseconds
-        )
-    }
-
     func renderToCGImage(
         rendered: GraphRenderResult
     ) -> CGImage? {

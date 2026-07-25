@@ -88,7 +88,7 @@ enum AppConfig {
     )
 }
 
-enum GraphRenderEngine {
+enum GraphRenderEngine: Equatable {
     case coreGraphics
     case canvas
     case metal

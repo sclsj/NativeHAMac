@@ -4,6 +4,111 @@ import XCTest
 @testable import NativeHAMac
 
 final class GraphRenderingTests: XCTestCase {
+    @MainActor
+    func testSynchronousRenderCacheIgnoresUnchangedViewReevaluations() {
+        var renderCount = 0
+        let cache = GraphSynchronousRenderCache { _ in
+            renderCount += 1
+            return nil
+        }
+        let baseRequest = GraphSynchronousRenderRequest(
+            key: GraphSynchronousRenderKey(
+                dataToken: "data",
+                unit: "°C",
+                size: CGSize(width: 320, height: 160),
+                scale: 2,
+                zoomScale: 1,
+                panFraction: 1,
+                engine: .metal
+            ),
+            inputs: [],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            zoomScale: 1,
+            panFraction: 1
+        )
+
+        for _ in 0..<6 {
+            _ = cache.render(baseRequest)
+        }
+        XCTAssertEqual(
+            renderCount,
+            1,
+            "Hover or unrelated state may reevaluate body, but the same render key must reuse its cached result."
+        )
+
+        _ = cache.render(GraphSynchronousRenderRequest(
+            key: GraphSynchronousRenderKey(
+                dataToken: "data",
+                unit: "°C",
+                size: CGSize(width: 320, height: 160),
+                scale: 2,
+                zoomScale: 2,
+                panFraction: 1,
+                engine: .metal
+            ),
+            inputs: [],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            zoomScale: 2,
+            panFraction: 1
+        ))
+        XCTAssertEqual(renderCount, 2, "A changed viewport must render synchronously.")
+
+        _ = cache.render(GraphSynchronousRenderRequest(
+            key: GraphSynchronousRenderKey(
+                dataToken: "data",
+                unit: "°C",
+                size: CGSize(width: 320, height: 160),
+                scale: 2,
+                zoomScale: 2,
+                panFraction: 1,
+                engine: .coreGraphics
+            ),
+            inputs: [],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            zoomScale: 2,
+            panFraction: 1
+        ))
+        XCTAssertEqual(renderCount, 3, "Changing engines must invalidate the cached artifact.")
+    }
+
+    @MainActor
+    func testExplicitRenderEngineOverridesAppConfig() throws {
+        let previousEngine = AppConfig.graphRenderEngine
+        AppConfig.graphRenderEngine = .metal
+        defer { AppConfig.graphRenderEngine = previousEngine }
+
+        var coreGraphicsMetrics: GraphRenderMetrics?
+        let coreGraphicsResult = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [numericInput()],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            scale: 2,
+            zoomScale: 1,
+            panFraction: 1,
+            engine: .coreGraphics,
+            metrics: { coreGraphicsMetrics = $0 }
+        ))
+        XCTAssertNotNil(coreGraphicsResult.image)
+        XCTAssertGreaterThan(try XCTUnwrap(coreGraphicsMetrics).bitmapByteCount, 0)
+
+        let canvasResult = try XCTUnwrap(GraphBitmapRenderer.render(
+            inputs: [numericInput()],
+            unit: "°C",
+            size: CGSize(width: 320, height: 160),
+            scale: 2,
+            zoomScale: 1,
+            panFraction: 1,
+            engine: .canvas
+        ))
+        XCTAssertNil(
+            canvasResult.image,
+            "The explicit Canvas request must not silently execute the globally configured Metal renderer."
+        )
+    }
+
     func testNumericBitmapHasExpectedGeometryAxisAndPixels() throws {
         let result = try XCTUnwrap(GraphBitmapRenderer.render(
             inputs: [numericInput()],
@@ -780,6 +885,7 @@ final class GraphRenderingTests: XCTestCase {
             scale: 2,
             zoomScale: 1,
             panFraction: 1,
+            engine: .coreGraphics,
             metrics: { captured = $0 }
         ))
         let metrics = try XCTUnwrap(captured)
@@ -791,6 +897,7 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertGreaterThan(metrics.totalNanoseconds, 0)
         XCTAssertGreaterThan(metrics.pathConstructionNanoseconds, 0)
         XCTAssertGreaterThan(metrics.pathStrokeNanoseconds, 0)
+        XCTAssertGreaterThan(metrics.rendererNanoseconds, 0)
     }
 
     func testCancelledRenderStopsBeforePublishingABitmap() async {

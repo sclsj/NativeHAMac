@@ -238,6 +238,7 @@ struct GraphRenderMetrics: Equatable {
     let pathConstructionNanoseconds: UInt64
     let pathStrokeNanoseconds: UInt64
     let imageSnapshotNanoseconds: UInt64
+    let rendererNanoseconds: UInt64
     let totalNanoseconds: UInt64
 }
 
@@ -412,7 +413,8 @@ enum GraphBitmapRenderer {
         var pathStrokeNanoseconds: UInt64 = 0
         var imageSnapshotNanoseconds: UInt64 = 0
 
-        switch AppConfig.graphRenderEngine {
+        let rendererStart = graphRenderClock()
+        switch engine {
         case .coreGraphics:
             guard let renderedBitmap = renderPreparedCoreGraphics(result) else {
                 return nil
@@ -449,6 +451,7 @@ enum GraphBitmapRenderer {
                 )
             }
         }
+        let rendererNanoseconds = graphRenderElapsed(since: rendererStart)
 
         metrics?(GraphRenderMetrics(
             inputPointCount: inputs.reduce(0) { $0 + $1.history.points.count },
@@ -465,6 +468,7 @@ enum GraphBitmapRenderer {
             pathConstructionNanoseconds: pathConstructionNanoseconds,
             pathStrokeNanoseconds: pathStrokeNanoseconds,
             imageSnapshotNanoseconds: imageSnapshotNanoseconds,
+            rendererNanoseconds: rendererNanoseconds,
             totalNanoseconds: graphRenderElapsed(since: totalStart)
         ))
         

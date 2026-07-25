@@ -35,8 +35,8 @@ starts immediately before actual engine work and stops at:
 - Core Graphics: completed bitmap allocation/drawing and `CGImage` snapshot;
 - Canvas: the production `GraphCanvasPlot` has completed a forced offscreen
   `NSHostingView.cacheDisplay` bitmap pass;
-- Metal: production vertex/buffer construction and the requested offscreen
-  Metal command buffer have completed.
+- Metal: production vertex/buffer construction, offscreen command completion,
+  shared-texture readback, and `CGImage` creation have completed.
 
 This retains the purpose of the old renderer-only comparison while replacing
 its unused Canvas path and Metal buffer simulations with observable completed
@@ -52,8 +52,13 @@ to a user-initiated worker. It stops only after that same frame has completed:
 1. prepared-series cache access and full/incremental parsing;
 2. visible-range selection, min/max downsampling, axes, and viewport geometry;
 3. engine-specific path/vertex construction and renderer dispatch; and
-4. the same Core Graphics image, Canvas offscreen bitmap, or Metal command
-   completion boundary used by the pure-render timer.
+4. the same Core Graphics image, Canvas offscreen bitmap, or Metal-backed
+   `CGImage` boundary used by the pure-render timer.
+
+For Core Graphics and Metal, `GraphBitmapRenderer.render` already returns the
+presentation image. The present-ready timer validates that returned artifact
+without invoking either renderer a second time. Canvas still needs the
+offscreen SwiftUI harness because its renderer consumes prepared geometry.
 
 This endpoint is named **present-ready**. It includes dispatch and completion
 waiting inside NativeHA, but excludes Home Assistant network fetch, benchmark

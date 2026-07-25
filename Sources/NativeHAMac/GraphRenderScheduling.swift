@@ -2,6 +2,65 @@ import Combine
 import CoreGraphics
 import Foundation
 
+struct GraphSynchronousRenderKey: Equatable {
+    let dataToken: String
+    let unit: String
+    let size: CGSize
+    let scale: CGFloat
+    let zoomScale: CGFloat
+    let panFraction: Double
+    let engine: GraphRenderEngine
+}
+
+struct GraphSynchronousRenderRequest {
+    let key: GraphSynchronousRenderKey
+    let inputs: [GraphRenderSeriesInput]
+    let unit: String
+    let size: CGSize
+    let zoomScale: CGFloat
+    let panFraction: Double
+}
+
+/// Keeps synchronous viewport rendering exact while avoiding repeated work
+/// when SwiftUI reevaluates a chart for hover or unrelated parent state.
+final class GraphSynchronousRenderCache: ObservableObject {
+    typealias Renderer = (GraphSynchronousRenderRequest) -> GraphRenderResult?
+
+    private let renderer: Renderer
+    private var cachedKey: GraphSynchronousRenderKey?
+    private var cachedResult: GraphRenderResult?
+
+    init(renderer: @escaping Renderer = GraphSynchronousRenderCache.productionRender) {
+        self.renderer = renderer
+    }
+
+    func render(_ request: GraphSynchronousRenderRequest) -> GraphRenderResult? {
+        precondition(Thread.isMainThread)
+        if cachedKey == request.key {
+            return cachedResult
+        }
+
+        let result = renderer(request)
+        cachedKey = request.key
+        cachedResult = result
+        return result
+    }
+
+    private static func productionRender(
+        _ request: GraphSynchronousRenderRequest
+    ) -> GraphRenderResult? {
+        GraphBitmapRenderer.render(
+            inputs: request.inputs,
+            unit: request.unit,
+            size: request.size,
+            scale: request.key.scale,
+            zoomScale: request.zoomScale,
+            panFraction: request.panFraction,
+            engine: request.key.engine
+        )
+    }
+}
+
 /// Advances prepared-series lineage for every accepted data revision,
 /// independently of whether that revision's visual frame is later rendered.
 /// One scheduler is owned by one chart so submissions for that chart remain

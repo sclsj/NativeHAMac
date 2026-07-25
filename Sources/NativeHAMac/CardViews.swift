@@ -534,16 +534,11 @@ struct BitmapLineChart: View {
     let onRenderReady: (GraphRenderResult) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
-    @State private var latestViewportToken = ""
     @State private var latestDataToken = ""
-    @State private var desiredRenderToken = ""
-    @StateObject private var viewportRenderScheduler = GraphViewportRenderScheduler()
+    @StateObject private var synchronousRenderCache = GraphSynchronousRenderCache()
     @StateObject private var dataRevisionPreparationScheduler =
         GraphDataRevisionPreparationScheduler()
-    @State private var liveDataRenderTask: Task<Void, Never>?
-    @State private var isRendering = false
     @State private var renderAttempted = false
-    @State private var latestInteractionTime = Date.distantPast
 
     init(
         unit: String,
@@ -572,17 +567,32 @@ struct BitmapLineChart: View {
             let size = geometry.size
             let viewportToken = renderViewportToken(size: size)
             let dataToken = renderDataToken()
-            let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
             let maxZoom = maxGraphZoom(for: inputs, size: size)
-            
-            let currentRender = size.width > 1 && size.height > 1 ? GraphBitmapRenderer.render(
-                inputs: inputs,
-                unit: unit,
-                size: size,
-                scale: NSScreen.main?.backingScaleFactor ?? 2,
-                zoomScale: zoomScale,
-                panFraction: panFraction
-            ) : nil
+            let screenScale = NSScreen.main?.backingScaleFactor ?? 2
+            let engine = AppConfig.graphRenderEngine
+            let token = [
+                combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken),
+                String(describing: screenScale),
+                String(describing: engine),
+            ].joined(separator: "::")
+            let currentRender = size.width > 1 && size.height > 1
+                ? synchronousRenderCache.render(GraphSynchronousRenderRequest(
+                    key: GraphSynchronousRenderKey(
+                        dataToken: dataToken,
+                        unit: unit,
+                        size: size,
+                        scale: screenScale,
+                        zoomScale: zoomScale,
+                        panFraction: panFraction,
+                        engine: engine
+                    ),
+                    inputs: inputs,
+                    unit: unit,
+                    size: size,
+                    zoomScale: zoomScale,
+                    panFraction: panFraction
+                ))
+                : nil
             let displayRender = currentRender ?? rendered
 
             ZStack(alignment: .topLeading) {
@@ -590,7 +600,7 @@ struct BitmapLineChart: View {
                     .fill(Color.black.opacity(0.19))
 
                 if let renderedResult = displayRender {
-                    switch AppConfig.graphRenderEngine {
+                    switch engine {
                     case .coreGraphics, .metal:
                         if let image = renderedResult.image {
                             Image(decorative: image, scale: renderedResult.scale, orientation: .up)
@@ -613,11 +623,11 @@ struct BitmapLineChart: View {
                     {
                         hoverOverlay(sample: sample, rendered: renderedResult, size: size)
                     }
-                } else if isRendering || !renderAttempted {
+                } else if !renderAttempted {
                     VStack(spacing: 8) {
                         ProgressView()
                             .scaleEffect(0.7)
-                        Text(isRendering ? "Rendering graph" : "Preparing graph")
+                        Text("Preparing graph")
                             .font(.system(size: 11))
                             .foregroundColor(.white.opacity(0.55))
                     }
@@ -634,179 +644,53 @@ struct BitmapLineChart: View {
                         hoverLocation = point
                     },
                     onMagnify: { delta, point in
-                        latestInteractionTime = Date()
                         onMagnify(delta, anchorFraction(for: point, size: size), maxZoom)
                     },
                     onPan: { delta in
-                        latestInteractionTime = Date()
                         onPan(delta)
                     }
                 )
             }
             .onAppear {
-                scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
+                installSynchronousRender(
+                    currentRender,
+                    token: token,
+                    dataToken: dataToken
+                )
             }
             .onChange(of: token) { _ in
-                if let currentRender = currentRender {
-                    rendered = currentRender
-                    renderedToken = token
-                    onRenderReady(currentRender)
-                }
-                scheduleRenders(size: size, viewportToken: viewportToken, dataToken: dataToken)
-            }
-            .onDisappear {
-                viewportRenderScheduler.cancel()
-                liveDataRenderTask?.cancel()
+                installSynchronousRender(
+                    currentRender,
+                    token: token,
+                    dataToken: dataToken
+                )
             }
         }
     }
 
-    private func scheduleRenders(size: CGSize, viewportToken: String, dataToken: String) {
-        guard size.width > 1, size.height > 1 else {
-            return
-        }
-
-        let token = combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken)
-        let viewportChanged = viewportToken != latestViewportToken
-        let dataChanged = dataToken != latestDataToken
-
-        if !viewportChanged, !dataChanged, renderedToken == token {
-            return
-        }
-
-        latestViewportToken = viewportToken
-        latestDataToken = dataToken
-        desiredRenderToken = token
-
-        if dataChanged {
+    private func installSynchronousRender(
+        _ result: GraphRenderResult?,
+        token: String,
+        dataToken: String
+    ) {
+        if dataToken != latestDataToken {
+            latestDataToken = dataToken
             // Prepared-series lineage consumes every revision independently of
-            // the cancellable/debounced visual frame below.
+            // visual frame installation.
             dataRevisionPreparationScheduler.submit(
                 inputs: inputs,
                 displayUnit: unit
             )
         }
 
-        liveDataRenderTask?.cancel()
-
-        let hasRenderedImage = rendered != nil
-
-        if !hasRenderedImage {
-            isRendering = true
-        }
-
-        guard dataChanged else {
-            return
-        }
-
-        if isZoomedAwayFromLiveEdge {
-            return
-        }
-
-        scheduleLiveDataRender(size: size, token: token)
-    }
-
-    private func scheduleViewportRender(size: CGSize, token: String, hasRenderedImage: Bool) {
-        // Obsolete, render is now inline
-    }
-
-    private func scheduleLiveDataRender(size: CGSize, token: String) {
-        isRendering = false
-
-        let elapsedSinceInteraction = Date().timeIntervalSince(latestInteractionTime)
-        let policy = AppConfig.graphRenderSchedulingPolicy
-        let interactionDefer = Double(policy.liveDataInteractionDeferNanoseconds) / 1_000_000_000
-        let delay = elapsedSinceInteraction < interactionDefer
-            ? policy.liveDataInteractionDeferNanoseconds
-            : policy.liveDataRenderDelayNanoseconds
-
-        let screenScale = NSScreen.main?.backingScaleFactor ?? 2
-        liveDataRenderTask = makeRenderTask(
-            size: size,
-            token: token,
-            scale: screenScale,
-            delay: delay,
-            priority: .utility,
-            replaceExistingWithNil: false
-        )
-    }
-
-    private func makeRenderTask(
-        size: CGSize,
-        token: String,
-        scale: CGFloat,
-        delay: UInt64,
-        priority: TaskPriority,
-        replaceExistingWithNil: Bool = true
-    ) -> Task<Void, Never> {
-        let renderInputs = inputs
-        let renderUnit = unit
-        let renderZoom = zoomScale
-        let renderPan = panFraction
-        let renderReady = onRenderReady
-
-        return Task.detached(priority: priority) {
-            if delay > 0 {
-                try? await Task.sleep(nanoseconds: delay)
-            }
-            guard !Task.isCancelled else {
-                return
-            }
-
-            let result = GraphBitmapRenderer.render(
-                inputs: renderInputs,
-                unit: renderUnit,
-                size: size,
-                scale: scale,
-                zoomScale: renderZoom,
-                panFraction: renderPan
-            )
-
-            await MainActor.run {
-                guard desiredRenderToken == token else {
-                    return
-                }
-                if !Task.isCancelled {
-                    if let result = result {
-                        rendered = result
-                        renderedToken = token
-                        renderReady(result)
-                    } else if replaceExistingWithNil {
-                        rendered = nil
-                        renderedToken = token
-                    }
-                    isRendering = false
-                    renderAttempted = true
-                }
-            }
-        }
-    }
-
-    private func installViewportRender(
-        _ delivery: GraphViewportRenderDelivery,
-        replaceExistingWithNil: Bool
-    ) {
-        // Viewport frames may be a few input events behind, which is desirable:
-        // publishing them avoids a 100% discard rate during a token storm. Data
-        // generations remain strict so old history can never replace new data.
-        guard delivery.request.dataToken == latestDataToken else {
-            return
-        }
-
-        if let result = delivery.result {
+        if renderedToken != token {
             rendered = result
-            renderedToken = delivery.request.token
-            onRenderReady(result)
-        } else if replaceExistingWithNil, !delivery.wasSuperseded {
-            rendered = nil
-            renderedToken = delivery.request.token
+            renderedToken = token
+            if let result = result {
+                onRenderReady(result)
+            }
         }
-        isRendering = false
         renderAttempted = true
-    }
-
-    private var isZoomedAwayFromLiveEdge: Bool {
-        zoomScale > 1.01 && panFraction < 0.995
     }
 
     private func anchorFraction(for point: CGPoint, size: CGSize) -> Double {
@@ -832,7 +716,25 @@ struct BitmapLineChart: View {
         let seriesToken = inputs.map { input in
             let first = input.history.points.first?.lastChanged ?? input.history.points.first?.lastUpdated ?? ""
             let last = input.history.points.last?.lastChanged ?? input.history.points.last?.lastUpdated ?? ""
-            return "\(input.entityID):\(input.history.points.count):\(first):\(last):\(input.history.contentRevision)"
+            let color = [
+                input.color.red,
+                input.color.green,
+                input.color.blue,
+                input.color.alpha,
+            ].map { String(describing: $0) }.joined(separator: ",")
+            return [
+                input.cacheScope,
+                input.entityID,
+                input.name,
+                input.unit,
+                color,
+                input.windowStart.map(String.init(describing:)) ?? "nil",
+                input.windowEnd.map(String.init(describing:)) ?? "nil",
+                String(input.history.points.count),
+                first,
+                last,
+                String(input.history.contentRevision),
+            ].joined(separator: ":")
         }.joined(separator: "|")
 
         return seriesToken

@@ -176,14 +176,14 @@ final class GraphEngineBenchmarks: XCTestCase {
 
             let result = try XCTUnwrap(pipeline.result)
             let metrics = try XCTUnwrap(pipeline.metrics)
-            let rendererStart = DispatchTime.now().uptimeNanoseconds
             let artifact: GraphEngineRenderArtifact
             let rendererNanoseconds: UInt64
             switch engine {
-            case .coreGraphics:
-                artifact = .coreGraphics(result)
-                rendererNanoseconds = coreGraphicsRendererNanoseconds(metrics)
-            case .canvas, .metal:
+            case .coreGraphics, .metal:
+                artifact = .bitmap(try XCTUnwrap(result.image))
+                rendererNanoseconds = metrics.rendererNanoseconds
+            case .canvas:
+                let rendererStart = DispatchTime.now().uptimeNanoseconds
                 artifact = try XCTUnwrap(harness.render(prepared: result))
                 rendererNanoseconds = DispatchTime.now().uptimeNanoseconds - rendererStart
             }
@@ -328,14 +328,12 @@ private struct PresentReadyMeasurements {
 }
 
 private enum GraphEngineRenderArtifact {
-    case coreGraphics(GraphRenderResult)
+    case bitmap(CGImage)
     case canvas(NSBitmapImageRep)
-    case metal(GraphMetalRenderCompletion)
 
     func validatedWorkCount() throws -> Int {
         switch self {
-        case .coreGraphics(let result):
-            let image = try XCTUnwrap(result.image)
+        case .bitmap(let image):
             XCTAssertGreaterThan(image.width, 0)
             XCTAssertGreaterThan(image.height, 0)
             return image.width * image.height
@@ -343,10 +341,6 @@ private enum GraphEngineRenderArtifact {
             let nontransparent = canvasNontransparentSampleCount(bitmap)
             XCTAssertGreaterThan(nontransparent, 0)
             return nontransparent
-        case .metal(let completion):
-            XCTAssertGreaterThan(completion.vertexCount, 0)
-            XCTAssertGreaterThan(completion.commandNanoseconds, 0)
-            return completion.vertexCount
         }
     }
 }
@@ -383,20 +377,21 @@ private final class GraphEnginePresentReadyHarness {
         switch engine {
         case .coreGraphics:
             guard let result = GraphBitmapRenderer
-                .renderPreparedCoreGraphicsForBenchmark(prepared) else {
+                .renderPreparedCoreGraphicsForBenchmark(prepared),
+                  let image = result.image else {
                 return nil
             }
-            return .coreGraphics(result)
+            return .bitmap(image)
         case .canvas:
             guard let bitmap = canvas?.render(prepared) else { return nil }
             return .canvas(bitmap)
         case .metal:
-            guard let completion = metal?.renderOffscreenForBenchmark(
+            guard let image = metal?.renderToCGImage(
                 rendered: prepared
             ) else {
                 return nil
             }
-            return .metal(completion)
+            return .bitmap(image)
         }
     }
 
@@ -491,17 +486,6 @@ private extension GraphRenderEngine {
         case .canvas: return "canvas"
         }
     }
-}
-
-private func coreGraphicsRendererNanoseconds(_ metrics: GraphRenderMetrics) -> UInt64 {
-    saturatingAdd(
-        metrics.bitmapAllocationNanoseconds,
-        metrics.contextSetupNanoseconds,
-        metrics.backgroundFillNanoseconds,
-        metrics.pathConstructionNanoseconds,
-        metrics.pathStrokeNanoseconds,
-        metrics.imageSnapshotNanoseconds
-    )
 }
 
 private func saturatingAdd(_ values: UInt64...) -> UInt64 {
