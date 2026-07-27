@@ -35,8 +35,13 @@ let package = Package(
         ),
     ],
     targets: [
+        .plugin(
+            name: "GenerateVersionPlugin",
+            capability: .buildTool()
+        ),
         .target(
-            name: "NativeHACore"
+            name: "NativeHACore",
+            plugins: ["GenerateVersionPlugin"]
         ),
         .executableTarget(
             name: "HAProbe",
