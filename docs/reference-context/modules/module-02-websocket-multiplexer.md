@@ -3,14 +3,14 @@ schema: nativeha-evidence/v1
 module: "02"
 title: WebSocket multiplexer and subscription architecture
 plan: ../../rescue-plan/module-02-websocket-multiplexer.md
-status: complete
+status: verification-ready
 contract_revision: 1
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 04795558e076661287cabab524b19d3bb3337fa2
 graph_file: ../generated/module-02.dependencies.json
 graph_fingerprint: 6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474
-last_validated: 2026-07-17
+last_validated: 2026-07-27
 ---
 
 # Module 02 evidence packet
@@ -577,6 +577,67 @@ git diff --check
 PASS (no output)
 ```
 
+### Post-fix independent audit — 2026-07-27
+
+Verdict: return to `verification-ready`. The focused Module 02 suite remains
+green, but a deterministic transport test that suspends the first command send
+after ID allocation reproduces non-increasing wire delivery. C02-02 therefore
+does not currently prove the send-serialization guarantee that motivated
+`e4eecb2`.
+
+| Contract | Current evidence | Verdict |
+|---|---|---|
+| C02-01 | Existing authentication, feature negotiation, coalesced-frame, and single-receiver tests remain green. | pass |
+| C02-02 | The tracked 64-command/64-subscription test passes because `ScriptedWebSocketTransport.send` has no suspension before it records a message. In an isolated clone, delaying ID 2 inside a conforming transport allowed ID 3 to arrive first; the strict transport recorded one non-increasing-ID violation and the new test failed. Allocation at `HomeAssistantWebSocketConnection.swift:659` and `:712` is actor-serialized, but the awaited sends at `:677` and `:735` are not connection-wide serialized across actor reentrancy. | fail send serialization |
+| C02-03 through C02-07 | The tracked focused suite passed all delivery, retention, cancellation, reconnect, timeout, large-frame, and production receive-continuation regressions. | pass in focused suite |
+
+Separately, later debug instrumentation logs complete text WebSocket frames.
+With network logging enabled, large history payloads are copied into an
+unbounded asynchronous SQLite queue and persisted in full. The observed
+`~/Library/Caches/NativeHA_Logs.sqlite` was 1,586,012,160 bytes across 55 log
+tables; the focused and full test runs also emitted repeated
+`database is locked` diagnostics. This instrumentation is newer than the
+original Module 02 implementation, but it now sits directly on the Module 02
+receive path and can add disk growth, memory pressure, and background I/O
+during long history streams.
+
+Commands and results:
+
+```text
+swift test --filter HomeAssistantWebSocket
+19 tests, 0 failures; 20.386 seconds test execution
+
+# Isolated clone with a suspension-capable strict transport regression
+swift test --filter HomeAssistantWebSocketConnectionTests.testSuspendingTransportCannotReorderAllocatedWireIDs
+1 test, 1 failure; violationCount was 1 rather than 0
+
+sqlite3 -readonly ~/Library/Caches/NativeHA_Logs.sqlite \
+  "SELECT sum(pgsize) FROM dbstat;"
+1586012160
+
+swift test
+96 tests, 3 skipped, 24 failures
+```
+
+The full-suite result is not Module 02 evidence: the pre-existing uncommitted
+`AppConfig.graphRenderEngine = .coreGraphics` override changes graph behavior
+and accounts for the failures observed outside the WebSocket suites. The
+focused Module 02 suites were green before the added suspension reproduction.
+
+Exact next actions:
+
+1. Add one connection-owned outbound send serializer that preserves allocation
+   order across commands, subscriptions, unsubscribe commands, feature
+   negotiation, and resubscription even when a transport send suspends. Start
+   timeouts when the serialized send is actually admitted, or explicitly test
+   the chosen queued-time policy.
+2. Keep the suspension-capable strict transport regression and rerun the
+   concurrent mixed-ID, cancellation, disconnect, reconnect, and full focused
+   Module 02 suites.
+3. Replace full-frame debug logging with bounded metadata or a deliberately
+   capped payload preview, and add SQLite retention/size and busy-handling
+   policy so logging cannot grow without bound or flood diagnostics.
+
 ## Validation requirements
 
 ### Offline deterministic tests
@@ -634,12 +695,12 @@ and receive-loop counts to zero without monotonic retained-memory growth.
 
 ## Handoff
 
-Module 02 is complete. Its actor-owned single receiver, shared ID multiplexer,
-bounded callback coordinator, reconnect/resubscribe primitive, exactly-once
-production receive cleanup, and reproducible routing/lifecycle metrics are
-ready for Module 01. Preserve this packet and the green dependency graph as the
-durable contract handoff; Module 01 should implement the fresh history-stream
-consumer without introducing another raw receiver.
+The original Module 02 implementation remains the correct foundation: its
+single receiver, callback coordinator, reconnect primitive, and production
+receive cleanup are verified. The 2026-07-27 post-fix audit supersedes the
+earlier complete verdict for C02-02, however. Before treating the module as
+complete again, serialize outbound sends across suspension, retain the new
+suspension regression, and bound full-frame debug logging and log retention.
 
 ## Change log
 
@@ -677,3 +738,9 @@ consumer without introducing another raw receiver.
   WebSocket and full suites, and a repeated read-only live reconnect/disconnect
   smoke with no continuation diagnostic and final zero ownership. C02-01 through
   C02-07 pass; status advanced to `complete`.
+- 2026-07-27: a post-fix audit reproduced non-increasing wire IDs when a
+  conforming transport suspends before completing an earlier send, so C02-02
+  returned to failing and the packet returned to `verification-ready`. The
+  audit also identified unbounded full-frame SQLite debug logging on the
+  WebSocket path as a separate operational regression requiring bounded
+  logging and retention.
