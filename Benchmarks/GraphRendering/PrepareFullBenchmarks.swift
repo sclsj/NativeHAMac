@@ -19,15 +19,15 @@ final class PrepareFullBenchmarks: XCTestCase {
             history: first
         )
 
-        GraphPreparedSeriesCache.shared.reset()
-        _ = GraphPreparedSeriesCache.shared.series(for: input, displayUnit: "µg/m³")
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: "µg/m³")
         
         let options = XCTMeasureOptions.default
         options.iterationCount = 5
 
         measure(metrics: [XCTClockMetric()], options: options) {
-            GraphPreparedSeriesCache.shared.reset()
-            _ = GraphPreparedSeriesCache.shared.series(for: input, displayUnit: "µg/m³")
+            GraphBitmapRenderer.resetPreparedSeriesCache()
+            _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: "µg/m³")
         }
     }
 }

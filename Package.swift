@@ -87,7 +87,7 @@ let package = Package(
             name: "GraphRenderingBenchmarks",
             dependencies: ["NativeHACore", "NativeHAMac"],
             path: "Benchmarks/GraphRendering",
-            exclude: ["README.md", "results.md"]
+            exclude: ["README.md", "results.md", "prepareFull_results.md"]
         ),
     ]
 )

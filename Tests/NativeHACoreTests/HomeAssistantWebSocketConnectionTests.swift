@@ -856,6 +856,62 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         ]
     }
 
+    func testTypedDisplayRegistryCommandDecodesCompressedPrecision() async throws {
+        let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+
+        let task = Task { try await client.fetchEntityRegistryDisplay() }
+        let request = try await waitForSentMessage(transport) {
+            $0["type"] == .string("config/entity_registry/list_for_display")
+        }
+        let id = try XCTUnwrap(request["id"]?.testInt)
+        try await transport.push([
+            "id": .int(id),
+            "type": .string("result"),
+            "success": .bool(true),
+            "result": .object([
+                "entities": .array([
+                    .object(["ei": .string("sensor.pm2_5"), "lb": .array([]), "dp": .int(2)]),
+                    .object(["ei": .string("sensor.unconfigured"), "lb": .array([])]),
+                ]),
+                "entity_categories": .object([:]),
+            ]),
+        ])
+
+        let response = try await task.value
+        XCTAssertEqual(response.entities, [
+            HAEntityRegistryDisplayEntry(entityID: "sensor.pm2_5", displayPrecision: 2),
+            HAEntityRegistryDisplayEntry(entityID: "sensor.unconfigured"),
+        ])
+        await connection.disconnect()
+    }
+
+    func testTypedFrontendLanguageCommandDecodesPreferencesAndNullFallback() async throws {
+        let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+
+        let task = Task { try await client.fetchFrontendLocalePreferences() }
+        let request = try await waitForSentMessage(transport) {
+            $0["type"] == .string("frontend/get_user_data")
+        }
+        XCTAssertEqual(request["key"], .string("language"))
+        let id = try XCTUnwrap(request["id"]?.testInt)
+        try await transport.push([
+            "id": .int(id),
+            "type": .string("result"),
+            "success": .bool(true),
+            "result": .object(["value": .null]),
+        ])
+
+        let preferences = try await task.value
+        XCTAssertNil(preferences)
+        await connection.disconnect()
+    }
+
     private func makeConnection(
         transports: [ScriptedWebSocketTransport],
         timeoutNanoseconds: UInt64 = 5_000_000_000,

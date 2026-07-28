@@ -40,6 +40,24 @@ public final class HomeAssistantWebSocketClient {
         )
     }
 
+    public func fetchEntityRegistryDisplay() async throws -> HAEntityRegistryDisplayResponse {
+        try await connection.call(
+            ["type": .string("config/entity_registry/list_for_display")],
+            as: HAEntityRegistryDisplayResponse.self
+        )
+    }
+
+    public func fetchFrontendLocalePreferences() async throws -> HAFrontendLocalePreferences? {
+        let response = try await connection.call(
+            [
+                "type": .string("frontend/get_user_data"),
+                "key": .string("language"),
+            ],
+            as: HAFrontendUserDataResponse<HAFrontendLocalePreferences>.self
+        )
+        return response.value
+    }
+
     public func subscribeToStateChanges(
         _ onState: @escaping @Sendable (HAState) async -> Void
     ) async throws -> HAWebSocketSubscription {

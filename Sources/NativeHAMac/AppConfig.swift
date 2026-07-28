@@ -35,6 +35,11 @@ enum AppConfig {
         hoverOverlayDefault: .enabled,
         hoverOverlayEnvironmentVariable: "NATIVEHA_GRAPH_HOVER_OVERLAY"
     )
+    static let graphTooltipFormattingPolicy = GraphTooltipFormattingPolicy(
+        timePrecision: .homeAssistant,
+        numericDigits: nil,
+        entityNumericDigits: [:]
+    )
     static let webSocketPolicy = WebSocketPolicy(
         commandTimeout: 10,
         receivePolicy: HomeAssistantWebSocketReceivePolicy(

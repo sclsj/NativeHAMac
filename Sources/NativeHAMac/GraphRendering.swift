@@ -45,6 +45,7 @@ struct GraphRenderSeriesInput {
     let windowStart: Double?
     /// Requested window end (Unix seconds). Defaults to now when nil.
     let windowEnd: Double?
+    let tooltipFormatting: GraphTooltipFormattingMetadata
 
     init(
         cacheScope: String = "",
@@ -54,7 +55,8 @@ struct GraphRenderSeriesInput {
         color: GraphColor,
         history: HAHistorySeries,
         windowStart: Double? = nil,
-        windowEnd: Double? = nil
+        windowEnd: Double? = nil,
+        tooltipFormatting: GraphTooltipFormattingMetadata = .platformDefault
     ) {
         self.cacheScope = cacheScope
         self.entityID = entityID
@@ -64,6 +66,7 @@ struct GraphRenderSeriesInput {
         self.history = history
         self.windowStart = windowStart
         self.windowEnd = windowEnd
+        self.tooltipFormatting = tooltipFormatting
     }
 }
 
@@ -83,6 +86,7 @@ struct GraphRenderedSeries: Identifiable {
     let points: [GraphRenderedPoint]
     let minMaxCache: GraphMinMaxCache?
     let timelineSegments: [HAHistoryTimelineSegment]
+    let tooltipFormatting: GraphTooltipFormattingMetadata
 
     init(
         entityID: String,
@@ -91,7 +95,8 @@ struct GraphRenderedSeries: Identifiable {
         color: GraphColor,
         points: [GraphRenderedPoint],
         minMaxCache: GraphMinMaxCache? = nil,
-        timelineSegments: [HAHistoryTimelineSegment] = []
+        timelineSegments: [HAHistoryTimelineSegment] = [],
+        tooltipFormatting: GraphTooltipFormattingMetadata = .platformDefault
     ) {
         self.entityID = entityID
         self.name = name
@@ -100,6 +105,7 @@ struct GraphRenderedSeries: Identifiable {
         self.points = points
         self.minMaxCache = minMaxCache
         self.timelineSegments = timelineSegments
+        self.tooltipFormatting = tooltipFormatting
     }
 }
 
@@ -335,7 +341,8 @@ enum GraphBitmapRenderer {
                 unit: item.unit,
                 color: item.color,
                 points: points,
-                timelineSegments: timelineSegments
+                timelineSegments: timelineSegments,
+                tooltipFormatting: item.tooltipFormatting
             )
         }
         .filter { isStateTimeline ? !$0.timelineSegments.isEmpty : !$0.points.isEmpty }
@@ -802,19 +809,19 @@ private func numericValue(_ state: String) -> Double? {
     return Double(state)
 }
 
-private func displayValue(_ state: String, unit: String) -> String {
+private func displayValue(
+    _ state: String,
+    unit: String
+) -> String {
     if unit.lowercased() == "state" {
         return state
     }
 
-    if let value = Double(state) {
-        if unit.isEmpty {
-            return String(format: "%.2f", value)
-        }
-        if abs(value) >= 100 {
-            return "\(String(format: "%.0f", value)) \(unit)"
-        }
-        return "\(String(format: "%.1f", value)) \(unit)"
+    if Double(state) != nil {
+        // Numeric tooltip text is formatted lazily for the one hovered sample.
+        // Formatting every retained history point makes long-window loading
+        // needlessly expensive.
+        return state
     }
 
     return state
@@ -992,7 +999,8 @@ private final class GraphPreparedSeriesCache {
                 minMaxCache: isStateTimeline ? nil : GraphMinMaxCache(
                     points: points,
                     yValues: yValues
-                )
+                ),
+                tooltipFormatting: input.tooltipFormatting
             )
         )
     }
@@ -1139,7 +1147,8 @@ private final class GraphPreparedSeriesCache {
                 unit: input.unit,
                 color: input.color,
                 points: points,
-                minMaxCache: GraphMinMaxCache(points: points, yValues: yValues)
+                minMaxCache: GraphMinMaxCache(points: points, yValues: yValues),
+                tooltipFormatting: input.tooltipFormatting
             )
         )
     }
@@ -1165,6 +1174,7 @@ private final class GraphPreparedSeriesCache {
             input.name,
             input.unit,
             displayUnit,
+            input.tooltipFormatting.cacheKey,
             colorKey(input.color),
         ].joined(separator: "\u{1F}")
     }

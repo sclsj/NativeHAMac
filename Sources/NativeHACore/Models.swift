@@ -34,6 +34,71 @@ public struct HAConfig: Decodable, Equatable {
     }
 }
 
+public struct HAEntityRegistryDisplayResponse: Decodable, Equatable {
+    public let entities: [HAEntityRegistryDisplayEntry]
+
+    public init(entities: [HAEntityRegistryDisplayEntry]) {
+        self.entities = entities
+    }
+}
+
+public struct HAEntityRegistryDisplayEntry: Decodable, Equatable {
+    public let entityID: String
+    public let displayPrecision: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case entityID = "ei"
+        case displayPrecision = "dp"
+    }
+
+    public init(entityID: String, displayPrecision: Int? = nil) {
+        self.entityID = entityID
+        self.displayPrecision = displayPrecision
+    }
+}
+
+public struct HAFrontendUserDataResponse<Value: Decodable & Equatable>: Decodable, Equatable {
+    public let value: Value?
+
+    public init(value: Value?) {
+        self.value = value
+    }
+}
+
+public struct HAFrontendLocalePreferences: Decodable, Equatable {
+    public let language: String
+    public let numberFormat: String
+    public let timeFormat: String
+    public let dateFormat: String
+    public let firstWeekday: String
+    public let timeZone: String
+
+    private enum CodingKeys: String, CodingKey {
+        case language
+        case numberFormat = "number_format"
+        case timeFormat = "time_format"
+        case dateFormat = "date_format"
+        case firstWeekday = "first_weekday"
+        case timeZone = "time_zone"
+    }
+
+    public init(
+        language: String,
+        numberFormat: String,
+        timeFormat: String,
+        dateFormat: String,
+        firstWeekday: String,
+        timeZone: String
+    ) {
+        self.language = language
+        self.numberFormat = numberFormat
+        self.timeFormat = timeFormat
+        self.dateFormat = dateFormat
+        self.firstWeekday = firstWeekday
+        self.timeZone = timeZone
+    }
+}
+
 public struct HAState: Decodable, Equatable, Identifiable {
     public var id: String { entityId }
 

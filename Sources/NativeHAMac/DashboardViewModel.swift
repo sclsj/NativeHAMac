@@ -15,6 +15,9 @@ final class DashboardViewModel: ObservableObject {
     @Published var activeBaseURL: URL?
     @Published var showEntityIDs = AppConfig.showEntityIDsByDefault
     @Published var selectedEntityID: String?
+    private(set) var homeAssistantConfig: HAConfig?
+    private(set) var frontendLocalePreferences: HAFrontendLocalePreferences?
+    private(set) var entityDisplayPrecisions: [String: Int] = [:]
 
     private var restClient: HomeAssistantRESTClient?
     private var webSocketClient: HomeAssistantWebSocketClient?
@@ -52,12 +55,18 @@ final class DashboardViewModel: ObservableObject {
         webSocketClient: HomeAssistantWebSocketClient? = nil,
         initialStates: [String: HAState] = [:],
         initialViews: [LovelaceView] = [],
+        homeAssistantConfig: HAConfig? = nil,
+        frontendLocalePreferences: HAFrontendLocalePreferences? = nil,
+        entityDisplayPrecisions: [String: Int] = [:],
         historyNow: @escaping @Sendable () -> Date = { Date() },
         historyProcessingHook: @escaping @Sendable () async -> Void = {}
     ) {
         self.webSocketClient = webSocketClient
         self.states = initialStates
         self.views = initialViews
+        self.homeAssistantConfig = homeAssistantConfig
+        self.frontendLocalePreferences = frontendLocalePreferences
+        self.entityDisplayPrecisions = entityDisplayPrecisions
         self.historyNow = historyNow
         self.historyProcessingHook = historyProcessingHook
     }
@@ -161,6 +170,17 @@ final class DashboardViewModel: ObservableObject {
         }
 
         return unit
+    }
+
+    func graphTooltipFormatting(for entityID: String) -> GraphTooltipFormattingMetadata {
+        GraphTooltipFormattingResolver.metadata(
+            entityID: entityID,
+            state: states[entityID],
+            registryDisplayPrecision: entityDisplayPrecisions[entityID],
+            preferences: frontendLocalePreferences,
+            serverTimeZone: homeAssistantConfig?.timeZone,
+            policy: AppConfig.graphTooltipFormattingPolicy
+        )
     }
 
     func isOn(entityID: String) -> Bool {
@@ -447,6 +467,7 @@ final class DashboardViewModel: ObservableObject {
             let connection = try await firstWorkingConnection(token: token)
             activeBaseURL = connection.baseURL
             restClient = connection.restClient
+            homeAssistantConfig = connection.homeAssistantConfig
 
             status = "Loading states"
             let stateList = try await connection.restClient.fetchStates()
@@ -461,7 +482,16 @@ final class DashboardViewModel: ObservableObject {
                 maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
             )
             try await webSocket.connect()
+            async let registryResponse = try? await webSocket.fetchEntityRegistryDisplay()
+            async let localeResponse = try? await webSocket.fetchFrontendLocalePreferences()
             let config = try await webSocket.fetchLovelaceConfig()
+            let (registry, locale) = await (registryResponse, localeResponse)
+            entityDisplayPrecisions = Dictionary(uniqueKeysWithValues:
+                (registry?.entities ?? []).compactMap { entry in
+                    entry.displayPrecision.map { (entry.entityID, $0) }
+                }
+            )
+            frontendLocalePreferences = locale ?? nil
             views = config.views
             webSocketClient = webSocket
 
@@ -790,11 +820,12 @@ final class DashboardViewModel: ObservableObject {
             let client = HomeAssistantRESTClient(configuration: configuration)
 
             do {
-                _ = try await client.fetchConfig()
+                let homeAssistantConfig = try await client.fetchConfig()
                 return Connection(
                     baseURL: baseURL,
                     configuration: configuration,
-                    restClient: client
+                    restClient: client,
+                    homeAssistantConfig: homeAssistantConfig
                 )
             } catch {
                 lastError = error
@@ -902,6 +933,7 @@ private struct Connection {
     let baseURL: URL
     let configuration: HomeAssistantConfiguration
     let restClient: HomeAssistantRESTClient
+    let homeAssistantConfig: HAConfig
 }
 
 private final class WeakDashboardViewModelBox: @unchecked Sendable {

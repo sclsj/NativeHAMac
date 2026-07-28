@@ -199,6 +199,37 @@ An abrupt crash can still lose the current memory-resident interval; increasing
 the interval toward one minute would reduce commits further but enlarge that
 crash window.
 
+### 9. Graph crosshair tooltip precision
+
+**Intent:** Let deployments override the number of digits shown by graph
+crosshair tooltips without losing Home Assistant's entity-specific defaults,
+localized units, or full timestamp context.
+
+Configure one typed `GraphTooltipFormattingPolicy` with:
+
+- a time mode of Home Assistant default, minute, second, or a bounded number of
+  fractional-second digits;
+- an optional global numeric digit override; and
+- optional per-entity numeric digit overrides.
+
+Numeric overrides are clamped to 0...15 digits. Precedence is per-entity
+override, global override, Home Assistant's effective entity-registry
+`display_precision`, Home Assistant's integer state/integer step rule, then the
+canonical parsed numeric value's decimal digits. Explicit precision fixes both
+minimum and maximum digits, so requested trailing zeros remain visible.
+
+**Implementation note:** `AppConfig.swift` now defines
+`GraphTooltipFormattingPolicy`; production defaults to `.homeAssistant`, no
+global numeric override, and no per-entity overrides. NativeHA fetches the
+compressed `config/entity_registry/list_for_display` response and uses its
+effective `dp` field rather than separately interpreting
+`suggested_display_precision`. It also fetches the frontend `language`
+preferences and retains the REST `HAConfig` timezone. The Home Assistant time
+default is a localized full date and time with seconds and no fractional
+seconds. Locale and timezone fall back to the current macOS values when Home
+Assistant preference data is absent. These settings affect crosshair tooltip
+labels; graph-axis time labels remain unchanged.
+
 ## Not selected
 
 Render-resolution, reconnect timing, axis-density, and off-live-edge update

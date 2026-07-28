@@ -113,6 +113,39 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         XCTAssertGreaterThan(hiddenHover.blueSampleCount, 20)
     }
 
+    func testGraphHoverOverlayRendersForNativeNumericHistory() throws {
+        let input = numericPerformanceInput(
+            pointCount: 720,
+            entityID: "sensor.numeric_hover_overlay"
+        )
+        let size = CGSize(width: 496, height: 178)
+
+        func render(hover: CGPoint?) throws -> RenderedPNG {
+            try MacViewPNGRenderer.render(
+                BitmapLineChart(
+                    unit: "µg/m³",
+                    inputs: [input],
+                    zoomScale: 1,
+                    panFraction: 1,
+                    showsHoverOverlay: true,
+                    hoverLocation: .constant(hover),
+                    onMagnify: { _, _, _ in },
+                    onPan: { _ in }
+                )
+                .frame(width: size.width, height: size.height),
+                size: size,
+                displayScale: 2,
+                settleTime: 0.25
+            )
+        }
+
+        let plotOnly = try render(hover: nil)
+        let visibleHover = try render(hover: CGPoint(x: 250, y: 80))
+
+        XCTAssertNotEqual(visibleHover.pngData, plotOnly.pngData)
+        XCTAssertGreaterThan(visibleHover.blueSampleCount, 20)
+    }
+
     func testClimateDialAnimationKeyframesRenderDistinctImages() throws {
         var frameData: [Data] = []
 
@@ -1075,6 +1108,29 @@ private func performanceInput(pointCount: Int, entityID: String) -> GraphRenderS
         unit: "µg/m³",
         color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
         history: HAHistorySeries(entityID: entityID, points: points)
+    )
+}
+
+private func numericPerformanceInput(pointCount: Int, entityID: String) -> GraphRenderSeriesInput {
+    let points = (0..<pointCount).map { index -> HAHistoryPoint in
+        let value = 18 + sin(Double(index) / 19) * 8 + cos(Double(index) / 61) * 3
+        let timestamp = historyVisualBase + Double(index)
+        return HAHistoryPoint(
+            entityId: entityID,
+            state: String(format: "%.3f", value),
+            attributes: nil,
+            lastChangedSeconds: timestamp,
+            lastUpdatedSeconds: timestamp
+        )
+    }
+    return GraphRenderSeriesInput(
+        entityID: entityID,
+        name: "Numeric performance fixture",
+        unit: "µg/m³",
+        color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
+        history: HAHistorySeries(entityID: entityID, points: points),
+        windowStart: historyVisualBase,
+        windowEnd: historyVisualBase + Double(max(pointCount - 1, 0))
     )
 }
 

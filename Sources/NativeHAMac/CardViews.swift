@@ -355,7 +355,8 @@ struct UnitGraph: View {
                 color: graphColor(at: index),
                 history: item,
                 windowStart: windowStart,
-                windowEnd: windowEnd
+                windowEnd: windowEnd,
+                tooltipFormatting: model.graphTooltipFormatting(for: item.entityID)
             )
         }
     }
@@ -730,6 +731,7 @@ struct BitmapLineChart: View {
                 color,
                 input.windowStart.map(String.init(describing:)) ?? "nil",
                 input.windowEnd.map(String.init(describing:)) ?? "nil",
+                input.tooltipFormatting.cacheKey,
                 String(input.history.points.count),
                 first,
                 last,
@@ -801,7 +803,7 @@ struct BitmapLineChart: View {
             }
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(formatTime(sample.timestamp))
+                Text(formatTooltipTime(sample))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.white)
 
@@ -813,7 +815,7 @@ struct BitmapLineChart: View {
                         Text(value.series.name)
                             .lineLimit(1)
                         Spacer(minLength: 8)
-                        Text(value.point.display)
+                        Text(tooltipDisplay(value, unit: rendered.unit))
                             .fontWeight(.semibold)
                     }
                     .font(.system(size: 11))
@@ -847,6 +849,21 @@ struct BitmapLineChart: View {
 
     func formatTime(_ timestamp: Double) -> String {
         BitmapLineChart.timeFormatter.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+
+    func formatTooltipTime(_ sample: GraphSample) -> String {
+        let formatting = sample.values.first?.series.tooltipFormatting ?? .platformDefault
+        return formatting.formatTime(sample.timestamp)
+    }
+
+    func tooltipDisplay(_ value: GraphSampleValue, unit: String) -> String {
+        guard unit.lowercased() != "state" else {
+            return value.point.display
+        }
+        return value.series.tooltipFormatting.formatNumber(
+            value.point.y,
+            unit: value.series.unit
+        )
     }
 
     private static let timeFormatter: DateFormatter = {
@@ -1837,7 +1854,8 @@ struct DetailHistoryGraph: View {
                             color: graphColor(for: entityID),
                             history: history,
                             windowStart: windowStart,
-                            windowEnd: windowEnd
+                            windowEnd: windowEnd,
+                            tooltipFormatting: model.graphTooltipFormatting(for: entityID)
                         ),
                     ],
                     zoomScale: zoomScale,

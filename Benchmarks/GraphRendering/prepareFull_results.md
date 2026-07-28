@@ -23,3 +23,12 @@ These benchmarks measured the execution time of `GraphPreparedSeriesCache.shared
 
 ## Conclusion
 By implementing these 3 optimizations together, we can drop the execution time of `prepareFull` for large datasets from 405 ms down to 279 ms (a ~31% speed improvement).
+
+## Tooltip-precision integration check (2026-07-28)
+
+The configurable localized tooltip work deliberately formats only the hovered
+numeric value. It does not run `NumberFormatter` for every retained history
+point. The same 84,000-point debug benchmark averaged **389 ms** across five
+runs (0.249% relative standard deviation), compared with the recorded **405
+ms** baseline. This verifies that Home Assistant precision metadata and the
+native numeric-timestamp path do not add a material preparation regression.

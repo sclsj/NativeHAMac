@@ -1570,3 +1570,12 @@ frontend.
   receive/delivery/reconnect/projection contracts a direct typed path must
   preserve. Regenerated a green 21-node/143-edge graph; status remains
   `complete`.
+- 2026-07-28: added Home Assistant-default graph crosshair formatting using
+  effective entity-registry display precision, frontend locale/time
+  preferences, and the retained server timezone, with typed global/per-entity
+  digit and time-precision overrides. Numeric formatting remains lazy at hover
+  time so the native-timestamp history preparation path is unchanged; native
+  and legacy timestamp hover samples are equivalent, and the 84,000-point
+  debug preparation benchmark averaged 389 ms versus the recorded 405 ms
+  baseline. The axis formatter and history transport semantics are unchanged;
+  status remains `complete`.
