@@ -247,7 +247,9 @@ final class GraphRenderingTests: XCTestCase {
             history: history(
                 entityID: "sensor.reference_steps",
                 samples: [(0, "10"), (100, "20")]
-            )
+            ),
+            windowStart: baseTimestamp,
+            windowEnd: baseTimestamp + 3_600
         )
         let result = try XCTUnwrap(GraphBitmapRenderer.render(
             inputs: [input],
@@ -263,11 +265,11 @@ final class GraphRenderingTests: XCTestCase {
         let hasHorizontalStep = pixels.containsBluePixel(
             nearX: expectedX,
             y: expectedTopY,
-            radius: 4
+            radius: 2
         ) || pixels.containsBluePixel(
             nearX: expectedX,
             y: pixels.height - 1 - expectedTopY,
-            radius: 4
+            radius: 2
         )
 
         XCTExpectFailure(
@@ -462,8 +464,8 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertEqual(
             GraphBitmapRenderer.preparedSeriesCacheStatistics(),
             GraphPreparedSeriesCacheStatistics(
-                fullPreparationCount: 2,
-                incrementalPreparationCount: 0,
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 1,
                 cacheHitCount: 0
             )
         )
@@ -592,7 +594,7 @@ final class GraphRenderingTests: XCTestCase {
         )
     }
 
-    func testRollingTailWithoutProjectionLineageFallsBackToFullPreparation() throws {
+    func testRollingTailWithoutProjectionLineageUpdatesIncrementally() throws {
         GraphBitmapRenderer.resetPreparedSeriesCache()
         let first = GraphRenderSeriesInput(
             entityID: "sensor.no_lineage",
@@ -624,8 +626,8 @@ final class GraphRenderingTests: XCTestCase {
         XCTAssertEqual(
             GraphBitmapRenderer.preparedSeriesCacheStatistics(),
             GraphPreparedSeriesCacheStatistics(
-                fullPreparationCount: 2,
-                incrementalPreparationCount: 0,
+                fullPreparationCount: 1,
+                incrementalPreparationCount: 1,
                 cacheHitCount: 0
             )
         )
@@ -955,7 +957,9 @@ final class GraphRenderingTests: XCTestCase {
                     (2_700, "27"),
                     (3_600, "24"),
                 ]
-            )
+            ),
+            windowStart: baseTimestamp,
+            windowEnd: baseTimestamp + 3_600
         )
     }
 

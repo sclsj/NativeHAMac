@@ -1042,12 +1042,10 @@ private final class GraphPreparedSeriesCache {
                 }
                 let pt = input.history.points[i]
                 guard let timestamp = parser.timestamp(from: pt) else {
-                    AppLog("incrementallyUpdate appendFreshSource failed: timestamp nil", severity: .debug, category: .rendering)
-                    return false
+                    continue
                 }
                 guard let value = numericValue(pt.state) else {
-                    AppLog("incrementallyUpdate appendFreshSource failed: value nil", severity: .debug, category: .rendering)
-                    return false
+                    continue
                 }
                 if let last = points.last, timestamp < last.t {
                     AppLog("incrementallyUpdate appendFreshSource failed: timestamp \(timestamp) < last \(points.last!.t)", severity: .debug, category: .rendering)
@@ -1090,6 +1088,26 @@ private final class GraphPreparedSeriesCache {
         
         let cacheStartIndex = lowerBound(in: cached.series.points, timestamp: startTime)
         
+        // Advance firstValidNewIndex to align with cacheStartIndex
+        let targetTimestamp = cached.series.points[cacheStartIndex].t
+        var aligned = false
+        for i in firstValidNewIndex..<input.history.points.count {
+            let pt = input.history.points[i]
+            if let ts = parser.timestamp(from: pt), numericValue(pt.state) != nil {
+                if ts == targetTimestamp {
+                    firstValidNewIndex = i
+                    aligned = true
+                    break
+                } else if ts > targetTimestamp {
+                    break
+                }
+            }
+        }
+        guard aligned else {
+            AppLog("incrementallyUpdate failed: could not align prefix", severity: .debug, category: .rendering)
+            return nil
+        }
+        
         // Find where the new suffix begins in the raw input
         var suffixStartRawIndex = input.history.points.count
         for i in (0..<input.history.points.count).reversed() {
@@ -1114,6 +1132,30 @@ private final class GraphPreparedSeriesCache {
             AppLog("incrementallyUpdate failed: overlap \(overlapFirst.t) < prefix \(prefixLast.t)", severity: .debug, category: .rendering)
             return nil
         }
+        
+        var overlapValid = true
+        var cachedIndex = 0
+        for i in firstValidNewIndex..<suffixStartRawIndex {
+            let rawPt = input.history.points[i]
+            guard let ts = parser.timestamp(from: rawPt) else { continue }
+            guard let val = numericValue(rawPt.state) else { continue }
+            
+            guard cachedIndex < cachedOverlap.count else {
+                overlapValid = false
+                break
+            }
+            let cachedPt = cachedOverlap[cachedIndex + cachedOverlap.startIndex]
+            guard ts == cachedPt.t, val == cachedPt.y else {
+                overlapValid = false
+                break
+            }
+            cachedIndex += 1
+        }
+        guard overlapValid, cachedIndex == cachedOverlap.count else {
+            AppLog("incrementallyUpdate failed: overlap mismatch", severity: .debug, category: .rendering)
+            return nil
+        }
+        
         points.append(contentsOf: cachedOverlap)
         
         if let cachedYValues = cached.series.minMaxCache?.yValues, cacheStartIndex < cachedYValues.count {
