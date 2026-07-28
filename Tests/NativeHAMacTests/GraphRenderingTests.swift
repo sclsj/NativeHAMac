@@ -1018,6 +1018,13 @@ final class CardReferenceContractTests: XCTestCase {
         XCTAssertEqual(AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks, 4)
     }
 
+    func testProductionLoggingPolicyBoundsPayloadsAndDatabaseGrowth() {
+        XCTAssertEqual(AppConfig.loggingPolicy.maximumDatabaseBytes, 128 * 1_024 * 1_024)
+        XCTAssertEqual(AppConfig.loggingPolicy.maximumMessageCharacters, 4_096)
+        XCTAssertEqual(AppConfig.loggingPolicy.busyTimeoutMilliseconds, 1_000)
+        XCTAssertEqual(AppConfig.loggingPolicy.maximumPendingEntries, 1_024)
+    }
+
     func testHistoryCardUsesApprovedGlobalRangeWithoutMutatingRawHours() {
         let model = DashboardViewModel()
         model.selectedGraphHours = 1

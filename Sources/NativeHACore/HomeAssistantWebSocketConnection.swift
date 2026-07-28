@@ -105,6 +105,7 @@ public actor HomeAssistantWebSocketConnection {
     private let reconnectDelayNanoseconds: (Int) -> UInt64
 
     private var transport: HomeAssistantWebSocketTransport?
+    private var outboundSender: HomeAssistantWebSocketSendSerializer?
     private var connectionTask: Task<Void, Error>?
     private var receiveTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
@@ -231,6 +232,9 @@ public actor HomeAssistantWebSocketConnection {
 
         let oldTransport = transport
         transport = nil
+        let oldSender = outboundSender
+        outboundSender = nil
+        oldSender?.stop()
         await oldTransport?.disconnect()
 
         failAllPending(with: HomeAssistantWebSocketError.disconnected)
@@ -451,6 +455,7 @@ public actor HomeAssistantWebSocketConnection {
         let connectionGeneration = generation
         let newTransport = try transportFactory()
         transport = newTransport
+        outboundSender = HomeAssistantWebSocketSendSerializer(transport: newTransport)
         try await newTransport.connect()
 
         let version = try await authenticate(on: newTransport)
@@ -638,7 +643,13 @@ public actor HomeAssistantWebSocketConnection {
         }
 
         do {
-            try await sendObject(command, over: transport)
+            try await sendObject(
+                command,
+                over: transport,
+                shouldSend: { [weak self] in
+                    await self?.canSendPendingCommand(id, generation: generation) == true
+                }
+            )
         } catch {
             failPendingCommand(id, with: error)
             await handleConnectionFailure(error, generation: generation)
@@ -749,7 +760,17 @@ public actor HomeAssistantWebSocketConnection {
         var command = record.message
         command["id"] = .int(wireID)
         do {
-            try await sendObject(command, over: transport)
+            try await sendObject(
+                command,
+                over: transport,
+                shouldSend: { [weak self] in
+                    await self?.canSendPendingSubscription(
+                        logicalID,
+                        wireID: wireID,
+                        generation: generation
+                    ) == true
+                }
+            )
         } catch {
             await failSubscription(logicalID, with: error)
             await handleConnectionFailure(error, generation: generation)
@@ -759,6 +780,7 @@ public actor HomeAssistantWebSocketConnection {
     private func resubscribeStoredSubscriptions(
         over transport: HomeAssistantWebSocketTransport
     ) async throws {
+        let resubscribeGeneration = generation
         let logicalIDs = subscriptions.keys.sorted { $0.uuidString < $1.uuidString }
         for logicalID in logicalIDs {
             guard var record = subscriptions[logicalID], record.resubscribe else {
@@ -770,8 +792,37 @@ public actor HomeAssistantWebSocketConnection {
             wireSubscriptions[wireID] = logicalID
             var command = record.message
             command["id"] = .int(wireID)
-            try await sendObject(command, over: transport)
+            try await sendObject(
+                command,
+                over: transport,
+                shouldSend: { [weak self] in
+                    await self?.canSendPendingSubscription(
+                        logicalID,
+                        wireID: wireID,
+                        generation: resubscribeGeneration
+                    ) == true
+                }
+            )
         }
+    }
+
+    private func canSendPendingCommand(_ id: Int, generation: Int) -> Bool {
+        pendingCommands[id] != nil
+            && self.generation == generation
+            && transport != nil
+    }
+
+    private func canSendPendingSubscription(
+        _ logicalID: UUID,
+        wireID: Int,
+        generation: Int
+    ) -> Bool {
+        guard let record = subscriptions[logicalID] else {
+            return false
+        }
+        return record.wireID == wireID
+            && self.generation == generation
+            && transport != nil
     }
 
     private func handleConnectionFailure(_ error: Error, generation: Int) async {
@@ -785,6 +836,9 @@ public actor HomeAssistantWebSocketConnection {
         receiveLoopCount = 0
         let oldTransport = transport
         transport = nil
+        let oldSender = outboundSender
+        outboundSender = nil
+        oldSender?.stop()
         await oldTransport?.disconnect()
 
         failAllPending(with: HomeAssistantWebSocketError.disconnected)
@@ -863,6 +917,9 @@ public actor HomeAssistantWebSocketConnection {
         receiveLoopCount = 0
         let oldTransport = transport
         transport = nil
+        let oldSender = outboundSender
+        outboundSender = nil
+        oldSender?.stop()
         await oldTransport?.disconnect()
     }
 
@@ -925,14 +982,24 @@ public actor HomeAssistantWebSocketConnection {
 
     private func sendObject(
         _ object: [String: JSONValue],
-        over transport: HomeAssistantWebSocketTransport
+        over transport: HomeAssistantWebSocketTransport,
+        shouldSend: @escaping @Sendable () async -> Bool = { true }
     ) async throws {
         let data = try JSONEncoder().encode(JSONValue.object(object))
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
-        AppLog("WebSocket send: \(text)", severity: .debug, category: .network)
-        try await transport.send(.string(text))
+        AppLog(
+            "WebSocket send type=\(object["type"]?.stringValue ?? "unknown") "
+                + "id=\(object["id"]?.intValue.map(String.init) ?? "none") bytes=\(data.count)",
+            severity: .debug,
+            category: .network
+        )
+        guard let outboundSender = outboundSender, outboundSender.isFor(transport) else {
+            throw HomeAssistantWebSocketError.disconnected
+        }
+        let ticket = outboundSender.enqueue(.string(text), shouldSend: shouldSend)
+        try await ticket.value()
     }
 
     private func decodeFrame(_ frame: HAWebSocketFrame) throws -> [JSONValue] {
@@ -940,7 +1007,7 @@ public actor HomeAssistantWebSocketConnection {
         switch frame {
         case let .string(value):
             data = Data(value.utf8)
-            AppLog("WebSocket receive: \(value)", severity: .debug, category: .network)
+            AppLog("WebSocket receive text bytes=\(data.count)", severity: .debug, category: .network)
         case let .data(value):
             data = value
             AppLog("WebSocket receive: \(value.count) bytes", severity: .debug, category: .network)

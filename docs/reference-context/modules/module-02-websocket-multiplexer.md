@@ -3,14 +3,14 @@ schema: nativeha-evidence/v1
 module: "02"
 title: WebSocket multiplexer and subscription architecture
 plan: ../../rescue-plan/module-02-websocket-multiplexer.md
-status: verification-ready
+status: complete
 contract_revision: 1
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 04795558e076661287cabab524b19d3bb3337fa2
 graph_file: ../generated/module-02.dependencies.json
 graph_fingerprint: 6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474
-last_validated: 2026-07-27
+last_validated: 2026-07-28
 ---
 
 # Module 02 evidence packet
@@ -135,6 +135,7 @@ fingerprint
 | D02-03 | Deliver callbacks outside connection-actor isolation through one connection-owned coordinator. It preserves per-owner serial order, bounds buffers, and globally caps active subscriber callbacks at the configured value (four in the app policy). Cancellation requests task cancellation and removes queued/callback ownership immediately; a callback that ignores cancellation remains explicitly owned and counted against the cap until it returns. Termination callbacks use a separate single-task bounded queue. | Performance, reentrancy, and native lifecycle safety | Per-subscription order; no cross-routing, receiver blocking, or monotonic callback-task creation during owner churn | Slow subscriber, gated termination, and eight-owner 2 MiB retention regressions | implemented |
 | D02-04 | Keep a logical subscription record across reconnect while assigning it a fresh wire ID; cancellation uses the current wire ID and remains idempotent. | Native ownership convention | Generic subscriptions resubscribe; `resubscribe:false` owners rebuild on `ready` | Reconnect/opt-out/exact-wire tests | implemented |
 | D02-05 | The URLSession adapter owns one pending receive continuation behind a lock and explicitly resumes it with `disconnected` during cancel/deinit. Late URLSession callbacks are ignored by receive identity. | Swift 5.6/macOS 12 lifecycle safety | Disconnect remains idempotent and every receive completes exactly once | Non-completing production-task adapter regression and live reconnect/disconnect smoke | implemented |
+| D02-06 | Outbound frames synchronously enter a FIFO owned by one physical transport generation. Stopping a generation resolves active and queued tickets without requiring an indefinitely suspended native send to return. | Browser `WebSocket.send` is synchronous while macOS `URLSessionWebSocketTask.send` is completion-based; native lifecycle safety | Actual wire IDs remain monotonic; cancelled/expired work is suppressed; an old generation cannot block or retain its replacement | Suspended-send ordering, queued cancellation, reconnect isolation, and never-returning-send weak-retention regressions | implemented |
 
 ## Implementation result
 
@@ -163,8 +164,8 @@ fingerprint
   adapter, race, retention, stress, lifecycle, and split XCTMetric coverage.
 - This packet and `docs/reference-context/README.md`: durable verifier handoff.
 
-`docs/user-deviations.md` did not change; the implementation adds no new product
-deviation from the reference contracts.
+`docs/user-deviations.md` records the approved native scheduling and lifecycle
+mechanisms needed to preserve the reference's observable WebSocket contract.
 
 ### Contract evidence
 
@@ -638,6 +639,60 @@ Exact next actions:
    capped payload preview, and add SQLite retention/size and busy-handling
    policy so logging cannot grow without bound or flood diagnostics.
 
+### Native send-order and logging repair — 2026-07-28
+
+Verdict: `complete`. An independent verifier reproduced the suspended-send
+failure and added the first deterministic regression before production changes.
+The repair adds a synchronous-enqueue FIFO per physical transport generation,
+then revalidates command or subscription ownership immediately before the
+queued item reaches `URLSessionWebSocketTask`. This preserves browser-observable
+monotonic ID semantics without copying the browser's synchronous JavaScript
+scheduling assumption.
+
+The generation boundary is explicit: an indefinitely suspended send on an old
+transport cannot block authentication or traffic on its replacement. Stopping
+that generation resolves its active ticket and releases the serializer even if
+the underlying transport never completes. A command cancelled while queued is
+removed from pending ownership and skipped before it reaches the transport.
+Existing receive-loop, timeout, callback coordinator, history opt-out, 32 MiB
+receive policy, and production pending-receive cleanup paths were not replaced.
+
+WebSocket logs now contain only bounded metadata. `LoggingPolicy` caps the
+SQLite database at 128 MiB, individual messages at 4,096 characters, and
+SQLite busy waits at 1,000 ms. At most 1,024 entries may wait for the serial
+SQLite writer; producers drop new diagnostics while that queue is full. The
+logger stops accepting entries after the open database reaches the ceiling and
+removes an oversized cache plus sidecars before opening on the next launch.
+Validation initialization replaced the previous 1.606 GB cache with a fresh
+database; after the live history smoke the database was about 800 KiB and the
+largest stored message was 77 characters.
+
+Validation:
+
+```text
+swift test --filter HomeAssistantWebSocketConnectionTests
+14 tests, 0 failures
+
+swift test --filter HomeAssistantWebSocket
+23 tests, 0 failures; includes 10,000-message routing, 100 reconnect cycles,
+bounded callback retention, split performance metrics, and URLSession adapter
+cleanup
+
+swift test --filter SQLiteLoggerTests
+3 tests, 0 failures
+
+swift test --filter HomeAssistantHistoryStream
+26 tests, 0 failures
+
+swift test --filter HistoryStreamIntegrationTests
+3 tests, 0 failures
+
+NATIVEHA_RUN_LIVE_HISTORY_SMOKE=1 swift test \
+  --filter HomeAssistantHistoryLiveSmokeTests.testReadOnlyOneHourTwelveHourTwentyFourHourAndReconnectSmoke
+1 test, 0 failures; 1h/12h/24h history, reconnect, cancellation, and final
+ownership cleanup passed against the live deployment
+```
+
 ## Validation requirements
 
 ### Offline deterministic tests
@@ -695,12 +750,11 @@ and receive-loop counts to zero without monotonic retained-memory growth.
 
 ## Handoff
 
-The original Module 02 implementation remains the correct foundation: its
-single receiver, callback coordinator, reconnect primitive, and production
-receive cleanup are verified. The 2026-07-27 post-fix audit supersedes the
-earlier complete verdict for C02-02, however. Before treating the module as
-complete again, serialize outbound sends across suspension, retain the new
-suspension regression, and bound full-frame debug logging and log retention.
+Module 02 is complete again. Preserve the per-generation outbound FIFO and its
+pre-send ownership checks alongside the existing single receiver, callback
+coordinator, reconnect primitive, production receive cleanup, history opt-out,
+and large-frame policy. The native serializer is an intentional macOS transport
+adaptation that preserves Home Assistant's observable protocol semantics.
 
 ## Change log
 
@@ -744,3 +798,10 @@ suspension regression, and bound full-frame debug logging and log retention.
   audit also identified unbounded full-frame SQLite debug logging on the
   WebSocket path as a separate operational regression requiring bounded
   logging and retention.
+- 2026-07-28: independently reproduced both findings, added a per-transport
+  synchronous-enqueue FIFO with cancellation and generation guards, replaced
+  full-frame logging with bounded metadata and bounded SQLite retention and
+  queue policies, then added never-returning-send and locked-database
+  regressions after a final independent lifecycle review. Focused, stress,
+  lifecycle, history integration, and live 1h/12h/24h reconnect validation
+  passed. Status returned to `complete`.

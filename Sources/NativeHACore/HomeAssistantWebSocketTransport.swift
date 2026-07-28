@@ -25,6 +25,183 @@ public protocol HomeAssistantWebSocketTransport: AnyObject {
     func disconnect() async
 }
 
+final class HomeAssistantWebSocketSendTicket {
+    private let lock = NSLock()
+    private var result: Result<Void, Error>?
+    private var continuation: CheckedContinuation<Void, Error>?
+
+    func value() async throws {
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<Void, Error>) in
+            lock.lock()
+            if let result = result {
+                lock.unlock()
+                continuation.resume(with: result)
+                return
+            }
+            self.continuation = continuation
+            lock.unlock()
+        }
+    }
+
+    func resolve(with result: Result<Void, Error>) {
+        lock.lock()
+        guard self.result == nil else {
+            lock.unlock()
+            return
+        }
+        self.result = result
+        let continuation = continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume(with: result)
+    }
+}
+
+/// Browser WebSockets enqueue synchronously in the same JavaScript turn that
+/// allocates a Home Assistant command ID. Native URLSession sends are async,
+/// so preserve that wire-order guarantee explicitly before crossing `await`.
+final class HomeAssistantWebSocketSendSerializer {
+    private struct Request {
+        let id: UUID
+        let frame: HAWebSocketFrame
+        let shouldSend: @Sendable () async -> Bool
+        let ticket: HomeAssistantWebSocketSendTicket
+    }
+
+    private struct Payload {
+        let transport: HomeAssistantWebSocketTransport
+        let frame: HAWebSocketFrame
+    }
+
+    private let transport: HomeAssistantWebSocketTransport
+    private let lock = NSLock()
+    private var queued: [Request] = []
+    private var active: Request?
+    private var stoppedError: Error?
+
+    init(transport: HomeAssistantWebSocketTransport) {
+        self.transport = transport
+    }
+
+    func isFor(_ transport: HomeAssistantWebSocketTransport) -> Bool {
+        self.transport === transport
+    }
+
+    /// This method is intentionally synchronous. The connection actor calls it
+    /// immediately after allocating an ID, so queue insertion cannot be
+    /// overtaken by actor reentrancy.
+    func enqueue(
+        _ frame: HAWebSocketFrame,
+        shouldSend: @escaping @Sendable () async -> Bool
+    ) -> HomeAssistantWebSocketSendTicket {
+        let ticket = HomeAssistantWebSocketSendTicket()
+        let request = Request(
+            id: UUID(),
+            frame: frame,
+            shouldSend: shouldSend,
+            ticket: ticket
+        )
+
+        lock.lock()
+        if let stoppedError = stoppedError {
+            lock.unlock()
+            ticket.resolve(with: .failure(stoppedError))
+            return ticket
+        }
+        queued.append(request)
+        let next = takeNextLocked()
+        lock.unlock()
+
+        if let next = next {
+            start(next)
+        }
+        return ticket
+    }
+
+    func stop(with error: Error = HomeAssistantWebSocketError.disconnected) {
+        lock.lock()
+        guard stoppedError == nil else {
+            lock.unlock()
+            return
+        }
+        stoppedError = error
+        let abandoned = queued + (active.map { [$0] } ?? [])
+        queued.removeAll(keepingCapacity: false)
+        active = nil
+        lock.unlock()
+
+        for request in abandoned {
+            request.ticket.resolve(with: .failure(error))
+        }
+    }
+
+    private func takeNextLocked() -> Request? {
+        guard active == nil, stoppedError == nil, !queued.isEmpty else {
+            return nil
+        }
+        let next = queued.removeFirst()
+        active = next
+        return next
+    }
+
+    private func start(_ request: Request) {
+        let requestID = request.id
+        let shouldSend = request.shouldSend
+        Task { [weak self] in
+            guard await shouldSend() else {
+                self?.complete(requestID, result: .success(()))
+                return
+            }
+            guard let payload = self?.payload(for: requestID) else {
+                return
+            }
+            do {
+                try await payload.transport.send(payload.frame)
+                self?.complete(requestID, result: .success(()))
+            } catch {
+                self?.complete(requestID, result: .failure(error))
+            }
+        }
+    }
+
+    private func payload(for requestID: UUID) -> Payload? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let active = active, active.id == requestID, stoppedError == nil else {
+            return nil
+        }
+        return Payload(transport: transport, frame: active.frame)
+    }
+
+    private func complete(_ requestID: UUID, result: Result<Void, Error>) {
+        lock.lock()
+        guard let request = active, request.id == requestID else {
+            lock.unlock()
+            return
+        }
+        active = nil
+        var abandoned: [Request] = []
+        if case let .failure(error) = result, stoppedError == nil {
+            stoppedError = error
+            abandoned = queued
+            queued.removeAll(keepingCapacity: false)
+        }
+        let next = takeNextLocked()
+        lock.unlock()
+
+        request.ticket.resolve(with: result)
+        if case let .failure(error) = result {
+            for pending in abandoned {
+                pending.ticket.resolve(with: .failure(error))
+            }
+        }
+        if let next = next {
+            start(next)
+        }
+    }
+}
+
 protocol URLSessionWebSocketTaskAdapter: AnyObject {
     var maximumMessageSize: Int { get set }
 

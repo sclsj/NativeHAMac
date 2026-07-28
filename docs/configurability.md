@@ -169,6 +169,30 @@ concurrently, which bounds retained in-flight callback work even during
 repeated subscription churn. Reconnect timing remains internal reference-parity
 behavior rather than a selected product configuration surface.
 
+### 8. Diagnostic logging retention
+
+**Intent:** Keep debug telemetry useful without allowing payload capture,
+queued log work, or the SQLite cache to become an unbounded source of memory,
+disk, and I/O pressure.
+
+Configure the SQLite database byte ceiling, maximum characters retained per log
+message, SQLite busy timeout, and pending-entry ceiling as one typed logging
+policy. WebSocket logging must record bounded metadata such as direction,
+message type, command ID, and encoded byte count; it must not persist
+authentication data or full history frames.
+
+**Implementation note:** `LoggingPolicy` now sets a 128 MiB
+(`134_217_728` byte) database ceiling, 4,096-character per-entry limit,
+1,000 ms SQLite busy timeout, and 1,024-entry asynchronous queue ceiling.
+New entries are dropped while that queue is full rather than consuming
+unbounded memory during persistent database locking. Logging stops for the
+current process when the open database reaches the ceiling, with size checks
+every 256 successful inserts and bounded entry size limiting overshoot. On the
+next launch, an oversized cache and its journal/WAL sidecars are removed before
+SQLite opens; this avoids a synchronous `VACUUM` of a large database during app
+launch. Launch table names include a unique suffix to avoid collisions between
+concurrent test or app processes.
+
 ## Not selected
 
 Render-resolution, reconnect timing, axis-density, and off-live-edge update

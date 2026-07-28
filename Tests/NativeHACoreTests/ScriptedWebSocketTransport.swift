@@ -19,6 +19,9 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
     private var failNextSend = false
     private var lastSentCommandID: Int?
     private var strictCommandIDViolationCount = 0
+    private var attemptedCommandIDs: [Int] = []
+    private var suspendNextSend = false
+    private var suspendedSend: CheckedContinuation<Void, Never>?
 
     let automaticAuthentication: Bool
     let automaticSubscriptionAcknowledgement: Bool
@@ -57,6 +60,15 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
         }
 
         let object = try decodeObject(frame)
+        if let id = object["id"]?.testInt {
+            attemptedCommandIDs.append(id)
+        }
+        if suspendNextSend {
+            suspendNextSend = false
+            await withCheckedContinuation { continuation in
+                suspendedSend = continuation
+            }
+        }
         if requiresStrictlyIncreasingCommandIDs, let id = object["id"]?.testInt {
             if let previous = lastSentCommandID, id <= previous {
                 strictCommandIDViolationCount += 1
@@ -151,6 +163,20 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
         failNextSend = true
     }
 
+    func arrangeNextSendSuspension() {
+        suspendNextSend = true
+    }
+
+    func hasSuspendedSend() -> Bool {
+        suspendedSend != nil
+    }
+
+    func resumeSuspendedSend() {
+        let continuation = suspendedSend
+        suspendedSend = nil
+        continuation?.resume()
+    }
+
     func sentObjects() -> [[String: JSONValue]] {
         sent
     }
@@ -161,6 +187,10 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
 
     func commandIDMetrics() -> (lastSent: Int?, violationCount: Int) {
         (lastSentCommandID, strictCommandIDViolationCount)
+    }
+
+    func commandIDAttempts() -> [Int] {
+        attemptedCommandIDs
     }
 
     private func deliver(_ result: Result<HAWebSocketFrame, Error>) {

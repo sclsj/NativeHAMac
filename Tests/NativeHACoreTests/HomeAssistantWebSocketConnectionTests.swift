@@ -158,6 +158,182 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testSuspendingTransportCannotReorderAllocatedWireIDs() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticCommandAcknowledgement: true,
+            requiresStrictlyIncreasingCommandIDs: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        await transport.arrangeNextSendSuspension()
+
+        let first = Task { () -> Error? in
+            do {
+                _ = try await connection.callRaw(["type": .string("test/first")])
+                return nil
+            } catch {
+                return error
+            }
+        }
+        try await waitUntil { await transport.hasSuspendedSend() }
+
+        let second = Task { () -> Error? in
+            do {
+                _ = try await connection.callRaw(["type": .string("test/second")])
+                return nil
+            } catch {
+                return error
+            }
+        }
+        try await waitUntil {
+            await connection.debugSnapshot().nextCommandID >= 4
+        }
+        let attemptedBeforeRelease = await transport.commandIDAttempts()
+        XCTAssertEqual(
+            attemptedBeforeRelease,
+            [1, 2],
+            "ID 3 must remain queued until the suspended send of ID 2 completes."
+        )
+        await transport.resumeSuspendedSend()
+
+        let firstError = await first.value
+        let secondError = await second.value
+        let metrics = await transport.commandIDMetrics()
+        XCTAssertEqual(
+            metrics.violationCount,
+            0,
+            "An allocated ID must not be overtaken while an earlier native send is suspended."
+        )
+        XCTAssertNil(firstError)
+        XCTAssertNil(secondError)
+
+        await connection.disconnect()
+    }
+
+    func testSuspendedOldTransportDoesNotBlockReplacementGeneration() async throws {
+        let firstTransport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticCommandAcknowledgement: true,
+            requiresStrictlyIncreasingCommandIDs: true
+        )
+        let replacementTransport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticCommandAcknowledgement: true,
+            requiresStrictlyIncreasingCommandIDs: true
+        )
+        let connection = makeConnection(
+            transports: [firstTransport, replacementTransport],
+            reconnectDelay: { _ in 0 }
+        )
+        try await connection.connect()
+        await firstTransport.arrangeNextSendSuspension()
+
+        let staleCall = Task {
+            try await connection.callRaw(["type": .string("test/stale-generation")])
+        }
+        try await waitUntil { await firstTransport.hasSuspendedSend() }
+        await firstTransport.pushFailure()
+        try await waitUntil {
+            let state = await connection.debugSnapshot().state
+            let attempts = await replacementTransport.commandIDAttempts()
+            return state == .ready && attempts == [1]
+        }
+
+        let replacementResult = try await connection.callRaw([
+            "type": .string("test/replacement-generation"),
+        ])
+        XCTAssertEqual(replacementResult, .int(2))
+        let replacementAttempts = await replacementTransport.commandIDAttempts()
+        XCTAssertEqual(replacementAttempts, [1, 2])
+
+        await firstTransport.resumeSuspendedSend()
+        do {
+            _ = try await staleCall.value
+            XCTFail("The command owned by the disconnected generation should fail")
+        } catch {
+            XCTAssertEqual(error as? HomeAssistantWebSocketError, .disconnected)
+        }
+
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.state, .ready)
+        XCTAssertEqual(snapshot.pendingCommandCount, 0)
+        XCTAssertEqual(snapshot.receiveLoopCount, 1)
+        await connection.disconnect()
+    }
+
+    func testStoppedSerializerReleasesItselfWhenActiveTransportSendNeverReturns() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticCommandAcknowledgement: true
+        )
+        try await transport.connect()
+        await transport.arrangeNextSendSuspension()
+
+        var serializer: HomeAssistantWebSocketSendSerializer? =
+            HomeAssistantWebSocketSendSerializer(transport: transport)
+        weak var weakSerializer = serializer
+        let ticket = serializer!.enqueue(
+            .string(#"{"id":1,"type":"test/never-resumes"}"#),
+            shouldSend: { true }
+        )
+        try await waitUntil { await transport.hasSuspendedSend() }
+
+        serializer?.stop()
+        do {
+            try await ticket.value()
+            XCTFail("Stopping the serializer must fail its active send ticket")
+        } catch {
+            XCTAssertEqual(error as? HomeAssistantWebSocketError, .disconnected)
+        }
+        serializer = nil
+
+        XCTAssertNil(
+            weakSerializer,
+            "A transport send that never returns must not retain its retired serializer generation."
+        )
+    }
+
+    func testCancelledCommandWaitingBehindSuspendedSendNeverReachesTransport() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticCommandAcknowledgement: true,
+            requiresStrictlyIncreasingCommandIDs: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        await transport.arrangeNextSendSuspension()
+
+        let first = Task {
+            try await connection.callRaw(["type": .string("test/first")])
+        }
+        try await waitUntil { await transport.hasSuspendedSend() }
+
+        let cancelled = Task {
+            try await connection.callRaw(["type": .string("test/cancelled")])
+        }
+        try await waitUntil {
+            await connection.debugSnapshot().nextCommandID >= 4
+        }
+        cancelled.cancel()
+        do {
+            _ = try await cancelled.value
+            XCTFail("Expected the queued command to be cancelled")
+        } catch {
+            XCTAssertEqual(error as? HomeAssistantWebSocketError, .cancelled)
+        }
+
+        await transport.resumeSuspendedSend()
+        _ = try await first.value
+        try await waitUntil {
+            await connection.debugSnapshot().pendingCommandCount == 0
+        }
+        let attemptedIDs = await transport.commandIDAttempts()
+        XCTAssertEqual(attemptedIDs, [1, 2])
+
+        await connection.disconnect()
+    }
+
     func testEarlyEventAndCoalescedOutOfOrderResultsRouteToTheirOwners() async throws {
         let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
         let connection = makeConnection(transports: [transport])

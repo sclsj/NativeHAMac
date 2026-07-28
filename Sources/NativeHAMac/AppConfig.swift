@@ -84,7 +84,11 @@ enum AppConfig {
         rendering: true,
         interaction: true,
         lifecycle: true,
-        general: true
+        general: true,
+        maximumDatabaseBytes: 128 * 1_024 * 1_024,
+        maximumMessageCharacters: 4_096,
+        busyTimeoutMilliseconds: 1_000,
+        maximumPendingEntries: 1_024
     )
 }
 

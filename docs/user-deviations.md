@@ -35,6 +35,24 @@ deviations from implementation convenience or old chat plans.
   frontend. Implement behavior with Swift, SwiftUI, AppKit, CoreGraphics, and
   other native APIs; do not use JavaScript or WebView as the app architecture.
 
+## Native WebSocket transport semantics
+
+- Preserve Home Assistant's observable WebSocket protocol semantics, including
+  monotonically increasing command IDs, routing ownership, unsubscribe,
+  reconnect, and resubscription behavior. Do not assume the browser client's
+  scheduling mechanism itself is portable to macOS.
+- The browser client allocates an ID and synchronously enqueues
+  `WebSocket.send` in one JavaScript turn. NativeHA may and should use a
+  per-physical-connection FIFO, explicit continuation ownership, bounded frame
+  and callback policies, and other native lifecycle mechanisms required by
+  completion-based `URLSessionWebSocketTask` behavior on supported macOS
+  versions.
+- Native transport adaptations must retain the already-verified Module 02
+  guarantees: one receiver, ordered outbound IDs, exactly-once pending cleanup,
+  cancellation and timeout suppression, reconnect-generation isolation,
+  history resubscribe opt-out, bounded callback retention, and the configured
+  large-frame receive limit.
+
 ## Numeric graph y-axis transitions
 
 - While zooming or inertially scrolling changes the visible numeric range, the
