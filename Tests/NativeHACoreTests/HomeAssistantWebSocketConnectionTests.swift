@@ -661,6 +661,192 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await failedSendConnection.disconnect()
     }
 
+    func testTypedSubscriptionDecodesLargeEventDirectlyAndPreservesAllSamples() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let log = TypedHistoryCountLog()
+        let subscription = try await connection.subscribeMessage(
+            ["type": .string("history/stream")],
+            as: HAHistoryStreamMessage.self,
+            resubscribe: false
+        ) { message in
+            await log.append(message.states.values.reduce(0) { $0 + $1.count })
+        }
+
+        let states = (0..<100_000).map { index in
+            HACompactHistoryState(
+                state: "\(index)",
+                lastChangedSeconds: Double(index) + 0.125,
+                lastUpdatedSeconds: Double(index) + 0.875
+            )
+        }
+        let envelope = TypedHistoryEventEnvelope(
+            id: subscription.id,
+            event: HAHistoryStreamMessage(states: ["sensor.large": states])
+        )
+        let data = try JSONEncoder().encode(envelope)
+        await transport.pushFrame(.string(String(decoding: data, as: UTF8.self)))
+
+        try await waitUntil(iterations: 10_000_000) {
+            await log.values() == [100_000]
+        }
+        try await waitUntil {
+            await connection.debugSnapshot().activeDeliveryTaskCount == 0
+        }
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.directTypedEventDecodeCount, 1)
+        XCTAssertEqual(snapshot.bufferedDeliveryCount, 0)
+        XCTAssertEqual(snapshot.activeDeliveryTaskCount, 0)
+
+        await subscription.cancel()
+        await connection.disconnect()
+    }
+
+    func testTypedCoalescedEventsRemainInWireOrder() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let log = TypedHistoryCountLog()
+        let subscription = try await connection.subscribeMessage(
+            [
+                "type": .string("subscribe_events"),
+                "event_type": .string("test_typed_order"),
+            ],
+            as: TypedSequencePayload.self
+        ) { payload in
+            await log.append(payload.sequence)
+        }
+
+        try await transport.pushGroup((0..<100).map { sequence in
+            [
+                "id": .int(subscription.id),
+                "type": .string("event"),
+                "event": .object(["sequence": .int(sequence)]),
+            ]
+        })
+        try await waitUntil { await log.values().count == 100 }
+        let orderedValues = await log.values()
+        XCTAssertEqual(orderedValues, Array(0..<100))
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.directTypedEventDecodeCount, 100)
+
+        await subscription.cancel()
+        await connection.disconnect()
+    }
+
+    func testTypedDecodeDoesNotBlockConnectionActorAndCancellationSuppressesCallback() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let gate = BlockingDecodeGate()
+        BlockingTypedPayload.install(gate)
+        defer { BlockingTypedPayload.install(nil) }
+        let log = TypedHistoryCountLog()
+        let subscription = try await connection.subscribeMessage(
+            [
+                "type": .string("subscribe_events"),
+                "event_type": .string("test_blocking_decode"),
+            ],
+            as: BlockingTypedPayload.self
+        ) { payload in
+            await log.append(payload.sequence)
+        }
+
+        try await transport.push([
+            "id": .int(subscription.id),
+            "type": .string("event"),
+            "event": .object(["sequence": .int(9)]),
+        ])
+        try await waitUntil { gate.hasEntered }
+
+        let cancellation = Task { await subscription.cancel() }
+        _ = try await waitForSentMessage(transport) {
+            $0["type"] == .string("unsubscribe_events")
+        }
+        await cancellation.value
+        let responsiveSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(responsiveSnapshot.subscriptionCount, 0)
+        XCTAssertEqual(responsiveSnapshot.wireSubscriptionCount, 0)
+
+        gate.open()
+        try await waitUntil {
+            await connection.debugSnapshot().activeDeliveryTaskCount == 0
+        }
+        let cancelledValues = await log.values()
+        XCTAssertEqual(cancelledValues, [])
+        await connection.disconnect()
+    }
+
+    func testMalformedTypedEventIsOwnerLocalAndRawSubscriptionKeepsGenericFallback() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let typedLog = TypedHistoryCountLog()
+        let typed = try await connection.subscribeMessage(
+            [
+                "type": .string("subscribe_events"),
+                "event_type": .string("test_typed"),
+            ],
+            as: TypedSequencePayload.self
+        ) { payload in
+            await typedLog.append(payload.sequence)
+        }
+        let rawLog = JSONValueLog()
+        let raw = try await connection.subscribeRaw(
+            [
+                "type": .string("subscribe_events"),
+                "event_type": .string("test_raw"),
+            ]
+        ) { value in
+            await rawLog.append(value)
+        }
+
+        try await transport.push([
+            "id": .int(typed.id),
+            "type": .string("event"),
+            "event": .object(["wrong": .bool(true)]),
+        ])
+        try await transport.push([
+            "id": .int(raw.id),
+            "type": .string("event"),
+            "event": .object(["raw": .bool(true)]),
+        ])
+        try await transport.push([
+            "id": .int(typed.id),
+            "type": .string("event"),
+            "event": .object(["sequence": .int(7)]),
+        ])
+
+        try await waitUntil {
+            let typedValues = await typedLog.values()
+            let rawValues = await rawLog.snapshot()
+            return typedValues == [7] && rawValues.count == 1
+        }
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.state, .ready)
+        XCTAssertEqual(snapshot.directTypedEventDecodeCount, 2)
+        XCTAssertGreaterThan(snapshot.genericFrameDecodeCount, 0)
+        let rawValues = await rawLog.snapshot()
+        XCTAssertEqual(rawValues, [.object(["raw": .bool(true)])])
+
+        await typed.cancel()
+        await raw.cancel()
+        await connection.disconnect()
+    }
+
     private func result(id: Int, value: JSONValue) -> [String: JSONValue] {
         [
             "id": .int(id),
@@ -724,5 +910,82 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
             XCTFail("Unable to complete cancellation: \(error)")
         }
         await task.value
+    }
+}
+
+private struct TypedSequencePayload: Decodable {
+    let sequence: Int
+}
+
+private struct TypedHistoryEventEnvelope: Encodable {
+    let id: Int
+    let type = "event"
+    let event: HAHistoryStreamMessage
+}
+
+private actor TypedHistoryCountLog {
+    private var recorded: [Int] = []
+
+    func append(_ value: Int) {
+        recorded.append(value)
+    }
+
+    func values() -> [Int] {
+        recorded
+    }
+}
+
+private final class BlockingDecodeGate: @unchecked Sendable {
+    private let condition = NSCondition()
+    private var entered = false
+    private var opened = false
+
+    var hasEntered: Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        return entered
+    }
+
+    func enterAndWait() {
+        condition.lock()
+        entered = true
+        condition.broadcast()
+        while !opened {
+            condition.wait()
+        }
+        condition.unlock()
+    }
+
+    func open() {
+        condition.lock()
+        opened = true
+        condition.broadcast()
+        condition.unlock()
+    }
+}
+
+private struct BlockingTypedPayload: Decodable {
+    let sequence: Int
+
+    private static let lock = NSLock()
+    private static var gate: BlockingDecodeGate?
+
+    static func install(_ gate: BlockingDecodeGate?) {
+        lock.lock()
+        self.gate = gate
+        lock.unlock()
+    }
+
+    init(from decoder: Decoder) throws {
+        Self.lock.lock()
+        let gate = Self.gate
+        Self.lock.unlock()
+        gate?.enterAndWait()
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sequence = try container.decode(Int.self, forKey: .sequence)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sequence
     }
 }

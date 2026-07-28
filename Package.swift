@@ -33,6 +33,10 @@ let package = Package(
             name: "HistoryStreamBench",
             targets: ["HistoryStreamBench"]
         ),
+        .executable(
+            name: "HistoryFetchDecodeBench",
+            targets: ["HistoryFetchDecodeBench"]
+        ),
     ],
     targets: [
         .plugin(
@@ -64,6 +68,11 @@ let package = Package(
             dependencies: ["NativeHACore"],
             path: "Benchmarks/history-stream",
             exclude: ["README.md", "results.md"]
+        ),
+        .executableTarget(
+            name: "HistoryFetchDecodeBench",
+            dependencies: ["NativeHACore"],
+            path: "Benchmarks/HistoryFetch/SwiftDecode"
         ),
         .testTarget(
             name: "NativeHACoreTests",

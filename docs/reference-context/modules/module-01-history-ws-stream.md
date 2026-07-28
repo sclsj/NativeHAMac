@@ -7,10 +7,10 @@ status: complete
 contract_revision: 2
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 3cd05d510c7249b38540239e448460c7afcac52a
+nativeha_revision: 562686a5649e6d858b191b267f21f206454ad91a
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 7f40511c8dee7ca35452bc2bf345ffcccc1b5f66c34c34c1c3174ebdbceecf0d
-last_validated: 2026-07-19
+graph_fingerprint: 2711531db6e990ae4ce666c9075debbcbc60f9dd10a1138ee71a51c7b91d49f5
+last_validated: 2026-07-28
 ---
 
 # Module 01 evidence packet
@@ -63,7 +63,7 @@ render scheduler, and tests are now explicit native anchors.
 | C01-02 | Initial replay, empty completion event, or incremental chunk | Maintain combined history with the same entity-union and rolling-window behavior as `HistoryStream.processMessage`. The first non-empty history becomes the baseline; an empty `states` object leaves current history unchanged. Existing+incoming arrays concatenate; if the incoming first `lu` is older than the existing last `lu`, stable-sort by `lu`. Preserve equal-timestamp arrival order and exact duplicate samples. | On a later merge, trim against an injected `now - range`: retain all states at/after cutoff and prepend the last expired state at exactly the cutoff with `lc` cleared unless a state already exists at the cutoff. A newly introduced entity follows the reference's early-return branch and is first eligible for rolling trim on a later merge. Safely handle empty per-entity arrays rather than trapping. Chunk `start_time` is not a merge cursor. | HF-01, HF-T1, HF-T2 | Pure `HAHistoryStreamAccumulator` with injected clock | Fixed-clock tests for first/empty/multiple-entity messages, absent/new entities, in/out-of-order chunks, equal timestamps and duplicates, boundary-state rewrite, exact-cutoff no-duplicate behavior, and the new-entity trim timing. |
 | C01-03 | A card/detail owner begins a foreground time-window subscription | Send `type: "history/stream"`, ordered `entity_ids`, ISO-8601 `start_time = now - effective range`, `minimal_response: true`, `significant_changes_only: true`, and computed `no_attributes`; omit `end_time` so the stream remains live. `no_attributes` is false if any requested entity is absent from current states or belongs to `climate`, `humidifier`, `input_datetime`, `water_heater`, `person`, or `device_tracker`; otherwise true. | Parameters are immutable for one wire owner. Range/entity changes cancel it and construct a new owner. The default booleans are server-side request semantics, not client filters. | HF-01 | Typed history method on `HomeAssistantWebSocketClient` plus request builder | Exact fake-transport wire assertions for ordered IDs, each boolean, ISO start, no end, explicit clock, all six attribute domains, mixed domains, and missing/current entity state. |
 | C01-04 | Initial connection, disconnect/reconnect, or explicit disposal | Create exactly one initial stream using Module 02 `resubscribe: false`. After a disconnect, the next `ready` creates exactly one new request with a recomputed `start_time` and a fresh empty accumulator. Each callback publishes that accumulator's complete combined history. | Module 02's status stream yields its current state immediately, so the coordinator must not double-subscribe on the initial `ready`. Disposal cancels the current subscription and lifecycle listener. Late events and old-generation callbacks cannot publish. Initial subscribe rejection surfaces to the owner; reconnect subscribe failure is contained, exposed as owner error/status, and retried only on a later readiness or explicit refresh—not a busy loop. | HF-01, NPM-01, M02-C06 | History subscription coordinator built only on Module 02 connection/status APIs | Two-transport fake test proving one initial subscription, old history opt-out, a second fresh ISO start and accumulator after `ready`, no stale merge/duplicates, idempotent disposal, failed-resubscribe containment, and final Module 02 ownership counts of zero. |
-| C01-05 | Combined compact history is projected for graph/timeline consumers | Centralize conversion instead of scattering seconds-to-ISO or compact-key logic through views. Preserve every non-empty timeline state including `unknown`, `unavailable`, and `none`; collapse consecutive equal states only in timeline preparation. Numeric line preparation skips values it cannot parse without removing them from stored history. Use `lc` when present, otherwise `lu`, except line data for `climate`, `humidifier`, and `water_heater` uses `lu`; retain the reference line attributes needed by those domains. Current/first attributes remain available for classification and names when minimal responses omit later attributes. | Preserve deterministic timestamp order and fractional precision. Do not mutate the stored compact history merely to satisfy a renderer. | HF-01, HF-T2, SW-01, SW-05 | New centralized compact-to-graph adapter plus existing `HistoryGraphSupport`/render preparation | Timeline unknown/unavailable/none; numeric gaps; repeated state; climate/humidifier/water-heater `lu`; sparse attributes; current-state fallback; compact-to-existing-series precision tests. |
+| C01-05 | Combined compact history is projected for graph/timeline consumers | Centralize conversion instead of scattering seconds-to-ISO or compact-key logic through views. Preserve every non-empty timeline state including `unknown`, `unavailable`, and `none`; collapse consecutive equal states only in timeline preparation. Numeric line preparation skips values it cannot parse without removing them from stored history. Use `lc` when present, otherwise `lu`, except line data for `climate`, `humidifier`, and `water_heater` uses `lu`; retain the reference line attributes needed by those domains. Current/first attributes remain available for classification and names when minimal responses omit later attributes. | Preserve deterministic timestamp order and fractional precision. Keep compact numeric seconds authoritative through graph preparation; legacy string access/Codable may format lazily but must remain compatible. Do not mutate stored compact history merely to satisfy a renderer. | HF-01, HF-T2, SW-01, SW-05 | Centralized compact-to-graph adapter plus existing `HistoryGraphSupport`/render preparation | Timeline unknown/unavailable/none; numeric gaps; repeated state; climate/humidifier/water-heater `lu`; sparse attributes; current-state fallback; native numeric and legacy string/Codable timestamp compatibility. |
 | C01-06 | Dashboard config loads, global range changes, a detail opens/closes, or visible history owners change | The intended Home dashboard owns foreground subscriptions for visible history cards only; each card publishes only to its own state. Effective range comes from a typed `AppConfig` policy with available selections, default, global scope, and detail default. Subscription/cache identity includes deterministic card identity, ordered entity IDs, and effective range; it must not depend on regenerated `UUID()` values. Preserve raw decoded `hoursToShow`. Detail history uses the configured detail range and cancels when its sheet disappears or identity changes. | Range changes cancel old owners before publishing a new generation. Overlapping entity sets remain isolated. Until Module 12 exists, do not subscribe the hidden maintenance views. Do not append `state_changed` events into an active history stream; state events continue to update current entity state only. | HF-02, HF-03, UD-01, CFG-01, SW-04, SW-05 | `AppConfig`, `DashboardViewModel`, `DashboardView`, `HistoryGraphCard`, `DetailHistoryGraph` | Two-card isolation, stable identity across recomputation, ordered-ID distinction, 1h/3h/12h global changes, raw-hours preservation, detail lifecycle, and no double append from state changes. Replace the obsolete per-card-hours expected failure with a passing approved-policy test. |
 | C01-07 | Loading, replay, update, cancellation, server rejection, overflow, profile/connection change, owner disappearance, or an accepted large replay frame | Expose deterministic per-owner loading, ready-data, and error outcomes. One failed or slow history owner cannot erase/block another. A replay within the configured bounded receive policy, including a frame larger than URLSession's 1 MiB default, must not tear down the shared connection. Cancellation/profile teardown removes the owner promptly; an old callback cannot recreate UI state or prepared data. Explicit refresh renews the affected subscriptions. | Generation checks precede main-actor publication. UI publication is main-actor isolated, while decode/merge/preparation must not monopolize it. Delivery overflow and non-disconnect termination surface concise owner errors. Command acknowledgement timeout and maximum receive size are separate typed policies; extending the former is not a substitute for configuring the latter. | HF-02, HF-03, M02-C03, M02-C04, M02-C07 | History coordinator, production URLSession transport, and `DashboardViewModel` ownership | Fake rejection/overflow/late-event tests, strict mixed-command wire ordering, production-adapter receive above 1 MiB, cancellation during replay/merge, profile teardown, simultaneous owners with one blocked, weak-release/lifecycle probe, and exact final connection counts. |
 | C01-08 | Replay or incremental content reaches a rendered card/detail, or the user continuously zooms/pans it | Loading settles to a graph/timeline; every accepted combined-history publication invalidates the relevant prepared/render state even when count and first/last timestamps happen to match prior data. Incremental history updates only the affected visual owner. Selected range defines the initial viewport. During a continuous gesture, publish bounded intermediate same-data frames and then settle on the newest viewport. | Render preparation stays asynchronous/cooperatively cancellable, foreground work outranks future cache/prefetch, and stale data generations cannot replace newer data. Viewport frames may be slightly behind the latest event when they share the current data generation; final settlement remains strict. No scheduler-driven animation is required by the stream itself. | HF-02, HF-03, SW-06 | Dashboard graph inputs, prepared-series invalidation/generation, and viewport render scheduler | Offscreen loading→replay→incremental states; same-count/same-endpoint content replacement regression; token-storm progressive publications with concurrency one and exact final token; active-gesture live captures before and after a failed 12h load; bounded settlement; replay/update PNG distinction; dismissal remains responsive during a gated slow merge/render. |
@@ -193,7 +193,7 @@ by hand here.
 The generated graph is
 [`module-01.dependencies.json`](../generated/module-01.dependencies.json),
 fingerprint
-`12aefac3a68ade57a9ae26c20997e983f3956afbcdd1dd82fa369eb08e449710`.
+`2711531db6e990ae4ce666c9075debbcbc60f9dd10a1138ee71a51c7b91d49f5`.
 It contains 21 nodes and 143 edges, one editor/card dynamic-import cycle, no
 unresolved edge, and no truncation.
 
@@ -254,6 +254,7 @@ unresolved edge, and no truncation.
 | D01-03 | Use an exact stable two-way merge when existing and incoming arrays are each ordered, with a full stable-sort fallback for unsorted input. | Swift performance optimization proven against the reference output | Equal-timestamp arrival order, duplicates, cutoff behavior, and all projected values remain byte-for-byte equivalent in the tracked fixture. | C01-02, HF-01 | Unit fixtures plus `HistoryStreamBench` | implemented; benchmarked |
 | D01-04 | Serialize viewport rendering as one in-flight render plus one overwriteable latest pending request, publishing completed same-data frames during a gesture. | Swift-native scheduling required to preserve the reference's continuous visible redraw | Data-generation safety and exact final viewport remain strict; intermediate viewport frames may intentionally trail the newest input event. | C01-08, `f8f55f0` | Deterministic 8 ms token storm, fidelity oracle, live pre-gesture-end capture | implemented; independent post-12h GUI verification passed |
 | D01-05 | Replace Foundation parsing in the hot history path only with a parser that exactly preserves accepted ISO-8601 timestamps and rejects malformed input. | Measured Swift performance | Timestamp meaning, fractional precision, timezone handling, and fallback behavior must not change. | C01-05, `3cd05d5` plus contract-revision-2 repair | UTC/fractional/offset/malformed matrix plus benchmark | implemented; canonical validation and noncanonical fallback pass |
+| D01-06 | Retain compact `Double` timestamps in projected history points and format legacy strings only on demand. | Measured Swift performance | `lc`/`lu` selection, exact graph seconds, public string access, Codable keys/values, equality, content revisions, and legacy REST-shaped points remain compatible. | C01-05 and `Benchmarks/HistoryFetch/results.md` | Projection-domain matrix, native/legacy timestamp parser, Codable round trip, 102k-point release benchmark | implemented; projection mean reduced from 0.564 s to 0.060 s |
 | HOLD-01 | Configure a typed, bounded URLSession WebSocket receive-size policy above the largest accepted dashboard replay; do not treat a longer command timeout as the fix. | Swift URLSession integration requirement | Home Assistant's valid history event is delivered unchanged and the shared connection remains ready. | C01-07, production measurements | Adapter frame above 1 MiB plus exact 1h/12h CO2/VOC live soak | implemented at 32 MiB; independent verifier passed |
 | GAP-01 | Do not implement recorder statistics merge in this rescue module. | Explicit rescue-plan scope boundary, not an approved product deviation | State history streaming is preserved; future statistics parity remains visible. | HF-02/HF-03 | N/A for completion; retain documented gap | deferred parity work |
 
@@ -263,6 +264,23 @@ evidence-driven. The implementation owner may revert or replace the unsafe
 parts of `e4eecb2`/`3cd05d5` in a new commit while preserving history; a
 120-second acknowledgement timeout and an incompletely validated custom parser
 are not completion requirements.
+
+## History decode/projection performance correction — 2026-07-28
+
+The measured 12-hour delay was primarily local rather than a slow
+`history/stream` server response. Module 02 now routes the raw event slice
+directly to this module's typed decoder on its existing bounded ordered delivery
+worker. Module 01 projection then retains numeric `lc`/`lu` seconds instead of
+formatting every point to ISO text and parsing it back for graph preparation.
+
+On the tracked 4,940,017-byte/102,418-point fixture, release direct typed decode
+was 0.387 seconds versus 3.633 seconds through the retained generic/re-encode
+comparison path. Numeric projection was 0.060 seconds versus 0.564 seconds
+before the change. Two read-only release live-smoke repetitions published the
+12-hour CO2/VOC card in 1.397–1.485 seconds versus 4.735 seconds before, while
+the 1-hour/24-hour/reconnect/ownership/fractional-timestamp checks remained
+green. Detailed commands and caveats are in
+`Benchmarks/HistoryFetch/results.md`.
 
 ## Approved future work — not Module 01 completion gates
 
@@ -1404,12 +1422,62 @@ The regenerated graph remains 21 nodes/143 edges with fingerprint
 the resolver self-test passes 28 nodes/59 edges with fingerprint
 `5082aedcd141cbbdeb05d5809a1324449bc001dbd1059b71a0fd50f56616e1f5`.
 
+## Bounded current-anchor refresh for typed history decoding — 2026-07-28
+
+The changed NativeHA anchors were reviewed without reopening the reference
+audit. The refreshed graph is green at 21 nodes / 143 edges with fingerprint
+`2711531db6e990ae4ce666c9075debbcbc60f9dd10a1138ee71a51c7b91d49f5`.
+The pinned hass-frontend and npm sources are unchanged.
+
+The current receive path has one avoidable large-history round trip:
+
+1. `decodeFrame` decodes the complete wire object into `JSONValue`;
+2. `dispatch` unwraps `message["event"]` and enqueues that generic value;
+3. `subscribeMessage` encodes the generic event back to JSON and decodes
+   `HAHistoryStreamMessage`;
+4. the history coordinator accumulates the typed compact states.
+
+The current-task production-shaped 4.94 MiB / 102,418-point benchmark measured
+3.601 seconds for the generic decode/re-encode/typed-decode path and 0.386
+seconds for one direct typed decode. This establishes a measured implementation
+need; it does not change any C01 protocol or history semantics.
+
+A repair may route a lightweight raw envelope and deliver the exact `event`
+slice to the typed subscriber, but it must preserve these boundaries:
+
+- exactly one socket receive loop and ordered object/coalesced-array dispatch;
+- event-before-ack safety, per-owner serial delivery, bounded callback
+  concurrency/capacity, and isolation of slow owners from the receiver;
+- the native per-transport outbound FIFO and its pre-send ownership checks;
+- `resubscribe: false` for history, fresh request time/accumulator/generation
+  after `ready`, and cancellation/late-generation suppression;
+- full original-frame diagnostic logging when WebSocket debug is explicitly
+  enabled;
+- `subscribeRaw`, command-result routing, null/error handling, and unknown-ID
+  behavior for non-history consumers.
+
+Large typed decoding should execute on the existing serial delivery side of the
+receive actor, not introduce a second receiver or an unbounded detached task.
+If raw slices are retained for queued callbacks, copy the bounded event slice
+rather than accidentally retaining an entire coalesced frame. A malformed
+typed event must remain a controlled owner-local condition and must not tear
+down the shared socket.
+
+Numeric compact seconds remain authoritative after decode. A later measured
+optimization may project them directly into graph-native numeric timestamps,
+but must separately preserve C01-05's `lc`/`lu` domain rule, sparse attribute
+fallback, sentinel timeline states, fractional precision, accumulator-minted
+lineage, generation resets, and full fallback for corrections. Do not fold that
+projection change into transport routing without its exact cold-oracle and
+lineage tests.
+
 ## Handoff
 
 Module 01 is independently complete at contract revision 2. Preserve the
 recorded current-tree live/GUI evidence and the exact projection/cache oracles.
-Do not reopen this module during Module 04 unless its dependency graph becomes
-yellow/red or a new regression changes a C01 contract surface.
+For the measured history-decode follow-up, use the bounded refresh immediately
+above together with Module 02's refreshed handoff; do not re-audit the
+frontend.
 
 ## Change log
 
@@ -1496,3 +1564,9 @@ yellow/red or a new regression changes a C01 contract surface.
   four-entity/100k end-to-end release median improved 5.48× with zero avoidable
   resets/full fallbacks; deterministic, live 1h/12h/recovery/24h, live graph,
   and bounded release-GUI checks pass; status remains `complete`.
+- 2026-07-28: refreshed current Module 01/02 Swift anchors after a measured
+  large-history decode benchmark. Recorded the generic
+  `JSONValue`→re-encode→typed-decode bottleneck and the exact
+  receive/delivery/reconnect/projection contracts a direct typed path must
+  preserve. Regenerated a green 21-node/143-edge graph; status remains
+  `complete`.

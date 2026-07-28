@@ -1206,13 +1206,13 @@ private struct GraphPreparedCacheEntry {
 
 private struct GraphSourceFingerprint: Equatable {
     let count: Int
-    let firstTimestamp: String?
-    let lastTimestamp: String?
+    let firstTimestamp: Double?
+    let lastTimestamp: Double?
     let contentRevision: UInt64
 }
 
-private func sourceTimestamp(from point: HAHistoryPoint) -> String? {
-    point.lastChanged ?? point.lastUpdated
+private func sourceTimestamp(from point: HAHistoryPoint) -> Double? {
+    HAHistoryTimestampParser().timestamp(from: point)
 }
 
 private func colorKey(_ color: GraphColor) -> String {

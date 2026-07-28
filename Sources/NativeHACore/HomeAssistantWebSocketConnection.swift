@@ -58,6 +58,72 @@ public struct HAWebSocketDebugSnapshot: Equatable {
     public let activeTerminationTaskCount: Int
     public let pendingTerminationCount: Int
     public let droppedTerminationCount: Int
+    public let directTypedEventDecodeCount: Int
+    public let genericFrameDecodeCount: Int
+}
+
+private struct HAWebSocketDelivery: @unchecked Sendable {
+    let perform: @Sendable () async -> Void
+}
+
+private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
+    let prefersDirectData: Bool
+    let deliveryFromValue: @Sendable (JSONValue) -> HAWebSocketDelivery?
+    let deliveryFromData: @Sendable (Data) -> HAWebSocketDelivery?
+
+    static func raw(
+        _ callback: @escaping @Sendable (JSONValue) async -> Void
+    ) -> HAWebSocketSubscriptionPayloadHandler {
+        HAWebSocketSubscriptionPayloadHandler(
+            prefersDirectData: false,
+            deliveryFromValue: { value in
+                HAWebSocketDelivery {
+                    guard !Task.isCancelled else { return }
+                    await callback(value)
+                }
+            },
+            deliveryFromData: { data in
+                HAWebSocketDelivery {
+                    guard
+                        !Task.isCancelled,
+                        let value = try? JSONDecoder().decode(JSONValue.self, from: data)
+                    else { return }
+                    guard !Task.isCancelled else { return }
+                    await callback(value)
+                }
+            }
+        )
+    }
+
+    static func typed<T: Decodable>(
+        _ type: T.Type,
+        callback: @escaping @Sendable (T) async -> Void
+    ) -> HAWebSocketSubscriptionPayloadHandler {
+        HAWebSocketSubscriptionPayloadHandler(
+            prefersDirectData: true,
+            deliveryFromValue: { value in
+                HAWebSocketDelivery {
+                    guard
+                        !Task.isCancelled,
+                        let data = try? JSONEncoder().encode(value),
+                        let decoded = try? JSONDecoder().decode(type, from: data)
+                    else { return }
+                    guard !Task.isCancelled else { return }
+                    await callback(decoded)
+                }
+            },
+            deliveryFromData: { data in
+                HAWebSocketDelivery {
+                    guard
+                        !Task.isCancelled,
+                        let decoded = try? JSONDecoder().decode(type, from: data)
+                    else { return }
+                    guard !Task.isCancelled else { return }
+                    await callback(decoded)
+                }
+            }
+        )
+    }
 }
 
 public final class HAWebSocketSubscription {
@@ -92,6 +158,7 @@ public actor HomeAssistantWebSocketConnection {
         var wireID: Int?
         let message: [String: JSONValue]
         let resubscribe: Bool
+        let payloadHandler: HAWebSocketSubscriptionPayloadHandler
         let termination: (@Sendable (Error) async -> Void)?
         var acknowledgement: CheckedContinuation<Void, Error>?
         var timeoutTask: Task<Void, Never>?
@@ -122,6 +189,8 @@ public actor HomeAssistantWebSocketConnection {
     private var registeringSubscriptionIDs: Set<UUID> = []
     private var cancelledBeforeSubscriptionRegistration: Set<UUID> = []
     private var statusListeners: [UUID: AsyncStream<HAWebSocketConnectionState>.Continuation] = [:]
+    private var directTypedEventDecodeCount = 0
+    private var genericFrameDecodeCount = 0
 
     public init(
         configuration: HomeAssistantConfiguration,
@@ -331,6 +400,35 @@ public actor HomeAssistantWebSocketConnection {
         onTermination: (@Sendable (Error) async -> Void)? = nil,
         onMessage: @escaping @Sendable (JSONValue) async -> Void
     ) async throws -> HAWebSocketSubscription {
+        try await subscribe(
+            message,
+            resubscribe: resubscribe,
+            payloadHandler: .raw(onMessage),
+            onTermination: onTermination
+        )
+    }
+
+    public func subscribeMessage<T: Decodable>(
+        _ message: [String: JSONValue],
+        as type: T.Type = T.self,
+        resubscribe: Bool = true,
+        onTermination: (@Sendable (Error) async -> Void)? = nil,
+        onMessage: @escaping @Sendable (T) async -> Void
+    ) async throws -> HAWebSocketSubscription {
+        try await subscribe(
+            message,
+            resubscribe: resubscribe,
+            payloadHandler: .typed(type, callback: onMessage),
+            onTermination: onTermination
+        )
+    }
+
+    private func subscribe(
+        _ message: [String: JSONValue],
+        resubscribe: Bool,
+        payloadHandler: HAWebSocketSubscriptionPayloadHandler,
+        onTermination: (@Sendable (Error) async -> Void)?
+    ) async throws -> HAWebSocketSubscription {
         guard state == .ready, transport != nil else {
             throw HomeAssistantWebSocketError.disconnected
         }
@@ -353,7 +451,7 @@ public actor HomeAssistantWebSocketConnection {
                             logicalID,
                             message: message,
                             resubscribe: resubscribe,
-                            callback: onMessage,
+                            payloadHandler: payloadHandler,
                             termination: onTermination,
                             generation: commandGeneration,
                             continuation: continuation
@@ -368,28 +466,6 @@ public actor HomeAssistantWebSocketConnection {
         }
 
         return HAWebSocketSubscription(id: wireID, logicalID: logicalID, connection: self)
-    }
-
-    public func subscribeMessage<T: Decodable>(
-        _ message: [String: JSONValue],
-        as type: T.Type = T.self,
-        resubscribe: Bool = true,
-        onTermination: (@Sendable (Error) async -> Void)? = nil,
-        onMessage: @escaping @Sendable (T) async -> Void
-    ) async throws -> HAWebSocketSubscription {
-        try await subscribeRaw(
-            message,
-            resubscribe: resubscribe,
-            onTermination: onTermination
-        ) { payload in
-            guard
-                let data = try? JSONEncoder().encode(payload),
-                let value = try? JSONDecoder().decode(type, from: data)
-            else {
-                return
-            }
-            await onMessage(value)
-        }
     }
 
     public func subscribeEvents<T: Decodable>(
@@ -426,7 +502,9 @@ public actor HomeAssistantWebSocketConnection {
             activeDeliveryTaskCount: callbackSnapshot.activeDeliveryTaskCount,
             activeTerminationTaskCount: callbackSnapshot.activeTerminationTaskCount,
             pendingTerminationCount: callbackSnapshot.pendingTerminationCount,
-            droppedTerminationCount: callbackSnapshot.droppedTerminationCount
+            droppedTerminationCount: callbackSnapshot.droppedTerminationCount,
+            directTypedEventDecodeCount: directTypedEventDecodeCount,
+            genericFrameDecodeCount: genericFrameDecodeCount
         )
     }
 
@@ -532,7 +610,7 @@ public actor HomeAssistantWebSocketConnection {
         do {
             while !Task.isCancelled {
                 let frame = try await transport.receive()
-                try await decodeAndDispatchFrame(frame)
+                try await decodeAndDispatchFrame(frame, expectedGeneration: generation)
             }
         } catch {
             if !Task.isCancelled {
@@ -548,7 +626,92 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     func decodeAndDispatchFrame(_ frame: HAWebSocketFrame) async throws {
-        try await dispatchPredecodedMessages(decodeFrame(frame))
+        try await decodeAndDispatchFrame(frame, expectedGeneration: nil)
+    }
+
+    private func decodeAndDispatchFrame(
+        _ frame: HAWebSocketFrame,
+        expectedGeneration: Int?
+    ) async throws {
+        let data = frameData(frame)
+        let scanTask = Task.detached(priority: .userInitiated) {
+            try HAWebSocketEnvelopeScanner.scan(data)
+        }
+        let envelopes = try await scanTask.value
+        guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
+            return
+        }
+
+        let containsDirectTypedEvent = envelopes.contains { envelope in
+            guard
+                envelope.type == "event",
+                envelope.eventRange != nil,
+                envelope.canRouteDirectly,
+                let id = envelope.id,
+                let logicalID = wireSubscriptions[id],
+                let record = subscriptions[logicalID]
+            else { return false }
+            return record.payloadHandler.prefersDirectData
+        }
+
+        guard containsDirectTypedEvent else {
+            genericFrameDecodeCount += 1
+            let decodeTask = Task.detached(priority: .userInitiated) {
+                try Self.decodeFrameData(data)
+            }
+            let messages = try await decodeTask.value
+            guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
+                return
+            }
+            try await dispatchPredecodedMessages(messages)
+            return
+        }
+
+        for envelope in envelopes {
+            guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
+                return
+            }
+            if
+                envelope.type == "event",
+                envelope.canRouteDirectly,
+                let id = envelope.id,
+                let eventRange = envelope.eventRange,
+                let logicalID = wireSubscriptions[id],
+                let record = subscriptions[logicalID],
+                record.payloadHandler.prefersDirectData,
+                let delivery = record.payloadHandler.deliveryFromData(data.subdata(in: eventRange))
+            {
+                directTypedEventDecodeCount += 1
+                let accepted = await callbackCoordinator.enqueue(
+                    ownerID: logicalID,
+                    delivery: delivery
+                )
+                if !accepted,
+                   canDispatchDecodedFrame(expectedGeneration: expectedGeneration),
+                   wireSubscriptions[id] == logicalID,
+                   subscriptions[logicalID]?.wireID == id {
+                    await overflowSubscription(logicalID, record: record)
+                }
+                continue
+            }
+
+            let objectData = data.subdata(in: envelope.objectRange)
+            let decodeTask = Task.detached(priority: .userInitiated) {
+                try JSONDecoder().decode(JSONValue.self, from: objectData)
+            }
+            let message = try await decodeTask.value
+            guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
+                return
+            }
+            try await dispatch(message)
+        }
+    }
+
+    private func canDispatchDecodedFrame(expectedGeneration: Int?) -> Bool {
+        guard let expectedGeneration = expectedGeneration else {
+            return true
+        }
+        return generation == expectedGeneration && !disconnectRequested
     }
 
     private func dispatch(_ value: JSONValue) async throws {
@@ -600,13 +763,14 @@ public actor HomeAssistantWebSocketConnection {
             guard
                 let id = id,
                 let logicalID = wireSubscriptions[id],
-                let record = subscriptions[logicalID]
+                let record = subscriptions[logicalID],
+                let delivery = record.payloadHandler.deliveryFromValue(message["event"] ?? .null)
             else {
                 return
             }
             let accepted = await callbackCoordinator.enqueue(
                 ownerID: logicalID,
-                value: message["event"] ?? .null
+                delivery: delivery
             )
             if !accepted {
                 await overflowSubscription(logicalID, record: record)
@@ -697,7 +861,7 @@ public actor HomeAssistantWebSocketConnection {
         _ logicalID: UUID,
         message: [String: JSONValue],
         resubscribe: Bool,
-        callback: @escaping @Sendable (JSONValue) async -> Void,
+        payloadHandler: HAWebSocketSubscriptionPayloadHandler,
         termination: (@Sendable (Error) async -> Void)?,
         generation: Int,
         continuation: CheckedContinuation<Void, Error>
@@ -710,8 +874,7 @@ public actor HomeAssistantWebSocketConnection {
         }
         await callbackCoordinator.register(
             ownerID: logicalID,
-            capacity: deliveryCapacity,
-            callback: callback
+            capacity: deliveryCapacity
         )
         registeringSubscriptionIDs.remove(logicalID)
         if cancelledBeforeSubscriptionRegistration.remove(logicalID) != nil {
@@ -742,6 +905,7 @@ public actor HomeAssistantWebSocketConnection {
             wireID: wireID,
             message: message,
             resubscribe: resubscribe,
+            payloadHandler: payloadHandler,
             termination: termination,
             acknowledgement: continuation,
             timeoutTask: timeoutTask
@@ -1008,19 +1172,25 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     private func decodeFrame(_ frame: HAWebSocketFrame) throws -> [JSONValue] {
-        let data: Data
+        try Self.decodeFrameData(frameData(frame))
+    }
+
+    private func frameData(_ frame: HAWebSocketFrame) -> Data {
         switch frame {
         case let .string(value):
-            data = Data(value.utf8)
             AppLog(value, severity: .debug, category: .webSocket)
+            return Data(value.utf8)
         case let .data(value):
-            data = value
             AppLog(
                 "WebSocket receive data (base64): \(value.base64EncodedString())",
                 severity: .debug,
                 category: .webSocket
             )
+            return value
         }
+    }
+
+    private static func decodeFrameData(_ data: Data) throws -> [JSONValue] {
         let decoded = try JSONDecoder().decode(JSONValue.self, from: data)
         switch decoded {
         case .object:
@@ -1115,8 +1285,7 @@ private actor HAWebSocketCallbackCoordinator {
 
     private struct Owner {
         let capacity: Int
-        let callback: @Sendable (JSONValue) async -> Void
-        var buffer: [JSONValue] = []
+        var buffer: [HAWebSocketDelivery] = []
         var activeTaskID: UUID?
     }
 
@@ -1141,8 +1310,7 @@ private actor HAWebSocketCallbackCoordinator {
 
     func register(
         ownerID: UUID,
-        capacity: Int,
-        callback: @escaping @Sendable (JSONValue) async -> Void
+        capacity: Int
     ) {
         if let activeTaskID = owners[ownerID]?.activeTaskID {
             activeDeliveryTasks[activeTaskID]?.cancel()
@@ -1151,16 +1319,15 @@ private actor HAWebSocketCallbackCoordinator {
             ownerOrder.append(ownerID)
         }
         owners[ownerID] = Owner(
-            capacity: max(capacity, 1),
-            callback: callback
+            capacity: max(capacity, 1)
         )
     }
 
-    func enqueue(ownerID: UUID, value: JSONValue) -> Bool {
+    func enqueue(ownerID: UUID, delivery: HAWebSocketDelivery) -> Bool {
         guard var owner = owners[ownerID], owner.buffer.count < owner.capacity else {
             return false
         }
-        owner.buffer.append(value)
+        owner.buffer.append(delivery)
         owners[ownerID] = owner
         scheduleDeliveries()
         return true
@@ -1227,14 +1394,13 @@ private actor HAWebSocketCallbackCoordinator {
                 return
             }
 
-            let value = owner.buffer.removeFirst()
-            let callback = owner.callback
+            let delivery = owner.buffer.removeFirst()
             let taskID = UUID()
             owner.activeTaskID = taskID
             owners[ownerID] = owner
             let coordinator = self
             activeDeliveryTasks[taskID] = Task.detached {
-                await callback(value)
+                await delivery.perform()
                 await coordinator.deliveryCompleted(ownerID: ownerID, taskID: taskID)
             }
         }

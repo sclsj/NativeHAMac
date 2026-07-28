@@ -2,6 +2,35 @@ import XCTest
 @testable import NativeHACore
 
 final class HistoryGraphSupportTests: XCTestCase {
+    func testNativeNumericHistoryPointPreservesCodableStringCompatibility() throws {
+        let point = HAHistoryPoint(
+            entityId: "sensor.native",
+            state: "21.5",
+            attributes: ["unit_of_measurement": .string("°C")],
+            lastChangedSeconds: 1_767_225_600.125,
+            lastUpdatedSeconds: 1_767_225_600.875
+        )
+
+        XCTAssertEqual(
+            HAHistoryTimestampParser().timestamp(from: point),
+            1_767_225_600.125
+        )
+        XCTAssertEqual(point.lastChanged, "2026-01-01T00:00:00.125Z")
+        XCTAssertEqual(point.lastUpdated, "2026-01-01T00:00:00.875Z")
+
+        let roundTrip = try JSONDecoder().decode(
+            HAHistoryPoint.self,
+            from: JSONEncoder().encode(point)
+        )
+        XCTAssertEqual(roundTrip, point)
+        XCTAssertNil(roundTrip.lastChangedSeconds)
+        XCTAssertNil(roundTrip.lastUpdatedSeconds)
+        XCTAssertEqual(
+            HAHistoryTimestampParser().timestamp(from: roundTrip),
+            1_767_225_600.125
+        )
+    }
+
     func testTimelineIncludesStateBeforeVisibleStartAndClipsIt() {
         let segments = HAHistoryTimelineBuilder.segments(
             from: [

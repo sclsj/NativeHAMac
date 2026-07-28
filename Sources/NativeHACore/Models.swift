@@ -135,8 +135,13 @@ public struct HAHistorySeries: Equatable, Identifiable, Codable {
         for point in points {
             digest.append(point.entityId ?? "")
             digest.append(point.state)
-            digest.append(point.lastChanged ?? "")
-            digest.append(point.lastUpdated ?? "")
+            if point.hasNativeTimestamps {
+                digest.append(point.lastChangedSeconds)
+                digest.append(point.lastUpdatedSeconds)
+            } else {
+                digest.append(point.lastChanged ?? "")
+                digest.append(point.lastUpdated ?? "")
+            }
             digest.append(point.attributes)
         }
         return digest
@@ -147,8 +152,22 @@ public struct HAHistoryPoint: Codable, Equatable {
     public let entityId: String?
     public let state: String
     public let attributes: [String: JSONValue]?
-    public let lastChanged: String?
-    public let lastUpdated: String?
+    private let storedLastChanged: String?
+    private let storedLastUpdated: String?
+    public let lastChangedSeconds: Double?
+    public let lastUpdatedSeconds: Double?
+
+    public var lastChanged: String? {
+        storedLastChanged ?? lastChangedSeconds.map(HAHistoryPointTimestampFormatter.string)
+    }
+
+    public var lastUpdated: String? {
+        storedLastUpdated ?? lastUpdatedSeconds.map(HAHistoryPointTimestampFormatter.string)
+    }
+
+    var hasNativeTimestamps: Bool {
+        lastChangedSeconds != nil || lastUpdatedSeconds != nil
+    }
 
     private enum CodingKeys: String, CodingKey {
         case entityId = "entity_id"
@@ -168,8 +187,69 @@ public struct HAHistoryPoint: Codable, Equatable {
         self.entityId = entityId
         self.state = state
         self.attributes = attributes
-        self.lastChanged = lastChanged
-        self.lastUpdated = lastUpdated
+        storedLastChanged = lastChanged
+        storedLastUpdated = lastUpdated
+        lastChangedSeconds = nil
+        lastUpdatedSeconds = nil
+    }
+
+    public init(
+        entityId: String?,
+        state: String,
+        attributes: [String: JSONValue]?,
+        lastChangedSeconds: Double?,
+        lastUpdatedSeconds: Double?
+    ) {
+        self.entityId = entityId
+        self.state = state
+        self.attributes = attributes
+        storedLastChanged = nil
+        storedLastUpdated = nil
+        self.lastChangedSeconds = lastChangedSeconds
+        self.lastUpdatedSeconds = lastUpdatedSeconds
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entityId = try container.decodeIfPresent(String.self, forKey: .entityId)
+        state = try container.decode(String.self, forKey: .state)
+        attributes = try container.decodeIfPresent([String: JSONValue].self, forKey: .attributes)
+        storedLastChanged = try container.decodeIfPresent(String.self, forKey: .lastChanged)
+        storedLastUpdated = try container.decodeIfPresent(String.self, forKey: .lastUpdated)
+        lastChangedSeconds = nil
+        lastUpdatedSeconds = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(entityId, forKey: .entityId)
+        try container.encode(state, forKey: .state)
+        try container.encodeIfPresent(attributes, forKey: .attributes)
+        try container.encodeIfPresent(lastChanged, forKey: .lastChanged)
+        try container.encodeIfPresent(lastUpdated, forKey: .lastUpdated)
+    }
+
+    public static func == (lhs: HAHistoryPoint, rhs: HAHistoryPoint) -> Bool {
+        lhs.entityId == rhs.entityId &&
+            lhs.state == rhs.state &&
+            lhs.attributes == rhs.attributes &&
+            lhs.lastChanged == rhs.lastChanged &&
+            lhs.lastUpdated == rhs.lastUpdated
+    }
+}
+
+private enum HAHistoryPointTimestampFormatter {
+    private static let lock = NSLock()
+    private static let formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static func string(_ seconds: Double) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return formatter.string(from: Date(timeIntervalSince1970: seconds))
     }
 }
 
@@ -180,6 +260,21 @@ private extension UInt64 {
             self &*= 1_099_511_628_211
         }
         self ^= 0xff
+        self &*= 1_099_511_628_211
+    }
+
+    mutating func append(_ value: Double?) {
+        guard let value = value else {
+            append("<nil-double>")
+            return
+        }
+        var bits = value.bitPattern
+        for _ in 0..<8 {
+            self ^= bits & 0xff
+            self &*= 1_099_511_628_211
+            bits >>= 8
+        }
+        self ^= 0xfe
         self &*= 1_099_511_628_211
     }
 

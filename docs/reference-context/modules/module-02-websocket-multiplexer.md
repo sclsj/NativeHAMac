@@ -7,9 +7,9 @@ status: complete
 contract_revision: 1
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: e347408455e01b774d93800c881850b6f88997d2
+nativeha_revision: 562686a5649e6d858b191b267f21f206454ad91a
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: 6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474
+graph_fingerprint: 7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d
 last_validated: 2026-07-28
 ---
 
@@ -102,7 +102,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
 The generated graph is
 [`module-02.dependencies.json`](../generated/module-02.dependencies.json),
 fingerprint
-`6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474`.
+`7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d`.
 
 - `src/entrypoints/core.ts::connProm` has a runtime package edge. TypeScript
   resolves declarations to `dist/index.d.ts`; package `exports.import` resolves
@@ -136,8 +136,20 @@ fingerprint
 | D02-04 | Keep a logical subscription record across reconnect while assigning it a fresh wire ID; cancellation uses the current wire ID and remains idempotent. | Native ownership convention | Generic subscriptions resubscribe; `resubscribe:false` owners rebuild on `ready` | Reconnect/opt-out/exact-wire tests | implemented |
 | D02-05 | The URLSession adapter owns one pending receive continuation behind a lock and explicitly resumes it with `disconnected` during cancel/deinit. Late URLSession callbacks are ignored by receive identity. | Swift 5.6/macOS 12 lifecycle safety | Disconnect remains idempotent and every receive completes exactly once | Non-completing production-task adapter regression and live reconnect/disconnect smoke | implemented |
 | D02-06 | Outbound frames synchronously enter a FIFO owned by one physical transport generation. Stopping a generation resolves active and queued tickets without requiring an indefinitely suspended native send to return. | Browser `WebSocket.send` is synchronous while macOS `URLSessionWebSocketTask.send` is completion-based; native lifecycle safety | Actual wire IDs remain monotonic; cancelled/expired work is suppressed; an old generation cannot block or retain its replacement | Suspended-send ordering, queued cancellation, reconnect isolation, and never-returning-send weak-retention regressions | implemented |
+| D02-07 | Scan the lightweight top-level envelope and pass a copied raw `event` slice to typed subscribers; retain generic `JSONValue` decoding for raw subscriptions, commands, extended envelopes, and mixed coalesced objects. Typed decode runs inside the existing bounded per-owner serial delivery tasks. | Measured Swift performance without changing the browser/macOS transport boundary | Full frame logging, one native receiver, outbound FIFO, event-before-ack, per-owner order/capacity, four-task global bound, cancellation, reconnect generation checks, malformed-frame reconnect, and raw fallback remain intact. | 100k typed fixture, coalesced ordering, blocked decode responsiveness/cancellation, malformed typed owner isolation, raw fallback, existing reconnect/stress/URLSession suites, and live smoke | implemented; 12-hour live publication reduced from 4.735 s to 1.397–1.485 s |
 
 ## Implementation result
+
+The 2026-07-28 performance correction adds
+`HomeAssistantWebSocketEnvelope.swift`. It validates JSON structure while
+extracting only top-level `id`, `type`, and the `event` byte range for the
+standard three-field Home Assistant event envelope. Unknown/escaped metadata
+uses the complete generic decoder. The selected event range is copied before
+queuing so a small queued event cannot retain a larger coalesced frame.
+`JSONDecoder` for typed payloads runs in the coordinator's already-bounded
+detached task, not on the connection actor or in unbounded work. Complete text
+or base64 frame diagnostics are still emitted before scanning, so explicitly
+enabled debug logging remains lossless.
 
 ### Actual diff scope
 
@@ -763,13 +775,57 @@ and receive-loop counts to zero without monotonic retained-memory growth.
 - Modern frontend state updates use `subscribe_entities`; generic transport must
   carry its compact event payload, but entity migration belongs to its module.
 
+## Bounded current-anchor refresh for typed subscription delivery — 2026-07-28
+
+The refreshed graph is green at 28 nodes / 59 edges with fingerprint
+`7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d`.
+Reference and npm hashes are unchanged. The reviewed current Swift anchors add
+the per-generation outbound FIFO, lossless subsystem logging policy, and the
+following inbound typed-subscription cost:
+
+- `decodeFrame` materializes every object and coalesced array element as
+  `JSONValue` on the connection actor;
+- `dispatch` unwraps `event` and the callback coordinator queues `JSONValue`;
+- `subscribeMessage` re-encodes that payload and invokes a second
+  `JSONDecoder` for the requested type.
+
+Removing that round trip is compatible with C02 only if the replacement keeps
+wire-envelope routing separate from feature decoding. A bounded raw-envelope
+representation may retain `id`, `type`, acknowledgement/error fields, and an
+exact event payload slice. Typed payload decoding should occur in the existing
+per-owner serial delivery task so a multi-megabyte history event does not
+monopolize the connection actor. Raw subscriptions and command results may keep
+their generic representation until separately measured.
+
+The implementation must not disturb:
+
+- one steady receiver, object plus ordered coalesced-array support, and
+  harmless unknown IDs;
+- subscription storage before send and safe event-before-ack delivery;
+- bounded callback buffers, the global active-callback cap, per-owner ordering,
+  overflow behavior, termination isolation, and exact cleanup counts;
+- logical/wire subscription ownership, idempotent unsubscribe, generic
+  resubscription, history opt-out, and late-event suppression;
+- the synchronous-enqueue outbound FIFO, monotonic wire IDs, queued-work
+  ownership revalidation, and physical-generation isolation;
+- complete original-frame debug diagnostics when that subsystem is enabled.
+
+Raw payload storage needs an explicit retention test: a queued slice must not
+retain a much larger coalesced frame after cancellation. Typed decode failure
+must be tested as a controlled owner-local outcome rather than a shared socket
+failure. Performance verification should compare current generic round-trip
+against direct typed decode on the same captured payload and consume equal
+typed output/checksums.
+
 ## Handoff
 
 Module 02 is complete again. Preserve the per-generation outbound FIFO and its
 pre-send ownership checks alongside the existing single receiver, callback
 coordinator, reconnect primitive, production receive cleanup, history opt-out,
-and large-frame policy. The native serializer is an intentional macOS transport
-adaptation that preserves Home Assistant's observable protocol semantics.
+and large-frame policy. For the measured direct typed-subscription follow-up,
+use the bounded refresh immediately above. The native serializer is an
+intentional macOS transport adaptation that preserves Home Assistant's
+observable protocol semantics.
 
 ## Change log
 
@@ -829,3 +885,8 @@ adaptation that preserves Home Assistant's observable protocol semantics.
   one-second/256-entry WAL transactions, full-batch contention retry, and a
   normal-termination flush. WebSocket now defaults to `warning`; `debug`
   preserves complete frames.
+- 2026-07-28: refreshed current typed-subscription, dispatch, send-serializer,
+  reconnect, and cancellation anchors for the measured history-decode
+  follow-up. Recorded the generic payload round trip and the invariants required
+  for raw-envelope/direct-typed delivery. Regenerated a green 28-node/59-edge
+  graph; status remains `complete`.

@@ -1557,75 +1557,78 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474",
+  "graphFingerprint": "7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
-    "sha256": "18e4a699ec7f47341e8e090d89c66356dd41db69dca12fe6107cf4a5fae0852c"
+    "sha256": "8b0e8bc048b7d398ed52e3f5f9e614f4c0c483ffc0a7350f5b8a96e7c787b3b4"
   },
   "nativeha": {
     "anchors": [
       {
-        "dirty": true,
-        "headBlob": "2991447a91dd6d92185da8214e4d020a8a2845a2",
+        "dirty": false,
+        "headBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "8aba0fb19193a7806801adc0480f2e92316c0594a82de4096fc3ffcb9d19c7fa",
+        "sha256": "2c429dcc08e1e95b948b8af6c5c18e2e77fbd71c29c9004e52e6d3769f59d32d",
         "symbols": [
           "HomeAssistantWebSocketClient"
         ],
-        "worktreeBlob": "96434a2930fd14a3751872b9c567c3938cd32498"
+        "worktreeBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b"
       },
       {
-        "dirty": false,
-        "headBlob": null,
+        "dirty": true,
+        "headBlob": "a10ecc24a075fe0b9ec0450c916f3ff33cfb6d78",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "62604bdd77b88b4fa7730c6620521daefd6211482fd0ca74cdb882ec70dd4ec6",
+        "sha256": "10969b7351c7128d585c495dd7e6ae3154355a19f9b75ae8be56416dd4996748",
         "symbols": [
           "HomeAssistantWebSocketConnection",
           "callRaw",
+          "decodeAndDispatchFrame",
+          "dispatch",
+          "subscribeMessage",
           "subscribeRaw"
         ],
-        "worktreeBlob": "a432522113ff1d044be8c497cc5f066e7504669b"
+        "worktreeBlob": "641d81d9449c34a4d8cb9d8710973555c26be444"
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
-        "sha256": "fa26460370c024c7689cd47b9544c497888dc10c1b256d1ee6e19a5bf5e644e7",
+        "sha256": "8b9f71a671e2ea28eda63e672e752e4427c92300b9b2f1abaa3d744dc0fc98e3",
         "symbols": [
           "HomeAssistantWebSocketTransport"
         ],
-        "worktreeBlob": "8fed132e65db10c452097eff268639687dd1be16"
+        "worktreeBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5"
       },
       {
         "dirty": true,
-        "headBlob": "206244bef22c32d58ba007b4b813ff1804a3b385",
+        "headBlob": "4b89655bf39637f1feef4887c115bbe8aa339fa3",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "ac0473f4ee44bfef7469aaaa85d93e7a39818845428ad3c62eb1f0c87c4edb6e",
+        "sha256": "6cf07527fe13dcb02804e2d30cfb7770d6c80e58bb5aeb3e9822e6b4f596a3bf",
         "symbols": [
           "AppConfig.webSocketPolicy"
         ],
-        "worktreeBlob": "8e3b7f7abfa487125cb3593f97ef1e7d1aced981"
+        "worktreeBlob": "8427f4257249689c0b79165d2405522b861b9a48"
       },
       {
-        "dirty": true,
-        "headBlob": "37815aac34b736e645e929f586748c2e314d4deb",
+        "dirty": false,
+        "headBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "86a442ecec0a61db8cf30b5c16579f16a7d78b48a3fc24fd44e9a6dabeb78edb",
+        "sha256": "616e5c2bfece2f01711069e1839de711b7c0b0c0f172afa967249c2981a6846e",
         "symbols": [
           "DashboardViewModel.load"
         ],
-        "worktreeBlob": "0d0a6e96b6c3c143ce80db4e3626d2a87ae8b09f"
+        "worktreeBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "04795558e076661287cabab524b19d3bb3337fa2"
+    "gitHead": "562686a5649e6d858b191b267f21f206454ad91a"
   },
   "nodes": [
     {

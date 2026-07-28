@@ -397,6 +397,9 @@ public struct HAHistoryTimestampParser {
     public init() {}
 
     public func timestamp(from point: HAHistoryPoint) -> Double? {
+        if let timestamp = point.lastChangedSeconds ?? point.lastUpdatedSeconds {
+            return timestamp
+        }
         if let value = point.lastChanged, let timestamp = parse(value) {
             return timestamp
         }

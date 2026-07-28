@@ -532,8 +532,6 @@ public enum HAHistoryProjection {
         orderedEntityIDs: [String],
         currentStates: [String: HAState] = [:]
     ) -> [HAHistorySeries] {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var seen = Set<String>()
         let order = orderedEntityIDs + history.keys.sorted().filter { !orderedEntityIDs.contains($0) }
         return order.compactMap { entityID in
@@ -548,7 +546,7 @@ public enum HAHistoryProjection {
             return HAHistorySeries(
                 entityID: entityID,
                 points: compact.map {
-                    project($0, entityID: entityID, context: context, formatter: formatter)
+                    project($0, entityID: entityID, context: context)
                 }
             )
         }
@@ -596,8 +594,7 @@ public enum HAHistoryProjection {
     fileprivate static func project(
         _ state: HACompactHistoryState,
         entityID: String,
-        context: HAHistoryProjectionContext,
-        formatter: ISO8601DateFormatter
+        context: HAHistoryProjectionContext
     ) -> HAHistoryPoint {
         let timestamp = context.useLastUpdated
             ? state.lastUpdatedSeconds
@@ -618,8 +615,8 @@ public enum HAHistoryProjection {
             entityId: entityID,
             state: state.state,
             attributes: attributes,
-            lastChanged: formatter.string(from: Date(timeIntervalSince1970: timestamp)),
-            lastUpdated: formatter.string(from: Date(timeIntervalSince1970: state.lastUpdatedSeconds))
+            lastChangedSeconds: timestamp,
+            lastUpdatedSeconds: state.lastUpdatedSeconds
         )
     }
 
@@ -653,7 +650,6 @@ public actor HAHistoryProjectionStore {
 
     private let orderedEntityIDs: [String]
     private let currentStates: [String: HAState]
-    private let formatter: ISO8601DateFormatter
     private var entries: [String: Entry] = [:]
     private var highestOwnerGeneration: UInt64?
     private var lastHistoryRevision: UInt64?
@@ -667,8 +663,6 @@ public actor HAHistoryProjectionStore {
     ) {
         self.orderedEntityIDs = orderedEntityIDs
         self.currentStates = currentStates
-        formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     }
 
     public func series(
@@ -805,8 +799,7 @@ public actor HAHistoryProjectionStore {
             HAHistoryProjection.project(
                 $0,
                 entityID: entityID,
-                context: details.context,
-                formatter: formatter
+                context: details.context
             )
         }
         return Entry(
@@ -847,8 +840,7 @@ public actor HAHistoryProjectionStore {
             points.append(HAHistoryProjection.project(
                 state,
                 entityID: entityID,
-                context: context,
-                formatter: formatter
+                context: context
             ))
         }
         points.append(contentsOf: cached.series.points[
@@ -860,8 +852,7 @@ public actor HAHistoryProjectionStore {
                 points.append(HAHistoryProjection.project(
                     state,
                     entityID: entityID,
-                    context: context,
-                    formatter: formatter
+                    context: context
                 ))
             }
         }

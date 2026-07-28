@@ -52,6 +52,26 @@ evidence.
 
 ## Local performance observations
 
+### Direct typed history decoding materially reduced 12-hour load time
+
+- **Claim:** On Joy's MBP (2), for the current four-entity CO2/VOC 12-hour
+  replay, direct typed WebSocket event decoding plus numeric-timestamp graph
+  projection reduced release live publication from 4.735 seconds to
+  1.397–1.485 seconds. The server protocol was already fast enough that
+  switching from `history/stream` to `history/history_during_period` was not the
+  important optimization.
+- **Status:** Implemented and measured local observation, not a portable timing
+  guarantee.
+- **Evidence:** `Benchmarks/HistoryFetch/results.md` records three equivalent
+  Python protocol runs, pre/post release NativeHA live-smoke runs, and
+  five-iteration Swift comparisons. The 4.94 MB/102,418-sample event took
+  3.633 seconds through the retained generic/re-encode comparison path versus
+  0.387 seconds through direct typed decoding. Numeric projection took 0.060
+  seconds after the change versus 0.564 seconds before it.
+- **Revalidate when:** WebSocket envelope routing, JSON representation,
+  subscription delivery, history model/projection, server recorder behavior,
+  entity cadence, compiler, OS, or hardware changes.
+
 ### Metal is materially faster for the measured graph workload
 
 - **Claim:** On Joy's MBP (2), the 2026-07-25 release benchmark favored Metal for

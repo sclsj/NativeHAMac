@@ -1,0 +1,103 @@
+{
+  "base_url": "http://joyj.me:8123",
+  "start_time": "2026-07-27T16:37:38Z",
+  "end_time": "2026-07-28T04:37:38Z",
+  "entities": [
+    "sensor.qtpy_air_quality_bme688_iaq",
+    "sensor.qtpy_air_quality_scd41_co2",
+    "sensor.sps30_pm2_5",
+    "sensor.sps30_pm1_0"
+  ],
+  "results": [
+    {
+      "method": "ws_period",
+      "run": 1,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102437,
+      "response_bytes": 4941063,
+      "connect_seconds": 0.02044420799938962,
+      "auth_seconds": 0.005802375002531335,
+      "server_and_receive_seconds": 1.1033178750076331,
+      "first_data_seconds": 1.1033178750076331,
+      "json_decode_seconds": 0.03938025000388734,
+      "total_seconds": 1.1692499160126317,
+      "message_count": 1
+    },
+    {
+      "method": "ws_stream",
+      "run": 1,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102437,
+      "response_bytes": 4941164,
+      "connect_seconds": 0.028593333991011605,
+      "auth_seconds": 0.007106542005203664,
+      "server_and_receive_seconds": 0.5871207500167657,
+      "first_data_seconds": 0.5866127079934813,
+      "json_decode_seconds": 0.03852049997658469,
+      "total_seconds": 0.6614525839977432,
+      "message_count": 1
+    },
+    {
+      "method": "ws_period",
+      "run": 2,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102444,
+      "response_bytes": 4941399,
+      "connect_seconds": 0.014476416981779039,
+      "auth_seconds": 0.005868917010957375,
+      "server_and_receive_seconds": 0.8961536669812631,
+      "first_data_seconds": 0.8961536669812631,
+      "json_decode_seconds": 0.042308541014790535,
+      "total_seconds": 0.9588830829889048,
+      "message_count": 1
+    },
+    {
+      "method": "ws_stream",
+      "run": 2,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102448,
+      "response_bytes": 4941694,
+      "connect_seconds": 0.012130457995226607,
+      "auth_seconds": 0.004748541017761454,
+      "server_and_receive_seconds": 0.9443434170389082,
+      "first_data_seconds": 0.9438676249992568,
+      "json_decode_seconds": 0.03828370798146352,
+      "total_seconds": 0.999599875009153,
+      "message_count": 1
+    },
+    {
+      "method": "ws_period",
+      "run": 3,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102444,
+      "response_bytes": 4941399,
+      "connect_seconds": 0.020462665997911245,
+      "auth_seconds": 0.006561667018104345,
+      "server_and_receive_seconds": 0.9094338750001043,
+      "first_data_seconds": 0.9094338750001043,
+      "json_decode_seconds": 0.035906874982174486,
+      "total_seconds": 0.9724439999845345,
+      "message_count": 1
+    },
+    {
+      "method": "ws_stream",
+      "run": 3,
+      "hours": 12,
+      "entity_count": 4,
+      "sample_count": 102453,
+      "response_bytes": 4941935,
+      "connect_seconds": 0.02212958299787715,
+      "auth_seconds": 0.009448458004044369,
+      "server_and_receive_seconds": 0.6231846240116283,
+      "first_data_seconds": 0.6227333330025431,
+      "json_decode_seconds": 0.03606275099446066,
+      "total_seconds": 0.690916624997044,
+      "message_count": 1
+    }
+  ]
+}

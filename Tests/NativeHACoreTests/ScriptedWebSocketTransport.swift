@@ -151,6 +151,10 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
         deliver(.success(.string(String(decoding: data, as: UTF8.self))))
     }
 
+    func pushFrame(_ frame: HAWebSocketFrame) {
+        deliver(.success(frame))
+    }
+
     func pushMalformedJSON() {
         deliver(.success(.string("{not-json")))
     }

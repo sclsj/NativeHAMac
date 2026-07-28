@@ -17,11 +17,11 @@
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
-      "symbols": ["HACompactHistoryState", "HAHistoryStreamAccumulator", "HAHistoryProjection", "HAHistoryProjectionStore", "HAHistoryStreamCoordinator"]
+      "symbols": ["HACompactHistoryState", "HAHistoryStreamMessage", "HAHistoryStreamAccumulator", "HAHistoryStreamPublication", "HAHistoryProjection", "HAHistoryProjectionStore", "HAHistoryStreamCoordinator"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-      "symbols": ["subscribeRaw", "subscribeMessage", "statusUpdates"]
+      "symbols": ["subscribeRaw", "subscribeMessage", "decodeAndDispatchFrame", "dispatch", "statusUpdates"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",

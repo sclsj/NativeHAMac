@@ -5,7 +5,7 @@
   "nativeEntries": [
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-      "symbols": ["HomeAssistantWebSocketConnection", "callRaw", "subscribeRaw"]
+      "symbols": ["HomeAssistantWebSocketConnection", "callRaw", "subscribeRaw", "subscribeMessage", "decodeAndDispatchFrame", "dispatch"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
