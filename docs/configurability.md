@@ -181,11 +181,23 @@ subsystem is represented explicitly. Once an entry passes that filter, retain
 its complete message without database-size deletion, message truncation, queue
 admission limits, or silent dropping.
 
-**Implementation note:** The former 128 MiB database ceiling,
-4,096-character truncation, and 1,024-entry admission limit were removed by
-user direction. The current coarse category on/off switches are an incomplete
-surface; per-subsystem severity thresholds and efficient lossless batching are
-the next implementation step.
+**Implementation note:** `LoggingPolicy` now has independent optional minimum
+severities for WebSocket, other network, rendering, interaction, lifecycle, and
+general diagnostics. `nil` disables one subsystem. The app selects `warning`
+for the completed WebSocket subsystem and `debug` for the others; changing only
+WebSocket back to `debug` records complete text frames and base64-encoded binary
+frames.
+
+The former 128 MiB database ceiling, 4,096-character truncation, and
+1,024-entry admission limit remain removed. Accepted entries are buffered
+without an admission ceiling and written on a utility queue in one explicit
+SQLite transaction every second or after 256 entries. SQLite uses WAL mode,
+`FULL` synchronization, a 1,000 ms busy wait, and one-second lossless retry:
+temporary writer contention requeues the complete batch ahead of newer entries
+instead of dropping it. Normal application termination forces a final flush.
+An abrupt crash can still lose the current memory-resident interval; increasing
+the interval toward one minute would reduce commits further but enlarge that
+crash window.
 
 ## Not selected
 

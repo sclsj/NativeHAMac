@@ -7,7 +7,7 @@ status: complete
 contract_revision: 1
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 04795558e076661287cabab524b19d3bb3337fa2
+nativeha_revision: e347408455e01b774d93800c881850b6f88997d2
 graph_file: ../generated/module-02.dependencies.json
 graph_fingerprint: 6725be545f291f813a37e122f205aae56cd13af5fcba30a917ab0a020737a474
 last_validated: 2026-07-28
@@ -30,10 +30,10 @@ two assumptions in the plan:
 If NativeHA advertises Home Assistant's `coalesce_messages` supported feature,
 it must accept an incoming JSON object or an ordered array of objects.
 
-Implementation is complete in the uncommitted worktree based on NativeHA
-`04795558e076661287cabab524b19d3bb3337fa2`. The independent verifier should
-review that base plus the Module 02 diff; the frontmatter revision is not a
-claim that the worktree implementation has already been committed.
+The current diagnostic follow-up is based on NativeHA
+`e347408455e01b774d93800c881850b6f88997d2`, which contains the explicit
+lossy-limit revert. The frontmatter revision identifies that committed base;
+the packet's later validation sections record subsequent implementation work.
 
 ## Behavior contracts
 
@@ -658,11 +658,20 @@ Existing receive-loop, timeout, callback coordinator, history opt-out, 32 MiB
 receive policy, and production pending-receive cleanup paths were not replaced.
 
 The logging half of the original repair was superseded by user direction.
-Explicitly selected diagnostics must retain complete WebSocket frames and
-other messages without a database ceiling, character truncation, or
-queue-admission dropping. Resource use is controlled by per-subsystem severity
-selection and lossless transaction batching rather than silently discarding
-accepted diagnostics.
+Explicitly selected diagnostics retain complete WebSocket frames and other
+messages without a database ceiling, character truncation, or queue-admission
+dropping. WebSocket has its own minimum-severity setting, independent of other
+network diagnostics. The app selects `warning` now that Module 02 is complete;
+selecting `debug` records full text frames and base64 binary frames.
+
+Accepted entries enter an uncapped in-memory buffer and SQLite work remains off
+the caller. The logger commits one explicit WAL transaction every second or
+after 256 entries, retries complete batches after writer contention, and
+forces a final flush during normal app termination. This reduces transaction
+and synchronization overhead without silently dropping accepted entries. A
+sudden crash may lose the current one-second memory-resident batch; a
+minute-long interval was rejected as the default because it would enlarge that
+diagnostic blind spot.
 
 Validation:
 
@@ -674,6 +683,18 @@ swift test --filter HomeAssistantWebSocket
 23 tests, 0 failures; includes 10,000-message routing, 100 reconnect cycles,
 bounded callback retention, split performance metrics, and URLSession adapter
 cleanup
+
+swift test --filter SQLiteLoggerTests
+4 tests, 0 failures; independent subsystem thresholds, complete large payload,
+single-transaction batching, threshold flush, and lock-contention retry
+
+node tools/reference-context/test-resolver.mjs
+PASS: 28 nodes, 59 edges
+
+node tools/reference-context/check-context.mjs \
+  docs/reference-context/generated/module-02.dependencies.json
+YELLOW only for known changed NativeHA implementation anchors; pinned
+hass-frontend and npm evidence remains unchanged
 
 swift test --filter HomeAssistantHistoryStream
 26 tests, 0 failures
@@ -803,3 +824,8 @@ adaptation that preserves Home Assistant's observable protocol semantics.
   full-message truncation, database and pending-entry ceilings, and silent
   admission dropping while retaining the independently verified native
   send-order and lifecycle repairs.
+- 2026-07-28: added independent minimum severities for WebSocket and the other
+  diagnostic subsystems. Replaced per-row autocommit with background
+  one-second/256-entry WAL transactions, full-batch contention retry, and a
+  normal-termination flush. WebSocket now defaults to `warning`; `debug`
+  preserves complete frames.

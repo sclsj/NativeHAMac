@@ -63,6 +63,12 @@ deviations from implementation convenience or old chat plans.
 - Reducing disk-write frequency through asynchronous transaction batching is
   allowed, but the implementation must retry temporary database contention and
   clearly account for the crash window of any memory-resident batch.
+- The selected production balance is a one-second or 256-entry batch,
+  whichever comes first, using a background serial writer, explicit
+  transactions, WAL mode with full synchronization, retry on contention, and a
+  final normal-termination flush. A sudden process or machine failure may lose
+  the current memory-resident batch; this is not intentional filtering or
+  queue-pressure dropping.
 
 ## Numeric graph y-axis transitions
 

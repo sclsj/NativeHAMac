@@ -171,7 +171,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func connect() async throws {
-        AppLog("WebSocket connect() called", category: .network)
+        AppLog("WebSocket connect() called", category: .webSocket)
         if state == .ready {
             return
         }
@@ -207,6 +207,11 @@ public actor HomeAssistantWebSocketConnection {
         do {
             try await establishConnection()
         } catch {
+            AppLog(
+                "WebSocket initial connection failed: \(error)",
+                severity: .warning,
+                category: .webSocket
+            )
             disconnectRequested = true
             await abandonCurrentTransport()
             if case let HomeAssistantWebSocketError.authenticationFailed(message) = error {
@@ -219,7 +224,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func disconnect() async {
-        AppLog("WebSocket disconnect() called", category: .network)
+        AppLog("WebSocket disconnect() called", category: .webSocket)
         disconnectRequested = true
         connectionTask?.cancel()
         connectionTask = nil
@@ -829,6 +834,11 @@ public actor HomeAssistantWebSocketConnection {
         guard generation == self.generation, !disconnectRequested else {
             return
         }
+        AppLog(
+            "WebSocket connection failed: \(error)",
+            severity: .warning,
+            category: .webSocket
+        )
 
         self.generation += 1
         receiveTask?.cancel()
@@ -989,7 +999,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
-        AppLog("WebSocket send: \(text)", severity: .debug, category: .network)
+        AppLog(text, severity: .debug, category: .webSocket)
         guard let outboundSender = outboundSender, outboundSender.isFor(transport) else {
             throw HomeAssistantWebSocketError.disconnected
         }
@@ -1002,10 +1012,14 @@ public actor HomeAssistantWebSocketConnection {
         switch frame {
         case let .string(value):
             data = Data(value.utf8)
-            AppLog("WebSocket receive: \(value)", severity: .debug, category: .network)
+            AppLog(value, severity: .debug, category: .webSocket)
         case let .data(value):
             data = value
-            AppLog("WebSocket receive: \(value.count) bytes", severity: .debug, category: .network)
+            AppLog(
+                "WebSocket receive data (base64): \(value.base64EncodedString())",
+                severity: .debug,
+                category: .webSocket
+            )
         }
         let decoded = try JSONDecoder().decode(JSONValue.self, from: data)
         switch decoded {
@@ -1035,7 +1049,7 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     private func transition(to newState: HAWebSocketConnectionState) {
-        AppLog("WebSocket connection state transitioned to: \(newState)", category: .network)
+        AppLog("WebSocket connection state transitioned to: \(newState)", category: .webSocket)
         state = newState
         for continuation in statusListeners.values {
             continuation.yield(newState)

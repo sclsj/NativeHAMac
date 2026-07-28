@@ -40,4 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppLog("Application will terminate", category: .lifecycle)
+        AppLogger.shared.flushAndWait()
+    }
 }

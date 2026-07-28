@@ -1018,6 +1018,17 @@ final class CardReferenceContractTests: XCTestCase {
         XCTAssertEqual(AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks, 4)
     }
 
+    func testProductionLoggingPolicyUsesSubsystemThresholdsAndBatchedFlushes() {
+        let policy = AppConfig.loggingPolicy
+        XCTAssertFalse(policy.shouldLog(severity: .debug, category: .webSocket))
+        XCTAssertTrue(policy.shouldLog(severity: .warning, category: .webSocket))
+        XCTAssertTrue(policy.shouldLog(severity: .debug, category: .network))
+        XCTAssertEqual(policy.flushIntervalSeconds, 1)
+        XCTAssertEqual(policy.flushEntryThreshold, 256)
+        XCTAssertEqual(policy.busyTimeoutMilliseconds, 1_000)
+        XCTAssertEqual(policy.retryIntervalSeconds, 1)
+    }
+
     func testHistoryCardUsesApprovedGlobalRangeWithoutMutatingRawHours() {
         let model = DashboardViewModel()
         model.selectedGraphHours = 1

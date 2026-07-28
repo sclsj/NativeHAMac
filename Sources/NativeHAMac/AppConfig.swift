@@ -80,11 +80,18 @@ enum AppConfig {
     ]
 
     static let loggingPolicy = LoggingPolicy(
-        network: true,
-        rendering: true,
-        interaction: true,
-        lifecycle: true,
-        general: true
+        minimumSeverity: LogSeverityPolicy(
+            webSocket: .warning,
+            network: .debug,
+            rendering: .debug,
+            interaction: .debug,
+            lifecycle: .debug,
+            general: .debug
+        ),
+        flushIntervalSeconds: 1,
+        flushEntryThreshold: 256,
+        busyTimeoutMilliseconds: 1_000,
+        retryIntervalSeconds: 1
     )
 }
 
