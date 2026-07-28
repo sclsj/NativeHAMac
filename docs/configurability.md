@@ -169,29 +169,23 @@ concurrently, which bounds retained in-flight callback work even during
 repeated subscription churn. Reconnect timing remains internal reference-parity
 behavior rather than a selected product configuration surface.
 
-### 8. Diagnostic logging retention
+### 8. Diagnostic logging selection and persistence
 
-**Intent:** Keep debug telemetry useful without allowing payload capture,
-queued log work, or the SQLite cache to become an unbounded source of memory,
-disk, and I/O pressure.
+**Intent:** Preserve every diagnostic selected by configuration, including full
+payloads needed to investigate failures, while allowing completed subsystems to
+raise their minimum recorded severity independently.
 
-Configure the SQLite database byte ceiling, maximum characters retained per log
-message, SQLite busy timeout, and pending-entry ceiling as one typed logging
-policy. WebSocket logging must record bounded metadata such as direction,
-message type, command ID, and encoded byte count; it must not persist
-authentication data or full history frames.
+Configure a minimum severity independently for WebSocket, other network,
+rendering, interaction, lifecycle, and general diagnostics. A disabled
+subsystem is represented explicitly. Once an entry passes that filter, retain
+its complete message without database-size deletion, message truncation, queue
+admission limits, or silent dropping.
 
-**Implementation note:** `LoggingPolicy` now sets a 128 MiB
-(`134_217_728` byte) database ceiling, 4,096-character per-entry limit,
-1,000 ms SQLite busy timeout, and 1,024-entry asynchronous queue ceiling.
-New entries are dropped while that queue is full rather than consuming
-unbounded memory during persistent database locking. Logging stops for the
-current process when the open database reaches the ceiling, with size checks
-every 256 successful inserts and bounded entry size limiting overshoot. On the
-next launch, an oversized cache and its journal/WAL sidecars are removed before
-SQLite opens; this avoids a synchronous `VACUUM` of a large database during app
-launch. Launch table names include a unique suffix to avoid collisions between
-concurrent test or app processes.
+**Implementation note:** The former 128 MiB database ceiling,
+4,096-character truncation, and 1,024-entry admission limit were removed by
+user direction. The current coarse category on/off switches are an incomplete
+surface; per-subsystem severity thresholds and efficient lossless batching are
+the next implementation step.
 
 ## Not selected
 

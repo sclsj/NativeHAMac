@@ -989,12 +989,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
-        AppLog(
-            "WebSocket send type=\(object["type"]?.stringValue ?? "unknown") "
-                + "id=\(object["id"]?.intValue.map(String.init) ?? "none") bytes=\(data.count)",
-            severity: .debug,
-            category: .network
-        )
+        AppLog("WebSocket send: \(text)", severity: .debug, category: .network)
         guard let outboundSender = outboundSender, outboundSender.isFor(transport) else {
             throw HomeAssistantWebSocketError.disconnected
         }
@@ -1007,7 +1002,7 @@ public actor HomeAssistantWebSocketConnection {
         switch frame {
         case let .string(value):
             data = Data(value.utf8)
-            AppLog("WebSocket receive text bytes=\(data.count)", severity: .debug, category: .network)
+            AppLog("WebSocket receive: \(value)", severity: .debug, category: .network)
         case let .data(value):
             data = value
             AppLog("WebSocket receive: \(value.count) bytes", severity: .debug, category: .network)

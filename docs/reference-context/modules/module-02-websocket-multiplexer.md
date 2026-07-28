@@ -45,7 +45,7 @@ claim that the worktree implementation has already been committed.
 | C02-04 | Cancel subscription | Send `unsubscribe_events` with `subscription` equal to the original subscription command ID. | Cancellation is idempotent; remove local callback even after disconnect; late events do not deliver. | NPM-01, NPM-03 | Subscription handle | Exact-wire, repeated-cancel, and late-event tests |
 | C02-05 | Failure/disconnect/reconnect | Reject ordinary in-flight commands with connection-lost, clear ownership, and surface lifecycle state. | Never resume a continuation twice. Implement generic automatic resubscription or keep the remaining parity gap explicit and the module non-complete; stale subscriptions must not silently survive. | NPM-01, HF-04 | Connection actor lifecycle/status events | Disconnect races, cleanup counts, reconnect cycles |
 | C02-06 | Reconnect history stream | History disables generic resubscribe, listens for `ready`, rebuilds `start_time`, and creates a fresh accumulator. | Disposal removes listener and current subscription. Reconnect failures are contained for the owner to retry. | HF-02 | Module 01 owner using Module 02 status/subscription API | Module 01 fresh-stream test; Module 02 supports `resubscribe:false` or equivalent ownership |
-| C02-07 | Command result/error | `success:true` resolves with result, including missing/null where allowed; `success:false` preserves server code/message. | Remove pending storage once; diagnostics remain concise and do not require full request-payload dumps. | NPM-01 | Command error model and continuation owner | Null result, server error, concise-diagnostics, cancellation, and timeout tests |
+| C02-07 | Command result/error | `success:true` resolves with result, including missing/null where allowed; `success:false` preserves server code/message. | Remove pending storage once; user-facing errors remain concise. Explicitly enabled debug tracing may persist complete wire payloads under the diagnostic policy. | NPM-01 | Command error model and continuation owner | Null result, server error, concise error, cancellation, and timeout tests |
 
 ## Source anchors
 
@@ -639,7 +639,7 @@ Exact next actions:
    capped payload preview, and add SQLite retention/size and busy-handling
    policy so logging cannot grow without bound or flood diagnostics.
 
-### Native send-order and logging repair — 2026-07-28
+### Native send-order repair and superseded logging policy — 2026-07-28
 
 Verdict: `complete`. An independent verifier reproduced the suspended-send
 failure and added the first deterministic regression before production changes.
@@ -657,15 +657,12 @@ removed from pending ownership and skipped before it reaches the transport.
 Existing receive-loop, timeout, callback coordinator, history opt-out, 32 MiB
 receive policy, and production pending-receive cleanup paths were not replaced.
 
-WebSocket logs now contain only bounded metadata. `LoggingPolicy` caps the
-SQLite database at 128 MiB, individual messages at 4,096 characters, and
-SQLite busy waits at 1,000 ms. At most 1,024 entries may wait for the serial
-SQLite writer; producers drop new diagnostics while that queue is full. The
-logger stops accepting entries after the open database reaches the ceiling and
-removes an oversized cache plus sidecars before opening on the next launch.
-Validation initialization replaced the previous 1.606 GB cache with a fresh
-database; after the live history smoke the database was about 800 KiB and the
-largest stored message was 77 characters.
+The logging half of the original repair was superseded by user direction.
+Explicitly selected diagnostics must retain complete WebSocket frames and
+other messages without a database ceiling, character truncation, or
+queue-admission dropping. Resource use is controlled by per-subsystem severity
+selection and lossless transaction batching rather than silently discarding
+accepted diagnostics.
 
 Validation:
 
@@ -677,9 +674,6 @@ swift test --filter HomeAssistantWebSocket
 23 tests, 0 failures; includes 10,000-message routing, 100 reconnect cycles,
 bounded callback retention, split performance metrics, and URLSession adapter
 cleanup
-
-swift test --filter SQLiteLoggerTests
-3 tests, 0 failures
 
 swift test --filter HomeAssistantHistoryStream
 26 tests, 0 failures
@@ -805,3 +799,7 @@ adaptation that preserves Home Assistant's observable protocol semantics.
   regressions after a final independent lifecycle review. Focused, stress,
   lifecycle, history integration, and live 1h/12h/24h reconnect validation
   passed. Status returned to `complete`.
+- 2026-07-28: user direction superseded the bounded diagnostic policy. Removed
+  full-message truncation, database and pending-entry ceilings, and silent
+  admission dropping while retaining the independently verified native
+  send-order and lifecycle repairs.

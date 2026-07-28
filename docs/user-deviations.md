@@ -53,6 +53,17 @@ deviations from implementation convenience or old chat plans.
   history resubscribe opt-out, bounded callback retention, and the configured
   large-frame receive limit.
 
+## Lossless selected diagnostics
+
+- Diagnostic configuration may disable a subsystem or raise its minimum
+  severity after that subsystem is considered stable.
+- Every entry that passes the explicit subsystem/severity filter must be
+  persisted in full. Do not silently truncate messages, stop at a database-size
+  ceiling, or drop entries because an in-memory queue is full.
+- Reducing disk-write frequency through asynchronous transaction batching is
+  allowed, but the implementation must retry temporary database contention and
+  clearly account for the crash window of any memory-resident batch.
+
 ## Numeric graph y-axis transitions
 
 - While zooming or inertially scrolling changes the visible numeric range, the
