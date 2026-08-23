@@ -923,17 +923,6 @@ private final class GraphPreparedSeriesCache {
                 lock.unlock()
                 return cached.series
             }
-            
-            // Anti-thrashing: If the cache is already newer than the requested input,
-            // return the newer cached series. This prevents a catastrophic prepareFull
-            // fallback when the background preparer pre-warms a new live update but
-            // the UI (e.g. during a continuous pan gesture) is still requesting an older frame.
-            if cached.fingerprint.contentRevision > fingerprint.contentRevision {
-                AppLog("[\(isMainThread ? "MAIN" : "BG")] Cache thrash avoided for \(input.entityID). Cached \(cached.fingerprint.contentRevision) > requested \(fingerprint.contentRevision).", severity: .debug, category: .rendering)
-                lock.unlock()
-                return cached.series
-            }
-            
             lock.unlock()
 
             let incStart = graphRenderClock()
