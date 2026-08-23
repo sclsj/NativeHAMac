@@ -11,7 +11,7 @@ packet.
 
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
 |---|---|---|---|---|---|
-| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | implementation complete; evidence refresh required (yellow) | 1 | Revalidate changed typed-delivery/client/config/dashboard anchors and refresh the packet |
+| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete; current handoff green | 2 | Preserve verified transport/lifecycle contracts; proceed to bounded Module 01 evidence refresh |
 | 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | implementation complete; evidence refresh required (yellow) | 2 / Module 02 implementation complete | After Module 02 refresh, revalidate typed delivery, projection, graph-feed, tooltip, and lifecycle anchors |
 | 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | not created | unresearched | Depends on refreshed 02 handoff; must preserve 01 owner identity | Research/create packet after the bounded Module 02/01 refreshes |
 | 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | unresearched | Independent, but ordered after 04 in the rescue plan | Dispatch researcher after 04 |

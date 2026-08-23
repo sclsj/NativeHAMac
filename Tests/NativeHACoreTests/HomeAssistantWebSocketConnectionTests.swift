@@ -787,6 +787,74 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking() async throws {
+        let transport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let connection = makeConnection(
+            transports: [transport],
+            deliveryCapacity: 4,
+            maximumConcurrentCallbackTasks: 1
+        )
+        try await connection.connect()
+        let callbackGate = AsyncTestGate()
+        let subscription = try await connection.subscribeMessage(
+            [
+                "type": .string("subscribe_events"),
+                "event_type": .string("test_slice_retention"),
+            ],
+            as: TypedSequencePayload.self
+        ) { _ in
+            await callbackGate.wait()
+        }
+
+        try await transport.push([
+            "id": .int(subscription.id),
+            "type": .string("event"),
+            "event": .object(["sequence": .int(1)]),
+        ])
+        try await waitUntil { await callbackGate.waitingCount() == 1 }
+
+        let releaseProbe = LargeFrameReleaseProbe()
+        await pushLargeCoalescedTypedEvent(
+            subscriptionID: subscription.id,
+            releaseProbe: releaseProbe,
+            on: transport
+        )
+        try await waitUntilDeadline(timeout: 5) {
+            let snapshot = await connection.debugSnapshot()
+            return snapshot.bufferedDeliveryCount == 1
+                && snapshot.directTypedEventDecodeCount == 2
+        }
+
+        await subscription.cancel()
+        try await waitUntilDeadline(timeout: 5) { releaseProbe.wasReleased }
+        let cancelledSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(cancelledSnapshot.deliveryOwnerCount, 0)
+        XCTAssertEqual(cancelledSnapshot.bufferedDeliveryCount, 0)
+        XCTAssertEqual(
+            cancelledSnapshot.activeDeliveryTaskCount,
+            1,
+            "The large frame must be releasable even while an unrelated cancelled callback has not returned."
+        )
+
+        await callbackGate.open()
+        try await waitUntil {
+            await connection.debugSnapshot().activeDeliveryTaskCount == 0
+        }
+        await connection.disconnect()
+    }
+
+    func testDetachedScanAndDecodeGuardsDropStaleGenerationEvents() async throws {
+        for boundary in [
+            HAWebSocketDetachedDecodeBoundary.envelopeScan,
+            HAWebSocketDetachedDecodeBoundary.payloadDecode,
+        ] {
+            try await assertStaleDetachedEventIsDropped(after: boundary)
+        }
+    }
+
     func testMalformedTypedEventIsOwnerLocalAndRawSubscriptionKeepsGenericFallback() async throws {
         let transport = ScriptedWebSocketTransport(
             automaticAuthentication: true,
@@ -915,26 +983,152 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
     private func makeConnection(
         transports: [ScriptedWebSocketTransport],
         timeoutNanoseconds: UInt64 = 5_000_000_000,
-        reconnectDelay: @escaping (Int) -> UInt64 = { _ in 60_000_000_000 }
+        deliveryCapacity: Int = 256,
+        maximumConcurrentCallbackTasks: Int = 4,
+        reconnectDelay: @escaping (Int) -> UInt64 = { _ in 60_000_000_000 },
+        detachedDecodeBoundaryHook: (@Sendable (HAWebSocketDetachedDecodeBoundary) async -> Void)? = nil
     ) -> HomeAssistantWebSocketConnection {
         makeConnection(
             factory: ScriptedTransportFactory(transports),
             timeoutNanoseconds: timeoutNanoseconds,
-            reconnectDelay: reconnectDelay
+            deliveryCapacity: deliveryCapacity,
+            maximumConcurrentCallbackTasks: maximumConcurrentCallbackTasks,
+            reconnectDelay: reconnectDelay,
+            detachedDecodeBoundaryHook: detachedDecodeBoundaryHook
         )
     }
 
     private func makeConnection(
         factory: ScriptedTransportFactory,
         timeoutNanoseconds: UInt64 = 5_000_000_000,
-        reconnectDelay: @escaping (Int) -> UInt64 = { _ in 60_000_000_000 }
+        deliveryCapacity: Int = 256,
+        maximumConcurrentCallbackTasks: Int = 4,
+        reconnectDelay: @escaping (Int) -> UInt64 = { _ in 60_000_000_000 },
+        detachedDecodeBoundaryHook: (@Sendable (HAWebSocketDetachedDecodeBoundary) async -> Void)? = nil
     ) -> HomeAssistantWebSocketConnection {
         HomeAssistantWebSocketConnection(
             accessToken: "token-for-test",
             commandTimeoutNanoseconds: timeoutNanoseconds,
+            deliveryCapacity: deliveryCapacity,
+            maximumConcurrentCallbackTasks: maximumConcurrentCallbackTasks,
             reconnectDelayNanoseconds: reconnectDelay,
+            detachedDecodeBoundaryHook: detachedDecodeBoundaryHook,
             transportFactory: factory.make
         )
+    }
+
+    private func assertStaleDetachedEventIsDropped(
+        after boundary: HAWebSocketDetachedDecodeBoundary
+    ) async throws {
+        let firstTransport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let replacementTransport = ScriptedWebSocketTransport(
+            automaticAuthentication: true,
+            automaticSubscriptionAcknowledgement: true
+        )
+        let factory = ScriptedTransportFactory([firstTransport, replacementTransport])
+        let gate = DetachedDecodeBoundaryGate(target: boundary)
+        let connection = makeConnection(
+            factory: factory,
+            reconnectDelay: { _ in 0 },
+            detachedDecodeBoundaryHook: { boundary in
+                await gate.pauseIfTargeted(boundary)
+            }
+        )
+        try await connection.connect()
+        let log = JSONValueLog()
+        let subscription = try await connection.subscribeRaw([
+            "type": .string("subscribe_events"),
+            "event_type": .string("test_stale_detached_\(boundary)"),
+        ]) { value in
+            await log.append(value)
+        }
+        await gate.arm()
+
+        try await firstTransport.push([
+            "id": .int(subscription.id),
+            "type": .string("event"),
+            "event": .object(["generation": .string("stale")]),
+        ])
+        try await waitUntil { await gate.isPaused }
+
+        await connection.reconnect()
+        try await waitUntil {
+            guard factory.count() == 2 else { return false }
+            return await connection.debugSnapshot().state == .ready
+        }
+        await gate.resume()
+        try await waitUntil {
+            await connection.debugSnapshot().activeDeliveryTaskCount == 0
+        }
+        let valuesAfterStaleWork = await log.snapshot()
+        XCTAssertEqual(
+            valuesAfterStaleWork,
+            [],
+            "Detached work suspended after \(boundary) must not route into the replacement generation."
+        )
+
+        let replacementSubscribe = try await waitForSentMessage(replacementTransport) {
+            $0["type"] == .string("subscribe_events")
+        }
+        let replacementID = try XCTUnwrap(replacementSubscribe["id"]?.testInt)
+        try await replacementTransport.push([
+            "id": .int(replacementID),
+            "type": .string("event"),
+            "event": .object(["generation": .string("replacement")]),
+        ])
+        try await waitUntil { await log.snapshot().count == 1 }
+        let replacementValues = await log.snapshot()
+        XCTAssertEqual(
+            replacementValues,
+            [.object(["generation": .string("replacement")])]
+        )
+
+        await subscription.cancel()
+        await connection.disconnect()
+    }
+
+    private func pushLargeCoalescedTypedEvent(
+        subscriptionID: Int,
+        releaseProbe: LargeFrameReleaseProbe,
+        on transport: ScriptedWebSocketTransport
+    ) async {
+        let padding = String(repeating: "x", count: 8 * 1_024 * 1_024)
+        let json = "[{\"id\":\(subscriptionID),\"type\":\"event\",\"event\":{\"sequence\":2}},{\"id\":2147483647,\"type\":\"event\",\"event\":{\"padding\":\"\(padding)\"}}]"
+        let byteCount = json.utf8.count
+        guard let buffer = malloc(byteCount) else {
+            XCTFail("Unable to allocate the large-frame retention fixture")
+            return
+        }
+        Data(json.utf8).copyBytes(
+            to: buffer.assumingMemoryBound(to: UInt8.self),
+            count: byteCount
+        )
+        let data = Data(
+            bytesNoCopy: buffer,
+            count: byteCount,
+            deallocator: .custom { pointer, _ in
+                free(pointer)
+                releaseProbe.markReleased()
+            }
+        )
+        await transport.pushFrame(.data(data))
+    }
+
+    private func waitUntilDeadline(
+        timeout: TimeInterval,
+        _ condition: @escaping () async -> Bool
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if await condition() {
+                return
+            }
+            await Task.yield()
+        }
+        throw AsyncTestWaitError.conditionNotMet
     }
 
     private func waitForSentMessage(
@@ -1043,5 +1237,55 @@ private struct BlockingTypedPayload: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case sequence
+    }
+}
+
+private actor DetachedDecodeBoundaryGate {
+    private let target: HAWebSocketDetachedDecodeBoundary
+    private var armed = false
+    private var paused = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    init(target: HAWebSocketDetachedDecodeBoundary) {
+        self.target = target
+    }
+
+    var isPaused: Bool { paused }
+
+    func arm() {
+        armed = true
+    }
+
+    func pauseIfTargeted(_ boundary: HAWebSocketDetachedDecodeBoundary) async {
+        guard armed, !paused, boundary == target else {
+            return
+        }
+        paused = true
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume() {
+        let continuation = continuation
+        self.continuation = nil
+        continuation?.resume()
+    }
+}
+
+private final class LargeFrameReleaseProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var released = false
+
+    var wasReleased: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return released
+    }
+
+    func markReleased() {
+        lock.lock()
+        released = true
+        lock.unlock()
     }
 }

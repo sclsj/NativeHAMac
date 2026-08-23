@@ -1063,6 +1063,60 @@
     {
       "bindings": [
         {
+          "imported": "Connection",
+          "local": "Connection",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "repo:src/data/entity/entity_registry.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 1,
+      "offset": 32,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/index.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "home-assistant-js-websocket",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/index.d.ts",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "Connection",
+          "local": "Connection",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "repo:src/data/frontend.ts",
+      "kind": "static-import",
+      "length": 29,
+      "line": 1,
+      "offset": 32,
+      "packageId": {
+        "name": "home-assistant-js-websocket",
+        "subModuleName": "dist/index.d.ts",
+        "version": "9.6.0"
+      },
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "home-assistant-js-websocket",
+      "to": "npm:home-assistant-js-websocket@9.6.0:dist/index.d.ts",
+      "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
           "imported": "HassConfig",
           "local": "HassConfig",
           "phase": "type"
@@ -1557,32 +1611,47 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d",
+  "graphFingerprint": "6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
-    "sha256": "8b0e8bc048b7d398ed52e3f5f9e614f4c0c483ffc0a7350f5b8a96e7c787b3b4"
+    "sha256": "06fcc5cfdd7d857d943d6757051716762f04c76d1a5a099f211696676e0575e0"
   },
   "nativeha": {
     "anchors": [
       {
         "dirty": false,
-        "headBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b",
+        "headBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
+        "sha256": "fbaf6d5bad0a7e7284c1716b1182c4167f229fb221c089374fed8e6ec1ed1728",
+        "symbols": [
+          "HAHistoryStreamCoordinator",
+          "subscribeFresh"
+        ],
+        "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
+      },
+      {
+        "dirty": false,
+        "headBlob": "41139d06b468cafc9a631dabaa789c3fab1c7eb1",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "2c429dcc08e1e95b948b8af6c5c18e2e77fbd71c29c9004e52e6d3769f59d32d",
+        "sha256": "d0b5cc37bb151f54f178402b61429979cd067c1d2acf8a7f56662f468c62307d",
         "symbols": [
-          "HomeAssistantWebSocketClient"
+          "HomeAssistantWebSocketClient",
+          "fetchEntityRegistryDisplay",
+          "fetchFrontendLocalePreferences"
         ],
-        "worktreeBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b"
+        "worktreeBlob": "41139d06b468cafc9a631dabaa789c3fab1c7eb1"
       },
       {
         "dirty": true,
-        "headBlob": "a10ecc24a075fe0b9ec0450c916f3ff33cfb6d78",
+        "headBlob": "641d81d9449c34a4d8cb9d8710973555c26be444",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "10969b7351c7128d585c495dd7e6ae3154355a19f9b75ae8be56416dd4996748",
+        "sha256": "0482c187bb5256145c0bd48f3ca8f7fad85f916856bd7d99875e2a11aa4ef53c",
         "symbols": [
+          "HAWebSocketDetachedDecodeBoundary",
           "HomeAssistantWebSocketConnection",
           "callRaw",
           "decodeAndDispatchFrame",
@@ -1590,7 +1659,19 @@
           "subscribeMessage",
           "subscribeRaw"
         ],
-        "worktreeBlob": "641d81d9449c34a4d8cb9d8710973555c26be444"
+        "worktreeBlob": "c245df11ab38f7a294a16ce5bf45212c3fe7b96a"
+      },
+      {
+        "dirty": false,
+        "headBlob": "893c91f417584126e7a4ab81767ca8c8a965dea3",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketEnvelope.swift",
+        "sha256": "a426613a8784bbf48d2fd156a24ed5d81de3a3c1f15feac954b73b2cb2140436",
+        "symbols": [
+          "HAWebSocketEnvelopeScanner",
+          "HAWebSocketScannedEnvelope"
+        ],
+        "worktreeBlob": "893c91f417584126e7a4ab81767ca8c8a965dea3"
       },
       {
         "dirty": false,
@@ -1604,31 +1685,71 @@
         "worktreeBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5"
       },
       {
-        "dirty": true,
-        "headBlob": "4b89655bf39637f1feef4887c115bbe8aa339fa3",
+        "dirty": false,
+        "headBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d",
         "missing": false,
-        "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "6cf07527fe13dcb02804e2d30cfb7770d6c80e58bb5aeb3e9822e6b4f596a3bf",
+        "path": "Sources/NativeHACore/Models.swift",
+        "sha256": "e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354",
         "symbols": [
-          "AppConfig.webSocketPolicy"
+          "HAEntityRegistryDisplayEntry",
+          "HAEntityRegistryDisplayResponse",
+          "HAFrontendLocalePreferences",
+          "HAFrontendUserDataResponse"
         ],
-        "worktreeBlob": "8427f4257249689c0b79165d2405522b861b9a48"
+        "worktreeBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d"
       },
       {
         "dirty": false,
-        "headBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08",
+        "headBlob": "0e078da2a393a6639a086cc2c47edbb238a23799",
+        "missing": false,
+        "path": "Sources/NativeHAMac/AppConfig.swift",
+        "sha256": "218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d",
+        "symbols": [
+          "AppConfig.webSocketPolicy"
+        ],
+        "worktreeBlob": "0e078da2a393a6639a086cc2c47edbb238a23799"
+      },
+      {
+        "dirty": true,
+        "headBlob": "af2a3ba3453e62c783041f6a157e948964e5fc3e",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "616e5c2bfece2f01711069e1839de711b7c0b0c0f172afa967249c2981a6846e",
+        "sha256": "c2aa0d8c6071530d9e98f13b51d08b9af79422874651f97c1f8866a16f1c1708",
         "symbols": [
-          "DashboardViewModel.load"
+          "DashboardViewModel.load",
+          "bootstrapDashboard"
         ],
-        "worktreeBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08"
+        "worktreeBlob": "4e961d8abd226bf3ae4ba51a068169bc840f37ba"
+      },
+      {
+        "dirty": true,
+        "headBlob": "6e39edbaf47555c4bce38da1e480a4ac1ef6dd70",
+        "missing": false,
+        "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
+        "sha256": "9cc0ef20158ed38f42b974aa6871898d7da7af43e69dc855e4ffcdaa22a4c5cd",
+        "symbols": [
+          "testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking",
+          "testDetachedScanAndDecodeGuardsDropStaleGenerationEvents"
+        ],
+        "worktreeBlob": "acbae66947dd8ccb7ef907fb20a474380f1d7948"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
+        "sha256": "69d2442bb7ef9b0ce8b54f4620d554cd7341143afe6fce04f014dc2cf133c2d1",
+        "symbols": [
+          "DashboardBootstrapLifecycleTests",
+          "testMalformedLovelaceBootstrapDisconnectsAuthenticatedClient",
+          "testRejectedStateSubscriptionDisconnectsAuthenticatedClient"
+        ],
+        "worktreeBlob": "48c885808ce6be7eabe6be53d07508d97b7e20c6"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "562686a5649e6d858b191b267f21f206454ad91a"
+    "gitHead": "9392bc99c67c4ba3fdae622bf1ef521182e42e69"
   },
   "nodes": [
     {
@@ -2111,6 +2232,53 @@
       "worktreeBlob": "7f8b3fd17c97a1a28eb30580d4c272cf925fa578"
     },
     {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "8510cae926a61cf71b9bf8097f200f3009187907",
+      "id": "repo:src/data/entity/entity_registry.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "EntityCategory",
+        "EntityRegistryDisplayEntryResponse",
+        "fetchEntityRegistryDisplay"
+      ],
+      "missingSymbols": [],
+      "path": "src/data/entity/entity_registry.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 47,
+          "length": 335,
+          "line": 31,
+          "name": "EntityRegistryDisplayEntryResponse",
+          "offset": 1073
+        },
+        {
+          "column": 1,
+          "endColumn": 6,
+          "endLine": 304,
+          "length": 186,
+          "line": 301,
+          "name": "fetchEntityRegistryDisplay",
+          "offset": 8194
+        },
+        {
+          "column": 1,
+          "endColumn": 47,
+          "endLine": 14,
+          "length": 46,
+          "line": 14,
+          "name": "EntityCategory",
+          "offset": 695
+        }
+      ],
+      "sha256": "8ca09217f83a34fc78662e858393f90d269666ba9c3019be969817a77e73c6a2",
+      "worktreeBlob": "8510cae926a61cf71b9bf8097f200f3009187907"
+    },
+    {
       "depth": 1,
       "dirty": false,
       "explicitSeed": false,
@@ -2124,6 +2292,43 @@
       "selectedSymbols": [],
       "sha256": "37dcda474bfdb5ada6c5f6eab6662474acdedb701c4aa4a00885245999244ee2",
       "worktreeBlob": "6e994b0443bb87364c2b86e9232be40a287d09b3"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "697fc39cf6b745dcc5c49dc09f7d74ad19d78fc6",
+      "id": "repo:src/data/frontend.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "ValidUserDataKey",
+        "fetchFrontendUserData"
+      ],
+      "missingSymbols": [],
+      "path": "src/data/frontend.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 65,
+          "length": 362,
+          "line": 52,
+          "name": "fetchFrontendUserData",
+          "offset": 1366
+        },
+        {
+          "column": 1,
+          "endColumn": 55,
+          "endLine": 48,
+          "length": 54,
+          "line": 48,
+          "name": "ValidUserDataKey",
+          "offset": 1250
+        }
+      ],
+      "sha256": "b6490f26521aae4c9d873f2d317c9f84cd14541943483d295f99dccbcff63834",
+      "worktreeBlob": "697fc39cf6b745dcc5c49dc09f7d74ad19d78fc6"
     },
     {
       "depth": 0,
@@ -2273,6 +2478,83 @@
       "selectedSymbols": [],
       "sha256": "bf5cc0ffae612b5ea99b744b46a12597859e64960f79b7bb3eab56ae16e96b3f",
       "worktreeBlob": "2a6a6d3e3000e151c726ba9a75a1ef17775a0fe4"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "9e159dd0d125b90ba2d595695decb66c63a79d50",
+      "id": "repo:src/data/translation.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "DateFormat",
+        "FirstWeekday",
+        "FrontendLocaleData",
+        "NumberFormat",
+        "TimeFormat",
+        "TimeZone"
+      ],
+      "missingSymbols": [],
+      "path": "src/data/translation.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 52,
+          "length": 198,
+          "line": 45,
+          "name": "FrontendLocaleData",
+          "offset": 870
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 12,
+          "length": 227,
+          "line": 4,
+          "name": "NumberFormat",
+          "offset": 126
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 19,
+          "length": 110,
+          "line": 14,
+          "name": "TimeFormat",
+          "offset": 355
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 32,
+          "length": 117,
+          "line": 26,
+          "name": "DateFormat",
+          "offset": 533
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 43,
+          "length": 216,
+          "line": 34,
+          "name": "FirstWeekday",
+          "offset": 652
+        },
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 24,
+          "length": 64,
+          "line": 21,
+          "name": "TimeZone",
+          "offset": 467
+        }
+      ],
+      "sha256": "df1b54754227498aa473376f7038e6ffa0bd13deb37a47cec5d8e2317177a53d",
+      "worktreeBlob": "9e159dd0d125b90ba2d595695decb66c63a79d50"
     },
     {
       "depth": 0,
@@ -2468,6 +2750,19 @@
         ]
       },
       {
+        "path": "src/data/entity/entity_registry.ts",
+        "symbols": [
+          "EntityRegistryDisplayEntryResponse",
+          "fetchEntityRegistryDisplay"
+        ]
+      },
+      {
+        "path": "src/data/frontend.ts",
+        "symbols": [
+          "fetchFrontendUserData"
+        ]
+      },
+      {
         "path": "src/data/history.ts",
         "symbols": [
           "subscribeHistoryStream"
@@ -2477,6 +2772,12 @@
         "path": "src/data/lovelace/config/types.ts",
         "symbols": [
           "fetchConfig"
+        ]
+      },
+      {
+        "path": "src/data/translation.ts",
+        "symbols": [
+          "FrontendLocaleData"
         ]
       },
       {

@@ -126,6 +126,11 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
     }
 }
 
+enum HAWebSocketDetachedDecodeBoundary: Equatable {
+    case envelopeScan
+    case payloadDecode
+}
+
 public final class HAWebSocketSubscription {
     public let id: Int
 
@@ -170,6 +175,7 @@ public actor HomeAssistantWebSocketConnection {
     private let callbackCoordinator: HAWebSocketCallbackCoordinator
     private let transportFactory: TransportFactory
     private let reconnectDelayNanoseconds: (Int) -> UInt64
+    private let detachedDecodeBoundaryHook: (@Sendable (HAWebSocketDetachedDecodeBoundary) async -> Void)?
 
     private var transport: HomeAssistantWebSocketTransport?
     private var outboundSender: HomeAssistantWebSocketSendSerializer?
@@ -210,6 +216,7 @@ public actor HomeAssistantWebSocketConnection {
         reconnectDelayNanoseconds = { attempt in
             UInt64(min(max(attempt, 0), 5)) * 1_000_000_000
         }
+        detachedDecodeBoundaryHook = nil
         transportFactory = {
             let url = try Self.webSocketURL(from: configuration.baseURL)
             return URLSessionHomeAssistantWebSocketTransport(
@@ -226,6 +233,7 @@ public actor HomeAssistantWebSocketConnection {
         deliveryCapacity: Int = 256,
         maximumConcurrentCallbackTasks: Int = 4,
         reconnectDelayNanoseconds: @escaping (Int) -> UInt64 = { _ in 0 },
+        detachedDecodeBoundaryHook: (@Sendable (HAWebSocketDetachedDecodeBoundary) async -> Void)? = nil,
         transportFactory: @escaping TransportFactory
     ) {
         self.accessToken = accessToken
@@ -236,6 +244,7 @@ public actor HomeAssistantWebSocketConnection {
             maximumPendingTerminations: deliveryCapacity
         )
         self.reconnectDelayNanoseconds = reconnectDelayNanoseconds
+        self.detachedDecodeBoundaryHook = detachedDecodeBoundaryHook
         self.transportFactory = transportFactory
     }
 
@@ -638,6 +647,9 @@ public actor HomeAssistantWebSocketConnection {
             try HAWebSocketEnvelopeScanner.scan(data)
         }
         let envelopes = try await scanTask.value
+        if let detachedDecodeBoundaryHook = detachedDecodeBoundaryHook {
+            await detachedDecodeBoundaryHook(.envelopeScan)
+        }
         guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
             return
         }
@@ -660,6 +672,9 @@ public actor HomeAssistantWebSocketConnection {
                 try Self.decodeFrameData(data)
             }
             let messages = try await decodeTask.value
+            if let detachedDecodeBoundaryHook = detachedDecodeBoundaryHook {
+                await detachedDecodeBoundaryHook(.payloadDecode)
+            }
             guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
                 return
             }
@@ -700,6 +715,9 @@ public actor HomeAssistantWebSocketConnection {
                 try JSONDecoder().decode(JSONValue.self, from: objectData)
             }
             let message = try await decodeTask.value
+            if let detachedDecodeBoundaryHook = detachedDecodeBoundaryHook {
+                await detachedDecodeBoundaryHook(.payloadDecode)
+            }
             guard canDispatchDecodedFrame(expectedGeneration: expectedGeneration) else {
                 return
             }

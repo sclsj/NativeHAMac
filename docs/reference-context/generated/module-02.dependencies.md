@@ -1,9 +1,9 @@
 # Dependency graph: module 02
 
-- Fingerprint: `7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d`
+- Fingerprint: `6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a`
 - Reference revision: `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` (clean)
 - TypeScript: `6.0.3`
-- Nodes: 28; edges: 59; cycles: 0
+- Nodes: 31; edges: 61; cycles: 0
 - Unresolved: 0; truncated: no
 
 ## Explicit seeds
@@ -11,8 +11,11 @@
 - `npm:home-assistant-js-websocket@9.6.0:dist/connection.js` — `Connection`, `DEBUG`
 - `npm:home-assistant-js-websocket@9.6.0:dist/messages.js` — `supportedFeatures`, `unsubscribeEvents`
 - `npm:home-assistant-js-websocket@9.6.0:dist/socket.js` — `createSocket`, `DEBUG`, `MSG_TYPE_AUTH_INVALID`, `MSG_TYPE_AUTH_OK`, `MSG_TYPE_AUTH_REQUIRED`
+- `repo:src/data/entity/entity_registry.ts` — `EntityRegistryDisplayEntryResponse`, `fetchEntityRegistryDisplay`, `EntityCategory`
+- `repo:src/data/frontend.ts` — `fetchFrontendUserData`, `ValidUserDataKey`
 - `repo:src/data/history.ts` — `subscribeHistoryStream`, `HistoryStates`, `HistoryStream`, `HistoryStreamMessage`, `EntityHistoryState`
 - `repo:src/data/lovelace/config/types.ts` — `fetchConfig`, `LovelaceRawConfig`, `LovelaceConfig`, `LovelaceDashboardStrategyConfig`, `LovelaceDashboardBaseConfig`
+- `repo:src/data/translation.ts` — `FrontendLocaleData`, `NumberFormat`, `TimeFormat`, `DateFormat`, `FirstWeekday`, `TimeZone`
 - `repo:src/data/weather.ts` — `subscribeForecast`, `ModernForecastType`, `ForecastEvent`, `ForecastAttribute`
 - `repo:src/entrypoints/core.ts` — `connProm`, `clearUrlParams`, `authProm`
 - `repo:src/util/websocket.ts` — `callWS`, `_debugConnection`
@@ -24,7 +27,7 @@
 ## Boundaries
 
 - package-not-allowlisted: 2
-- type-only-not-followed: 15
+- type-only-not-followed: 17
 
 ## Unresolved or nonliteral edges
 

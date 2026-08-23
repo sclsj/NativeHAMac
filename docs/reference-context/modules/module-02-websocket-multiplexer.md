@@ -4,13 +4,13 @@ module: "02"
 title: WebSocket multiplexer and subscription architecture
 plan: ../../rescue-plan/module-02-websocket-multiplexer.md
 status: complete
-contract_revision: 1
+contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 562686a5649e6d858b191b267f21f206454ad91a
+nativeha_revision: 9392bc99c67c4ba3fdae622bf1ef521182e42e69
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: 7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d
-last_validated: 2026-07-28
+graph_fingerprint: 6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a
+last_validated: 2026-08-23
 ---
 
 # Module 02 evidence packet
@@ -41,11 +41,12 @@ the packet's later validation sections record subsequent implementation work.
 |---|---|---|---|---|---|---|
 | C02-01 | Connect/authenticate | Send token only after `auth_required`; accept `auth_ok`, reject `auth_invalid`. Optionally negotiate `coalesce_messages: 1` with command ID 1 on supported servers. | Do not start the steady receive loop until authentication succeeds. If coalescing is advertised, decode both object and ordered-array frames. | HF-01, NPM-02, NPM-03 | New connection actor and transport adapter | Scripted auth and coalesced-frame tests |
 | C02-02 | Concurrent commands/subscriptions | Commands and subscriptions share one monotonically allocated ID space and exactly one steady socket receiver dispatches by ID. | Register pending state before send; out-of-order results resolve only their owner; unknown results are harmless. | NPM-01, SW-01 | Connection actor pending-command/subscription maps | Concurrent out-of-order/interleaving tests |
-| C02-03 | Subscribe and receive event | Install subscription storage before sending. Successful ack retains it; `{type:"event", event:...}` delivers the unwrapped event payload. | Event-before-ack must be safe. Preserve order within a subscription; slow UI work must not block the socket or create unbounded unordered tasks. | HF-02, HF-03, NPM-01 | Typed subscription API plus serial delivery boundary | Early-event and slow-subscriber tests |
+| C02-03 | Subscribe and receive event | Install subscription storage before sending. Successful ack retains it; `{type:"event", event:...}` delivers the unwrapped event payload. Standard typed events may decode directly from a validated copied event slice while raw/extended envelopes retain generic decoding. | Event-before-ack must be safe. Preserve order within a subscription; slow or large typed decoding must not block the socket actor or create unbounded unordered tasks. Cancellation suppresses late callbacks, and a typed decode failure is owner-local rather than connection-fatal. | HF-02, HF-03, NPM-01 | Typed subscription API, envelope scanner, and bounded serial delivery boundary | Early-event, large typed event, malformed typed owner, cancellation, coalesced order, raw fallback, and slow-subscriber tests |
 | C02-04 | Cancel subscription | Send `unsubscribe_events` with `subscription` equal to the original subscription command ID. | Cancellation is idempotent; remove local callback even after disconnect; late events do not deliver. | NPM-01, NPM-03 | Subscription handle | Exact-wire, repeated-cancel, and late-event tests |
-| C02-05 | Failure/disconnect/reconnect | Reject ordinary in-flight commands with connection-lost, clear ownership, and surface lifecycle state. | Never resume a continuation twice. Implement generic automatic resubscription or keep the remaining parity gap explicit and the module non-complete; stale subscriptions must not silently survive. | NPM-01, HF-04 | Connection actor lifecycle/status events | Disconnect races, cleanup counts, reconnect cycles |
+| C02-05 | Failure/disconnect/reconnect | Reject ordinary in-flight commands with connection-lost, clear ownership, and surface lifecycle state. | Never resume a continuation twice. Implement generic automatic resubscription; stale subscriptions and frames decoded after a generation change must not publish into the replacement generation. | NPM-01, HF-04 | Connection actor lifecycle/status events and generation-gated envelope dispatch | Disconnect races, cleanup counts, detached-decode cancellation, and reconnect cycles |
 | C02-06 | Reconnect history stream | History disables generic resubscribe, listens for `ready`, rebuilds `start_time`, and creates a fresh accumulator. | Disposal removes listener and current subscription. Reconnect failures are contained for the owner to retry. | HF-02 | Module 01 owner using Module 02 status/subscription API | Module 01 fresh-stream test; Module 02 supports `resubscribe:false` or equivalent ownership |
 | C02-07 | Command result/error | `success:true` resolves with result, including missing/null where allowed; `success:false` preserves server code/message. | Remove pending storage once; user-facing errors remain concise. Explicitly enabled debug tracing may persist complete wire payloads under the diagnostic policy. | NPM-01 | Command error model and continuation owner | Null result, server error, concise error, cancellation, and timeout tests |
+| C02-08 | Dashboard formatting bootstrap commands | Fetch compressed entity-registry display metadata with `config/entity_registry/list_for_display` and frontend locale preferences with `frontend/get_user_data` key `language` through the same typed command path. Decode effective `dp` precision and the complete locale policy; a null preference value remains an allowed fallback. | These commands may run concurrently with Lovelace fetch and must retain C02-02 routing/order. Optional metadata failure stays local and must not prevent dashboard config loading. Any required bootstrap or state-subscription failure after connect must disconnect the newly owned client exactly once. | HF-05, HF-06, HF-07, NPM-01 | `HomeAssistantWebSocketClient`, typed response models, and `DashboardViewModel.load` | Exact command/decode, bootstrap-failure cleanup, and read-only live formatting/bootstrap tests |
 
 ## Source anchors
 
@@ -67,6 +68,20 @@ the packet's later validation sections record subsequent implementation work.
   `ed4c83f57d1d308480daf560b91a13d8309f76a8745c035db35f501cc9a48a8a`.
 - Lovelace command anchor — `src/data/lovelace/config/types.ts::fetchConfig`,
   line hint 31, Git blob `3735c8c58b016d1394d27ca53a3276ed0c4fc8c1`.
+- **HF-05** — `src/data/entity/entity_registry.ts::EntityRegistryDisplayEntryResponse`
+  and `fetchEntityRegistryDisplay`, line hints 31 and 301, Git blob
+  `8510cae926a61cf71b9bf8097f200f3009187907`, SHA-256
+  `8ca09217f83a34fc78662e858393f90d269666ba9c3019be969817a77e73c6a2`.
+  The display response uses compressed `ei` and effective `dp` fields.
+- **HF-06** — `src/data/frontend.ts::fetchFrontendUserData`, line hint 52,
+  Git blob `697fc39cf6b745dcc5c49dc09f7d74ad19d78fc6`, SHA-256
+  `b6490f26521aae4c9d873f2d317c9f84cd14541943483d295f99dccbcff63834`.
+  It sends `frontend/get_user_data` with a typed key and returns nullable
+  `value`.
+- **HF-07** — `src/data/translation.ts::FrontendLocaleData`, line hint 45,
+  Git blob `9e159dd0d125b90ba2d595695decb66c63a79d50`, SHA-256
+  `df1b54754227498aa473376f7038e6ffa0bd13deb37a47cec5d8e2317177a53d`.
+  It defines language, number/time/date formats, first weekday, and timezone.
 
 ### npm runtime boundary
 
@@ -97,12 +112,74 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   `f19f79bb937660d2128cdfc7dd083b43879d1d722eca9177c1e17ed32a416c16`.
   It fetches config, subscribes, and launches the direct state-change receiver.
 
+### Current correction-worktree anchors based on `9392bc99c67c4ba3fdae622bf1ef521182e42e69`
+
+- **SW-03** — `Sources/NativeHACore/HomeAssistantWebSocketConnection.swift`,
+  worktree blob `c245df11ab38f7a294a16ce5bf45212c3fe7b96a`, SHA-256
+  `0482c187bb5256145c0bd48f3ca8f7fad85f916856bd7d99875e2a11aa4ef53c`.
+  Owns the single receiver, shared ID space, outbound generation FIFO,
+  pending/subscription maps, bounded callback coordinator, direct typed-event
+  route, cleanup, and reconnect generation checks.
+- **SW-04** — `Sources/NativeHACore/HomeAssistantWebSocketEnvelope.swift`, Git
+  blob `893c91f417584126e7a4ab81767ca8c8a965dea3`, SHA-256
+  `a426613a8784bbf48d2fd156a24ed5d81de3a3c1f15feac954b73b2cb2140436`.
+  Validates object/coalesced-array boundaries and extracts exact copied event
+  slices while forcing extended/escaped metadata through generic decoding.
+- **SW-05** — `Sources/NativeHACore/HomeAssistantWebSocketTransport.swift`, Git
+  blob `dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5`, SHA-256
+  `8b9f71a671e2ea28eda63e672e752e4427c92300b9b2f1abaa3d744dc0fc98e3`.
+  Applies the finite receive limit before resume and exactly-once completes a
+  pending production receive during disconnect.
+- **SW-06** — `Sources/NativeHACore/HomeAssistantHistoryStream.swift`, Git blob
+  `8cac19f68aea0fca6b17af7619c03bdfa528880c`, SHA-256
+  `fbaf6d5bad0a7e7284c1716b1182c4167f229fb221c089374fed8e6ec1ed1728`.
+  The coordinator uses typed `subscribeMessage`, explicitly passes
+  `resubscribe:false`, and rebuilds generation, start time, and accumulator on
+  `ready`.
+- **SW-07** — `Sources/NativeHACore/HomeAssistantWebSocketClient.swift` and
+  `Sources/NativeHACore/Models.swift`, Git blobs
+  `41139d06b468cafc9a631dabaa789c3fab1c7eb1` and
+  `de4597fdfc470de2cdc2d2d1f071ae56ba3a799d`, SHA-256
+  `d0b5cc37bb151f54f178402b61429979cd067c1d2acf8a7f56662f468c62307d`
+  and `e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354`.
+  These provide the thin client facade and compressed display/nullable locale
+  typed command models without adding a second receiver.
+- **SW-08** — `Sources/NativeHAMac/AppConfig.swift` and
+  `Sources/NativeHAMac/DashboardViewModel.swift`, AppConfig Git blob
+  `0e078da2a393a6639a086cc2c47edbb238a23799` and
+  Dashboard correction worktree blob
+  `4e961d8abd226bf3ae4ba51a068169bc840f37ba`, SHA-256
+  `218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d`
+  and `c2aa0d8c6071530d9e98f13b51d08b9af79422874651f97c1f8866a16f1c1708`.
+  The WebSocket policy remains 10 seconds / 32 MiB / 256 buffered events / four
+  active callback tasks. Dashboard bootstrap passes the complete policy, runs
+  display/locale/Lovelace typed calls on the verified connection, stores the
+  successful state subscription, and observes status. Its extracted
+  `bootstrapDashboard(using:)` disconnects the authenticated client if required
+  config decode or state-subscription setup fails before ownership transfer.
+- **SW-09** —
+  `Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift`,
+  correction worktree blob `acbae66947dd8ccb7ef907fb20a474380f1d7948`,
+  SHA-256
+  `9cc0ef20158ed38f42b974aa6871898d7da7af43e69dc855e4ffcdaa22a4c5cd`.
+  `testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking` observes
+  release of an 8 MiB custom-deallocated coalesced frame after cancellation;
+  `testDetachedScanAndDecodeGuardsDropStaleGenerationEvents` deterministically
+  gates both envelope-scan and payload-decode boundaries across reconnect.
+- **SW-10** — `Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift`,
+  new-file worktree blob `48c885808ce6be7eabe6be53d07508d97b7e20c6`,
+  SHA-256
+  `69d2442bb7ef9b0ce8b54f4620d554cd7341143afe6fce04f014dc2cf133c2d1`.
+  Two deterministic production-model tests prove exactly one disconnect and
+  zero receive/pending/subscription ownership after malformed Lovelace and a
+  rejected state subscription.
+
 ## Dependency traces and boundaries
 
 The generated graph is
 [`module-02.dependencies.json`](../generated/module-02.dependencies.json),
 fingerprint
-`7caa26b38988ea4eb9ebf235476ed32cd7bef1516667a135ca672c9bfce24a3d`.
+`6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a`.
 
 - `src/entrypoints/core.ts::connProm` has a runtime package edge. TypeScript
   resolves declarations to `dist/index.d.ts`; package `exports.import` resolves
@@ -123,8 +200,9 @@ fingerprint
 | C02-01, C02-02, C02-05, C02-07 | `Sources/NativeHACore/HomeAssistantWebSocketConnection.swift` | `HomeAssistantWebSocketConnection` actor | Socket, ID allocator, pending commands, receive task, lifecycle | Implemented with one steady receiver after auth |
 | C02-01 | `Sources/NativeHACore/HomeAssistantWebSocketTransport.swift` | injectable protocol + URLSession adapter | Raw frame send/receive/cancel | Scripted transport suspends send/receive independently |
 | C02-03, C02-04 | NativeHACore connection/subscription files | typed subscription handle and connection-wide callback coordinator | Bounded buffers, bounded active callback tasks, original ID, idempotent cancel | Preserve per-subscription order and expose work that ignores cancellation |
-| Existing feature facade | `Sources/NativeHACore/HomeAssistantWebSocketClient.swift` | thin Lovelace/state wrappers | No raw receive ownership | Keep call sites small during migration |
+| Existing feature facade | `Sources/NativeHACore/HomeAssistantWebSocketClient.swift` | thin Lovelace/state plus typed display/locale command wrappers | No raw receive ownership | Keep call sites small during migration |
 | Subscription consumer | `Sources/NativeHAMac/DashboardViewModel.swift` | stored subscription token | Cancel on teardown/reconnect | Remove detached raw receive loop |
+| C02-08 | `Sources/NativeHACore/Models.swift`, `HomeAssistantWebSocketClient.swift`, and `Sources/NativeHAMac/DashboardViewModel.swift` | compressed display/locale response models and bootstrap calls | Concurrent typed command owners on the shared connection; optional metadata fallback is dashboard-local | Preserve exact command types and nullable preference behavior |
 
 ## Decisions and native deviations
 
@@ -185,11 +263,12 @@ mechanisms needed to preserve the reference's observable WebSocket contract.
 |---|---|---|---|
 | C02-01 | Auth reads directly only until `auth_ok`, then starts one receiver; version-gated feature ID 1 advertises coalescing and object/array frames share one decoder. Concurrent `connect()` calls share one attempt. | Auth required/ok/invalid, feature wire payload, coalesced frame, concurrent-connect receiver-count tests. | pass |
 | C02-02 | One actor allocates command and subscription IDs and owns both lookup maps; pending ownership is installed before an asynchronous send. | Concurrent out-of-order calls, unknown ID, interleaved event/result, 250 command plus 250 subscription owner stress; separate 10,000-event warm-predecoded and decode-plus-dispatch XCTMetric fixtures with exact per-iteration count/checksum and constant-size output state. | pass |
-| C02-03 | Subscription wire mapping exists before send; the connection-wide coordinator serializes each owner, caps buffered and active work, and receives unwrapped `event`. Overflow reports `deliveryOverflow` and removes only that owner; user termination callbacks never run on the receiver actor. | Event-before-ack, ordered delivery, stalled-owner isolation/overflow, gated non-returning termination, 9,750 exact event deliveries, two waves of eight 2 MiB callback owners proving four-task global retention bound and final zero, and ten subscribe/ack/cancel plus ten reconnect cycles per metric iteration. | pass |
+| C02-03 | Subscription wire mapping exists before send; the connection-wide coordinator serializes each owner, caps buffered and active work, and receives unwrapped `event`. Standard typed events use copied `Data.subdata` event slices; raw/extended envelopes retain generic decoding. | Existing event-before-ack, ordering, overflow, bounded callback, 100,000-state typed decode, owner-local malformed decode, and raw fallback tests pass. The new custom-deallocator regression queues a small typed slice from an 8 MiB coalesced frame, cancels its blocked owner, and observes release of the original frame backing before the blocked callback returns. | pass |
 | C02-04 | `HAWebSocketSubscription` keeps the original public ID and logical owner; actor cancellation removes local storage first and sends one unsubscribe for the current wire ID. | Exact unsubscribe wire, repeated cancel, late-event suppression, reconnect cancellation. | pass |
-| C02-05 | Receive/send failure atomically fails ordinary pending work, drops wire ownership, emits lifecycle state, reconnects with bounded backoff, and resubscribes generic logical owners. The production adapter explicitly completes a pending receive during disconnect and rejects late callback completion. | Disconnect/send/malformed races, non-completing production-adapter cancel, generic reconnect, 100 reconnect cycles, one receiver per transport, final zero counts, and live URLSession reconnect/disconnect without continuation diagnostics. | pass |
+| C02-05 | Receive/send failure atomically fails ordinary pending work, drops wire ownership, emits lifecycle state, reconnects with bounded backoff, and resubscribes generic logical owners. The production adapter explicitly completes a pending receive during disconnect and rejects late callback completion. Detached frame scan/decode paths recheck connection generation before dispatch. | Existing failure/reconnect/production-adapter tests pass. A test-only injected boundary hook now gates both the completed envelope scan and completed generic payload decode; reconnect occurs while old work is suspended, release produces no stale delivery, and a replacement-generation event then delivers normally. | pass |
 | C02-06 | `resubscribe:false` removes the old owner on disconnect; `statusUpdates()` emits `ready` so Module 01 can rebuild `start_time` and its accumulator. | History opt-out is absent from replacement transport while generic state subscription is recreated. | pass for Module 02 primitive; Module 01 owns the fresh-stream consumer test |
 | C02-07 | Result dispatch accepts missing/null success, retains server code/message on failure, and removes continuation ownership once on result/error/timeout/cancel/disconnect. | Null/missing result, concise server error, timeout, task cancellation, send failure, and disconnect cleanup. | pass |
+| C02-08 | The client sends the exact display-registry and language preference commands through `call`, decodes compressed `ei`/`dp` plus nullable locale `value`, and Dashboard bootstrap treats these metadata fetches as optional alongside Lovelace. | Existing typed command tests pass. `bootstrapDashboard(using:)` now transfers the client to stored ownership only after config decode and state-subscription success; its catch disconnects first. Two NativeHAMac tests inject malformed Lovelace and rejected state subscription and assert one disconnect, zero active receives, and zero connection-owned pending/subscription/receiver storage. | pass |
 
 ### Independent verification result — 2026-07-17
 
@@ -817,15 +896,194 @@ failure. Performance verification should compare current generic round-trip
 against direct typed decode on the same captured payload and consume equal
 typed output/checksums.
 
+## Bounded post-fix evidence refresh — 2026-08-23
+
+The pre-refresh checker was yellow only for changed NativeHA anchors in
+`HomeAssistantWebSocketClient.swift`, `AppConfig.swift`, and
+`DashboardViewModel.swift`; every pinned hass-frontend/npm anchor remained
+valid. The complete relevant native diff from the packet's pinned
+`562686a5649e6d858b191b267f21f206454ad91a` through current
+`9392bc99c67c4ba3fdae622bf1ef521182e42e69` was reviewed. Reference behavior
+did not move, so no broad frontend audit was repeated.
+
+Contract changes and strengthened implementation:
+
+- **C02-03 changed:** typed standard event envelopes now bypass the generic
+  `JSONValue` materialize/re-encode round trip. A detached scanner validates
+  object/coalesced-array framing; the connection actor rechecks generation; an
+  exact copied event slice enters the existing bounded owner-serial callback
+  coordinator. Extended/escaped envelopes and raw subscribers retain generic
+  decoding. Malformed typed payloads drop only that delivery and later valid
+  payloads for the same owner still arrive.
+- **C02-05 strengthened in code:** frames scanned or decoded off-actor are
+  discarded if the physical connection generation changed or disconnect was
+  requested before actor dispatch. Existing send-generation isolation remains
+  unchanged.
+- **C02-08 added:** dashboard bootstrap now issues typed
+  `config/entity_registry/list_for_display` and `frontend/get_user_data` key
+  `language` calls through the shared multiplexer. Native models decode
+  effective `dp`, the frontend locale fields, and nullable `value`.
+
+Unchanged contracts:
+
+- **C02-01/C02-02:** authentication still precedes exactly one steady receiver;
+  command and subscription IDs still share one actor-owned sequence and one
+  physical-generation outbound FIFO with pre-send cancellation checks.
+- **C02-04/C02-07:** subscription cancellation remains idempotent and uses the
+  current wire ID; command result, error, timeout, cancellation, and disconnect
+  ownership still complete exactly once.
+- **C02-05/C02-06:** generic logical owners still resubscribe with a fresh wire
+  ID. History still opts out, observes `ready`, and replaces its generation,
+  start time, accumulator, and wire subscription; stale history-owner callbacks
+  cannot publish.
+- The production URLSession adapter still completes its one pending receive on
+  disconnect and applies the receive ceiling before task resume. AppConfig's
+  WebSocket policy is unchanged at a 10-second timeout, 32 MiB per message, 256
+  buffered events per owner, and four active callback tasks. The Core Graphics
+  and tooltip additions in the same config file do not alter transport policy.
+- `DashboardViewModel.load` still constructs one client with the complete typed
+  policy, stores the successful state subscription, consumes connection status,
+  and tears down established owners. Its newer graph revision-feed publication
+  changes downstream history rendering ownership, not connection routing.
+
+The reviewed manifest now explicitly pins the envelope scanner, history opt-out
+consumer, typed response models, and exact frontend display/locale command
+sources. The rebuilt graph has 31 nodes, 61 edges, no cycles, no unresolved
+edges, and no truncation.
+
+Refresh validation:
+
+```text
+node tools/reference-context/check-context.mjs \
+  docs/reference-context/generated/module-02.dependencies.json
+GREEN
+
+node tools/reference-context/test-resolver.mjs
+PASS: 31 nodes, 61 edges, fingerprint
+6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a
+```
+
+### Bounded correction result
+
+The sole correction writer closed all three supervisor findings without
+changing the protocol contracts:
+
+1. **C02-08 bootstrap cleanup corrected.** `DashboardViewModel.load` delegates
+   connected setup to `bootstrapDashboard(using:)`. That method stores the
+   client only after Lovelace decode and state-subscription acknowledgement;
+   any intervening error disconnects before rethrow. The new macOS lifecycle
+   suite injects malformed Lovelace and rejected state subscription and proves
+   exactly one disconnect plus zero active receives, pending commands,
+   subscriptions, and receive loops.
+2. **C02-03 backing retention proven.** A new connection regression allocates
+   an 8 MiB custom-deallocated coalesced binary frame, queues its small typed
+   event behind a blocked owner, cancels the subscription, and observes the
+   large frame deallocator before the unrelated blocked callback returns.
+3. **C02-05 detached-decode generation race proven.** A test-only optional hook
+   observes the post-scan and post-generic-decode boundaries. The regression
+   separately suspends old-generation work at both boundaries, reconnects,
+   releases it, proves no stale event arrives, then proves the replacement
+   generation still delivers. Production initialization leaves the hook nil.
+
+The implementer and supervisor reported the following actual passing results:
+
+```text
+DashboardBootstrapLifecycleTests
+2 tests, 0 failures
+
+HomeAssistantWebSocketConnectionTests
+22 tests, 0 failures
+
+HomeAssistantWebSocketEnvelopeTests
+4 tests, 0 failures
+
+HomeAssistantWebSocketMultiplexerStressTests
+4 tests, 0 failures
+
+URLSessionHomeAssistantWebSocketTransportTests
+2 tests, 0 failures
+
+HomeAssistantWebSocketPerformanceTests
+3 tests, 0 failures
+
+HomeAssistantHistoryStreamTests
+20 tests, 0 failures
+
+HistoryStreamIntegrationTests
+3 tests, 0 failures
+
+git diff --check
+PASS (no output)
+```
+
+This read-only artifact refresh made no further Swift or test edits. The three
+findings are corrected in the current worktree, but status remains
+`verification-ready` until a fresh independent verifier reruns the contract-ID
+audit, applicable tests, and authorized read-only live smoke. No new live-smoke
+result is claimed here.
+
+### Fresh independent verification after bounded correction — 2026-08-23
+
+Verdict: **GO**. The fresh verifier inspected the corrected source, test, packet,
+and graph anchors; independently reran the applicable deterministic suites and
+authorized read-only live smoke; and found no introduced or unexpected failure.
+
+| Contract | Fresh independent evidence | Verdict |
+|---|---|---|
+| C02-01 | Authentication ordering, feature negotiation, object/coalesced framing, and exactly one steady receiver passed. | PASS |
+| C02-02 | Shared command/subscription ID allocation, strict physical-generation send FIFO, interleaved/out-of-order routing, cancellation before send, and stress counts passed. | PASS |
+| C02-03 | Direct typed delivery, per-owner ordering, owner-local malformed decode, raw fallback, bounded callback concurrency/overflow, 100,000-state delivery, and the 8 MiB coalesced backing-release regression passed. | PASS |
+| C02-04 | Current-wire-ID unsubscribe, idempotent cancellation, local callback removal, and late-event suppression passed. | PASS |
+| C02-05 | Exactly-once pending receive/command cleanup, send and receive generation isolation, both deterministic detached scan/decode reconnect races, 100 reconnect cycles, and final zero storage passed. | PASS |
+| C02-06 | Generic resubscription and history opt-out remained separate; history rebuilt its request, accumulator, and owner generation after a fresh reconnect and cleaned up fully. | PASS |
+| C02-07 | Success/null results, server code/message, timeout, cancellation, send failure, malformed input, disconnect, and exactly-once pending ownership passed. | PASS |
+| C02-08 | Exact entity-registry/language commands and typed decoding passed. Malformed Lovelace and rejected state-subscription bootstrap failures each disconnected exactly once with zero remaining receive/command/subscription ownership. | PASS |
+
+Fresh focused validation totaled 60 passing tests:
+
+```text
+HomeAssistantWebSocketConnectionTests             22 / 22
+HomeAssistantWebSocketEnvelopeTests                4 / 4
+HomeAssistantWebSocketMultiplexerStressTests       4 / 4
+URLSessionHomeAssistantWebSocketTransportTests     2 / 2
+HomeAssistantWebSocketPerformanceTests             3 / 3
+HomeAssistantHistoryStreamTests                    20 / 20
+HistoryStreamIntegrationTests                       3 / 3
+DashboardBootstrapLifecycleTests                    2 / 2
+Total                                              60 / 60
+```
+
+The authorized read-only live smoke passed 1/1 in 7.339 seconds. It decoded 276
+entity-registry display entries, including 74 effective display precisions, and
+frontend language `en`. Typed history delivery passed for 1h, 12h, and 24h
+windows; the 12h live card publication contained 102,306 points. A fresh
+disconnect/reconnect cycle recreated the appropriate owners, final connection
+and subscription ownership was zero, and no continuation diagnostic appeared.
+The verifier made no state-changing Home Assistant service call.
+
+Visual/animation verification is N/A because Module 02 owns transport and
+lifecycle rather than pixels. The only non-failing diagnostics were the known
+SwiftPM collections-file deprecation warning and allocator-noisy observational
+performance samples; neither represents a contract failure.
+
+The supervisor gate then reran the same 60-test matrix from the final worktree:
+60/60 passed in 25.103 seconds. A separate authorized read-only live rerun
+passed 1/1 in 10.378 seconds with 276 registry entries, 74 display precisions,
+language `en`, 1h/12h/24h typed history delivery, 102,311 points in the 12h
+publication, a fresh reconnect cycle, and final zero connection/subscription
+ownership. It made no state-changing call. The checker and resolver remained
+green at the packet fingerprint, and `git diff --check` passed.
+
 ## Handoff
 
-Module 02 is complete again. Preserve the per-generation outbound FIFO and its
-pre-send ownership checks alongside the existing single receiver, callback
-coordinator, reconnect primitive, production receive cleanup, history opt-out,
-and large-frame policy. For the measured direct typed-subscription follow-up,
-use the bounded refresh immediately above. The native serializer is an
-intentional macOS transport adaptation that preserves Home Assistant's
-observable protocol semantics.
+Module 02 is complete and its current correction-worktree evidence graph is
+green. C02-01 through C02-08 have fresh independent deterministic and read-only
+live evidence. Preserve the per-generation outbound FIFO, single receiver,
+bounded callback coordinator, direct typed owner-local decode, production
+receive cleanup, history opt-out, Dashboard bootstrap failure cleanup, and
+32 MiB large-frame policy. The exact next staged action is the bounded Module 01
+evidence refresh; do not reopen Module 02 or begin Module 04 until that gate is
+green.
 
 ## Change log
 
@@ -890,3 +1148,24 @@ observable protocol semantics.
   follow-up. Recorded the generic payload round trip and the invariants required
   for raw-envelope/direct-typed delivery. Regenerated a green 28-node/59-edge
   graph; status remains `complete`.
+- 2026-08-23: reviewed every relevant native change since the pinned revision,
+  added exact display-registry/frontend-locale plus typed-envelope/history-opt-out
+  anchors, bumped the packet to contract revision 2 with C02-08, and regenerated
+  a green 31-node/61-edge graph. Focused suites passed, but a supervisor audit
+  found failed Dashboard bootstrap cleanup plus missing coalesced backing-retention
+  and detached-decode generation-race regressions. Status returned to
+  `verification-ready` pending bounded implementation correction and fresh
+  independent verification.
+- 2026-08-23: the bounded correction extracted exactly-once Dashboard bootstrap
+  failure cleanup and added deterministic large-coalesced-frame retention plus
+  post-scan/post-decode reconnect-generation regressions. Refreshed exact source
+  and test worktree anchors and regenerated a green 31-node/61-edge graph with
+  fingerprint `6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a`.
+  Reported focused, performance, history, and macOS integration suites pass;
+  status remains `verification-ready` for a fresh independent verifier and no
+  new live-smoke result is claimed.
+- 2026-08-23: fresh independent verification passed C02-01 through C02-08,
+  all 60 focused tests, and the authorized read-only live formatting,
+  1h/12h/24h typed-history, reconnect, and final-zero-ownership smoke. No
+  continuation diagnostic or state-changing service call occurred. Status
+  advanced to `complete`; Module 01 bounded evidence refresh is the next gate.

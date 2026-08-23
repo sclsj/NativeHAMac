@@ -486,7 +486,16 @@ final class DashboardViewModel: ObservableObject {
                 subscriptionDeliveryCapacity: AppConfig.webSocketPolicy.subscriptionDeliveryCapacity,
                 maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
             )
-            try await webSocket.connect()
+            try await bootstrapDashboard(using: webSocket)
+        } catch {
+            status = "Error"
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func bootstrapDashboard(using webSocket: HomeAssistantWebSocketClient) async throws {
+        try await webSocket.connect()
+        do {
             async let registryResponse = try? await webSocket.fetchEntityRegistryDisplay()
             async let localeResponse = try? await webSocket.fetchFrontendLocalePreferences()
             let config = try await webSocket.fetchLovelaceConfig()
@@ -498,7 +507,6 @@ final class DashboardViewModel: ObservableObject {
             )
             frontendLocalePreferences = locale ?? nil
             views = config.views
-            webSocketClient = webSocket
 
             status = "Live"
             AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
@@ -508,6 +516,7 @@ final class DashboardViewModel: ObservableObject {
                     weakModel.value?.queueStateUpdate(state)
                 }
             }
+            webSocketClient = webSocket
 
             Task { [weak self] in
                 await self?.loadHistories()
@@ -537,8 +546,8 @@ final class DashboardViewModel: ObservableObject {
                 }
             }
         } catch {
-            status = "Error"
-            errorMessage = error.localizedDescription
+            await webSocket.disconnect()
+            throw error
         }
     }
 

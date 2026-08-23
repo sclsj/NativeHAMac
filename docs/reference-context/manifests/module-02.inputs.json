@@ -5,15 +5,27 @@
   "nativeEntries": [
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-      "symbols": ["HomeAssistantWebSocketConnection", "callRaw", "subscribeRaw", "subscribeMessage", "decodeAndDispatchFrame", "dispatch"]
+      "symbols": ["HomeAssistantWebSocketConnection", "HAWebSocketDetachedDecodeBoundary", "callRaw", "subscribeRaw", "subscribeMessage", "decodeAndDispatchFrame", "dispatch"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketEnvelope.swift",
+      "symbols": ["HAWebSocketScannedEnvelope", "HAWebSocketEnvelopeScanner"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-      "symbols": ["HomeAssistantWebSocketClient"]
+      "symbols": ["HomeAssistantWebSocketClient", "fetchEntityRegistryDisplay", "fetchFrontendLocalePreferences"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
       "symbols": ["HomeAssistantWebSocketTransport"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
+      "symbols": ["HAHistoryStreamCoordinator", "subscribeFresh"]
+    },
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["HAEntityRegistryDisplayResponse", "HAEntityRegistryDisplayEntry", "HAFrontendUserDataResponse", "HAFrontendLocalePreferences"]
     },
     {
       "path": "Sources/NativeHAMac/AppConfig.swift",
@@ -21,7 +33,15 @@
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-      "symbols": ["DashboardViewModel.load"]
+      "symbols": ["DashboardViewModel.load", "bootstrapDashboard"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
+      "symbols": ["testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking", "testDetachedScanAndDecodeGuardsDropStaleGenerationEvents"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
+      "symbols": ["DashboardBootstrapLifecycleTests", "testMalformedLovelaceBootstrapDisconnectsAuthenticatedClient", "testRejectedStateSubscriptionDisconnectsAuthenticatedClient"]
     }
   ],
   "entries": [
@@ -44,6 +64,18 @@
     {
       "path": "src/data/weather.ts",
       "symbols": ["subscribeForecast"]
+    },
+    {
+      "path": "src/data/entity/entity_registry.ts",
+      "symbols": ["EntityRegistryDisplayEntryResponse", "fetchEntityRegistryDisplay"]
+    },
+    {
+      "path": "src/data/frontend.ts",
+      "symbols": ["fetchFrontendUserData"]
+    },
+    {
+      "path": "src/data/translation.ts",
+      "symbols": ["FrontendLocaleData"]
     },
     {
       "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
