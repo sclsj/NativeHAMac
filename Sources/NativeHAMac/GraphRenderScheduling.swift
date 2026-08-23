@@ -19,6 +19,8 @@ final class GraphHistoryRevisionFeed {
     private var observers: [UUID: Observer] = [:]
     private var latestEvent: Event?
 
+    var observerCount: Int { observers.count }
+
     @discardableResult
     func subscribe(_ observer: @escaping Observer) -> UUID {
         let token = UUID()
@@ -40,6 +42,145 @@ final class GraphHistoryRevisionFeed {
         for observer in observers.values {
             observer(event)
         }
+    }
+}
+
+/// Mounted chart state whose lifetime can be ended synchronously by dashboard
+/// reconciliation, before SwiftUI delivers `onDisappear` for an obsolete card.
+@MainActor
+final class GraphChartMountedLifecycle: ObservableObject {
+    let coordinator: GraphChartRenderCoordinator
+    private var subscribedFeed: GraphHistoryRevisionFeed?
+    private var feedSubscription: UUID?
+    private(set) var isInvalidated = false
+
+    init(coordinator: GraphChartRenderCoordinator = GraphChartRenderCoordinator()) {
+        self.coordinator = coordinator
+    }
+
+    func connect(
+        feed: GraphHistoryRevisionFeed?,
+        inputs: [GraphRenderSeriesInput],
+        unit: String
+    ) {
+        guard !isInvalidated else { return }
+        guard subscribedFeed?.generation != feed?.generation else { return }
+        subscribedFeed?.unsubscribe(feedSubscription)
+        coordinator.reset()
+        subscribedFeed = feed
+        feedSubscription = feed?.subscribe { [weak self] event in
+            guard let self = self, !self.isInvalidated else { return }
+            if event.resetPreparedState {
+                self.coordinator.reset()
+            }
+            let byEntity = Dictionary(uniqueKeysWithValues: event.series.map { ($0.entityID, $0) })
+            let acceptedInputs = inputs.compactMap { template -> GraphRenderSeriesInput? in
+                guard let history = byEntity[template.entityID] else { return nil }
+                return template.replacingHistory(history)
+            }
+            guard !acceptedInputs.isEmpty else { return }
+            self.coordinator.submitAcceptedRevision(inputs: acceptedInputs, unit: unit)
+        }
+    }
+
+    func disconnect() {
+        subscribedFeed?.unsubscribe(feedSubscription)
+        subscribedFeed = nil
+        feedSubscription = nil
+        coordinator.reset()
+    }
+
+    func invalidate() {
+        guard !isInvalidated else { return }
+        isInvalidated = true
+        disconnect()
+    }
+}
+
+@MainActor
+final class DashboardGraphChartMountRegistry {
+    private struct WeakMount {
+        weak var value: GraphChartMountedLifecycle?
+    }
+
+    private var mounts: [String: [UUID: WeakMount]] = [:]
+
+    func mount(
+        ownerID: String,
+        lifecycle: GraphChartMountedLifecycle
+    ) -> DashboardGraphChartMountLease {
+        removeReleasedMounts()
+        let token = UUID()
+        mounts[ownerID, default: [:]][token] = WeakMount(value: lifecycle)
+        return DashboardGraphChartMountLease(
+            registry: self,
+            lifecycle: lifecycle,
+            ownerID: ownerID,
+            token: token
+        )
+    }
+
+    func invalidateOwners(notIn desiredOwnerIDs: Set<String>) {
+        removeReleasedMounts()
+        let obsolete = mounts.keys.filter { !desiredOwnerIDs.contains($0) }
+        for ownerID in obsolete {
+            let ownerMounts = mounts.removeValue(forKey: ownerID) ?? [:]
+            for mount in ownerMounts.values {
+                mount.value?.invalidate()
+            }
+        }
+    }
+
+    func unmount(ownerID: String, token: UUID) {
+        mounts[ownerID]?.removeValue(forKey: token)
+        if mounts[ownerID]?.isEmpty == true {
+            mounts.removeValue(forKey: ownerID)
+        }
+    }
+
+    func liveMountCount(ownerID: String? = nil) -> Int {
+        removeReleasedMounts()
+        if let ownerID = ownerID {
+            return mounts[ownerID]?.count ?? 0
+        }
+        return mounts.values.reduce(0) { $0 + $1.count }
+    }
+
+    private func removeReleasedMounts() {
+        for ownerID in Array(mounts.keys) {
+            mounts[ownerID] = mounts[ownerID]?.filter { $0.value.value != nil }
+            if mounts[ownerID]?.isEmpty == true {
+                mounts.removeValue(forKey: ownerID)
+            }
+        }
+    }
+}
+
+@MainActor
+final class DashboardGraphChartMountLease {
+    private weak var registry: DashboardGraphChartMountRegistry?
+    private weak var lifecycle: GraphChartMountedLifecycle?
+    private let ownerID: String
+    private let token: UUID
+    private var isCancelled = false
+
+    init(
+        registry: DashboardGraphChartMountRegistry,
+        lifecycle: GraphChartMountedLifecycle,
+        ownerID: String,
+        token: UUID
+    ) {
+        self.registry = registry
+        self.lifecycle = lifecycle
+        self.ownerID = ownerID
+        self.token = token
+    }
+
+    func cancel() {
+        guard !isCancelled else { return }
+        isCancelled = true
+        registry?.unmount(ownerID: ownerID, token: token)
+        lifecycle?.disconnect()
     }
 }
 
@@ -126,6 +267,13 @@ final class GraphChartRenderCoordinator: ObservableObject {
         lock.lock()
         defer { lock.unlock() }
         return statisticsStorage
+    }
+
+    var pendingWorkCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return max(revisions.count - revisionHead, 0) + (latestVisual == nil ? 0 : 1) +
+            (inFlightVisualSequence == nil ? 0 : 1)
     }
 
     func submitAcceptedRevision(inputs: [GraphRenderSeriesInput], unit: String) {

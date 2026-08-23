@@ -8,8 +8,8 @@
       "symbols": ["JSONValue"]
     },
     {
-      "path": "Sources/NativeHACore/Models.swift",
-      "symbols": ["LovelaceConfig", "LovelaceView", "LovelaceCard", "LovelaceEntityRef"]
+      "path": "Sources/NativeHACore/LovelaceModels.swift",
+      "symbols": ["LovelaceConfig", "LovelaceView", "LovelaceCard", "LovelaceEntityRef", "LovelaceResolvedDashboard", "LovelaceResolvedIdentity"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
@@ -18,6 +18,10 @@
     {
       "path": "Sources/NativeHAMac/AppConfig.swift",
       "symbols": ["AppConfig", "CardColumnRule"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelacePresentation.swift",
+      "symbols": ["LovelacePresentationDashboard", "LovelacePresentationCard", "LovelacePresentationTransformer"]
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",
@@ -33,7 +37,11 @@
     },
     {
       "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator"]
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator", "GraphChartMountedLifecycle", "DashboardGraphChartMountRegistry"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphTooltipFormatting.swift",
+      "symbols": ["GraphTooltipFormattingMetadata", "GraphTooltipFormattingResolver"]
     },
     {
       "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
@@ -42,6 +50,30 @@
     {
       "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
       "symbols": ["GUIRenderingAndPerformanceTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
+      "symbols": ["LovelaceModelTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
+      "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
+      "symbols": ["LovelacePresentationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
+      "symbols": ["GraphRenderingTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GraphTooltipFormattingTests.swift",
+      "symbols": ["GraphTooltipFormattingTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
+      "symbols": ["DashboardBootstrapLifecycleTests"]
     }
   ],
   "entries": [

@@ -7,9 +7,9 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b
+nativeha_revision: f58345bde090444777eb3cbf610822c466ee2300
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: 7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071
+graph_fingerprint: fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae
 last_validated: 2026-08-23
 ---
 
@@ -112,7 +112,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   `f19f79bb937660d2128cdfc7dd083b43879d1d722eca9177c1e17ed32a416c16`.
   It fetches config, subscribes, and launches the direct state-change receiver.
 
-### Current anchors at `342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b`
+### Current anchors at `f58345bde090444777eb3cbf610822c466ee2300` plus the reviewed Module 04 worktree
 
 - **SW-03** — `Sources/NativeHACore/HomeAssistantWebSocketConnection.swift`,
   Git blob `c245df11ab38f7a294a16ce5bf45212c3fe7b96a`, SHA-256
@@ -139,18 +139,19 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
 - **SW-07** — `Sources/NativeHACore/HomeAssistantWebSocketClient.swift` and
   `Sources/NativeHACore/Models.swift`, Git blobs
   `41139d06b468cafc9a631dabaa789c3fab1c7eb1` and
-  `de4597fdfc470de2cdc2d2d1f071ae56ba3a799d`, SHA-256
+  Module 04 worktree blob `b43c25f217bbef8053468728a569da1c25b234d0`, SHA-256
   `d0b5cc37bb151f54f178402b61429979cd067c1d2acf8a7f56662f468c62307d`
-  and `e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354`.
+  and `e25788d8b24b6fa1517fcfb104ffe4e3faa7f17dc24ea89564d981d782387a60`.
   These provide the thin client facade and compressed display/nullable locale
-  typed command models without adding a second receiver.
+  typed command models without adding a second receiver. Module 04 moved only
+  the unrelated Lovelace model declarations out of `Models.swift`; the four
+  C02-08 typed response models are unchanged.
 - **SW-08** — `Sources/NativeHAMac/AppConfig.swift` and
-  `Sources/NativeHAMac/DashboardViewModel.swift`, AppConfig Git blob
-  `0e078da2a393a6639a086cc2c47edbb238a23799` and
-  Dashboard Module 01 reconciliation worktree blob
-  `7e96a695179cd453529bee63deeba63a3b0edfb1`, SHA-256
-  `218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d`
-  and `9f231c3476d05294f351b2bb350e438b8c96d0823c6a4e89e41bdb9d0e828213`.
+  `Sources/NativeHAMac/DashboardViewModel.swift`, Module 04 worktree blobs
+  `a93044b070318f2f6fe431920380087ff6b68c1a` and
+  `b6e22b2a2af82a015396dbbfc60a6d9b6b363953`, SHA-256
+  `06ae89a0048416e79ecfc81e43a27076c23156a5c4fb0dd505ed2a9a78a23910`
+  and `b471d586874816bfdaa4e74c8abcbe81cb8ebc1232a38a09921ba8f2a01d9280`.
   The WebSocket policy remains 10 seconds / 32 MiB / 256 buffered events / four
   active callback tasks. Dashboard bootstrap passes the complete policy, runs
   display/locale/Lovelace typed calls on the verified connection, stores the
@@ -167,11 +168,12 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   `testDetachedScanAndDecodeGuardsDropStaleGenerationEvents` deterministically
   gates both envelope-scan and payload-decode boundaries across reconnect.
 - **SW-10** — `Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift`,
-  Git blob `48c885808ce6be7eabe6be53d07508d97b7e20c6`,
+  Module 04 worktree blob `8f52b825c02c6f09927beaa5570ceaa46be06ee2`,
   SHA-256
-  `69d2442bb7ef9b0ce8b54f4620d554cd7341143afe6fce04f014dc2cf133c2d1`.
+  `e9df5964d211fe692119a64bc21d70ad7afc56b939ffec7d65208d67a2c1b897`.
   Two deterministic production-model tests prove exactly one disconnect and
-  zero receive/pending/subscription ownership after malformed Lovelace and a
+  zero receive/pending/subscription ownership after malformed Lovelace (under
+  either the standard decoder or Module 04's strict root decoder) and a
   rejected state subscription.
 
 ## Dependency traces and boundaries
@@ -179,7 +181,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
 The generated graph is
 [`module-02.dependencies.json`](../generated/module-02.dependencies.json),
 fingerprint
-`7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071`.
+`fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`.
 
 - `src/entrypoints/core.ts::connProm` has a runtime package edge. TypeScript
   resolves declarations to `dist/index.d.ts`; package `exports.import` resolves
@@ -1099,16 +1101,51 @@ fingerprint
 Contract revision remains 2. This maintenance did not repeat the broad audit,
 rerun implementation/live tests, or claim new live evidence.
 
+### Bounded post-Module 04 anchor maintenance — 2026-08-23
+
+Module 04 moved four shared native anchors and made this graph yellow. The
+complete diffs of those anchors were inspected without reopening the reference
+frontend audit:
+
+- `Models.swift` lost only the old Lovelace declarations, now owned by
+  `LovelaceModels.swift`. The compressed entity-registry response and nullable
+  frontend-language response types named by C02-08 are byte-for-byte unchanged.
+- `AppConfig.swift` changed only Lovelace presentation-card matching helpers.
+  `AppConfig.webSocketPolicy` remains 10 seconds / 32 MiB / 256 buffered events
+  / four concurrent callback tasks.
+- `DashboardViewModel.swift` now sends a successfully decoded Lovelace config
+  through deterministic presentation/history-owner reconciliation before the
+  state subscription. It still connects once; issues the registry, language,
+  and Lovelace typed calls on the same client; treats the two formatting calls
+  as owner-local optional metadata; subscribes to states through the verified
+  connection API; transfers client ownership only after that subscription
+  succeeds; observes connection status; and disconnects exactly once on any
+  intervening failure. Module 04 adds serialized dashboard/history ownership
+  below that boundary but no second socket receive path or transport owner.
+- `DashboardBootstrapLifecycleTests.swift` now accepts Module 04's explicit
+  `LovelaceDecodeError` for a malformed root in addition to `DecodingError`.
+  Its observable assertions remain exactly one disconnect and zero receive,
+  pending-command, and subscription ownership. Both tests passed in the
+  refreshed worktree.
+
+No C02-01 through C02-08 behavior changed, so contract revision remains 2 and
+the earlier 60-test/read-only-live GO evidence remains applicable. The focused
+bootstrap lifecycle rerun passed 2/2. The unchanged manifest regenerated a
+green 31-node / 61-edge graph with fingerprint
+`fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`;
+the resolver self-test passed at the same fingerprint. No Swift or test file
+was edited by this maintenance.
+
 ## Handoff
 
-Module 02 is complete and its current correction-worktree evidence graph is
+Module 02 is complete and its post-Module 04 evidence graph is
 green. C02-01 through C02-08 have fresh independent deterministic and read-only
 live evidence. Preserve the per-generation outbound FIFO, single receiver,
 bounded callback coordinator, direct typed owner-local decode, production
 receive cleanup, history opt-out, Dashboard bootstrap failure cleanup, and
-32 MiB large-frame policy. Module 01's independent verifier is now green; the
-exact next staged action is fresh bounded Module 04 research. Do not reopen
-Module 02 or implement Module 04 directly from its rescue plan.
+32 MiB large-frame policy through Module 04 finalization and later modules. The
+exact next staged action after the current Module 04 gate is bounded Module 03
+research, not further Module 02 redesign.
 
 ## Change log
 
@@ -1201,3 +1238,9 @@ Module 02 or implement Module 04 directly from its rescue plan.
   graph returned green at 31 nodes / 61 edges without a contract revision bump;
   the fresh Module 01 verifier subsequently returned GO, so bounded Module 04
   research is the next gate.
+- 2026-08-23: regenerated the graph after Module 04 moved Lovelace declarations,
+  presentation matching, dashboard config/history ownership, and the malformed
+  bootstrap error type across four shared anchors. Exact diff inspection and a
+  2/2 bootstrap lifecycle rerun confirmed all C02 contracts and the WebSocket
+  policy unchanged. The graph is green at 31 nodes / 61 edges and contract
+  revision remains 2.

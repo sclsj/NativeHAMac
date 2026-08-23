@@ -56,6 +56,36 @@ public enum JSONValue: Codable, Equatable {
     }
 }
 
+public extension JSONValue {
+    /// Exact deterministic semantic representation used by Lovelace source
+    /// identity. This is deliberately not a hash: equality of the complete
+    /// canonical value is what authorizes owner reuse.
+    var canonicalSemanticValue: String {
+        switch self {
+        case let .string(value):
+            return "s\(value.utf8.count):\(value)"
+        case let .int(value):
+            return "i\(value);"
+        case let .double(value):
+            // JSON numeric equality treats signed zero as one value. Preserve
+            // exact bits otherwise, but do not split stable owner identity for
+            // `-0.0` versus `0.0`.
+            let normalized = value == 0 ? 0.0 : value
+            return "d\(normalized.bitPattern);"
+        case let .bool(value):
+            return value ? "b1" : "b0"
+        case let .object(value):
+            return "o{" + value.keys.sorted().map { key in
+                "k\(key.utf8.count):\(key)" + value[key]!.canonicalSemanticValue
+            }.joined() + "}"
+        case let .array(value):
+            return "a[" + value.map(\.canonicalSemanticValue).joined() + "]"
+        case .null:
+            return "n"
+        }
+    }
+}
+
 extension JSONValue: ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
         self = .string(value)

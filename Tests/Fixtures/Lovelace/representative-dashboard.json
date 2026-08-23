@@ -1,0 +1,97 @@
+{
+  "title": "NativeHA fixture",
+  "unknown_top": {"null": null, "false": false, "int": 7, "double": 7.5},
+  "views": [
+    {
+      "title": "Home",
+      "path": "default_view",
+      "icon": "mdi:home",
+      "show_icon_and_title": false,
+      "subview": false,
+      "back_path": "/lovelace",
+      "panel": false,
+      "type": "masonry",
+      "visible": true,
+      "theme": {"name": "backend-selected"},
+      "background": {"opacity": 0.5},
+      "sections": [{"type": "grid"}],
+      "header": {"layout": "responsive"},
+      "footer": {"type": "picture"},
+      "cards": [
+        {
+          "type": "entities",
+          "title": "Rows",
+          "icon": "mdi:format-list-bulleted",
+          "state_color": true,
+          "grid_options": {"columns": 6},
+          "visibility": [{"condition": "state", "entity": "sensor.mode", "state": "on"}],
+          "disabled": false,
+          "header": {"type": "buttons"},
+          "footer": {"type": "graph"},
+          "tap_action": {"action": "more-info"},
+          "hold_action": {"action": "none"},
+          "double_tap_action": {"action": "toggle"},
+          "show_header_toggle": false,
+          "entities": [
+            "sensor.string_row",
+            {"entity": "sensor.object_row", "name": "Object", "color": "red", "icon": "mdi:gauge", "secondary_info": "last-changed", "state_color": false, "show_name": true, "show_icon": false, "tap_action": {"action": "more-info"}, "hold_action": {"action": "none"}, "double_tap_action": {"action": "toggle"}},
+            {"type": "divider", "unknown_row": [1, null, false]}
+          ]
+        },
+        {
+          "type": "history-graph",
+          "title": "History",
+          "hours_to_show": 12,
+          "show_names": false,
+          "logarithmic_scale": true,
+          "min_y_axis": 0,
+          "max_y_axis": 100.5,
+          "fit_y_data": true,
+          "split_device_classes": false,
+          "expand_legend": true,
+          "entities": [{"entity": "sensor.history", "name": "History sensor", "color": "#00aaff"}, 42],
+          "refresh_interval": 30
+        },
+        {
+          "type": "weather-forecast",
+          "entity": "weather.home",
+          "name": "Home weather",
+          "show_current": true,
+          "show_forecast": false,
+          "forecast_type": "daily",
+          "forecast_slots": 5,
+          "secondary_info_attribute": "humidity",
+          "round_temperature": true
+        },
+        {
+          "type": "markdown",
+          "title": "Markdown",
+          "content": "Hello",
+          "text_only": false,
+          "card_size": 3,
+          "entity_ids": "sensor.a",
+          "entity_id": "sensor.b",
+          "show_empty": false,
+          "tap_action": {"action": "none"}
+        },
+        {
+          "type": "vertical-stack",
+          "cards": [
+            {"type": "horizontal-stack", "cards": [{"type": "markdown", "content": "Nested"}]},
+            {"type": "grid", "columns": 2, "square": false, "cards": [{"type": "entities", "entities": ["sensor.grid"]}]},
+            {"type": "conditional", "conditions": [{"entity": "sensor.mode", "state": "on"}], "card": {"type": "markdown", "content": "Conditional"}}
+          ]
+        }
+      ]
+    },
+    {"title": "3h", "path": "home_3h", "cards": [{"type": "vertical-stack", "cards": [
+      {"type": "entities", "title": "Non-default rows", "entities": ["sensor.string_row", {"entity": "sensor.object_row", "name": "Object row"}]},
+      {"type": "history-graph", "title": "Non-default history", "entities": ["sensor.history"]},
+      {"type": "weather-forecast", "entity": "weather.home", "name": "Home weather", "show_forecast": false},
+      {"type": "markdown", "title": "Non-default markdown", "content": "Raw nested dashboard content"},
+      {"type": "horizontal-stack", "cards": [{"type": "markdown", "content": "Horizontal child"}]},
+      {"type": "grid", "columns": 2, "cards": [{"type": "markdown", "content": "Grid child"}]}
+    ]}]},
+    {"title": "12h", "path": "home_12h", "cards": [{"type": "markdown", "content": "raw 12h"}]}
+  ]
+}

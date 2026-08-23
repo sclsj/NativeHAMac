@@ -39,6 +39,24 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         XCTAssertFalse(frontendLocale?.language.isEmpty ?? true)
 
         let lovelace = try await client.fetchLovelaceConfig()
+        guard case let .object(lovelaceRoot) = lovelace.rawValue,
+              case let .array(rawViews)? = lovelaceRoot["views"]
+        else {
+            return XCTFail("Live Lovelace raw root/views were not preserved")
+        }
+        XCTAssertEqual(rawViews.count, lovelace.views.count)
+        XCTAssertFalse(lovelace.views.contains { $0.diagnostic != nil })
+        let liveResolved = LovelaceResolvedDashboard(source: lovelace)
+        XCTAssertEqual(liveResolved.views.count, lovelace.views.count)
+        XCTAssertEqual(
+            liveResolved.views.flatMap(\.cards).count,
+            lovelace.views.flatMap(\.cards).count,
+            "Resolving must not drop live top-level cards"
+        )
+        let rawShape = rawLovelaceShape(lovelace.rawValue)
+        let parsedShape = parsedLovelaceShape(lovelace)
+        XCTAssertEqual(parsedShape.cards, rawShape.cards, "Typed decode must retain every live nested card")
+        XCTAssertEqual(parsedShape.rows, rawShape.rows, "Typed decode must retain every live entity row")
         let requested = representativeHistoryEntityIDs(
             config: lovelace,
             currentStates: currentStates
@@ -144,6 +162,12 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
 
         print("LIVE_HISTORY entities=\(requested.joined(separator: ","))")
         print(
+            "LIVE_LOVELACE views=\(lovelace.views.count) " +
+            "top_cards=\(lovelace.views.flatMap(\.cards).count) " +
+            "cards=\(parsedShape.cards) rows=\(parsedShape.rows) " +
+            "resolved_top=\(liveResolved.views.flatMap(\.cards).count)"
+        )
+        print(
             "LIVE_FORMATTING registry_entities=\(registryDisplay.entities.count) " +
             "precisions=\(registryDisplay.entities.compactMap(\.displayPrecision).count) " +
             "language=\(frontendLocale?.language ?? "system")"
@@ -182,6 +206,44 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
             }
         }
         throw lastError ?? URLError(.cannotConnectToHost)
+    }
+
+    private func parsedLovelaceShape(_ config: LovelaceConfig) -> (cards: Int, rows: Int) {
+        func collect(_ cards: [LovelaceCard]) -> (cards: Int, rows: Int) {
+            cards.reduce(into: (cards: 0, rows: 0)) { result, card in
+                result.cards += 1
+                result.rows += card.entities?.count ?? 0
+                let nested = collect(card.cards ?? [])
+                result.cards += nested.cards
+                result.rows += nested.rows
+            }
+        }
+        return collect(config.views.flatMap(\.cards))
+    }
+
+    private func rawLovelaceShape(_ raw: JSONValue) -> (cards: Int, rows: Int) {
+        func collectCards(_ value: JSONValue?) -> (cards: Int, rows: Int) {
+            guard case let .array(cards)? = value else { return (0, 0) }
+            return cards.reduce(into: (cards: 0, rows: 0)) { result, card in
+                result.cards += 1
+                guard case let .object(object) = card else { return }
+                if case let .array(rows)? = object["entities"] {
+                    result.rows += rows.count
+                }
+                let nested = collectCards(object["cards"])
+                result.cards += nested.cards
+                result.rows += nested.rows
+            }
+        }
+        guard case let .object(root) = raw, case let .array(views)? = root["views"] else {
+            return (0, 0)
+        }
+        return views.reduce(into: (cards: 0, rows: 0)) { result, view in
+            guard case let .object(object) = view else { return }
+            let shape = collectCards(object["cards"])
+            result.cards += shape.cards
+            result.rows += shape.rows
+        }
     }
 
     private func representativeHistoryEntityIDs(

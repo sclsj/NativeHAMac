@@ -3,9 +3,13 @@ import NativeHACore
 import SwiftUI
 
 struct CardRenderer: View {
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
 
+    @ViewBuilder
     var body: some View {
+        if let diagnostic = card.source.diagnostic {
+            InvalidLovelaceCard(diagnostic: diagnostic)
+        } else {
         switch card.type {
         case "vertical-stack":
             VStack(spacing: AppConfig.dashboardColumnSpacing) {
@@ -24,28 +28,30 @@ struct CardRenderer: View {
         default:
             UnsupportedCard(card: card)
         }
-    }
-}
-
-extension LovelaceCard {
-    var nativeID: String {
-        if let nativeOwnerID = nativeOwnerID {
-            return nativeOwnerID
         }
-        let entityList = entities?.compactMap(\.entity).joined(separator: ",") ?? ""
-        let nestedCards = cards?.map(\.nativeID).joined(separator: "|") ?? ""
-        let rawHours = hoursToShow.map { String($0) } ?? ""
-        let components: [String] = [type, title ?? "", entity ?? "", entityList, nestedCards, rawHours]
-        return components.joined(separator: "::")
     }
 }
 
 struct EntitiesCard: View {
     @EnvironmentObject private var model: DashboardViewModel
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
+
+    init(card: LovelacePresentationCard) {
+        self.card = card
+    }
+
+    init(card: LovelaceCard) {
+        self.card = .standalone(card)
+    }
 
     private var entityIDs: [String] {
-        card.entities?.compactMap(\.entity) ?? []
+        (card.rows ?? []).compactMap { row in
+            guard row.source.diagnostic == nil,
+                  let entityID = row.source.entity,
+                  !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return nil }
+            return entityID
+        }
     }
 
     private var toggleableEntityIDs: [String] {
@@ -70,17 +76,22 @@ struct EntitiesCard: View {
             }
             .padding(.bottom, 14)
 
-            ForEach(card.entities ?? []) { entityRef in
-                if let entityID = entityRef.entity {
+            ForEach(card.rows ?? []) { row in
+                if let entityID = row.source.entity,
+                   row.source.diagnostic == nil,
+                   !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                {
                     EntityRow(
                         entityID: entityID,
-                        name: entityRef.name ?? model.displayName(for: entityID)
+                        name: row.source.name ?? model.displayName(for: entityID)
                     )
+                } else {
+                    UnsupportedEntityRow(row: row)
+                }
 
-                    if entityRef.id != (card.entities ?? []).last?.id {
-                        Divider()
-                            .background(Color.white.opacity(0.08))
-                    }
+                if row.id != card.rows?.last?.id {
+                    Divider()
+                        .background(Color.white.opacity(0.08))
                 }
             }
         }
@@ -142,7 +153,7 @@ struct EntityRow: View {
 
 struct WeatherCard: View {
     @EnvironmentObject private var model: DashboardViewModel
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
 
     var body: some View {
         Button(action: {
@@ -224,7 +235,7 @@ struct WeatherCard: View {
 
 struct HistoryGraphCard: View {
     @EnvironmentObject private var model: DashboardViewModel
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -243,9 +254,12 @@ struct HistoryGraphCard: View {
                 ForEach(groups, id: \.unit) { group in
                     UnitGraph(
                         cacheScope: "card:\(card.nativeID):\(model.selectedGraphHours)h:\(group.unit)",
+                        mountOwnerID: card.nativeID,
                         unit: group.unit,
                         series: group.series,
-                        revisionFeed: model.graphHistoryRevisionFeed(for: card)
+                        revisionFeed: model.graphHistoryRevisionFeed(for: card),
+                        initialWindowAnchor: model.graphWindowNow.timeIntervalSince1970,
+                        axisTimeFormattingOverride: model.graphAxisTimeFormattingOverride
                     )
 
                     if group.unit != groups.last?.unit {
@@ -266,8 +280,19 @@ struct HistoryGraphCard: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 170)
             }
+
+            ForEach(unsupportedRows) { row in
+                UnsupportedEntityRow(row: row)
+            }
         }
         .cardStyle()
+    }
+
+    private var unsupportedRows: [LovelacePresentationRow] {
+        (card.rows ?? []).filter { row in
+            row.source.diagnostic != nil ||
+                row.source.entity?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+        }
     }
 
     private func historyError(_ message: String) -> some View {
@@ -327,9 +352,11 @@ private struct SeriesGroup {
 struct UnitGraph: View {
     @EnvironmentObject private var model: DashboardViewModel
     let cacheScope: String
+    let mountOwnerID: String
     let unit: String
     let series: [HAHistorySeries]
     let revisionFeed: GraphHistoryRevisionFeed?
+    let axisTimeFormattingOverride: GraphTooltipFormattingMetadata?
     @State private var hoverLocation: CGPoint?
     @State private var zoomScale: CGFloat = 1
     @State private var panFraction: Double = 1
@@ -337,7 +364,25 @@ struct UnitGraph: View {
     /// the underlying data changes (new points arrive), NOT on every body
     /// evaluation. This prevents the coordinate space from sliding forward
     /// during gesture-driven re-renders.
-    @State private var windowAnchor: Double = Date().timeIntervalSince1970
+    @State private var windowAnchor: Double
+
+    init(
+        cacheScope: String,
+        mountOwnerID: String,
+        unit: String,
+        series: [HAHistorySeries],
+        revisionFeed: GraphHistoryRevisionFeed?,
+        initialWindowAnchor: Double,
+        axisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil
+    ) {
+        self.cacheScope = cacheScope
+        self.mountOwnerID = mountOwnerID
+        self.unit = unit
+        self.series = series
+        self.revisionFeed = revisionFeed
+        self.axisTimeFormattingOverride = axisTimeFormattingOverride
+        _windowAnchor = State(initialValue: initialWindowAnchor)
+    }
 
     /// Token derived from series content to detect actual data changes.
     private var seriesContentToken: String {
@@ -369,6 +414,9 @@ struct UnitGraph: View {
                 unit: unit,
                 inputs: graphInputs,
                 revisionFeed: revisionFeed,
+                axisTimeFormattingOverride: axisTimeFormattingOverride,
+                mountOwnerID: mountOwnerID,
+                mountRegistry: model.graphChartMountRegistry,
                 zoomScale: zoomScale,
                 panFraction: panFraction,
                 hoverLocation: $hoverLocation
@@ -526,10 +574,14 @@ struct GraphCanvasPlot: View {
     }
 }
 
+@MainActor
 struct BitmapLineChart: View {
     let unit: String
     let inputs: [GraphRenderSeriesInput]
     let revisionFeed: GraphHistoryRevisionFeed?
+    let axisTimeFormattingOverride: GraphTooltipFormattingMetadata?
+    let mountOwnerID: String?
+    let mountRegistry: DashboardGraphChartMountRegistry?
     let zoomScale: CGFloat
     let panFraction: Double
     let showsHoverOverlay: Bool
@@ -539,15 +591,18 @@ struct BitmapLineChart: View {
     let onRenderReady: (GraphRenderResult) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
-    @StateObject private var renderCoordinator = GraphChartRenderCoordinator()
-    @State private var subscribedFeed: GraphHistoryRevisionFeed?
-    @State private var feedSubscription: UUID?
+    @StateObject private var mountedLifecycle: GraphChartMountedLifecycle
+    @State private var mountLease: DashboardGraphChartMountLease?
     @State private var renderAttempted = false
 
     init(
         unit: String,
         inputs: [GraphRenderSeriesInput],
         revisionFeed: GraphHistoryRevisionFeed? = nil,
+        axisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
+        mountOwnerID: String? = nil,
+        mountRegistry: DashboardGraphChartMountRegistry? = nil,
+        mountedLifecycle: GraphChartMountedLifecycle? = nil,
         zoomScale: CGFloat,
         panFraction: Double,
         showsHoverOverlay: Bool = AppConfig.graphInteractionPolicy.hoverOverlayEnabled(),
@@ -559,6 +614,12 @@ struct BitmapLineChart: View {
         self.unit = unit
         self.inputs = inputs
         self.revisionFeed = revisionFeed
+        self.axisTimeFormattingOverride = axisTimeFormattingOverride
+        self.mountOwnerID = mountOwnerID
+        self.mountRegistry = mountRegistry
+        _mountedLifecycle = StateObject(
+            wrappedValue: mountedLifecycle ?? GraphChartMountedLifecycle()
+        )
         self.zoomScale = zoomScale
         self.panFraction = panFraction
         self.showsHoverOverlay = showsHoverOverlay
@@ -648,6 +709,7 @@ struct BitmapLineChart: View {
             }
             .onAppear {
                 connectRevisionFeed()
+                connectMountRegistry()
                 requestRender(
                     token: token,
                     size: size,
@@ -665,6 +727,8 @@ struct BitmapLineChart: View {
                 )
             }
             .onDisappear {
+                mountLease?.cancel()
+                mountLease = nil
                 disconnectRevisionFeed()
             }
         }
@@ -677,7 +741,8 @@ struct BitmapLineChart: View {
         engine: GraphRenderEngine
     ) {
         guard size.width > 1, size.height > 1, renderedToken != token else { return }
-        renderCoordinator.requestVisual(GraphChartVisualRequest(
+        guard !mountedLifecycle.isInvalidated else { return }
+        mountedLifecycle.coordinator.requestVisual(GraphChartVisualRequest(
             token: token,
             inputs: inputs,
             unit: unit,
@@ -698,33 +763,18 @@ struct BitmapLineChart: View {
     }
 
     private func connectRevisionFeed() {
-        guard subscribedFeed?.generation != revisionFeed?.generation else { return }
-        subscribedFeed?.unsubscribe(feedSubscription)
-        renderCoordinator.reset()
-        subscribedFeed = revisionFeed
-        let templates = inputs
-        let displayUnit = unit
-        feedSubscription = revisionFeed?.subscribe { event in
-            if event.resetPreparedState {
-                // Reconnect/correction publications must not reuse or seed the
-                // preceding prepared-cache ownership generation.
-                renderCoordinator.reset()
-            }
-            let byEntity = Dictionary(uniqueKeysWithValues: event.series.map { ($0.entityID, $0) })
-            let acceptedInputs = templates.compactMap { template -> GraphRenderSeriesInput? in
-                guard let history = byEntity[template.entityID] else { return nil }
-                return template.replacingHistory(history)
-            }
-            guard !acceptedInputs.isEmpty else { return }
-            renderCoordinator.submitAcceptedRevision(inputs: acceptedInputs, unit: displayUnit)
+        mountedLifecycle.connect(feed: revisionFeed, inputs: inputs, unit: unit)
+    }
+
+    private func connectMountRegistry() {
+        guard mountLease == nil, let ownerID = mountOwnerID, let mountRegistry = mountRegistry else {
+            return
         }
+        mountLease = mountRegistry.mount(ownerID: ownerID, lifecycle: mountedLifecycle)
     }
 
     private func disconnectRevisionFeed() {
-        subscribedFeed?.unsubscribe(feedSubscription)
-        subscribedFeed = nil
-        feedSubscription = nil
-        renderCoordinator.reset()
+        mountedLifecycle.disconnect()
     }
 
     private func anchorFraction(for point: CGPoint, size: CGSize) -> Double {
@@ -881,7 +931,7 @@ struct BitmapLineChart: View {
     }
 
     func formatTime(_ timestamp: Double) -> String {
-        BitmapLineChart.timeFormatter.string(from: Date(timeIntervalSince1970: timestamp))
+        graphAxisTimeLabel(timestamp, formattingOverride: axisTimeFormattingOverride)
     }
 
     func formatTooltipTime(_ sample: GraphSample) -> String {
@@ -899,7 +949,22 @@ struct BitmapLineChart: View {
         )
     }
 
-    private static let timeFormatter: DateFormatter = {
+}
+
+func graphAxisTimeLabel(
+    _ timestamp: Double,
+    formattingOverride: GraphTooltipFormattingMetadata?
+) -> String {
+    if let formattingOverride = formattingOverride {
+        return formattingOverride.formatAxisTime(timestamp)
+    }
+    return GraphAxisDefaultTimeFormatter.shared.string(
+        from: Date(timeIntervalSince1970: timestamp)
+    )
+}
+
+private enum GraphAxisDefaultTimeFormatter {
+    static let shared: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter
@@ -1065,7 +1130,7 @@ struct GraphInteractionOverlay: NSViewRepresentable {
 }
 
 struct UnsupportedCard: View {
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1081,8 +1146,45 @@ struct UnsupportedCard: View {
     }
 }
 
+struct InvalidLovelaceCard: View {
+    let diagnostic: LovelaceDiagnostic
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardTitle("Invalid Lovelace Card")
+            Text(diagnostic.path)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.yellow)
+            Text(diagnostic.message)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.58))
+        }
+        .cardStyle()
+    }
+}
+
+struct UnsupportedEntityRow: View {
+    let row: LovelacePresentationRow
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "questionmark.diamond")
+                .foregroundColor(.yellow)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Unsupported entity row")
+                    .font(.system(size: 13, weight: .medium))
+                Text(row.source.diagnostic?.path ?? row.identity.sourcePath.description)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.46))
+            }
+            Spacer()
+        }
+        .padding(.vertical, 11)
+    }
+}
+
 struct MarkdownCard: View {
-    let card: LovelaceCard
+    let card: LovelacePresentationCard
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

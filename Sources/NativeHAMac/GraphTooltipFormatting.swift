@@ -128,6 +128,21 @@ struct GraphTooltipFormattingMetadata: Equatable, Hashable {
         return formatter.string(from: Date(timeIntervalSince1970: timestamp))
     }
 
+    func formatAxisTime(_ timestamp: Double) -> String {
+        let locale = Locale(identifier: timeLocaleIdentifier)
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        let hourTemplate = timeFormatPreference == "12" ? "h" :
+            (timeFormatPreference == "24" ? "HH" : "j")
+        formatter.dateFormat = DateFormatter.dateFormat(
+            fromTemplate: "\(hourTemplate)mm",
+            options: 0,
+            locale: locale
+        )
+        return formatter.string(from: Date(timeIntervalSince1970: timestamp))
+    }
+
     private static func canonicalFractionDigits(_ value: Double) -> Int {
         let canonical = String(value)
         guard let decimal = canonical.firstIndex(of: ".") else { return 0 }

@@ -89,6 +89,14 @@ final class GraphTooltipFormattingTests: XCTestCase {
         XCTAssertTrue(minuteText.contains("00:00"))
         XCTAssertFalse(minuteText.contains("00:00:00"))
         XCTAssertTrue(fractionalText.contains("00:00:00.456"))
+        XCTAssertEqual(base.formatAxisTime(timestamp), "00:00")
+        let legacyFormatter = DateFormatter()
+        legacyFormatter.dateFormat = "h:mm a"
+        XCTAssertEqual(
+            graphAxisTimeLabel(timestamp, formattingOverride: nil),
+            legacyFormatter.string(from: Date(timeIntervalSince1970: timestamp))
+        )
+        XCTAssertEqual(graphAxisTimeLabel(timestamp, formattingOverride: base), "00:00")
     }
 
     func testFormattingOnlyInvalidatesPreparedDisplayWithoutChangingGeometry() throws {

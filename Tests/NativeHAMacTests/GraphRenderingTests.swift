@@ -578,6 +578,160 @@ final class GraphRenderingTests: XCTestCase {
     }
 
     @MainActor
+    func testLovelaceOwnerIdentityScopesCacheAndRejectsLateReplacementRender() throws {
+        func identity(title: String) -> LovelaceResolvedIdentity {
+            LovelaceResolvedDashboard(source: LovelaceConfig(views: [
+                LovelaceView(title: "Home", path: "default_view", cards: [
+                    LovelaceCard(type: "history-graph", title: title, entities: [
+                        LovelaceEntityRef(entity: "sensor.room_temperature"),
+                    ]),
+                ]),
+            ])).views[0].cards[0].identity
+        }
+        let oldIdentity = identity(title: "Old")
+        let sameIdentity = identity(title: "Old")
+        let newIdentity = identity(title: "New")
+        XCTAssertEqual(oldIdentity, sameIdentity)
+        XCTAssertNotEqual(oldIdentity, newIdentity)
+
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let base = numericInput()
+        let oldInput = base.replacingHistory(base.history, cacheScope: "card:\(oldIdentity.ownerKey)")
+        let sameInput = base.replacingHistory(base.history, cacheScope: "card:\(sameIdentity.ownerKey)")
+        let newInput = base.replacingHistory(base.history, cacheScope: "card:\(newIdentity.ownerKey)")
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(oldInput, displayUnit: "°C"))
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(sameInput, displayUnit: "°C"))
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(newInput, displayUnit: "°C"))
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 1
+            )
+        )
+
+        let oldStarted = expectation(description: "old owner render started")
+        let oldDelivery = expectation(description: "old owner render delivery")
+        oldDelivery.isInverted = true
+        let newDelivery = expectation(description: "new owner render delivery")
+        let gate = DispatchSemaphore(value: 0)
+        let coordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.lovelaceOwnerReplacement",
+            preparer: { _, _ in },
+            renderer: { request in
+                if request.token == oldIdentity.ownerKey {
+                    oldStarted.fulfill()
+                    gate.wait()
+                }
+                return nil
+            }
+        )
+        coordinator.requestVisual(chartVisualRequest(token: oldIdentity.ownerKey, input: oldInput)) { _, _ in
+            oldDelivery.fulfill()
+        }
+        wait(for: [oldStarted], timeout: 1)
+        coordinator.reset()
+        coordinator.requestVisual(chartVisualRequest(token: newIdentity.ownerKey, input: newInput)) { token, _ in
+            XCTAssertEqual(token, newIdentity.ownerKey)
+            newDelivery.fulfill()
+        }
+        gate.signal()
+        wait(for: [newDelivery, oldDelivery], timeout: 1)
+        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 1)
+    }
+
+    @MainActor
+    func testDashboardConfigApplicationInvalidatesEveryMountedUnitChartBeforeInstall() async throws {
+        func config(title: String) -> LovelaceConfig {
+            LovelaceConfig(views: [
+                LovelaceView(title: "Home", path: "default_view", cards: [
+                    LovelaceCard(
+                        type: "history-graph",
+                        title: title,
+                        entities: [LovelaceEntityRef(entity: "sensor.multi_unit")]
+                    ),
+                ]),
+            ])
+        }
+
+        let initial = config(title: "Initial")
+        let model = DashboardViewModel(initialViews: initial.views)
+        let ownerID = try XCTUnwrap(model.homeCards.first?.nativeID)
+        let feed = GraphHistoryRevisionFeed()
+        let renderStarted = expectation(description: "old mounted render started")
+        let renderFinished = expectation(description: "old mounted render finished")
+        var staleDelivered = false
+        let gate = DispatchSemaphore(value: 0)
+        let firstCoordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.mounted.first",
+            preparer: { _, _ in },
+            renderer: { _ in
+                renderStarted.fulfill()
+                gate.wait()
+                renderFinished.fulfill()
+                return nil
+            }
+        )
+        var firstLifecycle: GraphChartMountedLifecycle? = GraphChartMountedLifecycle(
+            coordinator: firstCoordinator
+        )
+        var secondLifecycle: GraphChartMountedLifecycle? = GraphChartMountedLifecycle(
+            coordinator: GraphChartRenderCoordinator(
+                label: "com.nativeha.tests.mounted.second",
+                preparer: { _, _ in },
+                renderer: { _ in nil }
+            )
+        )
+        weak var weakFirstLifecycle = firstLifecycle
+        weak var weakSecondLifecycle = secondLifecycle
+        let input = numericInput()
+        firstLifecycle?.connect(feed: feed, inputs: [input], unit: "°C")
+        secondLifecycle?.connect(feed: feed, inputs: [input], unit: "%")
+        var firstLease: DashboardGraphChartMountLease? = model.graphChartMountRegistry.mount(
+            ownerID: ownerID,
+            lifecycle: try XCTUnwrap(firstLifecycle)
+        )
+        var secondLease: DashboardGraphChartMountLease? = model.graphChartMountRegistry.mount(
+            ownerID: ownerID,
+            lifecycle: try XCTUnwrap(secondLifecycle)
+        )
+        firstCoordinator.requestVisual(chartVisualRequest(token: ownerID, input: input)) { _, _ in
+            staleDelivered = true
+        }
+        wait(for: [renderStarted], timeout: 1)
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(ownerID: ownerID), 2)
+        XCTAssertEqual(feed.observerCount, 2)
+
+        await model.applyLovelaceConfigForTesting(initial)
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(ownerID: ownerID), 2)
+        XCTAssertFalse(try XCTUnwrap(firstLifecycle).isInvalidated)
+        XCTAssertFalse(try XCTUnwrap(secondLifecycle).isInvalidated)
+
+        await model.applyLovelaceConfigForTesting(config(title: "Replacement"))
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(), 0)
+        XCTAssertEqual(feed.observerCount, 0)
+        XCTAssertTrue(try XCTUnwrap(firstLifecycle).isInvalidated)
+        XCTAssertTrue(try XCTUnwrap(secondLifecycle).isInvalidated)
+        XCTAssertEqual(firstCoordinator.pendingWorkCount, 0)
+
+        gate.signal()
+        wait(for: [renderFinished], timeout: 1)
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        XCTAssertFalse(staleDelivered)
+        XCTAssertEqual(firstCoordinator.statistics.renderedVisualCount, 0)
+        firstLease = nil
+        secondLease = nil
+        firstLifecycle = nil
+        secondLifecycle = nil
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+        XCTAssertNil(weakFirstLifecycle)
+        XCTAssertNil(weakSecondLifecycle)
+        _ = firstLease
+        _ = secondLease
+    }
+
+    @MainActor
     func testChartCoordinatorDoesNotInstallSupersededInFlightVisual() {
         let oldRenderStarted = expectation(description: "old visual started")
         let oldDelivery = expectation(description: "old visual delivery")

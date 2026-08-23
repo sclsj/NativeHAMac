@@ -283,6 +283,223 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         )
     }
 
+    func testLovelaceFallbackAndNestedLayoutArtifacts() throws {
+        let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let fixtureData = try Data(contentsOf: testsDirectory
+            .appendingPathComponent("Fixtures/Lovelace/representative-dashboard.json"))
+        let config = try JSONDecoder().decode(LovelaceConfig.self, from: fixtureData)
+        let fixedNow = Date(timeIntervalSince1970: 1_787_486_400)
+        let fixedPreferences = HAFrontendLocalePreferences(
+            language: "en_US_POSIX",
+            numberFormat: "none",
+            timeFormat: "24",
+            dateFormat: "language",
+            firstWeekday: "monday",
+            timeZone: "server"
+        )
+        let fixedAxisFormatting = GraphTooltipFormattingResolver.metadata(
+            entityID: "sensor.history",
+            state: nil,
+            registryDisplayPrecision: nil,
+            preferences: fixedPreferences,
+            serverTimeZone: "UTC",
+            policy: AppConfig.graphTooltipFormattingPolicy
+        )
+        let model = DashboardViewModel(
+            initialViews: config.views,
+            homeAssistantConfig: HAConfig(timeZone: "UTC"),
+            frontendLocalePreferences: fixedPreferences,
+            historyNow: { fixedNow },
+            graphAxisTimeFormattingOverride: fixedAxisFormatting
+        )
+        model.states = [
+            "sensor.string_row": HAState(entityId: "sensor.string_row", state: "21.0", attributes: [:]),
+            "sensor.object_row": HAState(entityId: "sensor.object_row", state: "42", attributes: [:]),
+            "sensor.history": HAState(entityId: "sensor.history", state: "22.0", attributes: [
+                "unit_of_measurement": .string("°C"),
+            ]),
+            "weather.home": HAState(entityId: "weather.home", state: "sunny", attributes: [
+                "temperature": .double(23),
+                "temperature_unit": .string("°C"),
+                "humidity": .double(45),
+            ]),
+        ]
+        let unknown = LovelacePresentationCard.standalone(LovelaceCard(
+            type: "custom:unknown-fixture",
+            title: "Unknown fixture"
+        ))
+        let unsupportedRow = LovelacePresentationCard.standalone(LovelaceCard(
+            type: "entities",
+            title: "Rows",
+            entities: [
+                LovelaceEntityRef(entity: "sensor.valid", name: "Valid row"),
+                LovelaceEntityRef(entity: nil, type: "divider"),
+            ]
+        ))
+        let nestedView = try XCTUnwrap(model.presentationDashboard.views.first {
+            $0.resolved.source.path == "home_3h"
+        })
+        let nested = try XCTUnwrap(nestedView.cards.first)
+        let history = try XCTUnwrap(nested.cards?.first { $0.type == "history-graph" })
+        let now = fixedNow.timeIntervalSince1970
+        model.histories[model.historyKey(for: history)] = [HAHistorySeries(
+            entityID: "sensor.history",
+            points: (0..<24).map { index in
+                HAHistoryPoint(
+                    entityId: "sensor.history",
+                    state: String(20 + Double(index) / 10),
+                    attributes: nil,
+                    lastChangedSeconds: now - Double(23 - index) * 300,
+                    lastUpdatedSeconds: now - Double(23 - index) * 300
+                )
+            },
+            contentRevision: 1
+        )]
+
+        try renderLovelaceArtifact(
+            CardRenderer(card: unknown).environmentObject(model),
+            size: CGSize(width: 496, height: 150),
+            name: "lovelace-unknown-card.png"
+        )
+        try renderLovelaceArtifact(
+            CardRenderer(card: unsupportedRow).environmentObject(model),
+            size: CGSize(width: 496, height: 210),
+            name: "lovelace-unsupported-row.png"
+        )
+        try renderLovelaceArtifact(
+            CardRenderer(card: nested)
+                .environmentObject(model)
+                .frame(width: 496 / 0.72, alignment: .top)
+                .scaleEffect(0.72, anchor: .topLeading)
+                .frame(width: 496, height: 640, alignment: .topLeading)
+                .clipped(),
+            size: CGSize(width: 496, height: 640),
+            settleTime: 0.3,
+            name: "lovelace-nested-496.png"
+        )
+        try renderLovelaceArtifact(
+            CardRenderer(card: nested)
+                .environmentObject(model)
+                .frame(width: 360 / 0.72, alignment: .top)
+                .scaleEffect(0.72, anchor: .topLeading)
+                .frame(width: 360, height: 640, alignment: .topLeading)
+                .clipped(),
+            size: CGSize(width: 360, height: 640),
+            settleTime: 0.3,
+            name: "lovelace-nested-360.png"
+        )
+
+        let first = try MacViewPNGRenderer.render(
+            CardRenderer(card: unknown).environmentObject(model).frame(width: 496, height: 150),
+            size: CGSize(width: 496, height: 150),
+            displayScale: 2
+        )
+        let second = try MacViewPNGRenderer.render(
+            CardRenderer(card: unknown).environmentObject(model).frame(width: 496, height: 150),
+            size: CGSize(width: 496, height: 150),
+            displayScale: 2
+        )
+        XCTAssertEqual(first.pngData, second.pngData)
+        try persistAndAttach(first.pngData, name: "lovelace-identical-refresh-1.png")
+        try persistAndAttach(second.pngData, name: "lovelace-identical-refresh-2.png")
+    }
+
+    func testMountedBitmapChartsAreInvalidatedDuringDashboardReplacement() throws {
+        func config(title: String) -> LovelaceConfig {
+            LovelaceConfig(views: [
+                LovelaceView(title: "Home", path: "default_view", cards: [
+                    LovelaceCard(
+                        type: "history-graph",
+                        title: title,
+                        entities: [LovelaceEntityRef(entity: "sensor.mounted")]
+                    ),
+                ]),
+            ])
+        }
+
+        let initial = config(title: "Mounted")
+        let model = DashboardViewModel(initialViews: initial.views)
+        let ownerID = try XCTUnwrap(model.homeCards.first?.nativeID)
+        let firstLifecycle = GraphChartMountedLifecycle()
+        let secondLifecycle = GraphChartMountedLifecycle()
+        let input = performanceInput(pointCount: 48, entityID: "sensor.mounted")
+        var scheduledReplacement = false
+        var replacementApplied = false
+
+        _ = try MacViewPNGRenderer.render(
+            VStack {
+                BitmapLineChart(
+                    unit: "°C",
+                    inputs: [input],
+                    mountOwnerID: ownerID,
+                    mountRegistry: model.graphChartMountRegistry,
+                    mountedLifecycle: firstLifecycle,
+                    zoomScale: 1,
+                    panFraction: 1,
+                    hoverLocation: .constant(nil),
+                    onMagnify: { _, _, _ in },
+                    onPan: { _ in }
+                )
+                BitmapLineChart(
+                    unit: "%",
+                    inputs: [input],
+                    mountOwnerID: ownerID,
+                    mountRegistry: model.graphChartMountRegistry,
+                    mountedLifecycle: secondLifecycle,
+                    zoomScale: 1,
+                    panFraction: 1,
+                    hoverLocation: .constant(nil),
+                    onMagnify: { _, _, _ in },
+                    onPan: { _ in }
+                )
+            },
+            size: CGSize(width: 496, height: 356),
+            displayScale: 2,
+            readiness: {
+                if model.graphChartMountRegistry.liveMountCount(ownerID: ownerID) == 2,
+                   !scheduledReplacement
+                {
+                    scheduledReplacement = true
+                    Task { @MainActor in
+                        await model.applyLovelaceConfigForTesting(config(title: "Replacement"))
+                        replacementApplied = true
+                    }
+                }
+                return replacementApplied && model.graphChartMountRegistry.liveMountCount() == 0
+            }
+        )
+
+        XCTAssertTrue(replacementApplied)
+        XCTAssertTrue(firstLifecycle.isInvalidated)
+        XCTAssertTrue(secondLifecycle.isInvalidated)
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(), 0)
+        XCTAssertEqual(firstLifecycle.coordinator.pendingWorkCount, 0)
+        XCTAssertEqual(secondLifecycle.coordinator.pendingWorkCount, 0)
+    }
+
+    private func renderLovelaceArtifact<Content: View>(
+        _ content: Content,
+        size: CGSize,
+        settleTime: TimeInterval = 0,
+        name: String
+    ) throws {
+        let rendered = try MacViewPNGRenderer.render(
+            content
+                .frame(width: size.width, height: size.height, alignment: .top)
+                .background(Color(red: 0.055, green: 0.06, blue: 0.06)),
+            size: size,
+            displayScale: 2,
+            settleTime: settleTime
+        )
+        try assertUsablePNG(rendered, minimumBytes: 3_000, minimumChangedSamples: 30)
+        try assertDimensions(
+            rendered.pngData,
+            width: Int(size.width * 2),
+            height: Int(size.height * 2)
+        )
+        try persistAndAttach(rendered.pngData, name: name)
+    }
+
     private func historyLoadingVisual(
         size: CGSize
     ) throws -> (rendered: RenderedPNG, oracle: HistoryVisualLabelOracle) {

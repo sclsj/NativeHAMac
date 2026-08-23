@@ -1,0 +1,24 @@
+{
+  "views": [
+    17,
+    {
+      "title": "Recover",
+      "path": "default_view",
+      "cards": [
+        {"type": "markdown", "content": "valid before"},
+        "not an object",
+        {"title": "missing type"},
+        {"type": "weather-forecast", "show_forecast": "wrong"},
+        {"type": "entities", "entities": ["sensor.valid", 42, {"type": "divider"}, {"entity": 7}]},
+        {"type": "vertical-stack", "cards": "wrong"},
+        {"type": "entities"},
+        {"type": "history-graph", "entities": [42]},
+        {"type": "horizontal-stack"},
+        {"type": "grid"},
+        {"type": "markdown"},
+        {"type": "markdown", "content": "valid after"}
+      ]
+    },
+    {"title": 9, "path": false, "icon": 4, "show_icon_and_title": "yes", "subview": 1, "back_path": false, "panel": "no", "type": [], "cards": []}
+  ]
+}

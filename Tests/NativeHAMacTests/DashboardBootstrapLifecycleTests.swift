@@ -37,7 +37,7 @@ final class DashboardBootstrapLifecycleTests: XCTestCase {
         switch mode {
         case .malformedLovelace:
             XCTAssertTrue(
-                bootstrapError is DecodingError,
+                bootstrapError is DecodingError || bootstrapError is LovelaceDecodeError,
                 "Malformed Lovelace must fail through typed config decoding."
             )
         case .rejectStateSubscription:

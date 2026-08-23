@@ -186,7 +186,7 @@ struct CardColumnRule {
         self.entity = entity
     }
 
-    func matches(_ card: LovelaceCard) -> Bool {
+    func matches(_ card: LovelacePresentationCard) -> Bool {
         if let title = title, card.title != title {
             return false
         }
@@ -203,7 +203,7 @@ struct CardColumnRule {
     }
 }
 
-private extension LovelaceCard {
+private extension LovelacePresentationCard {
     func containsEntity(_ entityID: String) -> Bool {
         if entity == entityID {
             return true

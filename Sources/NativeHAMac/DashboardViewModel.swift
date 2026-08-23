@@ -4,7 +4,7 @@ import NativeHACore
 @MainActor
 final class DashboardViewModel: ObservableObject {
     @Published var selectedGraphHours = AppConfig.defaultGraphHours
-    @Published var views: [LovelaceView] = []
+    @Published private(set) var views: [LovelaceView] = []
     @Published var states: [String: HAState] = [:]
     @Published var histories: [String: [HAHistorySeries]] = [:]
     @Published var detailHistories: [String: HAHistorySeries] = [:]
@@ -24,14 +24,22 @@ final class DashboardViewModel: ObservableObject {
     private var stateSubscription: HAWebSocketSubscription?
     private var connectionStatusTask: Task<Void, Never>?
     private var historySubscriptions: [String: HAHistoryStreamSubscription] = [:]
+    private var historyStartupTasks: [UUID: HistoryStartupTask] = [:]
     private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
     private var historyGenerations: [String: UUID] = [:]
     private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] = [:]
     private var desiredHistoryKeys: Set<String> = []
     private var historyReconciliationEpoch: UInt64 = 0
+    private var latestConfigRequestSequence: UInt64 = 0
+    private var latestDashboardOwnerOperationSequence: UInt64 = 0
+    private var dashboardOwnerOperationTail: Task<Void, Never>?
+    private var latestQueuedConfigCandidate: LovelacePresentationDashboard?
+    private(set) var presentationDashboard: LovelacePresentationDashboard
+    let graphChartMountRegistry = DashboardGraphChartMountRegistry()
     private var detailHistoryGenerations: [String: UUID] = [:]
     private var desiredDetailHistoryKeys: Set<String> = []
     private let historyNow: @Sendable () -> Date
+    let graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata?
     private let historyProcessingHook: @Sendable () async -> Void
     private var hasStarted = false
     private var pendingStates: [String: HAState] = [:]
@@ -42,6 +50,16 @@ final class DashboardViewModel: ObservableObject {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    private var latestQueuedConfigRawValue: JSONValue? {
+        latestQueuedConfigCandidate?.resolved.source.rawValue
+    }
+
+    private var latestQueuedHistoryKeys: Set<String> {
+        guard let latestQueuedConfigCandidate = latestQueuedConfigCandidate else { return [] }
+        return Set(historyRequests(from: latestQueuedConfigCandidate).map(\.key))
+    }
+
     private let shortTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -62,8 +80,12 @@ final class DashboardViewModel: ObservableObject {
         frontendLocalePreferences: HAFrontendLocalePreferences? = nil,
         entityDisplayPrecisions: [String: Int] = [:],
         historyNow: @escaping @Sendable () -> Date = { Date() },
+        graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
         historyProcessingHook: @escaping @Sendable () async -> Void = {}
     ) {
+        let initialConfig = LovelaceConfig(views: initialViews)
+        let initialResolved = LovelaceResolvedDashboard(source: initialConfig)
+        self.presentationDashboard = LovelacePresentationDashboard(resolved: initialResolved)
         self.webSocketClient = webSocketClient
         self.states = initialStates
         self.views = initialViews
@@ -71,6 +93,7 @@ final class DashboardViewModel: ObservableObject {
         self.frontendLocalePreferences = frontendLocalePreferences
         self.entityDisplayPrecisions = entityDisplayPrecisions
         self.historyNow = historyNow
+        self.graphAxisTimeFormattingOverride = graphAxisTimeFormattingOverride
         self.historyProcessingHook = historyProcessingHook
     }
 
@@ -78,17 +101,22 @@ final class DashboardViewModel: ObservableObject {
         views.first(where: { $0.path == "default_view" }) ?? views.first
     }
 
-    var homeCards: [LovelaceCard] {
-        guard let cards = homeView?.cards else {
-            return []
-        }
+    var graphWindowNow: Date { historyNow() }
 
-        return cleanCards(flatten(cards), path: "home")
+    var homeCards: [LovelacePresentationCard] {
+        presentationDashboard.views.first(where: { $0.resolved.source.path == "default_view" })?.cards
+            ?? presentationDashboard.views.first?.cards
+            ?? []
     }
 
-    var dashboardColumns: [[LovelaceCard]] {
-        var columns = Array(repeating: [LovelaceCard](), count: AppConfig.dashboardColumnCount)
-        var unplaced: [LovelaceCard] = []
+    var dashboardColumns: [[LovelacePresentationCard]] {
+        guard presentationDashboard.views.contains(where: {
+            $0.resolved.source.path == "default_view"
+        }) else {
+            return homeCards.isEmpty ? [] : [homeCards]
+        }
+        var columns = Array(repeating: [LovelacePresentationCard](), count: AppConfig.dashboardColumnCount)
+        var unplaced: [LovelacePresentationCard] = []
 
         for card in homeCards {
             if let rule = AppConfig.cardColumnRules.first(where: { $0.matches(card) }) {
@@ -346,7 +374,7 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
-    func historyKey(for card: LovelaceCard) -> String {
+    func historyKey(for card: LovelacePresentationCard) -> String {
         let entities = historyEntityIDs(for: card)
         return HistoryRequest(
             ownerID: card.nativeID,
@@ -355,15 +383,27 @@ final class DashboardViewModel: ObservableObject {
         ).key
     }
 
-    func historySeries(for card: LovelaceCard) -> [HAHistorySeries]? {
+    func historyKey(for card: LovelaceCard) -> String {
+        let identity = LovelaceResolvedIdentity(
+            sourcePath: LovelaceSourcePath().appending("cards", index: 0),
+            rawValue: card.rawValue
+        )
+        return HistoryRequest(
+            ownerID: identity.ownerKey,
+            entityIDs: historyEntityIDs(for: card),
+            hoursToShow: selectedGraphHours
+        ).key
+    }
+
+    func historySeries(for card: LovelacePresentationCard) -> [HAHistorySeries]? {
         histories[historyKey(for: card)]
     }
 
-    func historyStatus(for card: LovelaceCard) -> HAHistoryStreamOwnerStatus? {
+    func historyStatus(for card: LovelacePresentationCard) -> HAHistoryStreamOwnerStatus? {
         historyStatuses[historyKey(for: card)]
     }
 
-    func graphHistoryRevisionFeed(for card: LovelaceCard) -> GraphHistoryRevisionFeed? {
+    func graphHistoryRevisionFeed(for card: LovelacePresentationCard) -> GraphHistoryRevisionFeed? {
         graphHistoryRevisionFeeds[historyKey(for: card)]
     }
 
@@ -391,6 +431,17 @@ final class DashboardViewModel: ObservableObject {
         detailHistoryGenerations.removeValue(forKey: key)
         detailHistoryStatuses.removeValue(forKey: key)
         Task { await subscription?.cancel() }
+    }
+
+    func historyEntityIDs(for card: LovelacePresentationCard) -> [String] {
+        guard card.source.diagnostic == nil else { return [] }
+        return (card.rows ?? []).compactMap { row in
+            guard row.source.diagnostic == nil,
+                  let entityID = row.source.entity,
+                  !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return nil }
+            return entityID
+        }
     }
 
     func historyEntityIDs(for card: LovelaceCard) -> [String] {
@@ -508,7 +559,7 @@ final class DashboardViewModel: ObservableObject {
                 }
             )
             frontendLocalePreferences = locale ?? nil
-            views = config.views
+            await applyLovelaceConfig(config, startHistoryOwners: false)
 
             status = "Live"
             AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
@@ -594,7 +645,169 @@ final class DashboardViewModel: ObservableObject {
         await loadHistories()
     }
 
-    private func loadHistories() async {
+    func applyLovelaceConfigForTesting(_ config: LovelaceConfig) async {
+        await applyLovelaceConfig(config, startHistoryOwners: webSocketClient != nil)
+    }
+
+    private func applyLovelaceConfig(
+        _ config: LovelaceConfig,
+        startHistoryOwners: Bool
+    ) async {
+        if latestQueuedConfigRawValue == config.rawValue,
+           dashboardOwnerOperationTail != nil
+        {
+            await awaitStableDashboardOwnerOperationTail(
+                startingAt: latestDashboardOwnerOperationSequence
+            )
+            return
+        }
+        if latestQueuedConfigRawValue == nil,
+           presentationDashboard.resolved.source.rawValue == config.rawValue
+        {
+            await awaitStableDashboardOwnerOperationTail(
+                startingAt: latestDashboardOwnerOperationSequence
+            )
+            return
+        }
+
+        let candidate = LovelacePresentationDashboard(
+            resolved: LovelaceResolvedDashboard(source: config)
+        )
+        latestConfigRequestSequence &+= 1
+        let requestSequence = latestConfigRequestSequence
+        latestQueuedConfigCandidate = candidate
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let task = Task { @MainActor [weak self] in
+            await previousTail?.value
+            guard let self = self else { return }
+            await self.reconcileLovelaceConfig(
+                candidate,
+                startHistoryOwners: startHistoryOwners,
+                requestSequence: requestSequence
+            )
+            if self.latestConfigRequestSequence == requestSequence {
+                self.latestQueuedConfigCandidate = nil
+            }
+        }
+        dashboardOwnerOperationTail = task
+        await awaitStableDashboardOwnerOperationTail(startingAt: operationSequence)
+    }
+
+    @discardableResult
+    private func awaitStableDashboardOwnerOperationTail(startingAt sequence: UInt64) async -> UInt64 {
+        var observedSequence = sequence
+        while true {
+            await dashboardOwnerOperationTail?.value
+            let latestSequence = latestDashboardOwnerOperationSequence
+            if latestSequence == observedSequence { return latestSequence }
+            observedSequence = latestSequence
+        }
+    }
+
+    private func enqueueDashboardOwnerOperation(
+        _ operation: @escaping @MainActor (DashboardViewModel) async -> Void
+    ) async {
+        latestDashboardOwnerOperationSequence &+= 1
+        let previousTail = dashboardOwnerOperationTail
+        let task = Task { @MainActor [weak self] in
+            await previousTail?.value
+            guard let self = self else { return }
+            await operation(self)
+        }
+        dashboardOwnerOperationTail = task
+        await task.value
+    }
+
+    private func reconcileLovelaceConfig(
+        _ candidate: LovelacePresentationDashboard,
+        startHistoryOwners: Bool,
+        requestSequence: UInt64
+    ) async {
+        guard latestConfigRequestSequence == requestSequence else { return }
+
+        let desiredRequests = historyRequests(from: candidate)
+        let desiredKeys = Set(desiredRequests.map(\.key))
+        let desiredGraphOwnerIDs = Set(desiredRequests.map(\.ownerID))
+        let errorKeys = Set(historyStatuses.compactMap { key, status -> String? in
+            if case .error = status { return key }
+            return nil
+        })
+        let trackedKeys = Set(historySubscriptions.keys)
+            .union(historyGenerations.keys)
+            .union(historyStartupTasks.values.map(\.key))
+            .union(errorKeys)
+        let ownershipIsConsistent = desiredHistoryKeys == desiredKeys && trackedKeys == desiredKeys
+        guard candidate != presentationDashboard || !ownershipIsConsistent else { return }
+        historyReconciliationEpoch &+= 1
+        desiredHistoryKeys = desiredKeys
+
+        let obsoleteKeys = Set(historySubscriptions.keys)
+            .union(historyGenerations.keys)
+            .union(graphHistoryRevisionFeeds.keys)
+            .union(historyStatuses.keys)
+            .union(histories.keys)
+            .subtracting(desiredKeys)
+        var obsoleteSubscriptions: [HAHistoryStreamSubscription] = []
+        let obsoleteStartupIDs = historyStartupTasks.compactMap { id, startup in
+            obsoleteKeys.contains(startup.key) ? id : nil
+        }
+        let obsoleteStartups = obsoleteStartupIDs.compactMap { id in
+            historyStartupTasks.removeValue(forKey: id)?.task
+        }
+        for key in obsoleteKeys {
+            if let subscription = historySubscriptions.removeValue(forKey: key) {
+                obsoleteSubscriptions.append(subscription)
+            }
+            historyGenerations.removeValue(forKey: key)
+        }
+        for startup in obsoleteStartups {
+            await startup.value
+        }
+        for subscription in obsoleteSubscriptions {
+            await subscription.cancel()
+        }
+        guard latestConfigRequestSequence == requestSequence else { return }
+
+        // Keep the still-visible dashboard's last accepted data/feed/status
+        // intact while cancellation is pending. Only a candidate that remains
+        // latest may retire those visual stores immediately before install.
+        for key in obsoleteKeys {
+            graphHistoryRevisionFeeds.removeValue(forKey: key)
+            historyStatuses.removeValue(forKey: key)
+            histories.removeValue(forKey: key)
+        }
+        // Cancellation is complete and the candidate is still current. End
+        // obsolete mounted render lifetimes immediately before publishing;
+        // a superseded candidate never freezes mounts belonging to the still
+        // visible dashboard.
+        graphChartMountRegistry.invalidateOwners(notIn: desiredGraphOwnerIDs)
+        presentationDashboard = candidate
+        views = candidate.resolved.source.views
+        if startHistoryOwners {
+            await loadHistories(configRequestSequence: requestSequence)
+            guard latestConfigRequestSequence == requestSequence else {
+                await retireCardHistoryOwnership(notIn: latestQueuedHistoryKeys)
+                return
+            }
+        }
+    }
+
+    private func loadHistories(configRequestSequence: UInt64? = nil) async {
+        if let configRequestSequence = configRequestSequence {
+            await loadHistoriesInline(configRequestSequence: configRequestSequence)
+            return
+        }
+
+        let capturedConfigSequence = latestConfigRequestSequence
+        await enqueueDashboardOwnerOperation { model in
+            await model.loadHistoriesInline(configRequestSequence: capturedConfigSequence)
+        }
+    }
+
+    private func loadHistoriesInline(configRequestSequence: UInt64) async {
+        guard latestConfigRequestSequence == configRequestSequence else { return }
         guard let webSocketClient = webSocketClient else { return }
 
         let requests = historyRequests()
@@ -624,26 +837,53 @@ final class DashboardViewModel: ObservableObject {
             await subscription.cancel()
         }
 
-        guard historyReconciliationEpoch == reconciliationEpoch else { return }
+        guard
+            latestConfigRequestSequence == configRequestSequence,
+            historyReconciliationEpoch == reconciliationEpoch
+        else { return }
         for request in requests {
+            guard latestConfigRequestSequence == configRequestSequence else { return }
             guard historyReconciliationEpoch == reconciliationEpoch else { return }
             guard
                 desiredHistoryKeys.contains(request.key),
                 historySubscriptions[request.key] == nil,
                 historyGenerations[request.key] == nil
             else { continue }
-            await startHistory(
+            await startHistoryTracked(
                 request,
                 webSocketClient: webSocketClient,
-                reconciliationEpoch: reconciliationEpoch
+                reconciliationEpoch: reconciliationEpoch,
+                configRequestSequence: configRequestSequence
             )
         }
+    }
+
+    private func startHistoryTracked(
+        _ request: HistoryRequest,
+        webSocketClient: HomeAssistantWebSocketClient,
+        reconciliationEpoch: UInt64,
+        configRequestSequence: UInt64?
+    ) async {
+        let startupID = UUID()
+        let task = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self.startHistory(
+                request,
+                webSocketClient: webSocketClient,
+                reconciliationEpoch: reconciliationEpoch,
+                configRequestSequence: configRequestSequence
+            )
+        }
+        historyStartupTasks[startupID] = HistoryStartupTask(key: request.key, task: task)
+        await task.value
+        historyStartupTasks.removeValue(forKey: startupID)
     }
 
     private func startHistory(
         _ request: HistoryRequest,
         webSocketClient: HomeAssistantWebSocketClient,
-        reconciliationEpoch: UInt64
+        reconciliationEpoch: UInt64,
+        configRequestSequence: UInt64? = nil
     ) async {
         let key = request.key
         guard
@@ -705,9 +945,20 @@ final class DashboardViewModel: ObservableObject {
                 }
             )
             guard
+                configRequestSequence.map({
+                    latestConfigRequestSequence == $0 ||
+                        latestQueuedHistoryKeys.contains(key) ||
+                        (latestQueuedConfigRawValue == nil && desiredHistoryKeys.contains(key))
+                }) ?? true,
                 desiredHistoryKeys.contains(key),
                 historyGenerations[key] == generation
             else {
+                if historyGenerations[key] == generation {
+                    historyGenerations.removeValue(forKey: key)
+                    graphHistoryRevisionFeeds.removeValue(forKey: key)
+                    historyStatuses.removeValue(forKey: key)
+                    histories.removeValue(forKey: key)
+                }
                 await subscription.cancel()
                 return
             }
@@ -724,10 +975,50 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    private func retireCardHistoryOwnership(notIn retainedKeys: Set<String>) async {
+        historyReconciliationEpoch &+= 1
+        desiredHistoryKeys.formIntersection(retainedKeys)
+        // This reconciliation has already been superseded. Retire only live
+        // delivery ownership so the final queued candidate cannot overlap it.
+        // Accepted visual stores and mounted lifecycles still belong to the
+        // published dashboard; only the final candidate may retire those.
+        let obsoleteOwnershipKeys = Set(historySubscriptions.keys)
+            .union(historyGenerations.keys)
+            .union(historyStartupTasks.values.map(\.key))
+            .subtracting(retainedKeys)
+        let startupIDs = historyStartupTasks.compactMap { id, startup in
+            obsoleteOwnershipKeys.contains(startup.key) ? id : nil
+        }
+        let startups = startupIDs.compactMap { historyStartupTasks.removeValue(forKey: $0)?.task }
+        var subscriptions: [HAHistoryStreamSubscription] = []
+        for key in obsoleteOwnershipKeys {
+            if let subscription = historySubscriptions.removeValue(forKey: key) {
+                subscriptions.append(subscription)
+            }
+            historyGenerations.removeValue(forKey: key)
+        }
+        for startup in startups {
+            await startup.value
+        }
+        for subscription in subscriptions {
+            await subscription.cancel()
+        }
+    }
+
     private func refreshHistorySubscriptions() async {
+        let capturedConfigSequence = latestConfigRequestSequence
+        await enqueueDashboardOwnerOperation { model in
+            await model.refreshHistorySubscriptionsInline(
+                configRequestSequence: capturedConfigSequence
+            )
+        }
+    }
+
+    private func refreshHistorySubscriptionsInline(configRequestSequence: UInt64) async {
+        guard latestConfigRequestSequence == configRequestSequence else { return }
         let currentDesiredKeys = Set(historyRequests().map(\.key))
         if historySubscriptions.isEmpty || currentDesiredKeys != desiredHistoryKeys {
-            await loadHistories()
+            await loadHistoriesInline(configRequestSequence: configRequestSequence)
             return
         }
         let reconciliationEpoch = historyReconciliationEpoch
@@ -736,6 +1027,7 @@ final class DashboardViewModel: ObservableObject {
         }
         for (key, subscription, generation) in subscriptions {
             guard
+                latestConfigRequestSequence == configRequestSequence,
                 historyReconciliationEpoch == reconciliationEpoch,
                 desiredHistoryKeys.contains(key),
                 historyGenerations[key] == generation,
@@ -746,6 +1038,7 @@ final class DashboardViewModel: ObservableObject {
                 try await subscription.refresh()
             } catch {
                 guard
+                    latestConfigRequestSequence == configRequestSequence,
                     desiredHistoryKeys.contains(key),
                     historyGenerations[key] == generation,
                     historySubscriptions[key] === subscription
@@ -830,14 +1123,24 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func historyRequests() -> [HistoryRequest] {
+        historyRequests(from: presentationDashboard)
+    }
+
+    private func historyRequests(from dashboard: LovelacePresentationDashboard) -> [HistoryRequest] {
         var requests: [HistoryRequest] = []
-        collectHistoryRequests(from: homeCards, into: &requests)
+        let cards = dashboard.views.first(where: { $0.resolved.source.path == "default_view" })?.cards
+            ?? dashboard.views.first?.cards
+            ?? []
+        collectHistoryRequests(from: cards, into: &requests)
         return requests.removingDuplicates()
     }
 
-    private func collectHistoryRequests(from cards: [LovelaceCard], into requests: inout [HistoryRequest]) {
+    private func collectHistoryRequests(
+        from cards: [LovelacePresentationCard],
+        into requests: inout [HistoryRequest]
+    ) {
         for card in cards {
-            if card.type == "history-graph" {
+            if card.type == "history-graph", card.source.diagnostic == nil {
                 let entities = historyEntityIDs(for: card)
                 if !entities.isEmpty {
                     requests.append(HistoryRequest(
@@ -854,53 +1157,6 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
-    private func flatten(_ cards: [LovelaceCard]) -> [LovelaceCard] {
-        cards.flatMap { card -> [LovelaceCard] in
-            if card.type == "vertical-stack", let nestedCards = card.cards {
-                return flatten(nestedCards)
-            }
-            return [card]
-        }
-    }
-
-    private func cleanCards(_ cards: [LovelaceCard], path: String) -> [LovelaceCard] {
-        cards.enumerated().compactMap { index, card in
-            let cardPath = "\(path)/\(index)"
-            let configuredEntities = card.entities ?? []
-            let extraEntities = card.title.flatMap { AppConfig.extraEntitiesByCardTitle[$0] } ?? []
-            let mergedEntities = (extraEntities + configuredEntities).removingDuplicateEntities()
-            let cleanedEntities = (card.entities == nil && extraEntities.isEmpty ? nil : mergedEntities).map { entities in
-                entities.filter { entityRef in
-                    guard let entity = entityRef.entity else {
-                        return true
-                    }
-                    return !AppConfig.hiddenEntityIDs.contains(entity)
-                }
-            }
-
-            let cleanedNestedCards = card.cards.map { cleanCards($0, path: "\(cardPath)/cards") }
-
-            if card.entities != nil, cleanedEntities?.isEmpty == true {
-                return nil
-            }
-
-            if card.type == "history-graph", cleanedEntities?.isEmpty == true {
-                return nil
-            }
-
-            return LovelaceCard(
-                type: card.type,
-                title: card.title,
-                entity: card.entity,
-                entities: cleanedEntities,
-                cards: cleanedNestedCards,
-                hoursToShow: card.hoursToShow,
-                showForecast: card.showForecast,
-                content: card.content,
-                nativeOwnerID: cardPath
-            )
-        }
-    }
 
     private func firstWorkingConnection(token: String) async throws -> Connection {
         var lastError: Error?
@@ -1045,23 +1301,16 @@ struct HistoryRequest: Hashable {
     }
 }
 
+private struct HistoryStartupTask {
+    let key: String
+    let task: Task<Void, Never>
+}
+
 private extension Array where Element == HistoryRequest {
     func removingDuplicates() -> [HistoryRequest] {
         var seen = Set<String>()
         return filter { request in
             seen.insert(request.key).inserted
-        }
-    }
-}
-
-private extension Array where Element == LovelaceEntityRef {
-    func removingDuplicateEntities() -> [LovelaceEntityRef] {
-        var seen = Set<String>()
-        return filter { item in
-            guard let entity = item.entity else {
-                return true
-            }
-            return seen.insert(entity).inserted
         }
     }
 }

@@ -1,0 +1,14 @@
+{
+  "views": [{
+    "title": "Unknown",
+    "path": "default_view",
+    "unknown_view": {"string": "x", "int": 1, "double": 1.25, "bool": false, "null": null, "array": [1, 2.5, false, null], "object": {"nested": true}},
+    "cards": [{
+      "type": "entities",
+      "unknown_card": {"deep": [{"kept": null}]},
+      "tap_action": {"action": "call-service", "unknown_action": [true, false]},
+      "entities": [{"entity": "sensor.unknown", "unknown_row": {"a": 1}}]
+    }]
+  }],
+  "unknown_top": ["a", 2, 3.5, false, null, {"z": true}]
+}

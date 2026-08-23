@@ -4,8 +4,16 @@
   "title": "History WebSocket stream and dashboard consumers",
   "nativeEntries": [
     {
+      "path": "Sources/NativeHACore/JSONValue.swift",
+      "symbols": ["JSONValue", "canonicalSemanticValue"]
+    },
+    {
       "path": "Sources/NativeHACore/Models.swift",
-      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage", "HAHistoryPoint", "LovelaceCard", "HAEntityRegistryDisplayResponse", "HAFrontendLocalePreferences"]
+      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage", "HAHistoryPoint", "HAEntityRegistryDisplayResponse", "HAFrontendLocalePreferences"]
+    },
+    {
+      "path": "Sources/NativeHACore/LovelaceModels.swift",
+      "symbols": ["LovelaceCard", "LovelaceResolvedIdentity", "LovelaceResolvedDashboard"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
@@ -44,6 +52,10 @@
       "symbols": ["DashboardViewModel", "HistoryRequest"]
     },
     {
+      "path": "Sources/NativeHAMac/LovelacePresentation.swift",
+      "symbols": ["LovelacePresentationCard", "LovelacePresentationDashboard", "LovelacePresentationTransformer"]
+    },
+    {
       "path": "Sources/NativeHAMac/DashboardView.swift",
       "symbols": ["DashboardView"]
     },
@@ -57,7 +69,7 @@
     },
     {
       "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator", "GraphViewportRenderScheduler"]
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartMountedLifecycle", "DashboardGraphChartMountRegistry", "GraphChartRenderCoordinator", "GraphViewportRenderScheduler"]
     },
     {
       "path": "Sources/NativeHAMac/GraphTooltipFormatting.swift",
@@ -78,6 +90,10 @@
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
       "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
+      "symbols": ["LovelaceModelTests"]
     },
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
@@ -102,6 +118,10 @@
     {
       "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
       "symbols": ["HistoryStreamIntegrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
+      "symbols": ["LovelacePresentationTests"]
     },
     {
       "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",

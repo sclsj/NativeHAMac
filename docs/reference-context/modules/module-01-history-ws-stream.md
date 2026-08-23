@@ -7,9 +7,9 @@ status: complete
 contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b
+nativeha_revision: f58345bde090444777eb3cbf610822c466ee2300
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 544a42651b28edcfddc7093eac3d695a9d524f3760bf25839cf04171a14e3004
+graph_fingerprint: 893b3e913aab46ad04b8e482962229275b5a9119354031202450a4f2d6706b91
 last_validated: 2026-08-23
 ---
 
@@ -62,6 +62,15 @@ accepted-publication/feed/render ordering explicit and records the bounded
 C01-06/C01-07 dashboard reconciliation correction. Status remains
 `complete` after a completely fresh verifier audited the correction and reran
 the required deterministic, visual, release, and live evidence.
+
+The bounded post-Module 04 anchor maintenance keeps contract revision 3. It
+moves the history-owner identity anchor from the temporary reconstructed-card
+path into the exact resolved Lovelace/presentation identity, records the one
+serialized dashboard-owner operation boundary used by config, range, load,
+and refresh work, and pins synchronous mounted-chart retirement. These are
+integration and lifecycle strengthenings of C01-06 through C01-08; the Module
+01 wire, accumulation, projection, publication, range, renderer, and REST
+boundaries do not change.
 
 ## Behavior contracts
 
@@ -420,10 +429,12 @@ dismissal or unrelated controls.
 
 ## Open questions and risks
 
-- **Stable card identity:** `LovelaceCard.id` is a random UUID and `cleanCards`
-  rebuilds cards. Do not use it for long-lived stream ownership. Derive a
-  deterministic traversal/config occurrence identity without waiting for
-  Module 04, and keep it replaceable when decoding is expanded.
+- **Stable card identity (resolved by Module 04):** the former
+  `LovelaceCard.id` UUID and destructive `cleanCards` reconstruction are gone.
+  Current history ownership uses the exact resolved raw source path plus
+  canonical semantic config, then adds ordered entity IDs and the effective
+  range in `HistoryRequest`. Preserve exact equality; hashes and endpoint
+  timestamps are not ancestry or freshness order.
 - **Immediate status yield:** `statusUpdates()` immediately yields `.ready` to
   a listener added after connection. A naive initial subscribe plus listener
   will create two initial history subscriptions.
@@ -1625,6 +1636,71 @@ fixture classified above. No Module 01 contract depends on that stale
 measurement fixture. The 15 required current PNGs, release build, authorized
 read-only live smoke, and exact final zero-ownership checks all passed.
 
+## Bounded post-Module 04 anchor maintenance — 2026-08-23
+
+The checker was run before regeneration and reported yellow for exactly eleven
+moved Module 01 anchors: `Models.swift`, `AppConfig.swift`, `CardViews.swift`,
+`DashboardViewModel.swift`, `GraphRenderScheduling.swift`,
+`GraphTooltipFormatting.swift`, the history live smoke, and the history
+integration, graph-rendering, tooltip, and GUI test files. The complete Module
+04 changes to those anchors were inspected. The pinned hass-frontend history,
+history-card/detail, npm connection, and Module 02 transport contracts and
+content hashes are unchanged; no reference audit was repeated.
+
+The manifest now anchors `JSONValue.canonicalSemanticValue`, the moved
+`LovelaceCard` and resolved identity/dashboard types in `LovelaceModels.swift`,
+the immutable presentation types, the mounted-chart lifecycle/registry, and
+their exact identity/presentation tests. The former `LovelaceCard` symbol was
+removed from the `Models.swift` entry. The regenerated graph is green at 21
+nodes / 143 edges with zero unresolved edge or truncation and fingerprint
+`893b3e913aab46ad04b8e482962229275b5a9119354031202450a4f2d6706b91`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`.
+
+### Contract classification
+
+| Contract | Post-Module 04 result | Classification |
+|---|---|---|
+| C01-01 through C01-05 | Typed compact delivery, stable accumulation/cutoff/equal timestamps/duplicates, request fields, fresh reconnect ownership, numeric projection, `contentRevision`, and exact immediate-predecessor `cacheLineage` are unchanged. | contract preserved |
+| C01-06 | Raw `hoursToShow` remains on the immutable source card while the selected AppConfig range remains the effective request policy. History owner identity now uses exact resolved source path plus canonical raw semantics, then ordered entity IDs and effective range. Identical decode retains the owner; insertion/removal/reorder/replacement re-key only according to the Module 04 path/semantic rules. There is no UUID, `hashValue`, digest ordering, or timestamp ordering. | integration strengthened; no contract revision change |
+| C01-06/C01-07 | Config apply and external history load/range/refresh work now share one serialized MainActor dashboard-owner operation tail. Each awaited cancellation/startup/refresh boundary revalidates current config sequence, reconciliation epoch, desired key, and generation. Superseded cleanup retires only delivery ownership; the final candidate alone removes accepted stores or mounts. Exact revert and stale-middle cases restore one current owner without overlap or a late publication. | lifecycle strengthened; existing latest-owner/error-isolation contract preserved |
+| C01-08 | `GraphHistoryRevisionFeed` still publishes before `@Published histories`, retains mounted FIFO/latest-only pre-mount replay, and drives one serial off-main coordinator. A dashboard-owned weak one-to-many mount registry now synchronously disconnects every obsolete unit chart immediately before final config install; identical and exact-revert owners keep a reconnectable mounted lifecycle. Coordinator reset/generation still rejects old render completion and exact projection/cache lineage remains strict. | lifecycle strengthened; accepted-publication/render contract preserved |
+| C01-08 formatting | Module 04 adds an injected axis-formatting override only for deterministic GUI evidence. Production still uses the exact legacy `h:mm a` axis formatter. Tooltip locale/precision/timezone metadata, stored history, cache keys, and Core Graphics default are unchanged. | test seam; observable production behavior unchanged |
+| C01-09 | Normal dashboard/detail history remains WebSocket `history/stream`; REST remains tool/benchmark-only. | contract preserved |
+
+Invalid-only history cards now render a local diagnostic and create no request;
+a mixed valid/malformed row list retains the valid history owner and exposes the
+malformed row placeholder. This is Module 04 recovery integrated at the C01-06
+owner-discovery boundary, not a change to stream accumulation or projection.
+
+### Focused refresh evidence
+
+- `HomeAssistantHistoryStreamTests` passed 20/20; `HistoryStreamIntegrationTests`
+  passed 17/17, including both unified-tail entry orderings, config/startup and
+  refresh/config interleavings, identical coalescing, insertion/removal/reorder,
+  exact revert, stale retirement, and late-publication suppression.
+- `GraphRenderingTests` passed 29/29 with only the recorded expected nearest-
+  sample hover parity marker; `GraphTooltipFormattingTests` passed 7/7. The
+  mounted hosted `BitmapLineChart` dashboard-replacement test passed 1/1.
+- Exact identity/raw/presentation coverage passed 15/15 across
+  `LovelaceModelTests` and `LovelacePresentationTests`, including the 500-card
+  bounded traversal/lifetime fixture.
+- The authorized read-only live history smoke passed 1/1 in 5.995 seconds. It
+  retained three views, 22 top-level / 31 recursive cards and 66 rows; delivered
+  8,598 one-hour and 102,583 twelve-hour CO2/VOC points, then 8,600 recovery
+  points and 57,090 representative 24-hour points; reconnect loading occurred
+  twice; and final connection/history ownership was zero. No state-changing
+  Home Assistant call was made.
+- The fresh final Module 04 verifier independently ran the exact current tree's
+  168-test full suite (three authorized live skips, one unchanged fixed-time GUI
+  fixture failure, zero introduced failures), release build, six manually
+  inspected GUI artifacts, live dashboard/history smoke, and a separate
+  lifecycle/identity/cache audit. Those results are recorded in the green
+  Module 04 packet and remain applicable to the shared Module 01 anchors.
+
+No C01 observable contract changed, so contract revision remains 3 and status
+remains `complete`.
+
 ### Preserved Module 09 boundary
 
 The known stale visual request may still reach the coordinator after a newer
@@ -1638,12 +1714,13 @@ stale graph content.
 ## Handoff
 
 Module 01 is independently `complete` at contract revision 3. Preserve the
-desired-key/epoch reconciliation, explicit-refresh generation guards, direct
-typed transport, exact projection lineage, feed-before-`@Published` boundary,
-Core Graphics default, tooltip metadata, and the separate Module 09 fallback.
-Do not infer freshness from hashes or endpoint timestamps. The next staged
-action is fresh bounded Module 04 research and a green Lovelace-model evidence
-packet; do not implement Module 04 directly from its rescue plan.
+exact resolved Lovelace history identity, unified dashboard-owner operation
+tail, post-await sequence/generation guards, direct typed transport, exact
+projection lineage, feed-before-`@Published` boundary, reconnectable mounted
+chart lifecycle, Core Graphics default, tooltip metadata, and the separate
+Module 09 fallback. Do not infer freshness from hashes or endpoint timestamps.
+Modules 02, 01, and 04 now have green handoffs; the next staged action is fresh
+bounded Module 03 research, not implementation directly from its rescue plan.
 
 ## Change log
 
@@ -1770,3 +1847,10 @@ packet; do not implement Module 04 directly from its rescue plan.
   ownership. The 139-test full suite retained exactly one classified unrelated
   fixed-time performance-fixture failure and three intentional skips. Status is
   `complete`; next action is bounded Module 04 research.
+- 2026-08-23: regenerated the graph after Module 04 replaced temporary card
+  identity/reconstruction, unified config/range/load/refresh owner operations,
+  and added synchronous mounted-chart lifetime retirement across eleven shared
+  anchors. Exact diff inspection, 73/73 stream/integration/graph/tooltip tests,
+  15/15 identity/presentation tests, the hosted mounted-chart test, and fresh
+  read-only 1h/reconnect/12h/recovery/24h live smoke all passed. C01 contracts
+  are preserved, contract revision remains 3, and the graph is green.
