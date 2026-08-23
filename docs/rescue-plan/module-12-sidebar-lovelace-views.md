@@ -31,6 +31,19 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models
 
 - Lovelace view model fields are sparse and need expansion through Module 04.
 
+## Post-Module-01/09 Ownership Constraints
+
+Active-view routing now intersects implemented per-card history revision feeds
+and graph render coordinators. A view switch must preserve stable owners for
+cards that remain visible, while canceling and re-keying removed cards before
+late publications or render completions can install. Hidden views must retain
+no `GraphHistoryRevisionFeed` observer and no queued coordinator work.
+
+Do not use history content hashes or endpoint timestamps to infer whether a
+hidden/visible view's snapshot is newer. Selection and late-update rejection
+must use decoded stable view/card identity plus explicit subscription and
+coordinator generations.
+
 ## Reference Implementation Paths
 
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/hui-root.ts`

@@ -135,3 +135,24 @@ evidence.
   caching/lineage, rolling-window storage, synchronous rendering, live entity
   cadence, or retained time range changes. Renderer-only improvements should
   not be expected to fix this preparation bottleneck.
+
+### Graph revision hashes and endpoint timestamps do not establish ordering
+
+- **Claim:** `HAHistorySeries.contentRevision` is a deterministic content
+  digest, not a monotonic sequence, so numeric comparison cannot decide which
+  snapshot is newer. Likewise, `firstTimestamp`/`lastTimestamp` describe
+  payload boundaries rather than ancestry: corrections, removals,
+  equal-timestamp changes, rolling eviction, and state timelines can invalidate
+  an endpoint-based ordering assumption.
+- **Status:** Confirmed during independent verification on 2026-08-23. Two
+  attempted cache shortcuts were rejected and reverted. Numeric digest ordering
+  returned stale values in existing same-shape and rolling-tail correctness
+  tests; endpoint ordering was unsafe for corrections and feedless detail
+  graphs even though it would likely suppress the common stale-pan fallback.
+- **Use instead:** Establish ordering through coordinator-owned generation and
+  accepted-revision provenance or exact projection lineage. A prepared-series
+  cache lookup must not return a different fingerprint merely because its hash
+  or endpoint appears numerically newer.
+- **Revalidate when:** History revisions gain an explicit monotonic owner-local
+  ordinal or the coordinator/render request contract changes to carry exact
+  accepted-input provenance.

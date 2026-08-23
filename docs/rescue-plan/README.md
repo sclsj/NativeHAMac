@@ -1,16 +1,33 @@
 # NativeHA Rescue Plan Index
 
-This directory contains implementation plans only. The current audit did not change Swift source and did not commit anything.
+This directory contains implementation plans. NativeHA is a WIP Swift-native
+Home Assistant frontend; the current readiness audit follows the verified
+reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
+`/Users/jin/Documents/HA/hass-frontend`.
 
-NativeHA is a WIP Swift-native Home Assistant frontend at current audited HEAD `dba01df` on `main`. The reference implementation is `/Users/jin/Documents/HA/hass-frontend`.
+## Current Readiness
+
+- Modules 02 and 01 are implemented and their focused transport/history tests
+  pass, but both evidence graphs are yellow because shared native anchors
+  changed during the typed-delivery, tooltip, and bounded graph repairs. Give
+  each packet a bounded post-fix contract/anchor refresh before relying on it as
+  the prerequisite handoff for later implementation.
+- Module 04 remains the next module in sequence. Research and create its packet
+  after the Module 02/01 refreshes; do not implement directly from the older
+  rescue-plan line hints.
+- The bounded Module 09 async repair remains correct, green, and separate from
+  broader Module 09. A known stale-viewport request can still cause repeated
+  safe off-main alignment/full-preparation fallback. Do not suppress it using
+  numeric ordering of content hashes or endpoint timestamps; a future bounded
+  repair needs coordinator-owned revision provenance.
 
 ## Module Order
 
 Implement in this order unless a future audit finds a blocker:
 
-1. `module-02-websocket-multiplexer.md`
-2. `module-01-history-ws-stream.md`
-3. `module-04-lovelace-model-decode.md`
+1. Refresh the completed `module-02-websocket-multiplexer.md` evidence packet.
+2. Refresh the completed `module-01-history-ws-stream.md` evidence packet.
+3. Research, then implement `module-04-lovelace-model-decode.md`.
 4. `module-03-appconfig-profile-isolation.md`
 5. `module-12-sidebar-lovelace-views.md`
 6. `module-05-dashboard-viewmodel-state.md`

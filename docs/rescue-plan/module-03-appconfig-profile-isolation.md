@@ -21,6 +21,21 @@ Separate server-profile state from typed product and presentation policies in `A
 
 Confirmed nuance: hardcoded config is acceptable for the prototype, but it must be isolated as profile data. Do not pretend these values are generic Home Assistant behavior.
 
+## Post-Module-01/02/09 Configuration Constraints
+
+The original line hints predate several approved typed policies now present in
+`AppConfig.swift`. Module 03 research must inventory and preserve—not collapse
+into server-profile storage—the graph time-range, render scheduling,
+interaction, tooltip formatting, WebSocket safety, and diagnostic logging
+policies recorded in `docs/configurability.md`. Core Graphics is the user's
+current primary renderer; Metal remains WIP and profile migration must not
+silently change that selection.
+
+Switching profiles is also a generation boundary for the implemented
+WebSocket/history/graph owners. A profile change must cancel the old connection,
+history feeds, and render coordinators before a late callback can publish or
+seed a cache owned by the new profile.
+
 ## Reference Findings
 
 hass-frontend stores dashboard configuration in Lovelace config and user/session state, not source-code constants:

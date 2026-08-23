@@ -20,6 +20,27 @@ Make NativeHA's Lovelace models lossless enough for supported native cards, robu
 
 Confirmed issue: current models discard Lovelace config needed by supported card renderers and make stable view/card identity harder than necessary.
 
+## Post-Module-01/09 Ownership Constraints
+
+Intervening history and graph repairs added a deterministic `nativeOwnerID`,
+per-card `GraphHistoryRevisionFeed`, and generation-scoped
+`GraphChartRenderCoordinator` cache ownership. Module 04 should still replace
+the UUID/ad-hoc model identity with stable traversal identity, but it must port
+these owners deliberately rather than deleting the workaround first:
+
+- identical config refreshes must preserve the history subscription key,
+  revision-feed owner, SwiftUI chart lifetime, and prepared-cache scope;
+- a genuinely replaced/removed/reordered card must cancel or re-key its old
+  history/feed/render generation before late work can publish;
+- presentation filtering must wrap the decoded card without reconstructing it
+  and losing raw fields, graph tooltip metadata inputs, or owner identity; and
+- integration coverage must assert active history/feed/coordinator counts, not
+  only stable `ForEach` IDs or pixel equality.
+
+The stale-viewport fallback recorded in the bounded Module 09 packet is not a
+reason to add revision ordering to Lovelace identity. `contentRevision` is a
+content digest, and endpoint timestamps do not prove history ancestry.
+
 ## Reference Findings
 
 - `/Users/jin/Documents/HA/hass-frontend/src/data/lovelace/config/card.ts:7` defines base `LovelaceCardConfig` as open-ended with `[key: string]: any`, plus common metadata like `grid_options`, `visibility`, and `disabled`.
@@ -110,6 +131,9 @@ View routing:
    - Remove or ignore `LovelaceCard.id = UUID()`.
    - Introduce `LovelaceCardNode` or `ResolvedLovelaceCard` in the app layer with `path: [Int]` and `card: LovelaceCard`.
    - Update SwiftUI `ForEach` to use stable path/native ID from traversal.
+   - Preserve the existing deterministic history/render owner across identical
+     refreshes, and explicitly reset it when the resolved traversal owner
+     changes.
 
 3. Make entity row decoding robust.
    - String row: entity ID with raw string preserved.

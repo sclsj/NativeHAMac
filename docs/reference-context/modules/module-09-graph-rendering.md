@@ -3,7 +3,7 @@ schema: nativeha-evidence/v1
 module: "09"
 title: Graph revision preparation and asynchronous render scheduling
 plan: ../../rescue-plan/module-09-graph-rendering.md
-status: bounded-async-repair-implemented-and-verified-broader-module-unresearched
+status: bounded-async-repair-verified-open-stale-viewport-fallback-broader-module-unresearched
 contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
@@ -165,6 +165,18 @@ hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
 - The 24h Core Graphics preparation stage remains about 95 ms on this machine.
   This bounded repair does not claim O(1) rolling storage; it verifies that the
   work is serialized off-main and no longer freezes chart/UI interaction.
+- A later 12-minute debug launch at the verified coordinator baseline recorded
+  1,897 cases where a stale visual request could not align against the already
+  newer prepared cache and safely fell back to full preparation. The work was
+  off-main, so this does not invalidate the repaired main-thread ownership or
+  rendered-data correctness, but repeated O(window) background work remains a
+  measurable CPU/latency risk for the daily-use PoC.
+- Two attempted shortcuts were independently rejected and reverted. Numeric
+  comparison of `contentRevision` is invalid because revisions are content
+  digests, and comparing `lastTimestamp` cannot prove ancestry across
+  corrections, equal-timestamp changes, rolling eviction, state timelines, or
+  feedless detail graphs. Existing same-shape and rolling-tail correctness
+  oracles pass again after the reverts.
 
 ### Context and scope
 
@@ -191,16 +203,26 @@ hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
   exact numeric lineage.
 - The coordinator scopes cache ownership by stable owner and generation. New
   production paths must not bypass that owner and mutate its effective key.
+- A pending visual request can contain an older history snapshot than the
+  coordinator has already prepared. The cache must not return a different
+  fingerprint merely because an endpoint or digest appears numerically newer.
+  The smallest sound follow-up is for the coordinator to retain the latest
+  accepted inputs per entity/generation and resolve pending viewport renders
+  against those inputs while preserving viewport metadata. Cover stale pans,
+  rolling eviction/window bounds, same-tail corrections, equal timestamps,
+  state timelines, earlier-endpoint resets, and feedless detail history.
 - Visual/animation/reference parity is outside this bounded repair. Do not use
   these scheduling results to mark broader Module 09 complete.
 
 ## Handoff
 
 The bounded async rolling-revision repair is implemented and independently
-verified. Keep broader Module 09 unresearched/incomplete and return to the
-user's current Module 2/3 sequence. A later explicitly scoped Module 09 task may
-investigate chunked/ring rolling storage or visual parity; neither is authorized
-by this status update.
+verified, with the stale-viewport fallback above still open. This issue does
+not block Module 04 research, but it should be fixed before calling the daily
+PoC graph path performance-stable. Keep broader Module 09
+unresearched/incomplete and return to the user's staged sequence. A later
+explicitly scoped Module 09 task may address coordinator provenance,
+chunked/ring rolling storage, or visual parity.
 
 ## Change log
 
@@ -214,3 +236,7 @@ by this status update.
   recorded independent deterministic, integration, release-build, and live
   actual-card verification, qualified feed losslessness by mounted subscription
   lifetime, and marked only the bounded repair implemented and verified.
+- 2026-08-23: Recorded 1,897 safe but expensive stale-viewport alignment/full
+  fallbacks, rejected and reverted content-hash/timestamp ordering shortcuts,
+  and narrowed the sound follow-up to coordinator-owned accepted-input
+  provenance. Broader Module 09 remains unresearched.

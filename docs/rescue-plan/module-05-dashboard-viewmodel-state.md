@@ -33,6 +33,33 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardVie
 
 - Many views call back into `DashboardViewModel` for formatting, toggling, and selection. This is workable only if the view model exposes stable helper APIs rather than ad hoc per-view behavior.
 
+## Superseded Findings After Modules 02 And 01
+
+Several original findings above are historical and must not drive new work:
+
+- The WebSocket transport now has one receive loop with routed command and
+  subscription ownership; Module 05 must consume that verified API rather than
+  replace it.
+- Dashboard and detail history now use typed `history/stream` subscriptions,
+  generation checks, explicit cancellation, per-owner status, and stable keys.
+  REST history remains tool/benchmark-only.
+- Visible history cards publish accepted projections through per-card
+  `GraphHistoryRevisionFeed` instances before `@Published` invalidation, and
+  charts use generation-scoped serial render coordinators. Extracting a
+  `HistoryCoordinator` must preserve this accepted-publication boundary and
+  must not regress to SwiftUI-body-driven revision delivery.
+- The global graph range already comes from typed `GraphTimeRangePolicy`; raw
+  Lovelace `hours_to_show` remains preserved. Module 05 should move ownership,
+  not redesign that approved policy.
+- Startup also fetches entity-registry display precision and frontend locale
+  preferences for graph tooltip formatting. Profile/bootstrap extraction must
+  retain their independent failure handling and injected test seams.
+
+The remaining Module 05 work is orchestration decomposition, explicit loading
+and retry state, active-view ownership, entity/display/service collaborators,
+and profile transition cleanup. Research must refresh all current-code line
+hints before implementation.
+
 ## Reference Implementation Paths
 
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/hui-root.ts`
@@ -110,14 +137,15 @@ Recommended ownership:
    - Use the new helpers from Module 06.
    - Leave compatibility wrapper methods on the view model only if that keeps SwiftUI call sites small during migration.
 
-7. Make history subscription lifecycle explicit.
-   - After Module 01, replace REST `loadHistories(for:)` with `HistoryCoordinator.subscribe(card:)`.
-   - Store unsubscribe handles.
+7. Extract the implemented history subscription lifecycle without changing its contracts.
+   - Move the existing typed WebSocket owners, statuses, generations,
+     projection stores, and graph revision feeds behind
+     `HistoryCoordinator.subscribe(card:)`-style APIs.
+   - Preserve unsubscribe handles and accepted-publication ordering.
    - Cancel view-owned history subscriptions when the active view changes, when the server profile changes, and when the WebSocket reconnects. Shared low-priority prefetch/cache ownership is separate.
 
-8. Make realtime state subscription lifecycle explicit.
-   - After Module 02, subscribe to `state_changed` through the multiplexer.
-   - Retain the unsubscribe token.
+8. Extract the implemented realtime state subscription lifecycle.
+   - Preserve the Module 02 multiplexer subscription and its unsubscribe token.
    - On reconnect, resubscribe and reload initial states or reconcile with a fresh state snapshot.
 
 9. Add service-call state handling.
