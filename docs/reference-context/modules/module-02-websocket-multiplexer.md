@@ -7,9 +7,9 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 9392bc99c67c4ba3fdae622bf1ef521182e42e69
+nativeha_revision: 342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: 6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a
+graph_fingerprint: 7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071
 last_validated: 2026-08-23
 ---
 
@@ -112,10 +112,10 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   `f19f79bb937660d2128cdfc7dd083b43879d1d722eca9177c1e17ed32a416c16`.
   It fetches config, subscribes, and launches the direct state-change receiver.
 
-### Current correction-worktree anchors based on `9392bc99c67c4ba3fdae622bf1ef521182e42e69`
+### Current anchors at `342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b`
 
 - **SW-03** — `Sources/NativeHACore/HomeAssistantWebSocketConnection.swift`,
-  worktree blob `c245df11ab38f7a294a16ce5bf45212c3fe7b96a`, SHA-256
+  Git blob `c245df11ab38f7a294a16ce5bf45212c3fe7b96a`, SHA-256
   `0482c187bb5256145c0bd48f3ca8f7fad85f916856bd7d99875e2a11aa4ef53c`.
   Owns the single receiver, shared ID space, outbound generation FIFO,
   pending/subscription maps, bounded callback coordinator, direct typed-event
@@ -147,10 +147,10 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
 - **SW-08** — `Sources/NativeHAMac/AppConfig.swift` and
   `Sources/NativeHAMac/DashboardViewModel.swift`, AppConfig Git blob
   `0e078da2a393a6639a086cc2c47edbb238a23799` and
-  Dashboard correction worktree blob
-  `4e961d8abd226bf3ae4ba51a068169bc840f37ba`, SHA-256
+  Dashboard Module 01 reconciliation worktree blob
+  `7e96a695179cd453529bee63deeba63a3b0edfb1`, SHA-256
   `218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d`
-  and `c2aa0d8c6071530d9e98f13b51d08b9af79422874651f97c1f8866a16f1c1708`.
+  and `9f231c3476d05294f351b2bb350e438b8c96d0823c6a4e89e41bdb9d0e828213`.
   The WebSocket policy remains 10 seconds / 32 MiB / 256 buffered events / four
   active callback tasks. Dashboard bootstrap passes the complete policy, runs
   display/locale/Lovelace typed calls on the verified connection, stores the
@@ -159,7 +159,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   config decode or state-subscription setup fails before ownership transfer.
 - **SW-09** —
   `Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift`,
-  correction worktree blob `acbae66947dd8ccb7ef907fb20a474380f1d7948`,
+  Git blob `acbae66947dd8ccb7ef907fb20a474380f1d7948`,
   SHA-256
   `9cc0ef20158ed38f42b974aa6871898d7da7af43e69dc855e4ffcdaa22a4c5cd`.
   `testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking` observes
@@ -167,7 +167,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
   `testDetachedScanAndDecodeGuardsDropStaleGenerationEvents` deterministically
   gates both envelope-scan and payload-decode boundaries across reconnect.
 - **SW-10** — `Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift`,
-  new-file worktree blob `48c885808ce6be7eabe6be53d07508d97b7e20c6`,
+  Git blob `48c885808ce6be7eabe6be53d07508d97b7e20c6`,
   SHA-256
   `69d2442bb7ef9b0ce8b54f4620d554cd7341143afe6fce04f014dc2cf133c2d1`.
   Two deterministic production-model tests prove exactly one disconnect and
@@ -179,7 +179,7 @@ Yarn locator `home-assistant-js-websocket@npm:9.6.0`, checksum
 The generated graph is
 [`module-02.dependencies.json`](../generated/module-02.dependencies.json),
 fingerprint
-`6f86bc91977eecb6fd6cde76d4fda80dd8c9896e8d0c06be5f6d9aa219c3723a`.
+`7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071`.
 
 - `src/entrypoints/core.ts::connProm` has a runtime package edge. TypeScript
   resolves declarations to `dist/index.d.ts`; package `exports.import` resolves
@@ -1074,6 +1074,31 @@ publication, a fresh reconnect cycle, and final zero connection/subscription
 ownership. It made no state-changing call. The checker and resolver remained
 green at the packet fingerprint, and `git diff --check` passed.
 
+### Bounded Module 01 prerequisite-anchor maintenance — 2026-08-23
+
+After Module 02 completed, the bounded Module 01 reconciliation repair changed
+the shared `DashboardViewModel.swift` file and made the Module 02 checker yellow
+only for that native anchor. The complete worktree diff was inspected. It adds
+`desiredHistoryKeys` and a reconciliation epoch, then changes only
+`loadHistories`, `startHistory`, and `refreshHistorySubscriptions` plus their
+history status/publication guards below the connection bootstrap boundary.
+
+There is no Module 02 contract change. `load()` still constructs one client
+with the complete AppConfig WebSocket policy and delegates to
+`bootstrapDashboard(using:)`. That bootstrap still connects once, runs the
+typed registry/language/Lovelace commands through the verified shared client,
+stores client ownership only after the state subscription succeeds, disconnects
+on any intervening failure, and installs the same connection-status observer.
+AppConfig's 10-second / 32 MiB / 256-event / four-callback policy is unchanged.
+C02-08 and C02-01 through C02-07 therefore retain the fresh GO evidence above.
+
+The manifest did not change. Regeneration updated only current repository and
+native-anchor metadata; the graph remains bounded at 31 nodes / 61 edges with
+fingerprint
+`7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071`.
+Contract revision remains 2. This maintenance did not repeat the broad audit,
+rerun implementation/live tests, or claim new live evidence.
+
 ## Handoff
 
 Module 02 is complete and its current correction-worktree evidence graph is
@@ -1081,9 +1106,9 @@ green. C02-01 through C02-08 have fresh independent deterministic and read-only
 live evidence. Preserve the per-generation outbound FIFO, single receiver,
 bounded callback coordinator, direct typed owner-local decode, production
 receive cleanup, history opt-out, Dashboard bootstrap failure cleanup, and
-32 MiB large-frame policy. The exact next staged action is the bounded Module 01
-evidence refresh; do not reopen Module 02 or begin Module 04 until that gate is
-green.
+32 MiB large-frame policy. Module 01's independent verifier is now green; the
+exact next staged action is fresh bounded Module 04 research. Do not reopen
+Module 02 or implement Module 04 directly from its rescue plan.
 
 ## Change log
 
@@ -1169,3 +1194,10 @@ green.
   1h/12h/24h typed-history, reconnect, and final-zero-ownership smoke. No
   continuation diagnostic or state-changing service call occurred. Status
   advanced to `complete`; Module 01 bounded evidence refresh is the next gate.
+- 2026-08-23: regenerated the Module 02 graph after the bounded Module 01
+  reconciliation repair moved the shared DashboardViewModel anchor. Complete
+  diff inspection confirmed no change to C02-08 bootstrap, client policy,
+  ownership transfer, failure cleanup, or connection-status behavior. The
+  graph returned green at 31 nodes / 61 edges without a contract revision bump;
+  the fresh Module 01 verifier subsequently returned GO, so bounded Module 04
+  research is the next gate.

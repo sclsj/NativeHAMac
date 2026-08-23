@@ -3685,11 +3685,11 @@
       "typeResolved": "node_modules/lit/development/index.d.ts"
     }
   ],
-  "graphFingerprint": "2711531db6e990ae4ce666c9075debbcbc60f9dd10a1138ee71a51c7b91d49f5",
+  "graphFingerprint": "544a42651b28edcfddc7093eac3d695a9d524f3760bf25839cf04171a14e3004",
   "manifest": {
     "module": "01",
     "path": "docs/reference-context/manifests/module-01.inputs.json",
-    "sha256": "d140b9f8cf262b1ad45cdd5c51abd4518592c727100cc28b3525b15734611c60"
+    "sha256": "33da50241281521346fb103a030876607e94630547960aeb40a150650f811cb2"
   },
   "nativeha": {
     "anchors": [
@@ -3717,8 +3717,8 @@
         "worktreeBlob": "b9d2b0affe505e61b2f956b552fe4cb0fbf8baff"
       },
       {
-        "dirty": true,
-        "headBlob": "cb8071b825761a6a253bc221e173c7c94e5da244",
+        "dirty": false,
+        "headBlob": "9741f9c3a796150d72ad97a6ea11cfcd29f26268",
         "missing": false,
         "path": "Sources/NativeHACore/HistoryGraphSupport.swift",
         "sha256": "48a42bf9f3909d05986a0a421b79c4989d8a40312e8047c6533723ac7c39b040",
@@ -3730,8 +3730,8 @@
         "worktreeBlob": "9741f9c3a796150d72ad97a6ea11cfcd29f26268"
       },
       {
-        "dirty": true,
-        "headBlob": "a2771924d7e664ba3e85da43fbe983edecf37fac",
+        "dirty": false,
+        "headBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
         "sha256": "fbaf6d5bad0a7e7284c1716b1182c4167f229fb221c089374fed8e6ec1ed1728",
@@ -3759,21 +3759,21 @@
       },
       {
         "dirty": false,
-        "headBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b",
+        "headBlob": "41139d06b468cafc9a631dabaa789c3fab1c7eb1",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "2c429dcc08e1e95b948b8af6c5c18e2e77fbd71c29c9004e52e6d3769f59d32d",
+        "sha256": "d0b5cc37bb151f54f178402b61429979cd067c1d2acf8a7f56662f468c62307d",
         "symbols": [
           "HomeAssistantWebSocketClient"
         ],
-        "worktreeBlob": "55419d3da8b9bd934b15cbd920908b806de40f0b"
+        "worktreeBlob": "41139d06b468cafc9a631dabaa789c3fab1c7eb1"
       },
       {
-        "dirty": true,
-        "headBlob": "a10ecc24a075fe0b9ec0450c916f3ff33cfb6d78",
+        "dirty": false,
+        "headBlob": "c245df11ab38f7a294a16ce5bf45212c3fe7b96a",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "10969b7351c7128d585c495dd7e6ae3154355a19f9b75ae8be56416dd4996748",
+        "sha256": "0482c187bb5256145c0bd48f3ca8f7fad85f916856bd7d99875e2a11aa4ef53c",
         "symbols": [
           "decodeAndDispatchFrame",
           "dispatch",
@@ -3781,7 +3781,18 @@
           "subscribeMessage",
           "subscribeRaw"
         ],
-        "worktreeBlob": "641d81d9449c34a4d8cb9d8710973555c26be444"
+        "worktreeBlob": "c245df11ab38f7a294a16ce5bf45212c3fe7b96a"
+      },
+      {
+        "dirty": false,
+        "headBlob": "893c91f417584126e7a4ab81767ca8c8a965dea3",
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWebSocketEnvelope.swift",
+        "sha256": "a426613a8784bbf48d2fd156a24ed5d81de3a3c1f15feac954b73b2cb2140436",
+        "symbols": [
+          "HAWebSocketEnvelopeScanner"
+        ],
+        "worktreeBlob": "893c91f417584126e7a4ab81767ca8c8a965dea3"
       },
       {
         "dirty": false,
@@ -3796,41 +3807,43 @@
         "worktreeBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5"
       },
       {
-        "dirty": true,
-        "headBlob": "38df0c63831e1ebaf3f713634f7410e6184cdf49",
+        "dirty": false,
+        "headBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "9fbe534839676efee898bab37e60979da8ae0b5b95988d75e78d1845c1ce0418",
+        "sha256": "e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354",
         "symbols": [
+          "HAEntityRegistryDisplayResponse",
+          "HAFrontendLocalePreferences",
           "HAHistoryPoint",
           "HAHistorySeries",
           "HAHistorySeriesCacheLineage",
           "LovelaceCard"
         ],
-        "worktreeBlob": "2d1e0cc0db87b0d8517c2173954daad85ff00d09"
-      },
-      {
-        "dirty": true,
-        "headBlob": "4b89655bf39637f1feef4887c115bbe8aa339fa3",
-        "missing": false,
-        "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "6cf07527fe13dcb02804e2d30cfb7770d6c80e58bb5aeb3e9822e6b4f596a3bf",
-        "symbols": [
-          "AppConfig"
-        ],
-        "worktreeBlob": "8427f4257249689c0b79165d2405522b861b9a48"
+        "worktreeBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d"
       },
       {
         "dirty": false,
-        "headBlob": "9f82a7903cd0d7acdd198a61199c725efc1fef4e",
+        "headBlob": "0e078da2a393a6639a086cc2c47edbb238a23799",
+        "missing": false,
+        "path": "Sources/NativeHAMac/AppConfig.swift",
+        "sha256": "218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d",
+        "symbols": [
+          "AppConfig"
+        ],
+        "worktreeBlob": "0e078da2a393a6639a086cc2c47edbb238a23799"
+      },
+      {
+        "dirty": false,
+        "headBlob": "eac04368a44758c49798ab5b95f6a8e726943437",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "91ddfa681aeda4c8f7477955737c214883f0105920d8b8f90e5abeedf1868bf9",
+        "sha256": "ae9b4078f2b687bc459a072c8af673745cd2a6c31fb13cac2ac1f876f2632748",
         "symbols": [
           "DetailHistoryGraph",
           "HistoryGraphCard"
         ],
-        "worktreeBlob": "9f82a7903cd0d7acdd198a61199c725efc1fef4e"
+        "worktreeBlob": "eac04368a44758c49798ab5b95f6a8e726943437"
       },
       {
         "dirty": false,
@@ -3844,43 +3857,58 @@
         "worktreeBlob": "b3c98cedc9928e08e348722abf0fe0675065e76e"
       },
       {
-        "dirty": false,
-        "headBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08",
+        "dirty": true,
+        "headBlob": "4e961d8abd226bf3ae4ba51a068169bc840f37ba",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "616e5c2bfece2f01711069e1839de711b7c0b0c0f172afa967249c2981a6846e",
+        "sha256": "9f231c3476d05294f351b2bb350e438b8c96d0823c6a4e89e41bdb9d0e828213",
         "symbols": [
           "DashboardViewModel",
           "HistoryRequest"
         ],
-        "worktreeBlob": "ad699cb53632b7ae171b2e86d364f68996e5de08"
+        "worktreeBlob": "7e96a695179cd453529bee63deeba63a3b0edfb1"
       },
       {
-        "dirty": true,
-        "headBlob": "08edb0d49072140273a5f0bd3071ae58f1a88ca5",
+        "dirty": false,
+        "headBlob": "a2666396d811547431710302f8f31244a8ca5794",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRendering.swift",
-        "sha256": "fe9498d207fece0416d63f204bd66a2716b595b79e956ea4f09c230b5d1c65bd",
+        "sha256": "6fdeb14608f5a396a800fba83ce40df034e0cc93fde90b8ddaccfbaa1d22e373",
         "symbols": [
           "GraphBitmapRenderer",
           "GraphRenderMetrics"
         ],
-        "worktreeBlob": "384f289f51a70a21ad31f13bd77c46676168acf0"
+        "worktreeBlob": "a2666396d811547431710302f8f31244a8ca5794"
       },
       {
         "dirty": false,
-        "headBlob": "f5e523853ba087f52d7faf47d5efa504c728c889",
+        "headBlob": "8485459478d6aed9557e7fd76b18bc371112894c",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-        "sha256": "44aaac2b64f23855b008415925fbd82b8f097a593adefa6a01ad4394225ef7d4",
+        "sha256": "9812a7a172c7f9c133f163a7c314095d0fba0a1b68185a8080d6d6afbbe87b01",
         "symbols": [
+          "GraphChartRenderCoordinator",
+          "GraphHistoryRevisionFeed",
           "GraphViewportRenderScheduler"
         ],
-        "worktreeBlob": "f5e523853ba087f52d7faf47d5efa504c728c889"
+        "worktreeBlob": "8485459478d6aed9557e7fd76b18bc371112894c"
       },
       {
-        "dirty": true,
-        "headBlob": "e9b7c741e61fd5345b0f0a84a2d1a7a1b86e0111",
+        "dirty": false,
+        "headBlob": "f0dc31c5d29ca328be51e809c6aecd688f76ca06",
+        "missing": false,
+        "path": "Sources/NativeHAMac/GraphTooltipFormatting.swift",
+        "sha256": "c4916fb5fe675300e45049d9fe8d9a48edaac984686a6812480e600e2d625d77",
+        "symbols": [
+          "GraphTooltipFormattingMetadata",
+          "GraphTooltipFormattingPolicy",
+          "GraphTooltipFormattingResolver"
+        ],
+        "worktreeBlob": "f0dc31c5d29ca328be51e809c6aecd688f76ca06"
+      },
+      {
+        "dirty": false,
+        "headBlob": "6aeec6002125502dc7905196b19dc2e316182543",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HistoryGraphSupportTests.swift",
         "sha256": "26dd690b647b4d130717a6de06890d37e3ecd37358e03efc7fa3f216d019c671",
@@ -3891,14 +3919,14 @@
       },
       {
         "dirty": false,
-        "headBlob": "46cf9275297c7e5ab08c1d3df40cc5020b0a9a43",
+        "headBlob": "7630f819ed6521fd96cd5542a74cae52b142c6a1",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
-        "sha256": "d356880dec1e6ab5c222ef9b4203ddcf61c80577f2c33a9a0673cdba2439f289",
+        "sha256": "dd5af5ffce8ed189aae956e04aa5ae9d02e257f65230084349f5cbebbc672f50",
         "symbols": [
           "HomeAssistantHistoryLiveSmokeTests"
         ],
-        "worktreeBlob": "46cf9275297c7e5ab08c1d3df40cc5020b0a9a43"
+        "worktreeBlob": "7630f819ed6521fd96cd5542a74cae52b142c6a1"
       },
       {
         "dirty": false,
@@ -3912,8 +3940,8 @@
         "worktreeBlob": "6fab8aeeb697727a225b1a25cba5fa028f2ba2c7"
       },
       {
-        "dirty": true,
-        "headBlob": "a2a3689ee78819db511595529c0f29e2eb0be1f2",
+        "dirty": false,
+        "headBlob": "34dd9ff79053ec06dc5938606aeed174c7e036ee",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantHistoryStreamTests.swift",
         "sha256": "83eaefa51ee6c6fdcbf8619b597ccbe44f19494a774384dab57bd62d695847d8",
@@ -3923,15 +3951,26 @@
         "worktreeBlob": "34dd9ff79053ec06dc5938606aeed174c7e036ee"
       },
       {
-        "dirty": true,
-        "headBlob": "2523bf8d6db3a143c3c00e23632fdf530910074e",
+        "dirty": false,
+        "headBlob": "acbae66947dd8ccb7ef907fb20a474380f1d7948",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
-        "sha256": "9323ddc27fc7fe20e4b968ed92f17dae9846b65b3fcdd0b6c150fa4774fc3663",
+        "sha256": "9cc0ef20158ed38f42b974aa6871898d7da7af43e69dc855e4ffcdaa22a4c5cd",
         "symbols": [
           "HomeAssistantWebSocketConnectionTests"
         ],
-        "worktreeBlob": "cf8f104eedddea4aa7a5afd8e2b84de7543641b0"
+        "worktreeBlob": "acbae66947dd8ccb7ef907fb20a474380f1d7948"
+      },
+      {
+        "dirty": false,
+        "headBlob": "73f58ba891fbf7762efa1ee014c4a99570a5ebcb",
+        "missing": false,
+        "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketEnvelopeTests.swift",
+        "sha256": "1666712c9499a38d6fe92e14c7c64e7bd650a9ca70e18e348e47841435049544",
+        "symbols": [
+          "HomeAssistantWebSocketEnvelopeTests"
+        ],
+        "worktreeBlob": "73f58ba891fbf7762efa1ee014c4a99570a5ebcb"
       },
       {
         "dirty": false,
@@ -3945,42 +3984,53 @@
         "worktreeBlob": "d7339928a9658489d6647ad04383fdb86d8d883c"
       },
       {
-        "dirty": false,
-        "headBlob": "c1bb55424ac0d9689cb85294439050fe4e9479ac",
+        "dirty": true,
+        "headBlob": "6a1db1ceb23eeb7cf91fa3fdfb349886b8b12d92",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
-        "sha256": "80d619e67604141c59f4d9c534038151e086d6ba16122cacf1d420cd861da86a",
+        "sha256": "8ffd15755ab16c10511e3fc83bff2bee179f7599cfe5ddb9ab74934216381cbc",
         "symbols": [
           "GraphRenderingTests"
         ],
-        "worktreeBlob": "c1bb55424ac0d9689cb85294439050fe4e9479ac"
+        "worktreeBlob": "24f32b3db9c79a89b7ce32f67becc4e5ce532afa"
       },
       {
         "dirty": false,
-        "headBlob": "bd6f2d3e32ebdae05c220c89fa2b07b2ca5549ca",
+        "headBlob": "9d5538680b97366159b36e64f957f23c4104eab4",
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/GraphTooltipFormattingTests.swift",
+        "sha256": "2f670f57297ac5433346ac6b27e46281776b2c024e434134f664adf9dbae5372",
+        "symbols": [
+          "GraphTooltipFormattingTests"
+        ],
+        "worktreeBlob": "9d5538680b97366159b36e64f957f23c4104eab4"
+      },
+      {
+        "dirty": false,
+        "headBlob": "4dcac17b29c705b57afae0b04122356e8bf3e1d4",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
-        "sha256": "148b872716c53b7db28b30b8f476864278e69dac90d9f860891d25dbd3ee82fd",
+        "sha256": "60479c4c0058622899a6b1da579ee3f89d90fc73f134a4d521e43aec50766f7a",
         "symbols": [
           "GUIRenderingAndPerformanceTests"
         ],
-        "worktreeBlob": "bd6f2d3e32ebdae05c220c89fa2b07b2ca5549ca"
+        "worktreeBlob": "4dcac17b29c705b57afae0b04122356e8bf3e1d4"
       },
       {
-        "dirty": false,
-        "headBlob": "41dd0a13610323afd372f7e70b825f0326cd6fe6",
+        "dirty": true,
+        "headBlob": "6b5a0f7f5efd7de20596bff30bd114f12e99cd73",
         "missing": false,
         "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
-        "sha256": "ab751b92a3a0f450cb206b0d1e68441b7513414562c98d4cfd78647770ea06af",
+        "sha256": "9930891869318e6e32a1e78a61558204b115f60f43586581a418f69f339c1330",
         "symbols": [
           "HistoryStreamIntegrationTests"
         ],
-        "worktreeBlob": "41dd0a13610323afd372f7e70b825f0326cd6fe6"
+        "worktreeBlob": "220958ddd1cb7428a65834baab3e66806af11b37"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "562686a5649e6d858b191b267f21f206454ad91a"
+    "gitHead": "342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b"
   },
   "nodes": [
     {

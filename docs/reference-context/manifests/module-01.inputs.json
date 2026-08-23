@@ -5,7 +5,7 @@
   "nativeEntries": [
     {
       "path": "Sources/NativeHACore/Models.swift",
-      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage", "HAHistoryPoint", "LovelaceCard"]
+      "symbols": ["HAHistorySeries", "HAHistorySeriesCacheLineage", "HAHistoryPoint", "LovelaceCard", "HAEntityRegistryDisplayResponse", "HAFrontendLocalePreferences"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
@@ -22,6 +22,10 @@
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
       "symbols": ["subscribeRaw", "subscribeMessage", "decodeAndDispatchFrame", "dispatch", "statusUpdates"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketEnvelope.swift",
+      "symbols": ["HAWebSocketEnvelopeScanner"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketTransport.swift",
@@ -53,7 +57,11 @@
     },
     {
       "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-      "symbols": ["GraphViewportRenderScheduler"]
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator", "GraphViewportRenderScheduler"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphTooltipFormatting.swift",
+      "symbols": ["GraphTooltipFormattingPolicy", "GraphTooltipFormattingMetadata", "GraphTooltipFormattingResolver"]
     },
     {
       "path": "Tests/NativeHACoreTests/HistoryGraphSupportTests.swift",
@@ -76,12 +84,20 @@
       "symbols": ["HomeAssistantWebSocketConnectionTests"]
     },
     {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketEnvelopeTests.swift",
+      "symbols": ["HomeAssistantWebSocketEnvelopeTests"]
+    },
+    {
       "path": "Tests/NativeHACoreTests/URLSessionHomeAssistantWebSocketTransportTests.swift",
       "symbols": ["URLSessionHomeAssistantWebSocketTransportTests"]
     },
     {
       "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
       "symbols": ["GraphRenderingTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GraphTooltipFormattingTests.swift",
+      "symbols": ["GraphTooltipFormattingTests"]
     },
     {
       "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",

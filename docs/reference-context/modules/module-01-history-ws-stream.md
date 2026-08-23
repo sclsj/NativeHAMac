@@ -4,13 +4,13 @@ module: "01"
 title: History WebSocket stream and dashboard consumers
 plan: ../../rescue-plan/module-01-history-ws-stream.md
 status: complete
-contract_revision: 2
+contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 562686a5649e6d858b191b267f21f206454ad91a
+nativeha_revision: 342d35bdc0b4fcfb70a316ec3e0b53524d4acb7b
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 2711531db6e990ae4ce666c9075debbcbc60f9dd10a1138ee71a51c7b91d49f5
-last_validated: 2026-07-28
+graph_fingerprint: 544a42651b28edcfddc7093eac3d695a9d524f3760bf25839cf04171a14e3004
+last_validated: 2026-08-23
 ---
 
 # Module 01 evidence packet
@@ -55,6 +55,14 @@ an active gesture. It does not reopen the frontend audit: the existing
 reference anchors are unchanged, while the affected Swift transport, parser,
 render scheduler, and tests are now explicit native anchors.
 
+Contract revision 3 is the bounded 2026-08-23 current-anchor refresh after
+direct typed history delivery, tooltip metadata, and the off-main graph repair.
+The pinned hass-frontend/npm contracts remain unchanged. The refresh makes the
+accepted-publication/feed/render ordering explicit and records the bounded
+C01-06/C01-07 dashboard reconciliation correction. Status remains
+`complete` after a completely fresh verifier audited the correction and reran
+the required deterministic, visual, release, and live evidence.
+
 ## Behavior contracts
 
 | ID | Trigger/input | Observable behavior | Ordering/lifecycle/error rules | Evidence | Swift owner | Verification |
@@ -81,6 +89,22 @@ a broken chain resets. Projection rejects older generations or untrusted
 lineage without mutation, and dashboard consumers check cancellation again
 after awaited projection. The existing raw callback remains compatible and
 takes the safe full-projection path.
+
+Contract-revision-3 clarification for C01-05 through C01-08: each card owner
+publishes its accepted projected series to `GraphHistoryRevisionFeed` before
+assigning the same value to `@Published histories`. While a chart observer is
+mounted, the feed delivers accepted publications FIFO; before subscription it
+retains only the latest event for replay. Initial/reconnect/refresh and
+out-of-order publications reset prepared state, normal contiguous publications
+advance exact lineage, and unchanged publications do not publish. One
+per-chart `GraphChartRenderCoordinator` consumes accepted revisions serially
+and performs preparation/render work off-main; obsolete visuals may coalesce,
+accepted revision advancement may not. Feed/coordinator generation and exact
+projection lineage establish freshness. `contentRevision` hashes and endpoint
+timestamps never establish ordering. Tooltip precision/locale/timezone
+metadata is resolved from current state, the display registry, frontend
+language preferences, and server timezone and travels with graph input without
+mutating stored history or changing axis formatting.
 
 ## Source anchors
 
@@ -1471,13 +1495,155 @@ lineage, generation resets, and full fallback for corrections. Do not fold that
 projection change into transport routing without its exact cold-oracle and
 lineage tests.
 
+## Bounded current-anchor refresh — 2026-08-23
+
+The checker was run before regeneration and reported yellow only for 13 moved
+NativeHA source/test anchors between `562686a` and `342d35b`. The complete
+intervening changes relevant to this packet were reviewed. The hass-frontend
+revision, `history.ts`, card/detail consumers, npm connection runtime, and their
+content hashes are unchanged; no broad frontend audit was repeated.
+
+The refreshed manifest adds the already-implemented raw envelope scanner,
+tooltip metadata path, accepted-revision feed/coordinator, and their focused
+tests as explicit anchors. The regenerated graph is green at 21 nodes / 143
+edges, no unresolved edge or truncation, and fingerprint
+`544a42651b28edcfddc7093eac3d695a9d524f3760bf25839cf04171a14e3004`.
+The resolver self-test passes at 31 nodes / 61 edges, fingerprint
+`7148dbfcc04d8eae2868612b04e880e4bbed3e2b41247561291e775edb345071`.
+After the bounded correction, the pre-regeneration checker was yellow for
+exactly `DashboardViewModel.swift`, `HistoryStreamIntegrationTests.swift`, and
+`GraphRenderingTests.swift`; regeneration returned the graph to green.
+
+### Contract change review
+
+| Contract | Current-anchor result | Gate |
+|---|---|---|
+| C01-01 | Direct raw-slice delivery decodes `HAHistoryStreamMessage` on the existing bounded owner-local worker; malformed typed payloads remain owner-local and generic subscribers retain fallback. Compact seconds and fractional precision remain intact. | pass |
+| C01-02 | Stable accumulation, cutoff boundary, equal timestamps, duplicates, and reset/normal/unchanged/out-of-order classification are unchanged. Accumulator revisions remain owner-local provenance, never digest/timestamp ordering. | pass |
+| C01-03 | Ordered entity IDs, effective typed range, request booleans, fresh start time, and attribute policy are unchanged. | pass |
+| C01-04 | Fresh reconnect request/accumulator/generation, history resubscribe opt-out, cancellation, and zero final ownership remain verified on the refreshed Module 02 transport. | pass |
+| C01-05 | Numeric timestamps now remain native through projection. `contentRevision` invalidates same-shape changes; `cacheLineage` is accepted only for the exact immediate predecessor. Registry precision plus frontend locale/time preferences and server timezone affect hover labels without mutating history or axis formatting. | pass |
+| C01-06 | Raw `hoursToShow`, typed global/detail range policy, deterministic traversal owner ID, card isolation, detail dismissal, and state-change non-append remain intact. Dashboard history reconciliation now owns an epoch and desired-key set, removes every obsolete artifact before awaits, rechecks after each cancellation/start await, and cancels a just-created obsolete owner. Rapid range changes retain only the current owner while a still-desired pending sibling survives unrelated removal. | pass; fresh verifier GO |
+| C01-07 | Typed 32 MiB receive policy, direct large-event decode, bounded delivery, cancellation checks after projection, bootstrap cleanup, and owner-local transport failure remain intact. Explicit refresh snapshots key/subscription/generation ownership and guards both success and error after await; initial subscribe rejection retires pending feed/generation ownership while preserving the owner-local error for an explicit, non-busy-loop retry. | pass; fresh verifier GO |
+| C01-08 | A per-card feed publishes before `@Published histories`; mounted observers receive FIFO and pre-subscription replay is latest-only. Initial/out-of-order reset flags and normal flags are correct. One per-chart coordinator consumes accepted revisions serially off-main, resets generations, coalesces only visuals, and rejects late completions. | pass |
+| C01-09 | The app path remains WebSocket-only. REST history remains confined to `HomeAssistantRESTClient`, `GraphBench`, `GraphPyramidBench`, and `HAProbe`. | pass |
+
+The C01-06 regression now gates history acknowledgements, drives `1h → 3h →
+12h`, releases all three commands, and proves only the current `12h` key,
+feed, subscription, and status survive. A separate surviving-sibling test
+removes one card while another desired owner is pending and proves the desired
+owner is neither canceled nor restarted. The C01-07 regression suspends and
+rejects refresh while range/view reconciliation removes the old key and proves
+the late failure cannot recreate subscriptions, histories, feeds, statuses, or
+an app error. Initial owner rejection is also covered: pending ownership/feed
+is retired, the owner-local error remains visible, and only explicit refresh
+creates one fresh owner and recovers without a busy loop. The correction is
+confined to `DashboardViewModel` orchestration; transport, accumulator,
+projection, feed, and graph cache semantics are unchanged.
+
+### Validation evidence
+
+- `HomeAssistantHistoryStreamTests`: 20/20 pass, including compact decode,
+  stable accumulation/cutoff/equal timestamps/duplicates, transition facts,
+  projection lineage, reconnect, cancellation, and 100-cycle ownership.
+- Implementer `HistoryStreamIntegrationTests`: 7/7 pass, including raw-hour preservation,
+  effective range keys, overlapping-card isolation, feed reset flags before
+  published histories, detail dismissal, late-publication suppression, rapid
+  range reconciliation, refresh/removal rejection, surviving pending sibling,
+  and initial rejection followed by explicit recovery.
+- Typed transport/large-frame coverage: envelope 4/4, production adapter 2/2,
+  and WebSocket connection 22/22 pass. The direct 100,000-sample typed event,
+  coalesced FIFO, detached-decode generation guard, malformed owner-local
+  decode, registry precision, and frontend-language commands are green.
+- History/tooltip/graph coverage from the refresh remains history graph support
+  10/10 and tooltip formatting 7/7. The implementer reran
+  `GraphRenderingTests` at 27/27: nearest-sample hover remains the sole expected
+  failure, while `testHAReferenceNumericHistoryUsesStepEndSegments` is now an
+  ordinary passing assertion after removal of its stale `XCTExpectFailure`.
+- Fresh offscreen history visual coverage passed loading/replay/update
+  settlement for numeric and timeline fixtures in three runs. All 15 PNGs were
+  992x520, manually inspected, populated, labelled, and visibly distinct where
+  required. No new reference baseline was approved. The hover-hidden exact-PNG
+  test passed this run, but remains a time-dependent fixture risk because its
+  two renders use separate implicit `Date()` window ends. Exactly one
+  pre-existing unrelated GUI fixture failure remains:
+  `GUIRenderingAndPerformanceTests.testWarmGraphInteractionRenderCanBeMeasuredWithXCTMetrics`
+  at line 184 uses fixed January data with no fixed August viewport, so the
+  zoomed viewport has no points and the initial `XCTUnwrap(GraphRenderResult)`
+  fails. Inspectable passing Module 01 artifacts are under
+  `.build/render-artifacts/`, including
+  `history-stream-run-03-loading.png`,
+  `history-stream-run-03-numeric-replay.png`,
+  `history-stream-run-03-numeric-update.png`, and
+  `history-stream-run-03-timeline-replay.png`.
+- Fresh authorized read-only release live smoke passed in 3.336 s with final
+  zero ownership and no state-changing call. Representative 1h delivered 2,384
+  points in 0.064 s; reconnect produced a fresh owner with loading count 2.
+  Visible CO2/VOC delivered 8,576 points at 1h in 0.173 s, 102,370 points at
+  12h in 1.490 s, and recovered 8,576 points at 1h in 0.170 s without a
+  reconnect. Representative 24h delivered 57,066 points in 0.928 s. Registry
+  bootstrap returned 276 entities / 74 display precisions, frontend language
+  `en`, and all final pending/subscription/wire/receive/delivery counts were
+  zero.
+- Fresh `swift build -c release --product NativeHAMac` passed. The release
+  executable is `.build/release/NativeHAMac`.
+- Bounded correction writer results additionally pass history 20/20, WebSocket
+  connection 22/22, envelope 4/4, dashboard bootstrap 2/2, and `git diff
+  --check`.
+
+### Fresh independent verification — 2026-08-23
+
+Verdict: **GO; complete**. A completely fresh read-only verifier inspected the
+corrected diff and current anchors, reran deterministic/visual/release/live
+evidence, and returned GO for every contract:
+
+| Contract | Fresh verifier evidence | Verdict |
+|---|---|---|
+| C01-01 | Compact typed direct-event decode, malformed owner-local handling, fractional timestamps, and REST/stream shape separation pass. | GO |
+| C01-02 | Stable accumulation, cutoff boundary, equal timestamps, duplicates, unchanged/normal/reset/out-of-order facts, and exact projection lineage pass. | GO |
+| C01-03 | Ordered IDs, typed range request, booleans, fresh start time, and attribute policy pass. | GO |
+| C01-04 | Initial ownership, reconnect freshness, history resubscribe opt-out, cancellation, and zero final ownership pass. | GO |
+| C01-05 | Domain timestamp/attribute rules, native numeric precision, sentinel timeline states, tooltip metadata, content revision, and strict cache lineage pass. | GO |
+| C01-06 | Rapid `1h → 3h → 12h`, surviving pending sibling, raw hours, stable identity, range keys, detail lifecycle, and card isolation pass. | GO |
+| C01-07 | Late rejected refresh after removal, initial rejection/explicit recovery, large frame, bounded owner-local delivery, bootstrap cleanup, and generation suppression pass. | GO |
+| C01-08 | Feed-before-`@Published`, mounted FIFO, latest-only pre-mount replay, reset flags, off-main serial coordinator, stale completion rejection, and visual settlement pass. | GO |
+| C01-09 | Normal app history remains WebSocket-only and REST remains tool/benchmark-owned. | GO |
+
+Both Module 01 and Module 02 context checkers are green. The resolver self-test
+passes 31 nodes / 61 edges. Focused results are stream 20/20, integration 7/7,
+WebSocket connection 22/22, envelope 4/4, production adapter 2/2, history
+support 10/10, tooltip 7/7, graph 27/27, and bootstrap 2/2. The formerly flaky
+`testProductionHistoryProcessingGateAllowsDismissalAndCancellationSuppressesLatePublication`
+passed 20/20 isolated stress repetitions, followed by the complete integration
+class at 7/7. The step-end regression is an ordinary pass; nearest-sample hover
+is the sole intentional expected failure.
+
+The post-patch full suite executed 139 tests with three intentional
+live/benchmark skips and exactly one failure: the unrelated fixed-time
+`GUIRenderingAndPerformanceTests.testWarmGraphInteractionRenderCanBeMeasuredWithXCTMetrics`
+fixture classified above. No Module 01 contract depends on that stale
+measurement fixture. The 15 required current PNGs, release build, authorized
+read-only live smoke, and exact final zero-ownership checks all passed.
+
+### Preserved Module 09 boundary
+
+The known stale visual request may still reach the coordinator after a newer
+accepted snapshot and cause repeated correctness-safe alignment/full-preparation
+fallback. Preparation is off-main, so this is not the removed synchronous-main
+bug. Keep it in the bounded Module 09 packet. Do not compare
+`contentRevision`, `firstTimestamp`, or `lastTimestamp` to infer freshness; the
+two attempted heuristics were rejected and reverted because they can return
+stale graph content.
+
 ## Handoff
 
-Module 01 is independently complete at contract revision 2. Preserve the
-recorded current-tree live/GUI evidence and the exact projection/cache oracles.
-For the measured history-decode follow-up, use the bounded refresh immediately
-above together with Module 02's refreshed handoff; do not re-audit the
-frontend.
+Module 01 is independently `complete` at contract revision 3. Preserve the
+desired-key/epoch reconciliation, explicit-refresh generation guards, direct
+typed transport, exact projection lineage, feed-before-`@Published` boundary,
+Core Graphics default, tooltip metadata, and the separate Module 09 fallback.
+Do not infer freshness from hashes or endpoint timestamps. The next staged
+action is fresh bounded Module 04 research and a green Lovelace-model evidence
+packet; do not implement Module 04 directly from its rescue plan.
 
 ## Change log
 
@@ -1579,3 +1745,28 @@ frontend.
   debug preparation benchmark averaged 389 ms versus the recorded 405 ms
   baseline. The axis formatter and history transport semantics are unchanged;
   status remains `complete`.
+- 2026-08-23: bounded current-anchor refresh verified direct typed delivery,
+  compact projection, feed-before-published ordering, FIFO mounted preparation,
+  latest-only pre-mount replay, reset flags, tooltip metadata, off-main chart
+  ownership, Core Graphics default, release/live behavior, and the strict
+  projection/cache oracles. A fresh orchestration audit found two bounded
+  dashboard races: rapid range changes can retain an obsolete owner and late
+  explicit-refresh failure can recreate status for a removed key. Recorded
+  deterministic gated regressions and an epoch/generation-safe repair handoff;
+  status returns to `verification-ready` at contract revision 3.
+- 2026-08-23: the bounded correction added desired-key/epoch reconciliation,
+  post-await owner checks, obsolete-owner cancellation, guarded refresh
+  completion/error, and cleanup that preserves initial rejection status while
+  allowing explicit recovery. Four gated integration tests cover rapid range
+  changes, late rejected refresh after removal, a surviving pending sibling,
+  and initial rejection followed by explicit refresh. The writer's focused
+  suites and diff check pass; status remains `verification-ready` for a
+  completely fresh verifier, with prior release/live evidence not promoted to
+  post-correction evidence.
+- 2026-08-23: a completely fresh verifier returned GO for C01-01 through
+  C01-09. Both module checkers, resolver, all focused suites, 20/20 detail-gate
+  stress, 15 manually inspected GUI artifacts, release build, and authorized
+  read-only 1h/reconnect/12h/recovery/24h live smoke passed with final zero
+  ownership. The 139-test full suite retained exactly one classified unrelated
+  fixed-time performance-fixture failure and three intentional skips. Status is
+  `complete`; next action is bounded Module 04 research.

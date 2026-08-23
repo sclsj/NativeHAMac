@@ -272,9 +272,6 @@ final class GraphRenderingTests: XCTestCase {
             radius: 2
         )
 
-        XCTExpectFailure(
-            "Known HA parity gap: hass-frontend renders state history with step: end; NativeHA currently connects numeric samples diagonally."
-        )
         XCTAssertTrue(hasHorizontalStep)
     }
 

@@ -27,6 +27,8 @@ final class DashboardViewModel: ObservableObject {
     private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
     private var historyGenerations: [String: UUID] = [:]
     private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] = [:]
+    private var desiredHistoryKeys: Set<String> = []
+    private var historyReconciliationEpoch: UInt64 = 0
     private var detailHistoryGenerations: [String: UUID] = [:]
     private var desiredDetailHistoryKeys: Set<String> = []
     private let historyNow: @Sendable () -> Date
@@ -597,25 +599,59 @@ final class DashboardViewModel: ObservableObject {
 
         let requests = historyRequests()
         let desiredKeys = Set(requests.map(\.key))
-        for key in Array(historySubscriptions.keys) where !desiredKeys.contains(key) {
-            let subscription = historySubscriptions.removeValue(forKey: key)
+        if desiredKeys != desiredHistoryKeys {
+            desiredHistoryKeys = desiredKeys
+            historyReconciliationEpoch &+= 1
+        }
+        let reconciliationEpoch = historyReconciliationEpoch
+        let obsoleteKeys = Set(historySubscriptions.keys)
+            .union(historyGenerations.keys)
+            .union(graphHistoryRevisionFeeds.keys)
+            .union(historyStatuses.keys)
+            .union(histories.keys)
+            .subtracting(desiredKeys)
+        var obsoleteSubscriptions: [HAHistoryStreamSubscription] = []
+        for key in obsoleteKeys {
+            if let subscription = historySubscriptions.removeValue(forKey: key) {
+                obsoleteSubscriptions.append(subscription)
+            }
             historyGenerations.removeValue(forKey: key)
             graphHistoryRevisionFeeds.removeValue(forKey: key)
             historyStatuses.removeValue(forKey: key)
             histories.removeValue(forKey: key)
-            await subscription?.cancel()
+        }
+        for subscription in obsoleteSubscriptions {
+            await subscription.cancel()
         }
 
-        for request in requests where historySubscriptions[request.key] == nil {
-            await startHistory(request, webSocketClient: webSocketClient)
+        guard historyReconciliationEpoch == reconciliationEpoch else { return }
+        for request in requests {
+            guard historyReconciliationEpoch == reconciliationEpoch else { return }
+            guard
+                desiredHistoryKeys.contains(request.key),
+                historySubscriptions[request.key] == nil,
+                historyGenerations[request.key] == nil
+            else { continue }
+            await startHistory(
+                request,
+                webSocketClient: webSocketClient,
+                reconciliationEpoch: reconciliationEpoch
+            )
         }
     }
 
     private func startHistory(
         _ request: HistoryRequest,
-        webSocketClient: HomeAssistantWebSocketClient
+        webSocketClient: HomeAssistantWebSocketClient,
+        reconciliationEpoch: UInt64
     ) async {
         let key = request.key
+        guard
+            historyReconciliationEpoch == reconciliationEpoch,
+            desiredHistoryKeys.contains(key),
+            historySubscriptions[key] == nil,
+            historyGenerations[key] == nil
+        else { return }
         let generation = UUID()
         let stateSnapshot = states
         historyGenerations[key] = generation
@@ -638,6 +674,7 @@ final class DashboardViewModel: ObservableObject {
                 onStatus: { status in
                     await MainActor.run {
                         guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        guard weakModel.value?.desiredHistoryKeys.contains(key) == true else { return }
                         guard weakModel.value?.historyStatuses[key] != status else { return }
                         weakModel.value?.historyStatuses[key] = status
                     }
@@ -658,6 +695,7 @@ final class DashboardViewModel: ObservableObject {
                     await MainActor.run {
                         guard !Task.isCancelled else { return }
                         guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        guard weakModel.value?.desiredHistoryKeys.contains(key) == true else { return }
                         graphRevisionFeed.publish(
                             projected,
                             resetPreparedState: resetsPreparedGraphState
@@ -666,28 +704,52 @@ final class DashboardViewModel: ObservableObject {
                     }
                 }
             )
-            guard historyGenerations[key] == generation else {
+            guard
+                desiredHistoryKeys.contains(key),
+                historyGenerations[key] == generation
+            else {
                 await subscription.cancel()
                 return
             }
             historySubscriptions[key] = subscription
         } catch {
-            guard historyGenerations[key] == generation else { return }
+            guard
+                desiredHistoryKeys.contains(key),
+                historyGenerations[key] == generation
+            else { return }
+            historyGenerations.removeValue(forKey: key)
+            graphHistoryRevisionFeeds.removeValue(forKey: key)
             historyStatuses[key] = .error(error.localizedDescription)
             errorMessage = "History stream failed: \(error.localizedDescription)"
         }
     }
 
     private func refreshHistorySubscriptions() async {
-        if historySubscriptions.isEmpty {
+        let currentDesiredKeys = Set(historyRequests().map(\.key))
+        if historySubscriptions.isEmpty || currentDesiredKeys != desiredHistoryKeys {
             await loadHistories()
             return
         }
-        for (key, subscription) in historySubscriptions {
+        let reconciliationEpoch = historyReconciliationEpoch
+        let subscriptions = historySubscriptions.compactMap { key, subscription in
+            historyGenerations[key].map { (key, subscription, $0) }
+        }
+        for (key, subscription, generation) in subscriptions {
+            guard
+                historyReconciliationEpoch == reconciliationEpoch,
+                desiredHistoryKeys.contains(key),
+                historyGenerations[key] == generation,
+                historySubscriptions[key] === subscription
+            else { continue }
             historyStatuses[key] = .loading
             do {
                 try await subscription.refresh()
             } catch {
+                guard
+                    desiredHistoryKeys.contains(key),
+                    historyGenerations[key] == generation,
+                    historySubscriptions[key] === subscription
+                else { continue }
                 historyStatuses[key] = .error(error.localizedDescription)
             }
         }

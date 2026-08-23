@@ -11,9 +11,9 @@ packet.
 
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
 |---|---|---|---|---|---|
-| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete; current handoff green | 2 | Preserve verified transport/lifecycle contracts; proceed to bounded Module 01 evidence refresh |
-| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | implementation complete; evidence refresh required (yellow) | 2 / Module 02 implementation complete | After Module 02 refresh, revalidate typed delivery, projection, graph-feed, tooltip, and lifecycle anchors |
-| 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | not created | unresearched | Depends on refreshed 02 handoff; must preserve 01 owner identity | Research/create packet after the bounded Module 02/01 refreshes |
+| 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete; current handoff green | 2 | Preserve verified transport/lifecycle contracts during Module 04 research |
+| 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | complete; corrected orchestration independently verified, current graph green | 3 / Module 02 complete | Preserve verified history/feed/render ownership during Module 04 research |
+| 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | not created | unresearched; prerequisites green | Fresh complete 02 and 01 handoffs; must preserve 01 owner identity | Dispatch a fresh researcher to create a bounded green evidence packet before implementation |
 | 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | unresearched | Independent, but ordered after 04 in the rescue plan | Dispatch researcher after 04 |
 | 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | not created | unresearched | Requires 04; coordinates with 01 | Dispatch researcher after 03 |
 | 05 | [Dashboard state](../rescue-plan/module-05-dashboard-viewmodel-state.md) | not created | unresearched | Requires 01, 02, 03, 04, and 12 | Dispatch when prerequisites are verification-ready |
