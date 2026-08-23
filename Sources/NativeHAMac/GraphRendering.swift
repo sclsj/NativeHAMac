@@ -1236,7 +1236,7 @@ private final class GraphPreparedSeriesCache {
             }
         }
         guard aligned else {
-            AppLog("incrementallyUpdate failed: could not align prefix", severity: .debug, category: .rendering)
+            AppLog("incrementallyUpdate failed: could not align prefix. overlapStartTime: \(String(describing: overlapStartTime)), cacheStartIndex: \(cacheStartIndex), targetTimestamp: \(targetTimestamp), firstValidNewIndex: \(firstValidNewIndex), raw count: \(input.history.points.count)", severity: .debug, category: .rendering)
             return nil
         }
         
