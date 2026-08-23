@@ -90,3 +90,36 @@ evidence.
   scheduling, graph dimensions, scale, data density, hardware, OS, or compiler
   changes materially. Use the tracked benchmark rather than extrapolating these
   numbers to a different workload.
+
+### Rolling 12-hour graph preparation can saturate the main thread
+
+- **Claim:** On Joy's MBP (2), the current rolling-history render path performs
+  work proportional to the complete retained window for every live revision,
+  including synchronous main-thread prepared-series work. For the live CO2/VOC
+  card at `12h`, each SPS30 series retains about 41,900 points and commonly
+  spends about 40 ms in main-thread `incrementallyUpdate` per revision. This is
+  a steady-state interaction-lag source after history has loaded; it is separate
+  from initial WebSocket fetch and typed decoding time and is not specific to
+  the graph render engine.
+- **Status:** Reproduced local observation and code-path diagnosis on 2026-08-22
+  at commit `c8bda39`, using the user's Core Graphics configuration and the
+  running debug app.
+- **Evidence:** The launch table
+  `log_c8bda39_dirty_20260822_054150_A29CE603` in
+  `~/Library/Caches/NativeHA_Logs.sqlite` records the switch to `12h`, roughly
+  41,875 SPS30 points per series, repeated 40–42 ms main-thread incremental
+  preparations, parallel background preparation, and frequent background
+  `could not align prefix` full-preparation fallbacks. An older 2026-08-20
+  launch of the same commit recorded much worse transient values (hundreds of
+  milliseconds on the main thread and up to seconds in background full
+  preparation), showing that machine state amplifies the same app flaw. A
+  five-sample release `GraphEngineBenchmarks` run with the actual CO2/VOC card
+  entities measured 24-hour present-ready p50 of 94–101 ms across Metal, Core
+  Graphics, and Canvas, of which 93–97 ms was preparation and only 1–3 ms was
+  renderer work. A current live HA protocol comparison returned 101,946–101,965
+  samples / 4.63–4.64 MiB for the 12-hour card, essentially the same shape as
+  the tracked 2026-07-28 baseline of 102,437–102,453 samples / 4.71 MiB.
+- **Revalidate when:** Projection publication granularity, prepared-series
+  caching/lineage, rolling-window storage, synchronous rendering, live entity
+  cadence, or retained time range changes. Renderer-only improvements should
+  not be expected to fix this preparation bottleneck.
