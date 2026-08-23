@@ -1324,7 +1324,9 @@ private func performanceInput(pointCount: Int, entityID: String) -> GraphRenderS
         name: "Performance fixture",
         unit: "µg/m³",
         color: GraphColor(red: 0.26, green: 0.47, blue: 0.95, alpha: 1),
-        history: HAHistorySeries(entityID: entityID, points: points)
+        history: HAHistorySeries(entityID: entityID, points: points),
+        windowStart: 1767225600.0,
+        windowEnd: 1767225600.0 + Double(pointCount)
     )
 }
 

@@ -94,7 +94,7 @@ if duplicates:
 else:
     print("\nNo duplicate timestamps found.")
 
-with open("/Users/jin/Documents/Computer/NativeHA/Benchmarks/sps30_timestamp_results.txt", "w") as f:
+with open("/Users/jin/Documents/Computer/NativeHA/Benchmarks/HistoryFetch/sps30_timestamp_results.txt", "w") as f:
     f.write(f"Entity: {entity_id}\n")
     f.write(f"Total timestamps: {len(all_timestamps)}\n")
     f.write(f"Total unique timestamps: {len(timestamp_counts)}\n")

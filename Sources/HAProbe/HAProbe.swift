@@ -29,7 +29,7 @@ enum HAProbe {
         
         let encoder = JSONEncoder()
         let data = try encoder.encode(history)
-        let fileURL = URL(fileURLWithPath: "sps30_1day.json")
+        let fileURL = URL(fileURLWithPath: "Tests/Fixtures/History/sps30_1day.json")
         try data.write(to: fileURL)
         print("Saved \(data.count) bytes to \(fileURL.path)")
     }

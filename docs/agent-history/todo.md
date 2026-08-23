@@ -42,7 +42,7 @@ launch rendered all 12h CO2/VOC/SPS30 plots, stayed `Live`, showed no loading
 owner, and was terminated without touching the user's pre-existing debug app.
 The Module 01 graph is green at 21 nodes/143 edges with fingerprint
 `7f40511c8dee7ca35452bc2bf345ffcccc1b5f66c34c34c1c3174ebdbceecf0d`.
-Preserve untracked `sample.txt`.
+Preserve untracked `docs/debugging/sample.txt`.
 
 ## 2026-07-19 contract-revision-2 repair status
 
@@ -90,7 +90,7 @@ passed 87 tests with two intentional live-gated skips and zero failures in
 release scheduler benchmark passed 2/2; and the 100,000-point exact rolling
 projection measured 3.542 ms incremental versus 592.864 ms full in release.
 Preserve the
-pre-existing untracked `sample.txt`.
+pre-existing untracked `docs/debugging/sample.txt`.
 
 Fresh independent release GUI verification passed: 12h CO2/VOC rendered by the
 sixth capture, stayed `Live` for 80/80 samples over 36 seconds, and settled at
@@ -128,7 +128,7 @@ Focused graph 17/17, history 17/17, history-performance 6/6, and integration
 Gemini's work is already committed as `e4eecb2` (wire-ID registration/send
 ordering plus a 120-second command timeout), `f8f55f0` (serialized/coalesced
 viewport scheduler), and `3cd05d5` (timestamp fast path and formatter hoist).
-The only pre-existing untracked file at this refresh is `sample.txt`; do not
+The only pre-existing untracked file at this refresh is `docs/debugging/sample.txt`; do not
 modify or commit it as part of Module 01.
 
 The 12h failure is now confirmed at the production adapter boundary. The exact
@@ -340,7 +340,7 @@ the final evidence was reached:
 
 Module 01 and Gemini's follow-ups are committed through `3cd05d5`. At the start
 of this bounded refresh, the tracked worktree was clean and only the pre-existing
-`sample.txt` was untracked. This refresh changes only the Module 01 manifest,
+`docs/debugging/sample.txt` was untracked. This refresh changes only the Module 01 manifest,
 generated graph, evidence packet/index, and this handoff. The hass-frontend
 checkout remains read-only.
 
@@ -354,7 +354,7 @@ checkout remains read-only.
    node tools/reference-context/check-context.mjs \
      docs/reference-context/generated/module-01.dependencies.json
    node tools/reference-context/test-resolver.mjs
-   sed -n '1,260p' todo.md
+   sed -n '1,260p' docs/agent-history/todo.md
    ```
 
 2. Inspect the current diff and the contract-revision-2 implementation section
@@ -382,12 +382,12 @@ checkout remains read-only.
    ```
 
 5. Inspect the refreshed graph/checker/resolver output and `git diff --check`,
-   commit the intentional Module 01 files without `sample.txt`, and mark Module
+   commit the intentional Module 01 files without `docs/debugging/sample.txt`, and mark Module
    01 complete only if no C01-01-through-C01-09 discrepancy remains.
 
 ## Remaining follow-up
 
-- Keep `sample.txt` untouched and perform the intentional Module 01 commit.
+- Keep `docs/debugging/sample.txt` untouched and perform the intentional Module 01 commit.
 - Begin Module 04 research from the reference-context index after the commit.
 - Convert temporary stress evidence into a deliberate tracked diagnostic/test
   only if it is maintainable; do not copy the multi-megabyte raw JSON fixtures.

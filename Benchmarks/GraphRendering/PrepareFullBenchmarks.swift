@@ -5,7 +5,7 @@ import Foundation
 
 final class PrepareFullBenchmarks: XCTestCase {
     func testPrepareFull() throws {
-        let url = URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/sps30_1day.json")
+        let url = URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/Tests/Fixtures/History/sps30_1day.json")
         let data = try Data(contentsOf: url)
         
         let decodedArray = try JSONDecoder().decode([HAHistorySeries].self, from: data)

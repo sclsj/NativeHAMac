@@ -1383,7 +1383,7 @@ git diff --check: pass
 ```
 
 The two expected Module 09 hover/step parity markers remain out of this module's
-scope. `sample.txt` remains untouched. Module 01 is complete and ready for the
+scope. `docs/debugging/sample.txt` remains untouched. Module 01 is complete and ready for the
 orchestrator's intentional commit; the next rescue workflow action is Module
 04 research.
 

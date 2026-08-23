@@ -1,6 +1,6 @@
 # prepareFull Optimization Benchmarks
 
-These benchmarks measured the execution time of `GraphPreparedSeriesCache.shared.series(for: displayUnit:)` (which internally calls `prepareFull`) using the `sps30_1day.json` dataset (84,000 data points).
+These benchmarks measured the execution time of `GraphPreparedSeriesCache.shared.series(for: displayUnit:)` (which internally calls `prepareFull`) using the `Tests/Fixtures/History/sps30_1day.json` dataset (84,000 data points).
 
 ## Baseline
 - Average time: **405 ms**

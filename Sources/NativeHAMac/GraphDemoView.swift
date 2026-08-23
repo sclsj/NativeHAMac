@@ -81,7 +81,7 @@ struct GraphDemoView: View {
     private func findTargetSeries() -> GraphRenderedSeries? {
         let parser = GraphDateParser()
         
-        if let data = try? Data(contentsOf: URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/sps30_1day.json")),
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: "/Users/jin/Documents/Computer/NativeHA/Tests/Fixtures/History/sps30_1day.json")),
            let histories = try? JSONDecoder().decode([HAHistorySeries].self, from: data),
            let history = histories.first {
             

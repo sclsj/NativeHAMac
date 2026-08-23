@@ -37,11 +37,11 @@ evidence.
   Home Assistant inputs when its contract requires that behavior.
 - **Status:** Deployment-scoped user-confirmed assumption, supported by tracked
   live captures and measurements.
-- **Evidence:** A 2026-07-22 read-only scan of the tracked `sps30_1day.json`
+- **Evidence:** A 2026-07-22 read-only scan of the tracked `Tests/Fixtures/History/sps30_1day.json`
   capture found 83,969 effective timestamps and zero adjacent pairs for which
   the later timestamp was less than or equal to the earlier timestamp.
-  Separately, `Benchmarks/sps30_timestamp_check.py` fetched fourteen consecutive
-  one-day history windows. `Benchmarks/sps30_timestamp_results.txt` records
+  Separately, `Benchmarks/HistoryFetch/sps30_timestamp_check.py` fetched fourteen consecutive
+  one-day history windows. `Benchmarks/HistoryFetch/sps30_timestamp_results.txt` records
   1,173,621 total timestamps, 1,173,621 unique timestamps, zero duplicated
   timestamp values, and zero points involved in duplicates. The fourteen-day
   persisted summary proves uniqueness but does not independently calculate
