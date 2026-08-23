@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "04",
+  "title": "Lossless Lovelace decode and stable resolved identity",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/JSONValue.swift",
+      "symbols": ["JSONValue"]
+    },
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["LovelaceConfig", "LovelaceView", "LovelaceCard", "LovelaceEntityRef"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": ["fetchLovelaceConfig"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig", "CardColumnRule"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel", "HistoryRequest"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardView.swift",
+      "symbols": ["DashboardView"]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": ["CardRenderer", "EntitiesCard", "WeatherCard", "HistoryGraphCard", "MarkdownCard", "UnsupportedCard", "UnitGraph", "BitmapLineChart"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+      "symbols": ["HistoryStreamIntegrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
+      "symbols": ["GUIRenderingAndPerformanceTests"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/data/lovelace/config/card.ts",
+      "symbols": ["LovelaceCardConfig"]
+    },
+    {
+      "path": "src/data/lovelace/config/view.ts",
+      "symbols": ["LovelaceViewRawConfig", "computeViewTitle", "computeViewIcon"]
+    },
+    {
+      "path": "src/data/lovelace/config/types.ts",
+      "symbols": ["LovelaceConfig", "fetchConfig"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/types.ts",
+      "symbols": ["ConditionalCardConfig", "EntitiesCardConfig", "MarkdownCardConfig", "HistoryGraphCardConfig", "StackCardConfig", "GridCardConfig", "WeatherForecastCardConfig"]
+    },
+    {
+      "path": "src/panels/lovelace/entity-rows/types.ts",
+      "symbols": ["LovelaceRowConfig"]
+    },
+    {
+      "path": "src/panels/lovelace/common/process-config-entities.ts",
+      "symbols": ["processConfigEntities"]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-element-base.ts",
+      "symbols": ["createLovelaceElement", "tryCreateLovelaceElement"]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-card-element.ts",
+      "symbols": ["createCardElement", "tryCreateCardElement"]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-row-element.ts",
+      "symbols": ["createRowElement"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-card.ts",
+      "symbols": ["HuiCard"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view.ts",
+      "symbols": ["HUIView"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-masonry-view.ts",
+      "symbols": ["MasonryView"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-stack-card.ts",
+      "symbols": ["HuiStackCard"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-entities-card.ts",
+      "symbols": ["HuiEntitiesCard", "computeShowHeaderToggle"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "symbols": ["HuiHistoryGraphCard"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-weather-forecast-card.ts",
+      "symbols": ["HuiWeatherForecastCard"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-markdown-card.ts",
+      "symbols": ["HuiMarkdownCard"]
+    },
+    {
+      "path": "src/panels/lovelace/hui-root.ts",
+      "symbols": ["HuiRoot"]
+    }
+  ],
+  "followPackages": [],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}
