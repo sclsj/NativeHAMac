@@ -68,6 +68,20 @@ struct GraphRenderSeriesInput {
         self.windowEnd = windowEnd
         self.tooltipFormatting = tooltipFormatting
     }
+
+    func replacingHistory(_ history: HAHistorySeries, cacheScope: String? = nil) -> Self {
+        Self(
+            cacheScope: cacheScope ?? self.cacheScope,
+            entityID: entityID,
+            name: name,
+            unit: unit,
+            color: color,
+            history: history,
+            windowStart: windowStart,
+            windowEnd: windowEnd,
+            tooltipFormatting: tooltipFormatting
+        )
+    }
 }
 
 struct GraphRenderedPoint: Equatable {
@@ -252,6 +266,22 @@ struct GraphPreparedSeriesCacheStatistics: Equatable {
     let fullPreparationCount: Int
     let incrementalPreparationCount: Int
     let cacheHitCount: Int
+    let exactLineagePreparationCount: Int
+    let alignmentFallbackCount: Int
+
+    init(
+        fullPreparationCount: Int,
+        incrementalPreparationCount: Int,
+        cacheHitCount: Int,
+        exactLineagePreparationCount: Int = 0,
+        alignmentFallbackCount: Int = 0
+    ) {
+        self.fullPreparationCount = fullPreparationCount
+        self.incrementalPreparationCount = incrementalPreparationCount
+        self.cacheHitCount = cacheHitCount
+        self.exactLineagePreparationCount = exactLineagePreparationCount
+        self.alignmentFallbackCount = alignmentFallbackCount
+    }
 }
 
 private struct GraphBitmapDrawMetrics {
@@ -847,6 +877,8 @@ private final class GraphPreparedSeriesCache {
     private var fullPreparationCount = 0
     private var incrementalPreparationCount = 0
     private var cacheHitCount = 0
+    private var exactLineagePreparationCount = 0
+    private var alignmentFallbackCount = 0
 
     func reset() {
         lock.lock()
@@ -855,6 +887,8 @@ private final class GraphPreparedSeriesCache {
         fullPreparationCount = 0
         incrementalPreparationCount = 0
         cacheHitCount = 0
+        exactLineagePreparationCount = 0
+        alignmentFallbackCount = 0
         lock.unlock()
     }
 
@@ -864,7 +898,9 @@ private final class GraphPreparedSeriesCache {
         return GraphPreparedSeriesCacheStatistics(
             fullPreparationCount: fullPreparationCount,
             incrementalPreparationCount: incrementalPreparationCount,
-            cacheHitCount: cacheHitCount
+            cacheHitCount: cacheHitCount,
+            exactLineagePreparationCount: exactLineagePreparationCount,
+            alignmentFallbackCount: alignmentFallbackCount
         )
     }
 
@@ -890,7 +926,18 @@ private final class GraphPreparedSeriesCache {
             lock.unlock()
 
             let incStart = graphRenderClock()
-            if let updated = incrementallyUpdate(
+            let exactLineage = exactLineageUpdate(
+                cached,
+                input: input,
+                displayUnit: displayUnit,
+                fingerprint: fingerprint
+            )
+            if exactLineage == nil {
+                lock.lock()
+                alignmentFallbackCount += 1
+                lock.unlock()
+            }
+            if let updated = exactLineage ?? incrementallyUpdate(
                 cached,
                 input: input,
                 displayUnit: displayUnit,
@@ -902,6 +949,9 @@ private final class GraphPreparedSeriesCache {
                 }
                 lock.lock()
                 incrementalPreparationCount += 1
+                if exactLineage != nil {
+                    exactLineagePreparationCount += 1
+                }
                 lock.unlock()
                 store(updated, key: key)
                 return updated.series
@@ -924,6 +974,88 @@ private final class GraphPreparedSeriesCache {
         lock.unlock()
         store(prepared, key: key)
         return prepared.series
+    }
+
+    /// Applies projection-store lineage without scanning or validating the
+    /// retained overlap. The projection owner already proved that raw slice;
+    /// this cache may trust it only for its exact numeric predecessor.
+    private func exactLineageUpdate(
+        _ cached: GraphPreparedCacheEntry,
+        input: GraphRenderSeriesInput,
+        displayUnit: String,
+        fingerprint: GraphSourceFingerprint
+    ) -> GraphPreparedCacheEntry? {
+        guard displayUnit.lowercased() != "state",
+              cached.isOneToOneStrictlyIncreasingNumericSource,
+              let lineage = input.history.cacheLineage,
+              cached.fingerprint.contentRevision == lineage.predecessorRevision,
+              lineage.oldStart >= 0,
+              lineage.newStart >= 0,
+              lineage.count > 0,
+              lineage.oldStart <= cached.series.points.count,
+              lineage.count <= cached.series.points.count - lineage.oldStart,
+              lineage.newStart <= input.history.points.count,
+              lineage.count <= input.history.points.count - lineage.newStart
+        else {
+            return nil
+        }
+
+        let parser = GraphDateParser()
+        var points: [GraphRenderedPoint] = []
+        points.reserveCapacity(input.history.points.count)
+        var yValues: [Double] = []
+        yValues.reserveCapacity(input.history.points.count)
+
+        func appendFresh(_ range: Range<Int>) -> Bool {
+            for index in range {
+                if index % 1_024 == 0, graphRenderIsCancelled() { return false }
+                let source = input.history.points[index]
+                guard let timestamp = parser.timestamp(from: source),
+                      let value = numericValue(source.state)
+                else { return false }
+                if let previous = points.last, timestamp <= previous.t { return false }
+                points.append(GraphRenderedPoint(
+                    t: timestamp,
+                    y: value,
+                    display: displayValue(source.state, unit: displayUnit)
+                ))
+                yValues.append(value)
+            }
+            return true
+        }
+
+        guard appendFresh(0..<lineage.newStart) else { return nil }
+        let cachedRange = lineage.oldStart..<(lineage.oldStart + lineage.count)
+        let overlap = cached.series.points[cachedRange]
+        if let previous = points.last, let first = overlap.first, first.t <= previous.t {
+            return nil
+        }
+        points.append(contentsOf: overlap)
+        guard let cachedY = cached.series.minMaxCache?.yValues,
+              cachedRange.upperBound <= cachedY.count
+        else { return nil }
+        yValues.append(contentsOf: cachedY[cachedRange])
+
+        let suffixStart = lineage.newStart + lineage.count
+        guard appendFresh(suffixStart..<input.history.points.count),
+              points.count == input.history.points.count,
+              yValues.count == points.count,
+              !points.isEmpty
+        else { return nil }
+
+        return GraphPreparedCacheEntry(
+            fingerprint: fingerprint,
+            isOneToOneStrictlyIncreasingNumericSource: true,
+            series: GraphRenderedSeries(
+                entityID: input.entityID,
+                name: input.name,
+                unit: input.unit,
+                color: input.color,
+                points: points,
+                minMaxCache: GraphMinMaxCache(points: points, yValues: yValues),
+                tooltipFormatting: input.tooltipFormatting
+            )
+        )
     }
 
     private func prepareFull(
@@ -960,7 +1092,7 @@ private final class GraphPreparedSeriesCache {
             if let previousTimestamp = previousTimestamp, timestamp < previousTimestamp {
                 isTimestampSorted = false
             }
-            if let previousTimestamp = previousTimestamp, timestamp < previousTimestamp {
+            if let previousTimestamp = previousTimestamp, timestamp <= previousTimestamp {
                 isOneToOneStrictlyIncreasingNumericSource = false
             }
             previousTimestamp = timestamp
@@ -1182,7 +1314,9 @@ private final class GraphPreparedSeriesCache {
 
         return GraphPreparedCacheEntry(
             fingerprint: fingerprint,
-            isOneToOneStrictlyIncreasingNumericSource: true,
+            isOneToOneStrictlyIncreasingNumericSource: zip(points, points.dropFirst()).allSatisfy {
+                $0.t < $1.t
+            },
             series: GraphRenderedSeries(
                 entityID: input.entityID,
                 name: input.name,

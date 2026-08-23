@@ -311,7 +311,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 2,
                 incrementalPreparationCount: 0,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                alignmentFallbackCount: 1
             )
         )
     }
@@ -366,7 +367,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 1,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 1
             )
         )
     }
@@ -445,7 +447,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 2,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 2
             ),
             "Skipping visual revision N must not break N+1's predecessor lineage."
         )
@@ -466,8 +469,249 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 1,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                alignmentFallbackCount: 1
             )
+        )
+    }
+
+    @MainActor
+    func testChartCoordinatorConsumesFIFOOffMainAndCoalescesOnlyVisuals() {
+        let firstPreparationStarted = expectation(description: "first preparation started")
+        let latestVisualDelivered = expectation(description: "latest visual delivered")
+        let gate = DispatchSemaphore(value: 0)
+        let captureLock = NSLock()
+        var preparedRevisions: [UInt64] = []
+        var preparationWasMain: [Bool] = []
+        var renderedTokens: [String] = []
+        var renderWasMain: [Bool] = []
+
+        let coordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.chartCoordinatorFIFO",
+            preparer: { input, _ in
+                captureLock.lock()
+                preparedRevisions.append(input.history.contentRevision)
+                preparationWasMain.append(Thread.isMainThread)
+                let isFirst = preparedRevisions.count == 1
+                captureLock.unlock()
+                if isFirst {
+                    firstPreparationStarted.fulfill()
+                    gate.wait()
+                }
+            },
+            renderer: { request in
+                captureLock.lock()
+                renderedTokens.append(request.token)
+                renderWasMain.append(Thread.isMainThread)
+                captureLock.unlock()
+                return nil
+            }
+        )
+
+        let base = numericInput()
+        let first = base.replacingHistory(HAHistorySeries(
+            entityID: base.entityID,
+            points: base.history.points,
+            contentRevision: 100
+        ))
+        let second = base.replacingHistory(HAHistorySeries(
+            entityID: base.entityID,
+            points: base.history.points,
+            contentRevision: 101
+        ))
+        coordinator.submitAcceptedRevision(inputs: [first], unit: base.unit)
+        wait(for: [firstPreparationStarted], timeout: 1)
+        coordinator.submitAcceptedRevision(inputs: [second], unit: base.unit)
+        coordinator.requestVisual(chartVisualRequest(token: "obsolete", input: second)) { _, _ in
+            XCTFail("Obsolete visual must be replaced before rendering")
+        }
+        coordinator.requestVisual(chartVisualRequest(token: "latest", input: second)) { token, _ in
+            XCTAssertEqual(token, "latest")
+            latestVisualDelivered.fulfill()
+        }
+        gate.signal()
+        wait(for: [latestVisualDelivered], timeout: 1)
+
+        captureLock.lock()
+        let revisions = preparedRevisions
+        let preparationThreads = preparationWasMain
+        let tokens = renderedTokens
+        let renderThreads = renderWasMain
+        captureLock.unlock()
+        XCTAssertEqual(revisions, [100, 101])
+        XCTAssertEqual(preparationThreads, [false, false])
+        XCTAssertEqual(tokens, ["latest"])
+        XCTAssertEqual(renderThreads, [false])
+        XCTAssertEqual(coordinator.statistics.consumedRevisionCount, 2)
+        XCTAssertEqual(coordinator.statistics.replacedVisualCount, 1)
+        XCTAssertEqual(coordinator.statistics.maximumConcurrentCount, 1)
+    }
+
+    @MainActor
+    func testChartCoordinatorResetRejectsLateGenerationCompletion() {
+        let oldRenderStarted = expectation(description: "old render started")
+        let staleDelivery = expectation(description: "stale delivery")
+        staleDelivery.isInverted = true
+        let newDelivery = expectation(description: "new delivery")
+        let gate = DispatchSemaphore(value: 0)
+        let coordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.chartCoordinatorReset",
+            preparer: { _, _ in },
+            renderer: { request in
+                if request.token == "old" {
+                    oldRenderStarted.fulfill()
+                    gate.wait()
+                }
+                return nil
+            }
+        )
+        let input = numericInput()
+        coordinator.requestVisual(chartVisualRequest(token: "old", input: input)) { _, _ in
+            staleDelivery.fulfill()
+        }
+        wait(for: [oldRenderStarted], timeout: 1)
+        coordinator.reset()
+        coordinator.requestVisual(chartVisualRequest(token: "new", input: input)) { token, _ in
+            XCTAssertEqual(token, "new")
+            newDelivery.fulfill()
+        }
+        gate.signal()
+        wait(for: [newDelivery, staleDelivery], timeout: 1)
+        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 1)
+    }
+
+    @MainActor
+    func testChartCoordinatorDoesNotInstallSupersededInFlightVisual() {
+        let oldRenderStarted = expectation(description: "old visual started")
+        let oldDelivery = expectation(description: "old visual delivery")
+        oldDelivery.isInverted = true
+        let latestDelivery = expectation(description: "latest visual delivery")
+        let gate = DispatchSemaphore(value: 0)
+        let coordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.chartCoordinatorLatest",
+            preparer: { _, _ in },
+            renderer: { request in
+                if request.token == "old" {
+                    oldRenderStarted.fulfill()
+                    gate.wait()
+                }
+                return nil
+            }
+        )
+        let input = numericInput()
+        coordinator.requestVisual(chartVisualRequest(token: "old", input: input)) { _, _ in
+            oldDelivery.fulfill()
+        }
+        wait(for: [oldRenderStarted], timeout: 1)
+        coordinator.requestVisual(chartVisualRequest(token: "latest", input: input)) { token, _ in
+            XCTAssertEqual(token, "latest")
+            latestDelivery.fulfill()
+        }
+        gate.signal()
+        wait(for: [latestDelivery, oldDelivery], timeout: 1)
+        XCTAssertEqual(coordinator.statistics.replacedVisualCount, 1)
+        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 1)
+    }
+
+    @MainActor
+    func testSimultaneousRenderTokenAndFeedGenerationChangeDeliversCurrentVisual() {
+        let oldGeneration = UUID()
+        let newGeneration = UUID()
+        let oldToken = graphChartLifecycleToken(
+            renderToken: "same-render-payload",
+            feedGeneration: oldGeneration
+        )
+        let newToken = graphChartLifecycleToken(
+            renderToken: "same-render-payload",
+            feedGeneration: newGeneration
+        )
+        XCTAssertNotEqual(oldToken, newToken)
+
+        let oldRenderStarted = expectation(description: "old range render started")
+        let oldDelivery = expectation(description: "old range delivery")
+        oldDelivery.isInverted = true
+        let currentDelivery = expectation(description: "current range delivery")
+        let gate = DispatchSemaphore(value: 0)
+        let coordinator = GraphChartRenderCoordinator(
+            label: "com.nativeha.tests.chartCoordinatorRangeGeneration",
+            preparer: { _, _ in },
+            renderer: { request in
+                if request.token == oldToken {
+                    oldRenderStarted.fulfill()
+                    gate.wait()
+                }
+                return nil
+            }
+        )
+        let input = numericInput()
+        coordinator.requestVisual(chartVisualRequest(token: oldToken, input: input)) { _, _ in
+            oldDelivery.fulfill()
+        }
+        wait(for: [oldRenderStarted], timeout: 1)
+
+        // Mirrors BitmapLineChart's single lifecycle handler: connect/reset
+        // first, then request the current visual in the new owner generation.
+        coordinator.reset()
+        coordinator.requestVisual(chartVisualRequest(token: newToken, input: input)) { token, _ in
+            XCTAssertEqual(token, newToken)
+            currentDelivery.fulfill()
+        }
+        gate.signal()
+        wait(for: [currentDelivery, oldDelivery], timeout: 1)
+        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 1)
+    }
+
+    @MainActor
+    func testAcceptedRevisionFeedDoesNotCoalescePublicationStorm() {
+        let feed = GraphHistoryRevisionFeed()
+        var revisions: [UInt64] = []
+        var resetRevisions: [UInt64] = []
+        let token = feed.subscribe { event in
+            let revision = event.series[0].contentRevision
+            revisions.append(revision)
+            if event.resetPreparedState {
+                resetRevisions.append(revision)
+            }
+        }
+        let base = numericInput().history
+        for revision in 1...100 {
+            feed.publish([HAHistorySeries(
+                entityID: base.entityID,
+                points: base.points,
+                contentRevision: UInt64(revision)
+            )], resetPreparedState: revision == 50)
+        }
+        feed.unsubscribe(token)
+        XCTAssertEqual(revisions, (1...100).map(UInt64.init))
+        XCTAssertEqual(resetRevisions, [50])
+
+        feed.publish([HAHistorySeries(
+            entityID: base.entityID,
+            points: base.points,
+            contentRevision: 101
+        )], resetPreparedState: true)
+        var replayedReset: UInt64?
+        _ = feed.subscribe { event in
+            if event.resetPreparedState {
+                replayedReset = event.series[0].contentRevision
+            }
+        }
+        XCTAssertEqual(replayedReset, 101)
+    }
+
+    private func chartVisualRequest(
+        token: String,
+        input: GraphRenderSeriesInput
+    ) -> GraphChartVisualRequest {
+        GraphChartVisualRequest(
+            token: token,
+            inputs: [input],
+            unit: input.unit,
+            size: CGSize(width: 320, height: 160),
+            scale: 2,
+            zoomScale: 1,
+            panFraction: 1,
+            engine: .coreGraphics
         )
     }
 
@@ -546,7 +790,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 2,
                 incrementalPreparationCount: 2,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 2
             )
         )
     }
@@ -589,7 +834,64 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 2,
                 incrementalPreparationCount: 0,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                alignmentFallbackCount: 1
+            )
+        )
+    }
+
+    func testExactLineageRejectsSuffixTimestampEqualToCachedTail() throws {
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        let entityID = "sensor.equal_timestamp_suffix"
+        let initialHistory = history(
+            entityID: entityID,
+            samples: [(100, "10"), (200, "20"), (300, "30")]
+        )
+        let equalTailPoints = history(
+            entityID: entityID,
+            samples: [(200, "20"), (300, "30"), (300, "31")]
+        ).points
+        let updatedHistory = HAHistorySeries(
+            entityID: entityID,
+            points: equalTailPoints,
+            contentRevision: initialHistory.contentRevision &+ 1,
+            cacheLineage: HAHistorySeriesCacheLineage(
+                predecessorRevision: initialHistory.contentRevision,
+                oldStart: 1,
+                newStart: 0,
+                count: 2
+            )
+        )
+        func input(_ series: HAHistorySeries) -> GraphRenderSeriesInput {
+            GraphRenderSeriesInput(
+                cacheScope: "equal-timestamp-suffix",
+                entityID: entityID,
+                name: "Equal timestamp suffix",
+                unit: "°C",
+                color: graphBlue,
+                history: series
+            )
+        }
+
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(initialHistory),
+            displayUnit: "°C"
+        ))
+        let updated = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(
+            input(updatedHistory),
+            displayUnit: "°C"
+        ))
+
+        XCTAssertEqual(updated.points.map(\.y), [20, 30, 31])
+        XCTAssertEqual(updated.points.map(\.t), [baseTimestamp + 200, baseTimestamp + 300, baseTimestamp + 300])
+        XCTAssertEqual(
+            GraphBitmapRenderer.preparedSeriesCacheStatistics(),
+            GraphPreparedSeriesCacheStatistics(
+                fullPreparationCount: 2,
+                incrementalPreparationCount: 0,
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 0,
+                alignmentFallbackCount: 1
             )
         )
     }
@@ -628,7 +930,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 1,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                alignmentFallbackCount: 1
             )
         )
     }
@@ -697,7 +1000,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 1,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 1
             )
         )
     }
@@ -763,7 +1067,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 2,
                 incrementalPreparationCount: 0,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                alignmentFallbackCount: 1
             )
         )
     }
@@ -834,7 +1139,8 @@ final class GraphRenderingTests: XCTestCase {
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: 1,
                 incrementalPreparationCount: 1,
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: 1
             )
         )
         print(

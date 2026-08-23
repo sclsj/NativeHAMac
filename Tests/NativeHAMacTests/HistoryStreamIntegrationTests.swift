@@ -64,11 +64,30 @@ final class HistoryStreamIntegrationTests: XCTestCase {
         let secondCommand = try XCTUnwrap(commands.first { commandEntities($0) == ["sensor.shared", "sensor.b"] })
         let firstID = try XCTUnwrap(firstCommand["id"]?.historyTestInt)
         let secondID = try XCTUnwrap(secondCommand["id"]?.historyTestInt)
+        let firstGraphFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: model.homeCards[0]))
+        var firstGraphResetFlags: [Bool] = []
+        let firstGraphFeedToken = firstGraphFeed.subscribe { event in
+            firstGraphResetFlags.append(event.resetPreparedState)
+        }
         try await transport.pushHistory(id: firstID, states: [
             "sensor.a": [compact("10", 9_900)],
             "sensor.shared": [compact("20", 9_901)],
         ])
         try await integrationWait { await MainActor.run { model.histories[firstKey] != nil } }
+        XCTAssertEqual(firstGraphResetFlags, [true], "Initial/reset projection must re-key graph preparation")
+        try await transport.pushHistory(id: firstID, states: [
+            "sensor.a": [compact("11", 9_902)],
+            "sensor.shared": [compact("21", 9_903)],
+        ])
+        try await integrationWait { await MainActor.run { firstGraphResetFlags.count == 2 } }
+        XCTAssertEqual(firstGraphResetFlags, [true, false], "Normal ordered updates must preserve graph lineage")
+        try await transport.pushHistory(id: firstID, states: [
+            "sensor.a": [compact("9", 9_800)],
+            "sensor.shared": [compact("19", 9_801)],
+        ])
+        try await integrationWait { await MainActor.run { firstGraphResetFlags.count == 3 } }
+        XCTAssertEqual(firstGraphResetFlags, [true, false, true], "Out-of-order reset must re-key graph preparation")
+        firstGraphFeed.unsubscribe(firstGraphFeedToken)
         XCTAssertNil(model.histories[secondKey])
         try await transport.pushHistory(id: secondID, states: [
             "sensor.shared": [compact("21", 9_902)],

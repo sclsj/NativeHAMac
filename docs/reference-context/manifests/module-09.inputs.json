@@ -17,15 +17,19 @@
     },
     {
       "path": "Sources/NativeHAMac/CardViews.swift",
-      "symbols": ["BitmapLineChart"]
+      "symbols": ["UnitGraph", "BitmapLineChart"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel", "startHistory"]
     },
     {
       "path": "Sources/NativeHAMac/GraphRendering.swift",
-      "symbols": ["GraphBitmapRenderer", "GraphPreparedSeriesCacheStatistics", "GraphRenderMetrics"]
+      "symbols": ["GraphBitmapRenderer", "GraphPreparedSeriesCache", "GraphPreparedSeriesCacheStatistics", "GraphRenderMetrics"]
     },
     {
       "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-      "symbols": ["GraphViewportRenderScheduler"]
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator", "GraphViewportRenderScheduler"]
     },
     {
       "path": "Sources/NativeHAMac/GraphMetalRenderer.swift",
@@ -34,6 +38,10 @@
     {
       "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
       "symbols": ["GraphRenderingTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+      "symbols": ["HistoryStreamIntegrationTests"]
     },
     {
       "path": "Benchmarks/GraphRendering/GraphRenderingBenchmarks.swift",

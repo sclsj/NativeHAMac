@@ -6390,28 +6390,28 @@
       "typeResolved": "src/resources/echarts/ha-ec-option.ts"
     }
   ],
-  "graphFingerprint": "4b7b0f295034f3d44db1b2eb77c57b1105971ff555d0d83e4d2f58406b817458",
+  "graphFingerprint": "5e59d9f50ca2c34250a8924745a692cfa3ed2eed6c3cf2e59ae6b39449dde840",
   "manifest": {
     "module": "09",
     "path": "docs/reference-context/manifests/module-09.inputs.json",
-    "sha256": "3e5e990efefa91649dcf9d976b216d68d0098b7e4831858ad75bda3ad6fc55f3"
+    "sha256": "8003ab25cdfadae00067b532f603ed1412207fe862ef828c56f58ebe57116823"
   },
   "nativeha": {
     "anchors": [
       {
         "dirty": true,
-        "headBlob": "8690053ef09b4a2244a92c8234057b3ba61825da",
+        "headBlob": "d849957900527f858bf1aab5d353285324ade745",
         "missing": false,
         "path": "Benchmarks/GraphRendering/GraphEngineBenchmarks.swift",
-        "sha256": "a66daddb5ea954bca8619a5b89e1439a2f4461ea39e3cf87cb81b6d67e46ea5c",
+        "sha256": "dae1c257e3eb2bb8e53de17b2b89aa56b635a44f64f77dddeef6e4c9c4f44bce",
         "symbols": [
           "GraphEngineBenchmarks"
         ],
-        "worktreeBlob": "6225299803435b9a92d41da75e7901ac9d0a3852"
+        "worktreeBlob": "768ef551ba575dd2c5543f671d210961142be651"
       },
       {
-        "dirty": true,
-        "headBlob": "88bb491c8a80a833035b21622b7bfed4a4e65114",
+        "dirty": false,
+        "headBlob": "781a1c3f355fa70e959775e6bfddfcd2d9bbbd0c",
         "missing": false,
         "path": "Benchmarks/GraphRendering/GraphRenderingBenchmarks.swift",
         "sha256": "c735d9c914024086d462855ce24668158496d52812e0dc6aacfa3d5d630fa766",
@@ -6423,100 +6423,127 @@
       },
       {
         "dirty": false,
-        "headBlob": "a2771924d7e664ba3e85da43fbe983edecf37fac",
+        "headBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
-        "sha256": "2a9487e0e8829ec97e73d01dfaf0dd51073894055cd0c0d83648c36b133f1c3b",
+        "sha256": "fbaf6d5bad0a7e7284c1716b1182c4167f229fb221c089374fed8e6ec1ed1728",
         "symbols": [
           "HAHistoryProjectionStore"
         ],
-        "worktreeBlob": "a2771924d7e664ba3e85da43fbe983edecf37fac"
+        "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
       },
       {
         "dirty": false,
-        "headBlob": "38df0c63831e1ebaf3f713634f7410e6184cdf49",
+        "headBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "03655999a1e1acb9f1308e9c92c67bc665f356a35588688cf5202c3a8045a7cc",
+        "sha256": "e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354",
         "symbols": [
           "HAHistorySeries",
           "HAHistorySeriesCacheLineage"
         ],
-        "worktreeBlob": "38df0c63831e1ebaf3f713634f7410e6184cdf49"
+        "worktreeBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d"
       },
       {
         "dirty": true,
-        "headBlob": "4f79de22858cbaa99128956a3940db5e4cefa465",
+        "headBlob": "7c366780a9d1783874dd769b4f4796ec200701a7",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "cb8b7d4a3f330cd6807ed3dde13c018f42cf8da3d03c28558bf3aa39b9e9fca1",
+        "sha256": "218b86ab4987150eeda5eb8dfff38337963bc0474e51d2e9005fcdf1abe5168d",
         "symbols": [
           "AppConfig",
           "GraphRenderEngine"
         ],
-        "worktreeBlob": "fc46180014045bba80f0c3bd039fc27b56bcfa8a"
+        "worktreeBlob": "0e078da2a393a6639a086cc2c47edbb238a23799"
       },
       {
         "dirty": true,
-        "headBlob": "ceda8a0f8d56aeaa55024f3f690a485567b03299",
+        "headBlob": "c7165c0076adfd423370d37818db502e5e913dbd",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "a7d1a9ce7d548fb7b63fcbe98dfe5259b2527f8cdea4b05d083f3fc7ec69c1e4",
+        "sha256": "ae9b4078f2b687bc459a072c8af673745cd2a6c31fb13cac2ac1f876f2632748",
         "symbols": [
-          "BitmapLineChart"
+          "BitmapLineChart",
+          "UnitGraph"
         ],
-        "worktreeBlob": "909e51c0dff8338be748508dd0a3533ca6cd7e98"
+        "worktreeBlob": "eac04368a44758c49798ab5b95f6a8e726943437"
       },
       {
         "dirty": true,
-        "headBlob": "2f631c81510a0e9ade322b54a5bf0c93791e4460",
+        "headBlob": "3c8861a8e4a8493d2e761da883cf209c16dc9cca",
+        "missing": false,
+        "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+        "sha256": "7c813a3d61a9492f371f2079f5f78b59503ceaf1429ad3a25f057398146efed0",
+        "symbols": [
+          "DashboardViewModel",
+          "startHistory"
+        ],
+        "worktreeBlob": "af2a3ba3453e62c783041f6a157e948964e5fc3e"
+      },
+      {
+        "dirty": false,
+        "headBlob": "fc38e808c3beeba1640318be2b82683e22e7754b",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphMetalRenderer.swift",
-        "sha256": "fb1b97eb15fb2f35f5e08700293d4013a725f7b479cbb1fae902ffbf3d97273f",
+        "sha256": "f48c277f71fbb01f4344cc37ddfba3f14bf2f61833b2a35dce6c9e4c2a2801aa",
         "symbols": [
           "GraphMetalRenderer"
         ],
-        "worktreeBlob": "6708b45b6ce979540aa71e3c76598123ba9d98f0"
+        "worktreeBlob": "fc38e808c3beeba1640318be2b82683e22e7754b"
       },
       {
         "dirty": true,
-        "headBlob": "aa6b737a7a909ceb798ebbe4c9bcf0935132ad8d",
+        "headBlob": "c7a02af42a5bd60db63403d842afd9338dafd582",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRendering.swift",
-        "sha256": "28c228a06ed0519cb6a00fe61e84b36daa1cf1c2371e3883aa28979229f736be",
+        "sha256": "6fdeb14608f5a396a800fba83ce40df034e0cc93fde90b8ddaccfbaa1d22e373",
         "symbols": [
           "GraphBitmapRenderer",
+          "GraphPreparedSeriesCache",
           "GraphPreparedSeriesCacheStatistics",
           "GraphRenderMetrics"
         ],
-        "worktreeBlob": "1a263c295059c3db9b37b6138f9ce40ece48b607"
+        "worktreeBlob": "a2666396d811547431710302f8f31244a8ca5794"
       },
       {
         "dirty": true,
-        "headBlob": "b0587a7c9309e63d9dcfbc8aa40e193dc7a552b8",
+        "headBlob": "f5e523853ba087f52d7faf47d5efa504c728c889",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
-        "sha256": "c64e79cc1473b263bffcbfcd51f3a23cf9eac5082aa6002e74dcf4a21eccdc79",
+        "sha256": "9812a7a172c7f9c133f163a7c314095d0fba0a1b68185a8080d6d6afbbe87b01",
         "symbols": [
+          "GraphChartRenderCoordinator",
+          "GraphHistoryRevisionFeed",
           "GraphViewportRenderScheduler"
         ],
-        "worktreeBlob": "8dd3bba66aa5c30f9389ac6c89a7dd4512343b17"
+        "worktreeBlob": "8485459478d6aed9557e7fd76b18bc371112894c"
       },
       {
         "dirty": true,
-        "headBlob": "489838ebac1e962bef43cb16e23c8eb93341de45",
+        "headBlob": "0e8c2669946e89029f7fc3c0d55d116d29a52118",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
-        "sha256": "969b3e828826337fc56a561a3076262a23cf85d0687d1faf89582308b713dd9e",
+        "sha256": "bef42158af95724dcb071c84da4839f29719846e16c9709fd38fcc6c78d0f469",
         "symbols": [
           "GraphRenderingTests"
         ],
-        "worktreeBlob": "0a3f7efc17c9cf4526b7cc67d2d33651ffae0125"
+        "worktreeBlob": "6a1db1ceb23eeb7cf91fa3fdfb349886b8b12d92"
+      },
+      {
+        "dirty": true,
+        "headBlob": "41dd0a13610323afd372f7e70b825f0326cd6fe6",
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+        "sha256": "6d68fb5059976999aeb7395e4ab97935000c9065a859091d31e9e4dde98295d1",
+        "symbols": [
+          "HistoryStreamIntegrationTests"
+        ],
+        "worktreeBlob": "6b5a0f7f5efd7de20596bff30bd114f12e99cd73"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "cd45663ef6ae41902f2d0a4f16a8467a17be8a53"
+    "gitHead": "acf385133e2c875cc0d0d96c9a85125a87c11bcf"
   },
   "nodes": [
     {

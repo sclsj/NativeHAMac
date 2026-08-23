@@ -26,6 +26,7 @@ final class DashboardViewModel: ObservableObject {
     private var historySubscriptions: [String: HAHistoryStreamSubscription] = [:]
     private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
     private var historyGenerations: [String: UUID] = [:]
+    private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] = [:]
     private var detailHistoryGenerations: [String: UUID] = [:]
     private var desiredDetailHistoryKeys: Set<String> = []
     private let historyNow: @Sendable () -> Date
@@ -360,6 +361,10 @@ final class DashboardViewModel: ObservableObject {
         historyStatuses[historyKey(for: card)]
     }
 
+    func graphHistoryRevisionFeed(for card: LovelaceCard) -> GraphHistoryRevisionFeed? {
+        graphHistoryRevisionFeeds[historyKey(for: card)]
+    }
+
     func detailHistory(entityID: String, hours: Int) -> HAHistorySeries? {
         detailHistories[detailHistoryKey(entityID: entityID, hours: hours)]
     }
@@ -586,6 +591,7 @@ final class DashboardViewModel: ObservableObject {
         for key in Array(historySubscriptions.keys) where !desiredKeys.contains(key) {
             let subscription = historySubscriptions.removeValue(forKey: key)
             historyGenerations.removeValue(forKey: key)
+            graphHistoryRevisionFeeds.removeValue(forKey: key)
             historyStatuses.removeValue(forKey: key)
             histories.removeValue(forKey: key)
             await subscription?.cancel()
@@ -604,6 +610,8 @@ final class DashboardViewModel: ObservableObject {
         let generation = UUID()
         let stateSnapshot = states
         historyGenerations[key] = generation
+        let graphRevisionFeed = GraphHistoryRevisionFeed()
+        graphHistoryRevisionFeeds[key] = graphRevisionFeed
         historyStatuses[key] = .loading
         let weakModel = WeakDashboardViewModelBox(self)
         let processingHook = historyProcessingHook
@@ -627,6 +635,13 @@ final class DashboardViewModel: ObservableObject {
                 },
                 onPublication: { publication in
                     if case .unchanged = publication.transition { return }
+                    let resetsPreparedGraphState: Bool
+                    switch publication.transition {
+                    case .reset, .outOfOrderReset:
+                        resetsPreparedGraphState = true
+                    case .normal, .unchanged:
+                        resetsPreparedGraphState = false
+                    }
                     await processingHook()
                     guard !Task.isCancelled else { return }
                     guard let projected = await projectionStore.series(from: publication) else { return }
@@ -634,6 +649,10 @@ final class DashboardViewModel: ObservableObject {
                     await MainActor.run {
                         guard !Task.isCancelled else { return }
                         guard weakModel.value?.historyGenerations[key] == generation else { return }
+                        graphRevisionFeed.publish(
+                            projected,
+                            resetPreparedState: resetsPreparedGraphState
+                        )
                         weakModel.value?.histories[key] = projected
                     }
                 }

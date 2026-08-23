@@ -91,19 +91,24 @@ evidence.
   changes materially. Use the tracked benchmark rather than extrapolating these
   numbers to a different workload.
 
-### Rolling 12-hour graph preparation can saturate the main thread
+### Rolling 12-hour graph preparation previously saturated the main thread
 
-- **Claim:** On Joy's MBP (2), the current rolling-history render path performs
-  work proportional to the complete retained window for every live revision,
+- **Claim:** At commit `c8bda39`, the rolling-history render path performed work
+  proportional to the complete retained window for every live revision,
   including synchronous main-thread prepared-series work. For the live CO2/VOC
-  card at `12h`, each SPS30 series retains about 41,900 points and commonly
-  spends about 40 ms in main-thread `incrementallyUpdate` per revision. This is
-  a steady-state interaction-lag source after history has loaded; it is separate
-  from initial WebSocket fetch and typed decoding time and is not specific to
-  the graph render engine.
-- **Status:** Reproduced local observation and code-path diagnosis on 2026-08-22
-  at commit `c8bda39`, using the user's Core Graphics configuration and the
-  running debug app.
+  card at `12h`, each SPS30 series retained about 41,900 points and commonly
+  spent about 40 ms in main-thread `incrementallyUpdate` per revision. This was
+  a steady-state interaction-lag source after history loaded, separate from
+  initial WebSocket fetch/typed decoding and independent of render engine.
+- **Status:** Reproduced and diagnosed on 2026-08-22, then repaired in the
+  current bounded Module 09 worktree. `GraphChartRenderCoordinator` is now the
+  single per-chart preparation/render owner; accepted publications are fed FIFO
+  while the chart observer is mounted, obsolete visual frames coalesce, and
+  expensive preparation/rendering runs off-main. Before subscription the feed
+  retains/replays only the latest snapshot, which is safe because the new
+  coordinator generation starts cold or uses the verified fallback. The
+  synchronous main-thread bottleneck is repaired; retained-window preparation
+  itself is not yet O(1).
 - **Evidence:** The launch table
   `log_c8bda39_dirty_20260822_054150_A29CE603` in
   `~/Library/Caches/NativeHA_Logs.sqlite` records the switch to `12h`, roughly
@@ -119,6 +124,13 @@ evidence.
   renderer work. A current live HA protocol comparison returned 101,946–101,965
   samples / 4.63–4.64 MiB for the 12-hour card, essentially the same shape as
   the tracked 2026-07-28 baseline of 102,437–102,453 samples / 4.71 MiB.
+- **Repair verification:** Focused graph coordinator/cache regressions, history
+  integration, the release app build, and the read-only live benchmark using
+  the actual configured graph-card entities passed. The live 24h Core Graphics
+  preparation stage remains about 95 ms on this machine, but it is now
+  serialized off-main rather than freezing interaction. The bounded Module 09
+  evidence packet pins the exact implementation/test anchors and lifecycle
+  qualification.
 - **Revalidate when:** Projection publication granularity, prepared-series
   caching/lineage, rolling-window storage, synchronous rendering, live entity
   cadence, or retained time range changes. Renderer-only improvements should

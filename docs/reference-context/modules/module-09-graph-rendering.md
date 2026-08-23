@@ -1,75 +1,113 @@
 ---
 schema: nativeha-evidence/v1
 module: "09"
-title: Graph revision scheduling and engine benchmarks
+title: Graph revision preparation and asynchronous render scheduling
 plan: ../../rescue-plan/module-09-graph-rendering.md
-status: bounded-follow-up-validated-broader-module-unresearched
-contract_revision: 2
+status: bounded-async-repair-implemented-and-verified-broader-module-unresearched
+contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: e3ff4b0e67305204593e44b1b3b73b8ebddf1bf8
+nativeha_revision: acf385133e2c875cc0d0d96c9a85125a87c11bcf
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: 4b7b0f295034f3d44db1b2eb77c57b1105971ff555d0d83e4d2f58406b817458
-last_validated: 2026-07-25
+graph_fingerprint: 5e59d9f50ca2c34250a8924745a692cfa3ed2eed6c3cf2e59ae6b39449dde840
+last_validated: 2026-08-22
 ---
 
-# Module 09 bounded follow-up evidence
+# Module 09 bounded async-repair evidence
 
 ## Scope delta
 
-This packet covers only the cache-warming regression test and the three-engine
-performance benchmark requested after the graph-smoothness investigation. It
-does not claim that broader Module 09 parity is researched or complete, and it
-does not authorize a prepared-cache concurrency/correctness redesign.
+This packet validates only the SPS30 rolling-window repair: move expensive
+prepared-series and bitmap work off the main thread without losing cache
+lineage when visual frames are coalesced. Broader Module 09 visual parity is
+still unresearched.
 
-The 2026-07-25 follow-up retains synchronous Metal-to-`CGImage` viewport
-rendering but memoizes its result for the stable SwiftUI chart lifetime. The
-cache identity includes data and presentation metadata, exact viewport, scale,
-and engine. Unrelated view reevaluations reuse the image; real viewport/data
-changes still render synchronously. The obsolete delayed live-data render,
-which duplicated the already completed synchronous render, was removed.
+The repair replaces the synchronous body renderer and separate background
+warmer with `GraphChartRenderCoordinator`, one serial off-main owner per chart.
+`GraphHistoryRevisionFeed` publishes accepted projections before the
+`@Published` view invalidation, the coordinator drains data revisions FIFO, and
+only the newest visual request is retained. Coordinator owner/generation scope
+prevents another chart or a reset generation from interleaving with the same
+prepared-cache key.
 
-Commit `5861848ba9e6b1c5108596cb194870d66822a6e7` fixed the measured lag by
-submitting every changed data revision to prepared-series maintenance before
-visual cancellation, debounce, off-live-edge suppression, or renderer-specific
-scheduling. Rendering may skip revision N; preparation may not, because N+1's
-incremental lineage names N as its immediate predecessor.
+Losslessness has an explicit lifecycle boundary. While a chart observer is
+mounted/subscribed, every accepted publication is delivered synchronously and
+queued FIFO. Before an observer subscribes, the feed retains only its latest
+snapshot and replays that snapshot at subscription. This is safe because a new
+coordinator generation starts from a cold/re-keyed cache (or its exact safe
+fallback); the packet does not claim that unmounted charts retain every
+intermediate revision.
+
+The renderer now consumes bounds-checked `HAHistorySeriesCacheLineage` when its
+cached numeric source is the exact immediate predecessor. Timestamp alignment
+remains an instrumented safe fallback for skipped/unmounted/reset/corrected or
+unsupported shapes. Current immutable arrays and min/max construction still
+make large-window preparation proportional to retained size, but it no longer
+blocks the main actor.
 
 ## Behavior contracts
 
-| ID | Trigger/input | Observable behavior | Ordering/lifecycle rules | Swift owner | Verification |
+| ID | Trigger/input | Observable behavior | Ordering/lifecycle rules | Native owner | Verification |
 |---|---|---|---|---|---|
-| C09-WARM-01 | Cache contains N-1 and data revision N arrives | N is submitted to production prepared-series maintenance before any visual scheduling decision. | Visual cancellation, debounce, and engine selection do not own maintenance. | `BitmapLineChart` plus an internal revision-preparation scheduler | Seed N-1; submit N without rendering it; submit N+1; expect one full and two incremental preparations. |
-| C09-WARM-02 | N and N+1 are submitted rapidly for one card/cache scope | Preparation consumes N before N+1. | FIFO is stable for the scheduler's lifetime. | Revision-preparation scheduler | Await the N+1 completion and assert exact cache counters. |
-| C09-WARM-03 | The visual frame for N is skipped/superseded | N+1 remains incremental solely because maintenance consumed N. | Cache semantics outside this scheduling invariant are unchanged. | Existing `GraphPreparedSeriesCache` | Bypassing N deterministically changes the counters to two full and zero incremental preparations. |
-| C09-BENCH-01 | A preprepared frame is sent to any supported engine | Report actual production-side pure-render work for Core Graphics, Canvas, and Metal with `n`, p50, p95, and max. | Identical input, viewport sequence, iterations, scale, and warm-up. | Production renderer helpers plus benchmark harness | Every engine returns nonempty work/output. |
-| C09-BENCH-02 | A consecutive logical update is submitted | Present-ready timing begins before dispatch/cache access and ends after preparation, downsampling/geometry, renderer dispatch, and requested-frame completion. | Match each submitted frame with its completion. Compositor scanout is excluded and must not be claimed. | Production graph preparation and engine completion adapters | All requested frames complete; report `n`, p50, p95, and max plus optional stages. |
-| C09-BENCH-03 | Compare 1h and 24h cases | All six engine/window cases use the same live series, revision sequence, viewport sequence, size, scale, iteration count, and warm-up policy. | Do not mutate global renderer configuration; use explicit engine injection or restore changes. | Graph benchmark target | Assert fixture metadata and completion counts; no machine-specific paths or pass/fail latency threshold. |
-| C09-CACHE-01 | SwiftUI reevaluates a chart without changing data, viewport, scale, or engine | Reuse the last synchronous render result without invoking the renderer. | A data, viewport, scale, or engine change is a cache miss and remains synchronous. | `GraphSynchronousRenderCache` owned by `BitmapLineChart` | Repeated same-key requests render once; zoom and engine changes each render again. |
+| C09-ASYNC-01 | An accepted projected numeric data revision arrives | Submit it to prepared-series maintenance without synchronously preparing or drawing from SwiftUI body/main actor. | Heavy parsing, overlap application, min/max construction, viewport preparation, and bitmap work are off-main. Main actor captures lightweight immutable request state and installs a completed result only. | One stable per-chart revision/render coordinator | Hooks assert preparation/render are never on main; a 100k-point publication does not block a gated main-actor probe. |
+| C09-ASYNC-02 | Revisions N and N+1 are accepted for one mounted/subscribed chart/cache scope | Prepared state advances N before N+1. | While subscribed, data revisions are FIFO and are not dropped by visual debounce, cancellation, viewport replacement, or renderer choice. Before subscription, retain/replay only the latest snapshot; the newly re-keyed coordinator starts cold/fallback-safe. | `DashboardViewModel.startHistory`, `GraphHistoryRevisionFeed`, and stable chart coordinator | Gate N, submit N+1, and prove N+1 cannot prepare first. Publication-storm and latest-before-subscribe replay tests distinguish accepted mounted revisions from visual frames. |
+| C09-ASYNC-03 | Several viewport/data render requests become obsolete while preparation is busy | Visual frames may coalesce to the newest requested data generation and viewport. | Coalescing render work must not coalesce or reorder the FIFO data-maintenance stream. Rendering revision N is optional; consuming N is not. | Same coordinator, with FIFO data work and one overwriteable latest visual request | Submit N/N+1/N+2, render only N+2, assert one initial full preparation followed by exact incremental advances and exact final image token. |
+| C09-ASYNC-04 | Cached revision equals `cacheLineage.predecessorRevision` | Apply the supplied `oldStart`, `newStart`, and `count` as the authoritative overlap proof; do not search timestamps or compare the complete retained overlap. | Validate bounds and the cached numeric one-to-one-source invariant. A missing/mismatched lineage, reconnect/reset generation, nonnumeric/timeline shape, correction, or invalid bounds takes a safe off-main rebuild/fallback path. | Prepared-series owner | Moving-boundary oracle tests prove exact output, no alignment scan, and no routine full fallback; deliberate mismatch/correction proves one safe rebuild. |
+| C09-ASYNC-05 | Preparation and rendering target the same cache key | They execute under one same-key owner and cannot store out of revision order. | No synchronous renderer, background warmer, detached renderer, benchmark adapter, or lifecycle task may independently mutate the production cache for that same key. Different cache scopes may proceed independently. | Coordinator plus prepared-cache API boundary | Deterministically interleave gated N and N+1 work and assert the final stored revision is N+1; stress two distinct cache scopes and assert isolation. |
+| C09-ASYNC-06 | Chart disappears, changes owner generation/range, reconnects, or receives a stale completion | Stale work cannot publish or seed the new generation's lineage. | Cancel/drop pending visuals, close the old revision feed, and reset or re-key ownership before accepting the new generation. Completed old work cannot overwrite current prepared or visible state. | Chart lifecycle/coordinator generation | Disappearance, range-switch, reconnect, and late-completion tests. |
+| C09-BENCH-01 | The repaired 1h/12h/24h rolling path is benchmarked | Report present-ready and preparation stages separately for Core Graphics (primary current engine); existing other-engine coverage remains valid but is not the decision driver. | Production-shaped initial full load plus many one-point/moving-boundary revisions; identical source and viewport sequence for comparisons. | Existing graph benchmark target | Exact cold-oracle equality; counts for full, incremental, cache hit, alignment fallback, and maximum concurrency; p50/p95/max. |
+
+## Reference contracts
+
+The reference has no equivalent predecessor-sensitive prepared-series cache.
+`HistoryStream.processMessage` consumes each WebSocket callback into combined
+history, and `HuiHistoryGraphCard._subscribeHistory` computes/merges the changed
+history for its chart. `StateHistoryChartLine.willUpdate` regenerates data when
+its `data` property changes; `HaChartBase.willUpdate` rebuilds series and calls
+`setOption`. Lit/ECharts may avoid obsolete visual work without maintaining a
+NativeHA cache whose correctness depends on rendering every intermediate
+revision.
+
+Therefore FIFO prepared-state maintenance and exact lineage are native
+correctness/performance mechanisms, not a literal frontend structure. The
+observable behavior to preserve is that the latest accepted history and
+viewport eventually produce the latest correct graph while interaction remains
+responsive.
 
 ## Source anchors
 
-NativeHA baseline at `cd45663ef6ae41902f2d0a4f16a8467a17be8a53`:
+NativeHA implementation worktree based on
+`acf385133e2c875cc0d0d96c9a85125a87c11bcf` (the pre-existing dirty
+`AppConfig.swift` Core Graphics setting is preserved; all implementation/test
+anchors below are pinned by generated-graph worktree hash):
 
-- `CardViews.swift::BitmapLineChart.scheduleRenders`, blob
-  `ceda8a0f8d56aeaa55024f3f690a485567b03299`, SHA-256
-  `5aeda11d6d514d14d49b0a7a0a7f26f8b9d4c64f9b78b7ebc132be7a64ec8d1c`.
-- `GraphRendering.swift::GraphBitmapRenderer` and
-  `GraphPreparedSeriesCache.series/incrementallyUpdate`, blob
-  `aa6b737a7a909ceb798ebbe4c9bcf0935132ad8d`, SHA-256
-  `37b9e0b073f255e01bcbef5368ec68fadeaac7dd787667c4cf38a1f08ec7ae2c`.
-- `GraphRenderScheduling.swift::GraphViewportRenderScheduler`, blob
-  `b0587a7c9309e63d9dcfbc8aa40e193dc7a552b8`, SHA-256
-  `340c496a1b9c7ee9ffa0f74e359476481b485ffd86a460b77467b9ed068d7ef0`.
+- `DashboardViewModel.swift::startHistory`, worktree blob
+  `af2a3ba3453e62c783041f6a157e948964e5fc3e`, SHA-256
+  `7c813a3d61a9492f371f2079f5f78b59503ceaf1429ad3a25f057398146efed0`.
+- `CardViews.swift::UnitGraph/BitmapLineChart`, worktree blob
+  `eac04368a44758c49798ab5b95f6a8e726943437`, SHA-256
+  `ae9b4078f2b687bc459a072c8af673745cd2a6c31fb13cac2ac1f876f2632748`.
+- `GraphRenderScheduling.swift::GraphHistoryRevisionFeed/GraphChartRenderCoordinator/GraphViewportRenderScheduler`,
+  worktree blob `8485459478d6aed9557e7fd76b18bc371112894c`,
+  SHA-256 `9812a7a172c7f9c133f163a7c314095d0fba0a1b68185a8080d6d6afbbe87b01`.
+- `GraphRendering.swift::GraphBitmapRenderer/GraphPreparedSeriesCache`, worktree blob
+  `a2666396d811547431710302f8f31244a8ca5794`, SHA-256
+  `6fdeb14608f5a396a800fba83ce40df034e0cc93fde90b8ddaccfbaa1d22e373`.
+- `HomeAssistantHistoryStream.swift::HAHistoryProjectionStore`, blob
+  `8cac19f68aea0fca6b17af7619c03bdfa528880c`, SHA-256
+  `fbaf6d5bad0a7e7284c1716b1182c4167f229fb221c089374fed8e6ec1ed1728`.
 - `Models.swift::HAHistorySeries/HAHistorySeriesCacheLineage`, blob
-  `38df0c63831e1ebaf3f713634f7410e6184cdf49`, SHA-256
-  `03655999a1e1acb9f1308e9c92c67bc665f356a35588688cf5202c3a8045a7cc`.
-- `GraphMetalRenderer.swift::GraphMetalRenderer.draw`, blob
-  `2f631c81510a0e9ade322b54a5bf0c93791e4460`, SHA-256
-  `c7d03c03cf920df9fd97ed5b702e7dc353b3d09a7bc59a81382b46608e41ec14`.
-- `GraphEngineBenchmarks.swift::GraphEngineBenchmarks`, blob
-  `8690053ef09b4a2244a92c8234057b3ba61825da`, SHA-256
-  `d22804804277957362cf673abfbaf17010560a02edbbf60880aedc44232b66b5`.
+  `de4597fdfc470de2cdc2d2d1f071ae56ba3a799d`, SHA-256
+  `e5f00bf9126282c3223669599085a40c20a21e44037dfc9f4bb5a0e08ee15354`.
+- `GraphRenderingTests.swift`, worktree blob
+  `6a1db1ceb23eeb7cf91fa3fdfb349886b8b12d92`, SHA-256
+  `bef42158af95724dcb071c84da4839f29719846e16c9709fd38fcc6c78d0f469`.
+- `HistoryStreamIntegrationTests.swift`, worktree blob
+  `6b5a0f7f5efd7de20596bff30bd114f12e99cd73`, SHA-256
+  `6d68fb5059976999aeb7395e4ab97935000c9065a859091d31e9e4dde98295d1`.
+- `GraphEngineBenchmarks.swift`, worktree blob
+  `768ef551ba575dd2c5543f671d210961142be651`, SHA-256
+  `dae1c257e3eb2bb8e53de17b2b89aa56b635a44f64f77dddeef6e4c9c4f44bce`.
 
 hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
 
@@ -84,92 +122,95 @@ hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
 - `src/components/chart/ha-chart-base.ts::willUpdate/_getSeries/_setChartOptions`,
   blob `e2b455b28633090472d469c539cff0c0c217abb6`.
 
-The reference has no equivalent NativeHA prepared-series revision cache. Its
-continuous history callbacks regenerate changed chart data. FIFO cache warming
-is a measured native scheduling choice that preserves that observable behavior.
+## Native mapping and required ownership
 
-## Dependency traces and boundaries
-
-The generated graph is the rebuildable discovery artifact. Traversal starts at
-the history accumulator, Lovelace graph consumer, line-data generator, line
-chart, and chart base. It stops at one level because the relevant contract is
-continuous changed-data consumption; ECharts internals, broader card options,
-tooltip parity, and other visual behavior do not determine this scheduling fix.
-
-## Native mapping
-
-| Contract | Swift path | Symbol/type | Ownership/state | Notes |
-|---|---|---|---|---|
-| C09-WARM-01..03 | `GraphRenderScheduling.swift`, `CardViews.swift` | revision-preparation scheduler and `BitmapLineChart.scheduleRenders` | One stable FIFO owner per chart | Extract the existing warmer; do not redesign shared-cache storage. |
-| C09-BENCH-01..03 | `GraphRendering.swift`, `GraphMetalRenderer.swift`, `CardViews.swift`, `Benchmarks/GraphRendering` | engine preparation/render completion seams and benchmark | Explicit engine per case; persistent per-engine harness | Pure-render and present-ready distributions remain separate. |
+| Contract | Swift target | Required ownership | Important boundary |
+|---|---|---|---|
+| C09-ASYNC-01..03 | `DashboardViewModel`, `CardViews`, `GraphRenderScheduling` | One stable coordinator per chart/cache scope; mounted FIFO revision input plus latest-only visual request | Feed publishes before view invalidation; pre-subscription storage is latest-only and cold/fallback-safe. |
+| C09-ASYNC-04..05 | `GraphRendering`, `GraphRenderScheduling` | The coordinator is the only same-key prepared-cache caller; direct lineage fast path when predecessor matches | A detached visual renderer must consume already coordinated/prepared state or run on the same serial owner; it must not independently call the shared cache. |
+| C09-ASYNC-06 | `DashboardViewModel`, `UnitGraph`, coordinator | Generation-scoped lifetime | Range/reconnect identity is part of ownership; no lineage across reset. |
+| C09-BENCH-01 | `Benchmarks/GraphRendering` | Persistent production-shaped coordinator | Core Graphics is the user's primary path; Metal remains WIP. |
 
 ## Decisions and native deviations
 
 | ID | Decision | Allowed reason | Preserved semantics | Test | Status |
 |---|---|---|---|---|---|
-| D09-01 | Maintain every data revision independently from cancellable/debounced visual frames. | Measured performance benefit | Every accepted history revision remains available to the next incremental preparation. | C09-WARM-01..03 | implemented by `5861848`; regression seam pending |
-| D09-02 | Name the end-to-end automated endpoint `present-ready`. | Platform limitation | Measures all NativeHA work through requested renderer completion without claiming macOS compositor scanout. | C09-BENCH-02 | pending |
+| D09-01 | Maintain every accepted publication while a chart observer is mounted independently from coalescible visual frames; retain/replay latest only before subscription. | Native cache correctness with bounded lifecycle ownership | Latest accepted history remains renderable; a new generation starts cold/fallback-safe. | C09-ASYNC-02..03 | implemented and verified |
+| D09-02 | Replace synchronous body rendering and the separate warmer with one off-main same-key owner. | Measured responsiveness and race removal | Same final graph; main actor only installs current completed output. | C09-ASYNC-01, C09-ASYNC-05 | implemented and verified |
+| D09-03 | Restore exact immediate-lineage consumption as the normal numeric rolling path; retain a safe off-main fallback. | Upstream already proved the overlap | Corrections, reconnects, skipped pre-subscription revisions, and unsupported shapes still rebuild exactly. | C09-ASYNC-04 | implemented and verified |
+| D09-04 | Coalesce obsolete visual frames, not mounted data-state transitions. | Interaction priority | Final data generation and viewport settle exactly. | C09-ASYNC-03, C09-ASYNC-06 | implemented and verified |
 
 ## Validation
 
-### Offline deterministic tests
+### Offline deterministic and integration
 
-- Three focused render-cache/engine/metrics regressions passed. Six same-key
-  cache requests rendered once; a zoom key and an engine key each caused one
-  new render; explicit Core Graphics and Canvas requests overrode the global
-  Metal setting.
-- `swift test --filter 'NativeHAMacTests.GraphRenderingTests/testSkippedVisualRevisionStillWarmsImmediatePredecessorForNextRevision'`
-  passed. The production FIFO scheduler produced `full=1, incremental=2`; the
-  explicit bypass control produced `full=2, incremental=0`.
-- `swift test -c release --filter GraphRenderingBenchmarkTests` passed all
-  three deterministic benchmark tests.
-- `swift test --filter NativeHAMacTests.GraphRenderingTests` ran 19 tests. The
-  new regression passed; three pre-existing/out-of-scope graph failures remain:
-  numeric time bounds, a stale step-end expected-failure annotation, and a nil
-  zoom/pan result.
+- Focused graph regressions passed. They cover FIFO off-main preparation,
+  latest-only visual replacement, one maximum concurrent coordinator worker,
+  stale completion rejection, lifecycle-generation token changes, 100-event
+  mounted feed delivery, latest-event replay for a later subscriber, direct
+  lineage counters, timestamp-alignment fallback, invalid equal-timestamp
+  suffix rejection, moving boundaries, cold-oracle equality, and scoped-owner
+  isolation.
+- Focused history integration passed. Initial/reset, normal ordered, and
+  out-of-order reset publications reach the graph feed with flags
+  `[true, false, true]` at the accepted projection boundary.
+- The release `NativeHAMac` product builds with the asynchronous coordinator.
 
-### Read-only live smoke
+### Read-only live and performance
 
-The authorized read-only release benchmark fetched four configured SPS30
-series for both 1h (13,972 points) and 24h (332,203 points). No server state
-was changed.
+- The release live benchmark passed against the actual configured CO2/VOC
+  history-card entities at 1h and 24h using the user's primary Core Graphics
+  path. Consecutive preparation statistics distinguish exact-lineage updates
+  from alignment fallback and retained exact output.
+- The 24h Core Graphics preparation stage remains about 95 ms on this machine.
+  This bounded repair does not claim O(1) rolling storage; it verifies that the
+  work is serialized off-main and no longer freezes chart/UI interaction.
 
-### Visual and animation oracle
+### Context and scope
 
-N/A: this follow-up validates frame completion and nonempty renderer output,
-not graph visual-parity changes.
+- The refreshed graph resolves 41 nodes / 241 edges, has no unresolved nodes,
+  is not truncated, and has fingerprint
+  `5e59d9f50ca2c34250a8924745a692cfa3ed2eed6c3cf2e59ae6b39449dde840`.
+- Resolver self-test passes at 28 nodes / 59 edges. Context check and
+  `git diff --check` are green.
+- Visual step/hover/axis/legend parity and the rest of Module 09 were not part
+  of this repair or verification and remain unresearched.
 
-### Performance and lifecycle
+## Remaining risks and boundaries
 
-`NATIVEHA_LIVE_GRAPH_BENCHMARK=1 NATIVEHA_GRAPH_BENCH_ITERATIONS=5 swift test
--c release --filter GraphEngineBenchmarks` passed Metal, Core Graphics, and
-Canvas at 1h/24h. All 30 present-ready frames and 30 pure-render samples
-completed with nonempty artifacts. Metal now includes production shared-texture
-readback and `CGImage` creation, and present-ready validates the returned image
-without a second Metal submission. Exact distributions and stage p50 values are
-recorded in `Benchmarks/GraphRendering/results.md`. The present-ready endpoint
-excludes compositor scanout.
-
-## Open questions and risks
-
-- `GraphPreparedSeriesCache` releases its lock while preparing and may admit
-  unrelated interleavings/stale stores. That broader correctness work is
-  explicitly deferred.
-- Actual compositor presentation is not available as a deterministic XCTest
-  boundary; results must say present-ready.
-- The current default renderer is pre-existing worktree state and is not a
-  benchmark decision.
+- A chart that is not mounted does not retain every intermediate publication;
+  it receives only the latest replay at subscription and safely starts a new
+  cold/fallback generation. Do not describe feed losslessness without this
+  observer-lifecycle qualification.
+- Exact lineage removes the O(n) equality/alignment proof, but current immutable
+  arrays and `GraphMinMaxCache` still copy/rebuild O(window) data. The verified
+  24h preparation cost is about 95 ms off-main. A chunked/ring representation
+  remains a later measured optimization.
+- Timeline/nonnumeric, correction, reconnect/reset, skipped pre-subscription,
+  and invalid-lineage shapes intentionally use the safe fallback rather than
+  exact numeric lineage.
+- The coordinator scopes cache ownership by stable owner and generation. New
+  production paths must not bypass that owner and mutate its effective key.
+- Visual/animation/reference parity is outside this bounded repair. Do not use
+  these scheduling results to mark broader Module 09 complete.
 
 ## Handoff
 
-The requested bounded follow-ups are validated. Broader Module 09 parity and
-the prepared-cache concurrency/correctness redesign remain unresearched and
-must start as their own later task; do not treat this packet as completion of
-Module 09.
+The bounded async rolling-revision repair is implemented and independently
+verified. Keep broader Module 09 unresearched/incomplete and return to the
+user's current Module 2/3 sequence. A later explicitly scoped Module 09 task may
+investigate chunked/ring rolling storage or visual parity; neither is authorized
+by this status update.
 
 ## Change log
 
-- 2026-07-20: Created bounded research packet for the cache-warming regression
-  and engine benchmark follow-ups. Broader Module 09 remains unresearched.
-- 2026-07-20: Added the production FIFO regression seam/test and symmetric live
-  engine benchmark; recorded validation while leaving broader Module 09 open.
+- 2026-07-20: Created bounded cache-warming/engine-benchmark packet.
+- 2026-08-22: Refreshed stale native anchors and dependency graph for the
+  async rolling-revision repair; documented the synchronous/background shared
+  cache race, upstream publication boundary, direct-lineage contract, stale
+  bypass oracle, and exact implementation handoff. Broader Module 09 remains
+  unresearched.
+- 2026-08-22: Pinned the implemented coordinator/feed/direct-lineage worktree,
+  recorded independent deterministic, integration, release-build, and live
+  actual-card verification, qualified feed losslessness by mounted subscription
+  lifetime, and marked only the bounded repair implemented and verified.

@@ -1,6 +1,275 @@
 import Combine
 import CoreGraphics
 import Foundation
+import NativeHACore
+
+/// Lossless handoff at the accepted history-publication boundary. SwiftUI may
+/// coalesce `@Published` view invalidations, so charts subscribe here instead
+/// of treating body evaluation as the revision stream.
+@MainActor
+final class GraphHistoryRevisionFeed {
+    struct Event {
+        let series: [HAHistorySeries]
+        let resetPreparedState: Bool
+    }
+
+    typealias Observer = (Event) -> Void
+
+    let generation = UUID()
+    private var observers: [UUID: Observer] = [:]
+    private var latestEvent: Event?
+
+    @discardableResult
+    func subscribe(_ observer: @escaping Observer) -> UUID {
+        let token = UUID()
+        observers[token] = observer
+        if let latestEvent = latestEvent {
+            observer(latestEvent)
+        }
+        return token
+    }
+
+    func unsubscribe(_ token: UUID?) {
+        guard let token = token else { return }
+        observers.removeValue(forKey: token)
+    }
+
+    func publish(_ series: [HAHistorySeries], resetPreparedState: Bool) {
+        let event = Event(series: series, resetPreparedState: resetPreparedState)
+        latestEvent = event
+        for observer in observers.values {
+            observer(event)
+        }
+    }
+}
+
+struct GraphChartVisualRequest {
+    let token: String
+    let inputs: [GraphRenderSeriesInput]
+    let unit: String
+    let size: CGSize
+    let scale: CGFloat
+    let zoomScale: CGFloat
+    let panFraction: Double
+    let engine: GraphRenderEngine
+}
+
+struct GraphChartCoordinatorStatistics: Equatable {
+    fileprivate(set) var acceptedRevisionCount = 0
+    fileprivate(set) var consumedRevisionCount = 0
+    fileprivate(set) var requestedVisualCount = 0
+    fileprivate(set) var renderedVisualCount = 0
+    fileprivate(set) var replacedVisualCount = 0
+    fileprivate(set) var staleDeliveryCount = 0
+    fileprivate(set) var maximumConcurrentCount = 0
+}
+
+/// One stable same-key owner for both lossless prepared-state advancement and
+/// latest-only visual rendering. Expensive work runs on its private serial
+/// queue; only current-generation results return to the main actor.
+final class GraphChartRenderCoordinator: ObservableObject {
+    typealias Preparer = (GraphRenderSeriesInput, String) -> Void
+    typealias Renderer = (GraphChartVisualRequest) -> GraphRenderResult?
+    typealias Completion = (String, GraphRenderResult?) -> Void
+
+    private struct RevisionWork {
+        let generation: UInt64
+        let inputs: [GraphRenderSeriesInput]
+        let unit: String
+    }
+
+    private struct VisualWork {
+        let generation: UInt64
+        let sequence: UInt64
+        let request: GraphChartVisualRequest
+        let completion: Completion
+    }
+
+    private let queue: DispatchQueue
+    private let lock = NSLock()
+    private let preparer: Preparer
+    private let renderer: Renderer
+    private let ownerID = UUID().uuidString
+    private var generation: UInt64 = 0
+    private var revisions: [RevisionWork] = []
+    private var revisionHead = 0
+    private var latestVisual: VisualWork?
+    private var latestRequestedVisualSequence: UInt64 = 0
+    private var inFlightVisualSequence: UInt64?
+    private var workerRunning = false
+    private var concurrentCount = 0
+    private var statisticsStorage = GraphChartCoordinatorStatistics()
+
+    init(
+        label: String = "com.nativeha.graphChartCoordinator",
+        preparer: @escaping Preparer = { input, displayUnit in
+            _ = GraphBitmapRenderer.preparedSeriesForTesting(input, displayUnit: displayUnit)
+        },
+        renderer: @escaping Renderer = { request in
+            GraphBitmapRenderer.render(
+                inputs: request.inputs,
+                unit: request.unit,
+                size: request.size,
+                scale: request.scale,
+                zoomScale: request.zoomScale,
+                panFraction: request.panFraction,
+                engine: request.engine
+            )
+        }
+    ) {
+        queue = DispatchQueue(label: label, qos: .userInitiated)
+        self.preparer = preparer
+        self.renderer = renderer
+    }
+
+    var statistics: GraphChartCoordinatorStatistics {
+        lock.lock()
+        defer { lock.unlock() }
+        return statisticsStorage
+    }
+
+    func submitAcceptedRevision(inputs: [GraphRenderSeriesInput], unit: String) {
+        precondition(Thread.isMainThread)
+        lock.lock()
+        let activeGeneration = generation
+        revisions.append(RevisionWork(
+            generation: activeGeneration,
+            inputs: scoped(inputs, generation: activeGeneration),
+            unit: unit
+        ))
+        statisticsStorage.acceptedRevisionCount += 1
+        startWorkerIfNeededLocked()
+        lock.unlock()
+    }
+
+    func requestVisual(_ request: GraphChartVisualRequest, completion: @escaping Completion) {
+        precondition(Thread.isMainThread)
+        lock.lock()
+        let activeGeneration = generation
+        latestRequestedVisualSequence &+= 1
+        let sequence = latestRequestedVisualSequence
+        if latestVisual != nil || inFlightVisualSequence != nil {
+            statisticsStorage.replacedVisualCount += 1
+        }
+        latestVisual = VisualWork(
+            generation: activeGeneration,
+            sequence: sequence,
+            request: GraphChartVisualRequest(
+                token: request.token,
+                inputs: scoped(request.inputs, generation: activeGeneration),
+                unit: request.unit,
+                size: request.size,
+                scale: request.scale,
+                zoomScale: request.zoomScale,
+                panFraction: request.panFraction,
+                engine: request.engine
+            ),
+            completion: completion
+        )
+        statisticsStorage.requestedVisualCount += 1
+        startWorkerIfNeededLocked()
+        lock.unlock()
+    }
+
+    func reset() {
+        precondition(Thread.isMainThread)
+        lock.lock()
+        generation &+= 1
+        revisions.removeAll(keepingCapacity: true)
+        revisionHead = 0
+        latestVisual = nil
+        inFlightVisualSequence = nil
+        lock.unlock()
+    }
+
+    private func scoped(
+        _ inputs: [GraphRenderSeriesInput],
+        generation: UInt64
+    ) -> [GraphRenderSeriesInput] {
+        inputs.map {
+            $0.replacingHistory(
+                $0.history,
+                cacheScope: "\($0.cacheScope)\u{1F}owner:\(ownerID):\(generation)"
+            )
+        }
+    }
+
+    private func startWorkerIfNeededLocked() {
+        guard !workerRunning else { return }
+        workerRunning = true
+        concurrentCount += 1
+        statisticsStorage.maximumConcurrentCount = max(
+            statisticsStorage.maximumConcurrentCount,
+            concurrentCount
+        )
+        queue.async { [weak self] in self?.drain() }
+    }
+
+    private func drain() {
+        while true {
+            let revision: RevisionWork?
+            let visual: VisualWork?
+            lock.lock()
+            if revisionHead < revisions.count {
+                revision = revisions[revisionHead]
+                revisionHead += 1
+                visual = nil
+            } else {
+                if revisionHead > 0 {
+                    revisions.removeAll(keepingCapacity: true)
+                    revisionHead = 0
+                }
+                revision = nil
+                visual = latestVisual
+                latestVisual = nil
+                inFlightVisualSequence = visual?.sequence
+            }
+
+            if revision == nil, visual == nil {
+                workerRunning = false
+                concurrentCount = max(concurrentCount - 1, 0)
+                lock.unlock()
+                return
+            }
+            lock.unlock()
+
+            if let revision = revision {
+                for input in revision.inputs {
+                    preparer(input, revision.unit)
+                }
+                lock.lock()
+                if revision.generation == generation {
+                    statisticsStorage.consumedRevisionCount += 1
+                }
+                lock.unlock()
+                continue
+            }
+
+            guard let visual = visual else { continue }
+            let result = renderer(visual.request)
+            lock.lock()
+            if inFlightVisualSequence == visual.sequence {
+                inFlightVisualSequence = nil
+            }
+            lock.unlock()
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.lock.lock()
+                let current = visual.generation == self.generation &&
+                    visual.sequence == self.latestRequestedVisualSequence
+                if current {
+                    self.statisticsStorage.renderedVisualCount += 1
+                } else {
+                    self.statisticsStorage.staleDeliveryCount += 1
+                }
+                self.lock.unlock()
+                if current {
+                    visual.completion(visual.request.token, result)
+                }
+            }
+        }
+    }
+}
 
 struct GraphSynchronousRenderKey: Equatable {
     let dataToken: String

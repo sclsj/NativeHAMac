@@ -216,15 +216,60 @@ final class GraphEngineBenchmarks: XCTestCase {
 
     private func assertConsecutivePreparationStatistics(frames: [EngineLogicalFrame]) {
         let seriesCount = frames.first?.inputs.count ?? 0
+        var exactLineageCount = 0
+        var alignmentFallbackCount = 0
+        if frames.count > 1 {
+            for frameIndex in 1..<frames.count {
+                for seriesIndex in 0..<seriesCount {
+                    let previous = frames[frameIndex - 1].inputs[seriesIndex].history
+                    let current = frames[frameIndex].inputs[seriesIndex].history
+                    if benchmarkCanUseExactLineage(previous: previous, current: current) {
+                        exactLineageCount += 1
+                    } else {
+                        alignmentFallbackCount += 1
+                    }
+                }
+            }
+        }
         XCTAssertEqual(
             GraphBitmapRenderer.preparedSeriesCacheStatistics(),
             GraphPreparedSeriesCacheStatistics(
                 fullPreparationCount: seriesCount,
                 incrementalPreparationCount: seriesCount * max(frames.count - 1, 0),
-                cacheHitCount: 0
+                cacheHitCount: 0,
+                exactLineagePreparationCount: exactLineageCount,
+                alignmentFallbackCount: alignmentFallbackCount
             ),
-            "Every benchmark frame after the initial build must exercise consecutive incremental preparation."
+            "Every benchmark frame after the initial build must use the expected exact-lineage or safe alignment strategy."
         )
+    }
+
+    private func benchmarkCanUseExactLineage(
+        previous: HAHistorySeries,
+        current: HAHistorySeries
+    ) -> Bool {
+        guard let lineage = current.cacheLineage,
+              lineage.predecessorRevision == previous.contentRevision,
+              benchmarkIsStrictNumeric(previous),
+              benchmarkIsStrictNumeric(current)
+        else { return false }
+        return true
+    }
+
+    private func benchmarkIsStrictNumeric(_ history: HAHistorySeries) -> Bool {
+        let parser = GraphDateParser()
+        var previousTimestamp: Double?
+        for point in history.points {
+            guard let timestamp = parser.timestamp(from: point),
+                  Double(point.state) != nil
+            else { return false }
+            if let previousTimestamp = previousTimestamp,
+               timestamp <= previousTimestamp {
+                return false
+            }
+            previousTimestamp = timestamp
+        }
+        return !history.points.isEmpty
     }
 
     private func makeConsecutiveFrames(

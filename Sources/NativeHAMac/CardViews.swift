@@ -244,7 +244,8 @@ struct HistoryGraphCard: View {
                     UnitGraph(
                         cacheScope: "card:\(card.nativeID):\(model.selectedGraphHours)h:\(group.unit)",
                         unit: group.unit,
-                        series: group.series
+                        series: group.series,
+                        revisionFeed: model.graphHistoryRevisionFeed(for: card)
                     )
 
                     if group.unit != groups.last?.unit {
@@ -328,6 +329,7 @@ struct UnitGraph: View {
     let cacheScope: String
     let unit: String
     let series: [HAHistorySeries]
+    let revisionFeed: GraphHistoryRevisionFeed?
     @State private var hoverLocation: CGPoint?
     @State private var zoomScale: CGFloat = 1
     @State private var panFraction: Double = 1
@@ -366,6 +368,7 @@ struct UnitGraph: View {
             BitmapLineChart(
                 unit: unit,
                 inputs: graphInputs,
+                revisionFeed: revisionFeed,
                 zoomScale: zoomScale,
                 panFraction: panFraction,
                 hoverLocation: $hoverLocation
@@ -526,6 +529,7 @@ struct GraphCanvasPlot: View {
 struct BitmapLineChart: View {
     let unit: String
     let inputs: [GraphRenderSeriesInput]
+    let revisionFeed: GraphHistoryRevisionFeed?
     let zoomScale: CGFloat
     let panFraction: Double
     let showsHoverOverlay: Bool
@@ -535,15 +539,15 @@ struct BitmapLineChart: View {
     let onRenderReady: (GraphRenderResult) -> Void
     @State private var rendered: GraphRenderResult?
     @State private var renderedToken = ""
-    @State private var latestDataToken = ""
-    @StateObject private var synchronousRenderCache = GraphSynchronousRenderCache()
-    @StateObject private var dataRevisionPreparationScheduler =
-        GraphDataRevisionPreparationScheduler()
+    @StateObject private var renderCoordinator = GraphChartRenderCoordinator()
+    @State private var subscribedFeed: GraphHistoryRevisionFeed?
+    @State private var feedSubscription: UUID?
     @State private var renderAttempted = false
 
     init(
         unit: String,
         inputs: [GraphRenderSeriesInput],
+        revisionFeed: GraphHistoryRevisionFeed? = nil,
         zoomScale: CGFloat,
         panFraction: Double,
         showsHoverOverlay: Bool = AppConfig.graphInteractionPolicy.hoverOverlayEnabled(),
@@ -554,6 +558,7 @@ struct BitmapLineChart: View {
     ) {
         self.unit = unit
         self.inputs = inputs
+        self.revisionFeed = revisionFeed
         self.zoomScale = zoomScale
         self.panFraction = panFraction
         self.showsHoverOverlay = showsHoverOverlay
@@ -571,30 +576,19 @@ struct BitmapLineChart: View {
             let maxZoom = maxGraphZoom(for: inputs, size: size)
             let screenScale = NSScreen.main?.backingScaleFactor ?? 2
             let engine = AppConfig.graphRenderEngine
-            let token = [
+            let renderToken = [
                 combinedRenderToken(viewportToken: viewportToken, dataToken: dataToken),
                 String(describing: screenScale),
                 String(describing: engine),
             ].joined(separator: "::")
-            let currentRender = size.width > 1 && size.height > 1
-                ? synchronousRenderCache.render(GraphSynchronousRenderRequest(
-                    key: GraphSynchronousRenderKey(
-                        dataToken: dataToken,
-                        unit: unit,
-                        size: size,
-                        scale: screenScale,
-                        zoomScale: zoomScale,
-                        panFraction: panFraction,
-                        engine: engine
-                    ),
-                    inputs: inputs,
-                    unit: unit,
-                    size: size,
-                    zoomScale: zoomScale,
-                    panFraction: panFraction
-                ))
-                : nil
-            let displayRender = currentRender ?? rendered
+            // Feed ownership participates in the installed-image identity.
+            // A range/reconnect generation change must reset/re-key first and
+            // then request a visual even when the source payload is identical.
+            let token = graphChartLifecycleToken(
+                renderToken: renderToken,
+                feedGeneration: revisionFeed?.generation
+            )
+            let displayRender = rendered
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 4)
@@ -653,45 +647,84 @@ struct BitmapLineChart: View {
                 )
             }
             .onAppear {
-                installSynchronousRender(
-                    currentRender,
+                connectRevisionFeed()
+                requestRender(
                     token: token,
-                    dataToken: dataToken
+                    size: size,
+                    scale: screenScale,
+                    engine: engine
                 )
             }
             .onChange(of: token) { _ in
-                installSynchronousRender(
-                    currentRender,
+                connectRevisionFeed()
+                requestRender(
                     token: token,
-                    dataToken: dataToken
+                    size: size,
+                    scale: screenScale,
+                    engine: engine
                 )
+            }
+            .onDisappear {
+                disconnectRevisionFeed()
             }
         }
     }
 
-    private func installSynchronousRender(
-        _ result: GraphRenderResult?,
+    private func requestRender(
         token: String,
-        dataToken: String
+        size: CGSize,
+        scale: CGFloat,
+        engine: GraphRenderEngine
     ) {
-        if dataToken != latestDataToken {
-            latestDataToken = dataToken
-            // Prepared-series lineage consumes every revision independently of
-            // visual frame installation.
-            dataRevisionPreparationScheduler.submit(
-                inputs: inputs,
-                displayUnit: unit
-            )
-        }
-
-        if renderedToken != token {
+        guard size.width > 1, size.height > 1, renderedToken != token else { return }
+        renderCoordinator.requestVisual(GraphChartVisualRequest(
+            token: token,
+            inputs: inputs,
+            unit: unit,
+            size: size,
+            scale: scale,
+            zoomScale: zoomScale,
+            panFraction: panFraction,
+            engine: engine
+        )) { completedToken, result in
+            guard completedToken == token else { return }
             rendered = result
-            renderedToken = token
+            renderedToken = completedToken
+            renderAttempted = true
             if let result = result {
                 onRenderReady(result)
             }
         }
-        renderAttempted = true
+    }
+
+    private func connectRevisionFeed() {
+        guard subscribedFeed?.generation != revisionFeed?.generation else { return }
+        subscribedFeed?.unsubscribe(feedSubscription)
+        renderCoordinator.reset()
+        subscribedFeed = revisionFeed
+        let templates = inputs
+        let displayUnit = unit
+        feedSubscription = revisionFeed?.subscribe { event in
+            if event.resetPreparedState {
+                // Reconnect/correction publications must not reuse or seed the
+                // preceding prepared-cache ownership generation.
+                renderCoordinator.reset()
+            }
+            let byEntity = Dictionary(uniqueKeysWithValues: event.series.map { ($0.entityID, $0) })
+            let acceptedInputs = templates.compactMap { template -> GraphRenderSeriesInput? in
+                guard let history = byEntity[template.entityID] else { return nil }
+                return template.replacingHistory(history)
+            }
+            guard !acceptedInputs.isEmpty else { return }
+            renderCoordinator.submitAcceptedRevision(inputs: acceptedInputs, unit: displayUnit)
+        }
+    }
+
+    private func disconnectRevisionFeed() {
+        subscribedFeed?.unsubscribe(feedSubscription)
+        subscribedFeed = nil
+        feedSubscription = nil
+        renderCoordinator.reset()
     }
 
     private func anchorFraction(for point: CGPoint, size: CGSize) -> Double {
@@ -2195,6 +2228,10 @@ extension View {
             )
             .cornerRadius(8)
     }
+}
+
+func graphChartLifecycleToken(renderToken: String, feedGeneration: UUID?) -> String {
+    "\(renderToken)::feed:\(feedGeneration?.uuidString ?? "none")"
 }
 
 extension GraphColor {
