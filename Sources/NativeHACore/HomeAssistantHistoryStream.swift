@@ -280,7 +280,7 @@ public struct HAHistoryStreamAccumulator {
             if
                 let incomingFirst = incoming.first,
                 let existingLast = states.last,
-                incomingFirst.lastUpdatedSeconds < existingLast.lastUpdatedSeconds || !isTimestampSorted(incoming)
+                incomingFirst.lastUpdatedSeconds < existingLast.lastUpdatedSeconds
             {
                 requiresOutOfOrderReset = true
                 didFullRebuild = true
