@@ -5,6 +5,9 @@ import NativeHACore
 final class DashboardViewModel: ObservableObject {
     @Published var selectedGraphHours = AppConfig.defaultGraphHours
     @Published private(set) var views: [LovelaceView] = []
+    @Published private(set) var navigationItems: [LovelaceNavigationItem] = []
+    @Published private(set) var selectedViewIdentity: LovelaceResolvedIdentity?
+    @Published private(set) var hasLoadedDashboard: Bool
     @Published var states: [String: HAState] = [:]
     @Published var histories: [String: [HAHistorySeries]] = [:]
     @Published var detailHistories: [String: HAHistorySeries] = [:]
@@ -26,14 +29,27 @@ final class DashboardViewModel: ObservableObject {
     private var historySubscriptions: [String: HAHistoryStreamSubscription] = [:]
     private var historyStartupTasks: [UUID: HistoryStartupTask] = [:]
     private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
+    private var detailHistoryStartupTasks: [UUID: DetailHistoryStartupTask] = [:]
     private var historyGenerations: [String: UUID] = [:]
     private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] = [:]
     private var desiredHistoryKeys: Set<String> = []
     private var historyReconciliationEpoch: UInt64 = 0
     private var latestConfigRequestSequence: UInt64 = 0
+    private var latestNavigationRequestSequence: UInt64 = 0
+    private var latestBootstrapSequence: UInt64 = 0
+    private var latestBootstrapClient: HomeAssistantWebSocketClient?
+    private var installedBootstrapSequence: UInt64?
+    private var installedBootstrapClient: HomeAssistantWebSocketClient?
     private var latestDashboardOwnerOperationSequence: UInt64 = 0
     private var dashboardOwnerOperationTail: Task<Void, Never>?
-    private var latestQueuedConfigCandidate: LovelacePresentationDashboard?
+    private var latestQueuedDashboardCandidate: DashboardOwnerCandidate?
+    private var desiredSelectedViewIdentity: LovelaceResolvedIdentity?
+    private var selectedViewLocator: LovelaceViewLocator?
+    private var selectedViewIsPrimary = false
+    private var lastPrimaryIdentity: LovelaceResolvedIdentity?
+    private var lastPrimaryLocator: LovelaceViewLocator?
+    private var currentUserID: String?
+    private let navigationSelectionPersistence: LovelaceNavigationSelectionPersistence
     private(set) var presentationDashboard: LovelacePresentationDashboard
     let graphChartMountRegistry = DashboardGraphChartMountRegistry()
     private var detailHistoryGenerations: [String: UUID] = [:]
@@ -41,9 +57,10 @@ final class DashboardViewModel: ObservableObject {
     private let historyNow: @Sendable () -> Date
     let graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata?
     private let historyProcessingHook: @Sendable () async -> Void
+    private let dashboardOwnerCandidateHook: @Sendable () async -> Void
     private var hasStarted = false
     private var pendingStates: [String: HAState] = [:]
-    private var isStateFlushScheduled = false
+    private var stateFlushGeneration: UInt64?
     private let isoFormatter = ISO8601DateFormatter()
     private let fractionalISOFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -52,12 +69,11 @@ final class DashboardViewModel: ObservableObject {
     }()
 
     private var latestQueuedConfigRawValue: JSONValue? {
-        latestQueuedConfigCandidate?.resolved.source.rawValue
+        latestQueuedDashboardCandidate?.dashboard.resolved.source.rawValue
     }
 
     private var latestQueuedHistoryKeys: Set<String> {
-        guard let latestQueuedConfigCandidate = latestQueuedConfigCandidate else { return [] }
-        return Set(historyRequests(from: latestQueuedConfigCandidate).map(\.key))
+        desiredHistoryKeys
     }
 
     private let shortTimeFormatter: DateFormatter = {
@@ -79,13 +95,52 @@ final class DashboardViewModel: ObservableObject {
         homeAssistantConfig: HAConfig? = nil,
         frontendLocalePreferences: HAFrontendLocalePreferences? = nil,
         entityDisplayPrecisions: [String: Int] = [:],
+        currentUserID: String? = nil,
+        navigationPreferenceStore: LovelaceNavigationPreferenceStore = UserDefaultsLovelaceNavigationPreferenceStore(),
         historyNow: @escaping @Sendable () -> Date = { Date() },
         graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
-        historyProcessingHook: @escaping @Sendable () async -> Void = {}
+        historyProcessingHook: @escaping @Sendable () async -> Void = {},
+        dashboardOwnerCandidateHook: @escaping @Sendable () async -> Void = {}
     ) {
         let initialConfig = LovelaceConfig(views: initialViews)
         let initialResolved = LovelaceResolvedDashboard(source: initialConfig)
-        self.presentationDashboard = LovelacePresentationDashboard(resolved: initialResolved)
+        let initialPresentation = LovelacePresentationDashboard(resolved: initialResolved)
+        let persistence = LovelaceNavigationSelectionPersistence(
+            key: AppConfig.lovelaceNavigationPolicy.persistedPrimarySelectionKey,
+            store: navigationPreferenceStore
+        )
+        let initialNavigation = LovelaceViewNavigation(
+            dashboard: initialResolved,
+            currentUserID: currentUserID,
+            policy: AppConfig.lovelaceNavigationPolicy
+        )
+        let persistedLocator: LovelaceViewLocator?
+        do {
+            persistedLocator = try persistence.load()
+        } catch {
+            persistedLocator = nil
+            AppLog(
+                "Lovelace navigation preference could not be read",
+                severity: .warning,
+                category: .lifecycle
+            )
+        }
+        let initialSelection = initialNavigation.startupSelection(persisted: persistedLocator)
+        self.presentationDashboard = initialPresentation
+        self.navigationSelectionPersistence = persistence
+        self.currentUserID = currentUserID
+        self.hasLoadedDashboard = !initialViews.isEmpty
+        self.selectedViewIdentity = initialSelection?.identity
+        self.desiredSelectedViewIdentity = initialSelection?.identity
+        self.selectedViewLocator = initialSelection.flatMap(initialNavigation.locator)
+        self.selectedViewIsPrimary = initialSelection.map {
+            initialNavigation.primaryView(identity: $0.identity) != nil
+        } ?? false
+        if selectedViewIsPrimary {
+            self.lastPrimaryIdentity = initialSelection?.identity
+            self.lastPrimaryLocator = initialSelection.flatMap(initialNavigation.locator)
+        }
+        self.navigationItems = initialNavigation.items(selectedIdentity: initialSelection?.identity)
         self.webSocketClient = webSocketClient
         self.states = initialStates
         self.views = initialViews
@@ -95,25 +150,35 @@ final class DashboardViewModel: ObservableObject {
         self.historyNow = historyNow
         self.graphAxisTimeFormattingOverride = graphAxisTimeFormattingOverride
         self.historyProcessingHook = historyProcessingHook
+        self.dashboardOwnerCandidateHook = dashboardOwnerCandidateHook
     }
 
     var homeView: LovelaceView? {
-        views.first(where: { $0.path == "default_view" }) ?? views.first
+        activePresentationView?.resolved.source
     }
 
     var graphWindowNow: Date { historyNow() }
 
     var homeCards: [LovelacePresentationCard] {
-        presentationDashboard.views.first(where: { $0.resolved.source.path == "default_view" })?.cards
-            ?? presentationDashboard.views.first?.cards
-            ?? []
+        activeCards
+    }
+
+    var activePresentationView: LovelacePresentationView? {
+        guard let selectedViewIdentity = selectedViewIdentity else { return nil }
+        return presentationDashboard.views.first { $0.id == selectedViewIdentity }
+    }
+
+    var activeCards: [LovelacePresentationCard] {
+        activePresentationView?.cards ?? []
     }
 
     var dashboardColumns: [[LovelacePresentationCard]] {
-        guard presentationDashboard.views.contains(where: {
-            $0.resolved.source.path == "default_view"
-        }) else {
-            return homeCards.isEmpty ? [] : [homeCards]
+        guard let activeView = activePresentationView else { return [] }
+        if activeView.resolved.source.panel == true || activeView.resolved.source.type == "panel" {
+            return activeView.cards.first.map { [[$0]] } ?? []
+        }
+        guard activeView.resolved.source.path == "default_view" else {
+            return activeView.cards.isEmpty ? [] : [activeView.cards]
         }
         var columns = Array(repeating: [LovelacePresentationCard](), count: AppConfig.dashboardColumnCount)
         var unplaced: [LovelacePresentationCard] = []
@@ -155,9 +220,7 @@ final class DashboardViewModel: ObservableObject {
         }
 
         selectedGraphHours = hours
-        Task {
-            await loadHistories()
-        }
+        enqueueCurrentDashboardOwnerCandidate(startHistoryOwners: webSocketClient != nil)
     }
 
     func displayName(for entityID: String) -> String {
@@ -374,6 +437,120 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    func selectView(_ identity: LovelaceResolvedIdentity) {
+        guard identity != desiredSelectedViewIdentity else { return }
+        let sourceDashboard = presentationDashboard
+        let sourceNavigation = navigation(for: sourceDashboard)
+        let targetNavigation: LovelaceViewNavigation
+        let targetDashboard: LovelacePresentationDashboard
+        if let queued = latestQueuedDashboardCandidate {
+            targetDashboard = queued.dashboard
+            targetNavigation = navigation(for: queued.dashboard)
+        } else {
+            targetDashboard = presentationDashboard
+            targetNavigation = sourceNavigation
+        }
+
+        let selected: LovelaceResolvedView?
+        if let exact = targetNavigation.view(identity: identity) {
+            selected = exact
+        } else if
+            let source = sourceNavigation.view(identity: identity),
+            let locator = sourceNavigation.locator(for: source)
+        {
+            selected = targetNavigation.view(
+                for: locator,
+                primaryOnly: sourceNavigation.primaryView(identity: identity) != nil
+            )
+        } else {
+            selected = nil
+        }
+        guard let selected = selected else { return }
+        enqueueDashboardOwnerCandidate(
+            dashboard: targetDashboard,
+            selectedView: selected,
+            startHistoryOwners: webSocketClient != nil,
+            configRequestSequence: latestConfigRequestSequence
+        )
+    }
+
+    func navigateToView(path: String) {
+        let dashboard = latestQueuedDashboardCandidate?.dashboard ?? presentationDashboard
+        let navigation = navigation(for: dashboard)
+        guard let selected = navigation.directRoute(path: path) else {
+            AppLog("Lovelace route could not be resolved", severity: .warning, category: .interaction)
+            return
+        }
+        enqueueDashboardOwnerCandidate(
+            dashboard: dashboard,
+            selectedView: selected,
+            startHistoryOwners: webSocketClient != nil,
+            configRequestSequence: latestConfigRequestSequence
+        )
+    }
+
+    func navigateBack() {
+        let dashboard = latestQueuedDashboardCandidate?.dashboard ?? presentationDashboard
+        let navigation = navigation(for: dashboard)
+        guard let selected = navigation.backSelection(
+            from: desiredSelectedViewIdentity,
+            lastPrimaryIdentity: lastPrimaryIdentity,
+            persistedPrimaryLocator: lastPrimaryLocator
+        ) else {
+            enqueueDashboardOwnerCandidate(
+                dashboard: dashboard,
+                selectedView: nil,
+                startHistoryOwners: webSocketClient != nil,
+                configRequestSequence: latestConfigRequestSequence
+            )
+            return
+        }
+        enqueueDashboardOwnerCandidate(
+            dashboard: dashboard,
+            selectedView: selected,
+            startHistoryOwners: webSocketClient != nil,
+            configRequestSequence: latestConfigRequestSequence
+        )
+    }
+
+    func selectViewForTesting(_ identity: LovelaceResolvedIdentity) async {
+        selectView(identity)
+        await awaitStableDashboardOwnerOperationTail(
+            startingAt: latestDashboardOwnerOperationSequence
+        )
+    }
+
+    func navigateToViewForTesting(path: String) async {
+        navigateToView(path: path)
+        await awaitStableDashboardOwnerOperationTail(
+            startingAt: latestDashboardOwnerOperationSequence
+        )
+    }
+
+    func setGraphHoursForTesting(_ hours: Int) async {
+        setGraphHours(hours)
+        await awaitStableDashboardOwnerOperationTail(
+            startingAt: latestDashboardOwnerOperationSequence
+        )
+    }
+
+    func dashboardOwnerSnapshotForTesting() -> DashboardOwnerDebugSnapshot {
+        DashboardOwnerDebugSnapshot(
+            activeCardOwnerIDs: activeCardOwnerIDs(
+                from: presentationDashboard,
+                selectedViewIdentity: selectedViewIdentity
+            ),
+            desiredHistoryKeys: desiredHistoryKeys,
+            subscriptionKeys: Set(historySubscriptions.keys),
+            generationKeys: Set(historyGenerations.keys),
+            startupCount: historyStartupTasks.count,
+            feedObserverCounts: graphHistoryRevisionFeeds.mapValues(\.observerCount),
+            historyKeys: Set(histories.keys),
+            statusKeys: Set(historyStatuses.keys),
+            mountedOwnerCount: graphChartMountRegistry.liveMountCount()
+        )
+    }
+
     func historyKey(for card: LovelacePresentationCard) -> String {
         let entities = historyEntityIDs(for: card)
         return HistoryRequest(
@@ -419,18 +596,31 @@ final class DashboardViewModel: ObservableObject {
         let effectiveHours = AppConfig.graphTimeRangePolicy.detailDefault.hours
         let key = detailHistoryKey(entityID: entityID, hours: effectiveHours)
         desiredDetailHistoryKeys.insert(key)
-        Task {
-            await startDetailHistory(entityID: entityID, hours: effectiveHours, key: key)
+        let startupID = UUID()
+        let task = Task { @MainActor [weak self] in
+            await self?.startDetailHistory(entityID: entityID, hours: effectiveHours, key: key)
+            self?.detailHistoryStartupTasks.removeValue(forKey: startupID)
         }
+        detailHistoryStartupTasks[startupID] = DetailHistoryStartupTask(key: key, task: task)
     }
 
     func unloadDetailHistory(entityID: String, hours: Int) {
         let key = detailHistoryKey(entityID: entityID, hours: hours)
         desiredDetailHistoryKeys.remove(key)
+        let startupIDs = detailHistoryStartupTasks.compactMap { id, startup in
+            startup.key == key ? id : nil
+        }
+        let startups = startupIDs.compactMap {
+            detailHistoryStartupTasks.removeValue(forKey: $0)?.task
+        }
+        startups.forEach { $0.cancel() }
         let subscription = detailHistorySubscriptions.removeValue(forKey: key)
         detailHistoryGenerations.removeValue(forKey: key)
         detailHistoryStatuses.removeValue(forKey: key)
-        Task { await subscription?.cancel() }
+        Task {
+            for startup in startups { await startup.value }
+            await subscription?.cancel()
+        }
     }
 
     func historyEntityIDs(for card: LovelacePresentationCard) -> [String] {
@@ -547,60 +737,233 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func bootstrapDashboard(using webSocket: HomeAssistantWebSocketClient) async throws {
-        try await webSocket.connect()
+        latestBootstrapSequence &+= 1
+        let bootstrapSequence = latestBootstrapSequence
+        latestBootstrapClient = webSocket
+        pendingStates.removeAll()
+        stateFlushGeneration = nil
+
         do {
+            try await webSocket.connect()
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
+
             async let registryResponse = try? await webSocket.fetchEntityRegistryDisplay()
             async let localeResponse = try? await webSocket.fetchFrontendLocalePreferences()
+            async let currentUserResponse = Self.fetchCurrentUserResult(using: webSocket)
             let config = try await webSocket.fetchLovelaceConfig()
-            let (registry, locale) = await (registryResponse, localeResponse)
+            let (registry, locale, currentUserResult) = await (
+                registryResponse,
+                localeResponse,
+                currentUserResponse
+            )
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
             entityDisplayPrecisions = Dictionary(uniqueKeysWithValues:
                 (registry?.entities ?? []).compactMap { entry in
                     entry.displayPrecision.map { (entry.entityID, $0) }
                 }
             )
             frontendLocalePreferences = locale ?? nil
-            await applyLovelaceConfig(config, startHistoryOwners: false)
+            switch currentUserResult {
+            case let .success(user):
+                currentUserID = user.id
+            case .failure:
+                currentUserID = nil
+                AppLog(
+                    "Current user metadata unavailable; user-restricted navigation is hidden",
+                    severity: .warning,
+                    category: .lifecycle
+                )
+            }
+            await applyLovelaceConfig(
+                config,
+                startHistoryOwners: false,
+                bootstrapSequence: bootstrapSequence
+            )
 
-            status = "Live"
-            AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
+
             let weakModel = WeakDashboardViewModelBox(self)
-            stateSubscription = try await webSocket.subscribeToStateChanges { state in
+            let candidateStateSubscription = try await webSocket.subscribeToStateChanges { state in
                 await MainActor.run {
-                    weakModel.value?.queueStateUpdate(state)
+                    weakModel.value?.queueStateUpdate(
+                        state,
+                        bootstrapSequence: bootstrapSequence,
+                        client: webSocket
+                    )
                 }
             }
-            webSocketClient = webSocket
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await candidateStateSubscription.cancel()
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
+
+            let installed = await installBootstrapOwnership(
+                sequence: bootstrapSequence,
+                client: webSocket,
+                stateSubscription: candidateStateSubscription
+            )
+            guard installed else { return }
 
             Task { [weak self] in
                 await self?.loadHistories()
             }
+        } catch {
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
+            await failCurrentBootstrap(sequence: bootstrapSequence, client: webSocket)
+            throw error
+        }
+    }
 
-            connectionStatusTask = Task { [weak self, webSocket] in
-                for await connectionState in await webSocket.connection.statusUpdates() {
-                    await MainActor.run {
-                        let nextStatus: String
-                        switch connectionState {
-                        case .ready:
-                            nextStatus = "Live"
-                        case .disconnected:
-                            nextStatus = "Disconnected"
-                        case .reconnecting:
-                            nextStatus = "Reconnecting"
-                        case let .authenticationFailed(message):
-                            nextStatus = "Error"
-                            self?.errorMessage = "WebSocket authentication failed: \(message)"
-                        case .connecting:
-                            nextStatus = "Connecting"
-                        }
-                        if self?.status != nextStatus {
-                            self?.status = nextStatus
-                        }
+    private func isCurrentBootstrap(
+        _ sequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) -> Bool {
+        latestBootstrapSequence == sequence && latestBootstrapClient === client
+    }
+
+    private func isCurrentInstalledBootstrap(
+        _ sequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) -> Bool {
+        isCurrentBootstrap(sequence, client: client) &&
+            installedBootstrapSequence == sequence &&
+            installedBootstrapClient === client &&
+            webSocketClient === client
+    }
+
+    private func disconnectIfUnownedByCurrentBootstrap(
+        _ client: HomeAssistantWebSocketClient
+    ) async {
+        guard latestBootstrapClient !== client, installedBootstrapClient !== client else {
+            return
+        }
+        await client.disconnect()
+    }
+
+    private func failCurrentBootstrap(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) async {
+        guard isCurrentBootstrap(sequence, client: client) else {
+            await disconnectIfUnownedByCurrentBootstrap(client)
+            return
+        }
+
+        let installedClient = installedBootstrapClient
+        let subscription = stateSubscription
+        let statusTask = connectionStatusTask
+        stateSubscription = nil
+        connectionStatusTask = nil
+        webSocketClient = nil
+        installedBootstrapClient = nil
+        installedBootstrapSequence = nil
+        statusTask?.cancel()
+        await subscription?.cancel()
+        if let installedClient = installedClient, installedClient !== client {
+            await disconnectIfUnownedByCurrentBootstrap(installedClient)
+        }
+        if isCurrentBootstrap(sequence, client: client) {
+            latestBootstrapClient = nil
+            await client.disconnect()
+        } else {
+            await disconnectIfUnownedByCurrentBootstrap(client)
+        }
+    }
+
+    private func installBootstrapOwnership(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient,
+        stateSubscription candidateStateSubscription: HAWebSocketSubscription
+    ) async -> Bool {
+        guard isCurrentBootstrap(sequence, client: client) else {
+            await candidateStateSubscription.cancel()
+            await disconnectIfUnownedByCurrentBootstrap(client)
+            return false
+        }
+
+        let oldSubscription = stateSubscription
+        let oldStatusTask = connectionStatusTask
+        let oldClient = installedBootstrapClient
+        stateSubscription = nil
+        connectionStatusTask = nil
+        webSocketClient = nil
+        installedBootstrapClient = nil
+        installedBootstrapSequence = nil
+        oldStatusTask?.cancel()
+        await oldSubscription?.cancel()
+
+        if let oldClient = oldClient, oldClient !== client {
+            await disconnectIfUnownedByCurrentBootstrap(oldClient)
+        }
+
+        guard isCurrentBootstrap(sequence, client: client) else {
+            await candidateStateSubscription.cancel()
+            await disconnectIfUnownedByCurrentBootstrap(client)
+            return false
+        }
+
+        stateSubscription = candidateStateSubscription
+        webSocketClient = client
+        installedBootstrapClient = client
+        installedBootstrapSequence = sequence
+        status = "Live"
+        AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
+        connectionStatusTask = makeConnectionStatusTask(sequence: sequence, client: client)
+        return true
+    }
+
+    private func makeConnectionStatusTask(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) -> Task<Void, Never> {
+        Task { [weak self, client] in
+            for await connectionState in await client.connection.statusUpdates() {
+                await MainActor.run {
+                    guard self?.isCurrentInstalledBootstrap(sequence, client: client) == true else {
+                        return
+                    }
+                    let nextStatus: String
+                    switch connectionState {
+                    case .ready:
+                        nextStatus = "Live"
+                    case .disconnected:
+                        nextStatus = "Disconnected"
+                    case .reconnecting:
+                        nextStatus = "Reconnecting"
+                    case let .authenticationFailed(message):
+                        nextStatus = "Error"
+                        self?.errorMessage = "WebSocket authentication failed: \(message)"
+                    case .connecting:
+                        nextStatus = "Connecting"
+                    }
+                    if self?.status != nextStatus {
+                        self?.status = nextStatus
                     }
                 }
             }
+        }
+    }
+
+    private nonisolated static func fetchCurrentUserResult(
+        using webSocket: HomeAssistantWebSocketClient
+    ) async -> Result<HACurrentUser, Error> {
+        do {
+            return .success(try await webSocket.fetchCurrentUser())
         } catch {
-            await webSocket.disconnect()
-            throw error
+            return .failure(error)
         }
     }
 
@@ -608,25 +971,43 @@ final class DashboardViewModel: ObservableObject {
         fractionalISOFormatter.date(from: value) ?? isoFormatter.date(from: value)
     }
 
-    private func queueStateUpdate(_ state: HAState) {
+    private func queueStateUpdate(
+        _ state: HAState,
+        bootstrapSequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) {
+        guard isCurrentInstalledBootstrap(bootstrapSequence, client: client) else {
+            return
+        }
         pendingStates[state.entityId] = state
 
-        guard !isStateFlushScheduled else {
+        guard stateFlushGeneration != bootstrapSequence else {
             return
         }
 
-        isStateFlushScheduled = true
+        stateFlushGeneration = bootstrapSequence
         Task { @MainActor [weak self] in
             try? await Task.sleep(
                 nanoseconds: AppConfig.graphRenderSchedulingPolicy.realtimeStateCoalesceNanoseconds
             )
-            self?.flushPendingStates()
+            self?.flushPendingStates(
+                bootstrapSequence: bootstrapSequence,
+                client: client
+            )
         }
     }
 
-    private func flushPendingStates() {
+    private func flushPendingStates(
+        bootstrapSequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) {
+        guard stateFlushGeneration == bootstrapSequence else { return }
+        stateFlushGeneration = nil
+        guard isCurrentInstalledBootstrap(bootstrapSequence, client: client) else {
+            pendingStates.removeAll()
+            return
+        }
         guard !pendingStates.isEmpty else {
-            isStateFlushScheduled = false
             return
         }
 
@@ -638,7 +1019,6 @@ final class DashboardViewModel: ObservableObject {
             states = updatedStates
         }
         pendingStates.removeAll()
-        isStateFlushScheduled = false
     }
 
     func synchronizeHistorySubscriptionsForTesting() async {
@@ -651,47 +1031,71 @@ final class DashboardViewModel: ObservableObject {
 
     private func applyLovelaceConfig(
         _ config: LovelaceConfig,
-        startHistoryOwners: Bool
+        startHistoryOwners: Bool,
+        bootstrapSequence: UInt64? = nil
     ) async {
+        guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
         if latestQueuedConfigRawValue == config.rawValue,
-           dashboardOwnerOperationTail != nil
+           dashboardOwnerOperationTail != nil,
+           latestQueuedDashboardCandidate?.bootstrapSequence == bootstrapSequence
         {
             await awaitStableDashboardOwnerOperationTail(
                 startingAt: latestDashboardOwnerOperationSequence
             )
+            guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
             return
         }
-        if latestQueuedConfigRawValue == nil,
+        if bootstrapSequence == nil,
+           hasLoadedDashboard,
+           latestQueuedConfigRawValue == nil,
            presentationDashboard.resolved.source.rawValue == config.rawValue
         {
             await awaitStableDashboardOwnerOperationTail(
                 startingAt: latestDashboardOwnerOperationSequence
             )
+            guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
             return
         }
 
-        let candidate = LovelacePresentationDashboard(
+        let dashboard = LovelacePresentationDashboard(
             resolved: LovelaceResolvedDashboard(source: config)
         )
+        let navigation = self.navigation(for: dashboard)
+        let previousLocator = latestQueuedDashboardCandidate?.selectedLocator ?? selectedViewLocator
+        let previousWasPrimary = latestQueuedDashboardCandidate?.selectionIsPrimary ?? selectedViewIsPrimary
+        var selected = previousLocator.flatMap {
+            navigation.view(for: $0, primaryOnly: previousWasPrimary)
+        }
+        if selected == nil {
+            let persistedLocator: LovelaceViewLocator?
+            do {
+                persistedLocator = try navigationSelectionPersistence.load()
+            } catch {
+                persistedLocator = lastPrimaryLocator
+                AppLog(
+                    "Lovelace navigation preference could not be read",
+                    severity: .warning,
+                    category: .lifecycle
+                )
+            }
+            if let persistedLocator = persistedLocator,
+               navigation.view(for: persistedLocator, primaryOnly: true) == nil
+            {
+                clearPersistedNavigationSelection()
+            }
+            selected = navigation.startupSelection(
+                persisted: persistedLocator ?? lastPrimaryLocator
+            )
+        }
         latestConfigRequestSequence &+= 1
         let requestSequence = latestConfigRequestSequence
-        latestQueuedConfigCandidate = candidate
-        latestDashboardOwnerOperationSequence &+= 1
-        let operationSequence = latestDashboardOwnerOperationSequence
-        let previousTail = dashboardOwnerOperationTail
-        let task = Task { @MainActor [weak self] in
-            await previousTail?.value
-            guard let self = self else { return }
-            await self.reconcileLovelaceConfig(
-                candidate,
-                startHistoryOwners: startHistoryOwners,
-                requestSequence: requestSequence
-            )
-            if self.latestConfigRequestSequence == requestSequence {
-                self.latestQueuedConfigCandidate = nil
-            }
-        }
-        dashboardOwnerOperationTail = task
+        let operationSequence = enqueueDashboardOwnerCandidate(
+            dashboard: dashboard,
+            selectedView: selected,
+            startHistoryOwners: startHistoryOwners,
+            configRequestSequence: requestSequence,
+            bootstrapSequence: bootstrapSequence
+        )
         await awaitStableDashboardOwnerOperationTail(startingAt: operationSequence)
     }
 
@@ -720,77 +1124,201 @@ final class DashboardViewModel: ObservableObject {
         await task.value
     }
 
-    private func reconcileLovelaceConfig(
-        _ candidate: LovelacePresentationDashboard,
+    @discardableResult
+    private func enqueueDashboardOwnerCandidate(
+        dashboard: LovelacePresentationDashboard,
+        selectedView: LovelaceResolvedView?,
         startHistoryOwners: Bool,
-        requestSequence: UInt64
-    ) async {
-        guard latestConfigRequestSequence == requestSequence else { return }
-
-        let desiredRequests = historyRequests(from: candidate)
+        configRequestSequence: UInt64,
+        bootstrapSequence: UInt64? = nil
+    ) -> UInt64 {
+        latestNavigationRequestSequence &+= 1
+        let navigationSequence = latestNavigationRequestSequence
+        let navigation = self.navigation(for: dashboard)
+        let selectedIdentity = selectedView?.identity
+        let selectedLocator = selectedView.flatMap(navigation.locator)
+        let selectionIsPrimary = selectedIdentity.map {
+            navigation.primaryView(identity: $0) != nil
+        } ?? false
+        let desiredRequests = historyRequests(
+            from: dashboard,
+            selectedViewIdentity: selectedIdentity,
+            hours: selectedGraphHours
+        )
         let desiredKeys = Set(desiredRequests.map(\.key))
-        let desiredGraphOwnerIDs = Set(desiredRequests.map(\.ownerID))
-        let errorKeys = Set(historyStatuses.compactMap { key, status -> String? in
-            if case .error = status { return key }
-            return nil
-        })
-        let trackedKeys = Set(historySubscriptions.keys)
-            .union(historyGenerations.keys)
-            .union(historyStartupTasks.values.map(\.key))
-            .union(errorKeys)
-        let ownershipIsConsistent = desiredHistoryKeys == desiredKeys && trackedKeys == desiredKeys
-        guard candidate != presentationDashboard || !ownershipIsConsistent else { return }
-        historyReconciliationEpoch &+= 1
+        let candidate = DashboardOwnerCandidate(
+            dashboard: dashboard,
+            selectedViewIdentity: selectedIdentity,
+            selectedLocator: selectedLocator,
+            selectionIsPrimary: selectionIsPrimary,
+            graphHours: selectedGraphHours,
+            startHistoryOwners: startHistoryOwners,
+            configRequestSequence: configRequestSequence,
+            bootstrapSequence: bootstrapSequence,
+            navigationRequestSequence: navigationSequence,
+            desiredRequests: desiredRequests,
+            desiredGraphOwnerIDs: activeCardOwnerIDs(
+                from: dashboard,
+                selectedViewIdentity: selectedIdentity
+            )
+        )
+
+        desiredSelectedViewIdentity = selectedIdentity
+        let detached = detachOwnershipSynchronously(notIn: desiredKeys)
+        latestQueuedDashboardCandidate = candidate
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let task = Task { @MainActor [weak self] in
+            await previousTail?.value
+            guard let self = self else { return }
+            await self.dashboardOwnerCandidateHook()
+            await self.finishDetachedOwnership(detached)
+            guard self.isCurrent(candidate) else {
+                if self.latestQueuedDashboardCandidate?.navigationRequestSequence ==
+                    candidate.navigationRequestSequence
+                {
+                    self.latestQueuedDashboardCandidate = nil
+                }
+                return
+            }
+            await self.installDashboardOwnerCandidate(candidate)
+            if self.latestQueuedDashboardCandidate?.navigationRequestSequence ==
+                candidate.navigationRequestSequence
+            {
+                self.latestQueuedDashboardCandidate = nil
+            }
+        }
+        dashboardOwnerOperationTail = task
+        return operationSequence
+    }
+
+    private func enqueueCurrentDashboardOwnerCandidate(startHistoryOwners: Bool) {
+        let dashboard = latestQueuedDashboardCandidate?.dashboard ?? presentationDashboard
+        let navigation = self.navigation(for: dashboard)
+        let selected = navigation.view(identity: desiredSelectedViewIdentity)
+            ?? navigation.startupSelection(persisted: lastPrimaryLocator)
+        _ = enqueueDashboardOwnerCandidate(
+            dashboard: dashboard,
+            selectedView: selected,
+            startHistoryOwners: startHistoryOwners,
+            configRequestSequence: latestConfigRequestSequence
+        )
+    }
+
+    private func detachOwnershipSynchronously(notIn desiredKeys: Set<String>) -> DetachedDashboardOwnership {
+        if desiredHistoryKeys != desiredKeys {
+            historyReconciliationEpoch &+= 1
+        }
         desiredHistoryKeys = desiredKeys
 
-        let obsoleteKeys = Set(historySubscriptions.keys)
+        let obsoleteOwnershipKeys = Set(historySubscriptions.keys)
             .union(historyGenerations.keys)
-            .union(graphHistoryRevisionFeeds.keys)
-            .union(historyStatuses.keys)
-            .union(histories.keys)
+            .union(historyStartupTasks.values.map(\.key))
             .subtracting(desiredKeys)
-        var obsoleteSubscriptions: [HAHistoryStreamSubscription] = []
-        let obsoleteStartupIDs = historyStartupTasks.compactMap { id, startup in
-            obsoleteKeys.contains(startup.key) ? id : nil
+        let startupIDs = historyStartupTasks.compactMap { id, startup in
+            obsoleteOwnershipKeys.contains(startup.key) ? id : nil
         }
-        let obsoleteStartups = obsoleteStartupIDs.compactMap { id in
-            historyStartupTasks.removeValue(forKey: id)?.task
+        let startups = startupIDs.compactMap {
+            historyStartupTasks.removeValue(forKey: $0)?.task
         }
-        for key in obsoleteKeys {
+        var subscriptions: [HAHistoryStreamSubscription] = []
+        for key in obsoleteOwnershipKeys {
             if let subscription = historySubscriptions.removeValue(forKey: key) {
-                obsoleteSubscriptions.append(subscription)
+                subscriptions.append(subscription)
             }
             historyGenerations.removeValue(forKey: key)
         }
-        for startup in obsoleteStartups {
+
+        let detailStartups = detailHistoryStartupTasks.values.map(\.task)
+        detailStartups.forEach { $0.cancel() }
+        detailHistoryStartupTasks.removeAll()
+        let detailSubscriptions = Array(detailHistorySubscriptions.values)
+        detailHistorySubscriptions.removeAll()
+        detailHistoryGenerations.removeAll()
+        desiredDetailHistoryKeys.removeAll()
+        detailHistoryStatuses.removeAll()
+        detailHistories.removeAll()
+        selectedEntityID = nil
+        return DetachedDashboardOwnership(
+            startups: startups,
+            subscriptions: subscriptions,
+            detailStartups: detailStartups,
+            detailSubscriptions: detailSubscriptions
+        )
+    }
+
+    private func finishDetachedOwnership(_ detached: DetachedDashboardOwnership) async {
+        for startup in detached.startups {
             await startup.value
         }
-        for subscription in obsoleteSubscriptions {
+        for subscription in detached.subscriptions {
             await subscription.cancel()
         }
-        guard latestConfigRequestSequence == requestSequence else { return }
+        for startup in detached.detailStartups {
+            await startup.value
+        }
+        for subscription in detached.detailSubscriptions {
+            await subscription.cancel()
+        }
+    }
 
-        // Keep the still-visible dashboard's last accepted data/feed/status
-        // intact while cancellation is pending. Only a candidate that remains
-        // latest may retire those visual stores immediately before install.
-        for key in obsoleteKeys {
+    private func isCurrent(_ candidate: DashboardOwnerCandidate) -> Bool {
+        latestConfigRequestSequence == candidate.configRequestSequence &&
+            (candidate.bootstrapSequence.map { latestBootstrapSequence == $0 } ?? true) &&
+            latestNavigationRequestSequence == candidate.navigationRequestSequence &&
+            desiredSelectedViewIdentity == candidate.selectedViewIdentity &&
+            selectedGraphHours == candidate.graphHours &&
+            desiredHistoryKeys == Set(candidate.desiredRequests.map(\.key))
+    }
+
+    private func installDashboardOwnerCandidate(_ candidate: DashboardOwnerCandidate) async {
+        let desiredKeys = Set(candidate.desiredRequests.map(\.key))
+        let obsoleteVisualKeys = Set(graphHistoryRevisionFeeds.keys)
+            .union(historyStatuses.keys)
+            .union(histories.keys)
+            .subtracting(desiredKeys)
+        for key in obsoleteVisualKeys {
             graphHistoryRevisionFeeds.removeValue(forKey: key)
             historyStatuses.removeValue(forKey: key)
             histories.removeValue(forKey: key)
         }
-        // Cancellation is complete and the candidate is still current. End
-        // obsolete mounted render lifetimes immediately before publishing;
-        // a superseded candidate never freezes mounts belonging to the still
-        // visible dashboard.
-        graphChartMountRegistry.invalidateOwners(notIn: desiredGraphOwnerIDs)
-        presentationDashboard = candidate
-        views = candidate.resolved.source.views
-        if startHistoryOwners {
-            await loadHistories(configRequestSequence: requestSequence)
-            guard latestConfigRequestSequence == requestSequence else {
-                await retireCardHistoryOwnership(notIn: latestQueuedHistoryKeys)
-                return
+
+        // This is the synchronous cancel-before-publish boundary for mounted
+        // chart feeds and coordinator/render generations.
+        graphChartMountRegistry.invalidateOwners(notIn: candidate.desiredGraphOwnerIDs)
+        presentationDashboard = candidate.dashboard
+        views = candidate.dashboard.resolved.source.views
+        hasLoadedDashboard = true
+        selectedViewIdentity = candidate.selectedViewIdentity
+        selectedViewLocator = candidate.selectedLocator
+        selectedViewIsPrimary = candidate.selectionIsPrimary
+        let navigation = self.navigation(for: candidate.dashboard)
+        navigationItems = navigation.items(selectedIdentity: candidate.selectedViewIdentity)
+
+        if candidate.selectionIsPrimary {
+            lastPrimaryIdentity = candidate.selectedViewIdentity
+            lastPrimaryLocator = candidate.selectedLocator
+            do {
+                try navigationSelectionPersistence.save(candidate.selectedLocator)
+            } catch {
+                AppLog(
+                    "Lovelace navigation preference could not be written",
+                    severity: .warning,
+                    category: .lifecycle
+                )
             }
+        } else if candidate.selectedViewIdentity == nil {
+            lastPrimaryIdentity = nil
+            lastPrimaryLocator = nil
+            clearPersistedNavigationSelection()
+        }
+
+        guard candidate.startHistoryOwners, isCurrent(candidate) else { return }
+        await loadHistoriesInline(configRequestSequence: candidate.configRequestSequence)
+        guard isCurrent(candidate) else {
+            await retireCardHistoryOwnership(notIn: latestQueuedHistoryKeys)
+            return
         }
     }
 
@@ -1050,6 +1578,7 @@ final class DashboardViewModel: ObservableObject {
 
     private func startDetailHistory(entityID: String, hours: Int, key: String) async {
         guard
+            !Task.isCancelled,
             desiredDetailHistoryKeys.contains(key),
             detailHistorySubscriptions[key] == nil,
             let webSocketClient = webSocketClient
@@ -1092,6 +1621,7 @@ final class DashboardViewModel: ObservableObject {
                 }
             )
             guard
+                !Task.isCancelled,
                 desiredDetailHistoryKeys.contains(key),
                 detailHistoryGenerations[key] == generation
             else {
@@ -1123,20 +1653,27 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func historyRequests() -> [HistoryRequest] {
-        historyRequests(from: presentationDashboard)
+        historyRequests(
+            from: presentationDashboard,
+            selectedViewIdentity: selectedViewIdentity,
+            hours: selectedGraphHours
+        )
     }
 
-    private func historyRequests(from dashboard: LovelacePresentationDashboard) -> [HistoryRequest] {
+    private func historyRequests(
+        from dashboard: LovelacePresentationDashboard,
+        selectedViewIdentity: LovelaceResolvedIdentity?,
+        hours: Int
+    ) -> [HistoryRequest] {
         var requests: [HistoryRequest] = []
-        let cards = dashboard.views.first(where: { $0.resolved.source.path == "default_view" })?.cards
-            ?? dashboard.views.first?.cards
-            ?? []
-        collectHistoryRequests(from: cards, into: &requests)
+        let cards = dashboard.views.first { $0.id == selectedViewIdentity }?.cards ?? []
+        collectHistoryRequests(from: cards, hours: hours, into: &requests)
         return requests.removingDuplicates()
     }
 
     private func collectHistoryRequests(
         from cards: [LovelacePresentationCard],
+        hours: Int,
         into requests: inout [HistoryRequest]
     ) {
         for card in cards {
@@ -1146,14 +1683,60 @@ final class DashboardViewModel: ObservableObject {
                     requests.append(HistoryRequest(
                         ownerID: card.nativeID,
                         entityIDs: entities,
-                        hoursToShow: selectedGraphHours
+                        hoursToShow: hours
                     ))
                 }
             }
 
             if let nestedCards = card.cards {
-                collectHistoryRequests(from: nestedCards, into: &requests)
+                collectHistoryRequests(from: nestedCards, hours: hours, into: &requests)
             }
+        }
+    }
+
+    private func activeCardOwnerIDs(
+        from dashboard: LovelacePresentationDashboard,
+        selectedViewIdentity: LovelaceResolvedIdentity?
+    ) -> Set<String> {
+        guard let cards = dashboard.views.first(where: { $0.id == selectedViewIdentity })?.cards else {
+            return []
+        }
+        var owners = Set<String>()
+        collectActiveCardOwnerIDs(from: cards, into: &owners)
+        return owners
+    }
+
+    private func collectActiveCardOwnerIDs(
+        from cards: [LovelacePresentationCard],
+        into owners: inout Set<String>
+    ) {
+        for card in cards {
+            owners.insert(card.nativeID)
+            if let nested = card.cards {
+                collectActiveCardOwnerIDs(from: nested, into: &owners)
+            }
+        }
+    }
+
+    private func navigation(
+        for dashboard: LovelacePresentationDashboard
+    ) -> LovelaceViewNavigation {
+        LovelaceViewNavigation(
+            dashboard: dashboard.resolved,
+            currentUserID: currentUserID,
+            policy: AppConfig.lovelaceNavigationPolicy
+        )
+    }
+
+    private func clearPersistedNavigationSelection() {
+        do {
+            try navigationSelectionPersistence.save(nil)
+        } catch {
+            AppLog(
+                "Lovelace navigation preference could not be cleared",
+                severity: .warning,
+                category: .lifecycle
+            )
         }
     }
 
@@ -1301,9 +1884,47 @@ struct HistoryRequest: Hashable {
     }
 }
 
+struct DashboardOwnerDebugSnapshot: Equatable {
+    let activeCardOwnerIDs: Set<String>
+    let desiredHistoryKeys: Set<String>
+    let subscriptionKeys: Set<String>
+    let generationKeys: Set<String>
+    let startupCount: Int
+    let feedObserverCounts: [String: Int]
+    let historyKeys: Set<String>
+    let statusKeys: Set<String>
+    let mountedOwnerCount: Int
+}
+
 private struct HistoryStartupTask {
     let key: String
     let task: Task<Void, Never>
+}
+
+private struct DetachedDashboardOwnership {
+    let startups: [Task<Void, Never>]
+    let subscriptions: [HAHistoryStreamSubscription]
+    let detailStartups: [Task<Void, Never>]
+    let detailSubscriptions: [HAHistoryStreamSubscription]
+}
+
+private struct DetailHistoryStartupTask {
+    let key: String
+    let task: Task<Void, Never>
+}
+
+private struct DashboardOwnerCandidate {
+    let dashboard: LovelacePresentationDashboard
+    let selectedViewIdentity: LovelaceResolvedIdentity?
+    let selectedLocator: LovelaceViewLocator?
+    let selectionIsPrimary: Bool
+    let graphHours: Int
+    let startHistoryOwners: Bool
+    let configRequestSequence: UInt64
+    let bootstrapSequence: UInt64?
+    let navigationRequestSequence: UInt64
+    let desiredRequests: [HistoryRequest]
+    let desiredGraphOwnerIDs: Set<String>
 }
 
 private extension Array where Element == HistoryRequest {

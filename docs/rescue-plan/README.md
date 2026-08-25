@@ -13,9 +13,12 @@ reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
 - Module 03 is intentionally skipped, not complete. NativeHA targets one fixed
   personal deployment and keeps the existing token/bootstrap path without a
   profile store, switching, migration, or settings UI.
-- Module 12 is research-ready at contract revision 1. Implement and
-  independently verify it before researching Module 05; do not implement
-  directly from the older rescue-plan line hints.
+- Module 12 is complete and independently re-verified at contract revision 1.
+  Preserve its exact view/card identity, fixed-server navigation persistence,
+  one-tail owner reconciliation, and accessibility contracts in later work.
+- Module 05 research is the next gate. Assume one fixed server and omit every
+  profile-transition path; do not implement directly from its older rescue-plan
+  line hints.
 - The bounded Module 09 async repair remains correct, green, and separate from
   broader Module 09. A known stale-viewport request can still cause repeated
   safe off-main alignment/full-preparation fallback. Do not suppress it using
@@ -28,8 +31,7 @@ Implement in this order unless a future audit finds a blocker:
 
 1. Modules 02, 01, and 04: complete and green.
 2. Module 03: intentionally skipped under the fixed-deployment deviation.
-3. Research, implement, and independently verify
-   `module-12-sidebar-lovelace-views.md`.
+3. Module 12: complete and independently re-verified.
 4. Research, implement, and independently verify
    `module-05-dashboard-viewmodel-state.md` under the fixed-server assumption.
 5. Card/detail modules: `06`, `07`, `08`, `09`, `10`, `11`.

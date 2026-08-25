@@ -1,9 +1,23 @@
+import AppKit
 import NativeHACore
 import SwiftUI
 
 struct DashboardView: View {
-    @StateObject private var model = DashboardViewModel()
+    @StateObject private var model: DashboardViewModel
     @State private var showGraphDemo = false
+    private let startsOnAppear: Bool
+
+    @MainActor
+    init() {
+        _model = StateObject(wrappedValue: DashboardViewModel())
+        startsOnAppear = true
+    }
+
+    @MainActor
+    init(model: DashboardViewModel, startsOnAppear: Bool = true) {
+        _model = StateObject(wrappedValue: model)
+        self.startsOnAppear = startsOnAppear
+    }
 
     var body: some View {
         ZStack {
@@ -39,7 +53,9 @@ struct DashboardView: View {
                 .environmentObject(model)
         }
         .onAppear {
-            model.start()
+            if startsOnAppear {
+                model.start()
+            }
         }
     }
 
@@ -62,7 +78,31 @@ struct DashboardView: View {
 
     private var topBar: some View {
         HStack(spacing: 0) {
-            topTab("Home", isSelected: true)
+            if model.homeView?.subview == true {
+                Button(action: { model.navigateBack() }) {
+                    Image(systemName: "chevron.left")
+                        .frame(width: 42, height: 48)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Back")
+                .accessibilityLabel("Back")
+            }
+
+            Text(model.navigationItems.first(where: { $0.isSelected })?.title
+                ?? model.homeView.map {
+                    LovelaceViewNavigation(
+                        dashboard: model.presentationDashboard.resolved,
+                        currentUserID: nil,
+                        policy: AppConfig.lovelaceNavigationPolicy
+                    ).displayTitle(for: $0)
+                }
+                ?? "Dashboard")
+                .font(.system(size: 14, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: 220, alignment: .leading)
 
             ForEach(AppConfig.graphHourOptions, id: \.self) { hours in
                 Button(action: {
@@ -119,18 +159,6 @@ struct DashboardView: View {
         .background(Color(red: 0.09, green: 0.095, blue: 0.095))
     }
 
-    private func topTab(_ title: String, isSelected: Bool) -> some View {
-        VStack(spacing: 0) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(width: 70, height: 46)
-                .foregroundColor(isSelected ? .white : .white.opacity(0.62))
-            Rectangle()
-                .fill(isSelected ? Color.white.opacity(0.8) : Color.clear)
-                .frame(height: 3)
-        }
-    }
-
     private var statusPill: some View {
         HStack(spacing: 7) {
             Circle()
@@ -149,14 +177,38 @@ struct DashboardView: View {
     private var content: some View {
         let columns = model.dashboardColumns
         if columns.allSatisfy(\.isEmpty) {
-            VStack(spacing: 12) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .scaleEffect(0.85)
-                Text(model.status)
-                    .foregroundColor(.white.opacity(0.7))
+            if model.hasLoadedDashboard {
+                VStack(spacing: 10) {
+                    Image(systemName: "rectangle.stack.badge.minus")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white.opacity(0.48))
+                    Text(model.activePresentationView == nil
+                        ? "No dashboard view is available"
+                        : "This view has no cards")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.85)
+                    Text(model.status)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if model.activePresentationView?.resolved.source.panel == true ||
+                    model.activePresentationView?.resolved.source.type == "panel"
+        {
+            ScrollView(.vertical) {
+                if let card = columns.first?.first {
+                    CardRenderer(card: card)
+                        .frame(maxWidth: .infinity)
+                        .padding(AppConfig.dashboardOuterPadding)
+                }
+            }
         } else {
             ScrollView([.vertical, .horizontal]) {
                 HStack(alignment: .top, spacing: AppConfig.dashboardColumnSpacing) {
@@ -191,55 +243,42 @@ struct DashboardView: View {
 }
 
 struct SidebarView: View {
-    private let primaryItems: [(String, String, Bool)] = [
-        ("Overview", "square.grid.2x2", true),
-        ("All Devices", "square.grid.2x2", false),
-        ("Ultrasonic", "square.grid.2x2", false),
-        ("地图", "map", false),
-        ("Energy", "bolt.fill", false),
-        ("Activity", "list.bullet", false),
-        ("History", "chart.bar", false),
-        ("HACS", "shippingbox", false),
-        ("Media", "play.rectangle", false),
-        ("To-do lists", "checklist", false),
-    ]
+    @EnvironmentObject private var model: DashboardViewModel
+    @State private var focusedIdentity: LovelaceResolvedIdentity?
+    private let focusedIdentityForRendering: LovelaceResolvedIdentity?
+    private let focusObserver: ((LovelaceResolvedIdentity?) -> Void)?
+
+    init(
+        focusedIdentityForRendering: LovelaceResolvedIdentity? = nil,
+        focusObserver: ((LovelaceResolvedIdentity?) -> Void)? = nil
+    ) {
+        self.focusedIdentityForRendering = focusedIdentityForRendering
+        self.focusObserver = focusObserver
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Image(systemName: "line.3.horizontal")
                     .foregroundColor(.white.opacity(0.68))
-                Text("Home Assistant")
+                Text("NativeHA")
                     .font(.system(size: 18, weight: .medium))
                 Spacer()
             }
             .padding(.horizontal, 14)
             .frame(height: 50)
 
-            VStack(spacing: 4) {
-                ForEach(primaryItems, id: \.0) { item in
-                    sidebarRow(title: item.0, symbol: item.1, selected: item.2)
+            ScrollView(.vertical) {
+                VStack(spacing: 4) {
+                    ForEach(model.navigationItems) { item in
+                        sidebarRow(item)
+                    }
                 }
+                .padding(.horizontal, 6)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 6)
-            .padding(.top, 8)
 
             Spacer()
-
-            sidebarRow(title: "Settings", symbol: "gearshape.fill", selected: false, badge: "2")
-            sidebarRow(title: "Notifications", symbol: "bell.fill", selected: false)
-
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color(red: 0.68, green: 0.9, blue: 1))
-                    .frame(width: 34, height: 34)
-                    .overlay(Text("J").font(.system(size: 15, weight: .medium)).foregroundColor(.black))
-                Text("Joy")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
         }
         .background(Color(red: 0.105, green: 0.11, blue: 0.108))
         .overlay(
@@ -250,28 +289,192 @@ struct SidebarView: View {
         )
     }
 
-    private func sidebarRow(title: String, symbol: String, selected: Bool, badge: String? = nil) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(selected ? Color.cyan : Color.white.opacity(0.64))
-                .frame(width: 22)
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? Color.cyan : Color.white.opacity(0.75))
-            Spacer()
-            if let badge = badge {
-                Text(badge)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 18, height: 18)
-                    .background(Color.orange)
-                    .clipShape(Circle())
+    private func sidebarRow(_ item: LovelaceNavigationItem) -> some View {
+        let isFocused = focusedIdentityForRendering == item.identity || focusedIdentity == item.identity
+        return ZStack {
+            HStack(spacing: 12) {
+                if item.displayMode != .title {
+                    Image(systemName: nativeSymbol(for: item.rawIcon))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(item.isSelected ? Color.cyan : Color.white.opacity(0.64))
+                        .frame(width: 22)
+                }
+                if item.displayMode != .icon {
+                    Text(item.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundColor(item.isSelected ? Color.cyan : Color.white.opacity(0.75))
+                }
+                Spacer()
+                if item.isSelected {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Color.cyan)
+                        .frame(width: 3, height: 20)
+                }
             }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            SidebarAccessibilityButton(
+                identity: item.identity,
+                sourceIndex: item.sourceIndex,
+                title: item.title,
+                isSelected: item.isSelected,
+                onActivate: { model.selectView(item.identity) },
+                onFocusChange: { focused in
+                    if focused {
+                        focusedIdentity = item.identity
+                        focusObserver?(item.identity)
+                    } else if focusedIdentity == item.identity {
+                        focusedIdentity = nil
+                        focusObserver?(nil)
+                    }
+                }
+            )
         }
         .padding(.horizontal, 10)
         .frame(height: 40)
-        .background(selected ? Color.cyan.opacity(0.14) : Color.clear)
+        .background(
+            item.isSelected
+                ? Color.cyan.opacity(0.14)
+                : (isFocused ? Color.white.opacity(0.09) : Color.clear)
+        )
         .cornerRadius(4)
+        .contentShape(Rectangle())
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(isFocused ? Color.white.opacity(0.78) : Color.clear, lineWidth: 1.5)
+        )
+        .help(item.title)
+    }
+
+    private func nativeSymbol(for mdiName: String?) -> String {
+        switch mdiName {
+        case "mdi:home", "mdi:home-outline": return "house.fill"
+        case "mdi:weather-cloudy", "mdi:weather-partly-cloudy": return "cloud.sun.fill"
+        case "mdi:map", "mdi:map-outline": return "map.fill"
+        case "mdi:flash", "mdi:lightning-bolt": return "bolt.fill"
+        case "mdi:history": return "clock.arrow.circlepath"
+        default: return "square.grid.2x2"
+        }
+    }
+}
+
+private struct SidebarAccessibilityButton: NSViewRepresentable {
+    let identity: LovelaceResolvedIdentity
+    let sourceIndex: Int
+    let title: String
+    let isSelected: Bool
+    let onActivate: () -> Void
+    let onFocusChange: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> SidebarAccessibilityNSButton {
+        let button = SidebarAccessibilityNSButton(frame: .zero)
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.activate)
+        let coordinator = context.coordinator
+        button.focusChanged = { focused in
+            coordinator.parent.onFocusChange(focused)
+        }
+        configure(button, context: context)
+        return button
+    }
+
+    func updateNSView(_ button: SidebarAccessibilityNSButton, context: Context) {
+        context.coordinator.parent = self
+        configure(button, context: context)
+    }
+
+    private func configure(
+        _ button: SidebarAccessibilityNSButton,
+        context: Context
+    ) {
+        button.title = ""
+        button.isBordered = false
+        button.bezelStyle = .regularSquare
+        button.focusRingType = .none
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor.clear.cgColor
+        button.setAccessibilityElement(true)
+        button.setAccessibilityRole(.button)
+        button.setAccessibilityLabel(title)
+        button.setAccessibilityIdentifier("nativeha.sidebar.view.\(sourceIndex)")
+        button.setAccessibilitySelected(isSelected)
+        button.setAccessibilityValue(isSelected ? "selected" : "not selected")
+    }
+
+    final class Coordinator: NSObject {
+        var parent: SidebarAccessibilityButton
+
+        init(parent: SidebarAccessibilityButton) {
+            self.parent = parent
+        }
+
+        @objc func activate() {
+            parent.onActivate()
+        }
+    }
+}
+
+final class SidebarAccessibilityNSButton: NSButton {
+    var focusChanged: ((Bool) -> Void)?
+
+    override var acceptsFirstResponder: Bool { isEnabled && !isHidden }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { focusChanged?(true) }
+        return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned { focusChanged?(false) }
+        return resigned
+    }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 48:
+            moveSidebarFocus(backward: event.modifierFlags.contains(.shift))
+        case 36, 49:
+            performClick(self)
+        default:
+            super.keyDown(with: event)
+        }
+    }
+
+    private func moveSidebarFocus(backward: Bool) {
+        guard let window = window, let contentView = window.contentView else { return }
+        var buttons: [SidebarAccessibilityNSButton] = []
+        collectSidebarButtons(in: contentView, into: &buttons)
+        buttons.sort { lhs, rhs in
+            let lhsY = window.convertToScreen(lhs.convert(lhs.bounds, to: nil)).midY
+            let rhsY = window.convertToScreen(rhs.convert(rhs.bounds, to: nil)).midY
+            return lhsY > rhsY
+        }
+        guard let index = buttons.firstIndex(where: { $0 === self }), !buttons.isEmpty else {
+            return
+        }
+        let offset = backward ? -1 : 1
+        let nextIndex = (index + offset + buttons.count) % buttons.count
+        window.makeFirstResponder(buttons[nextIndex])
+    }
+
+    private func collectSidebarButtons(
+        in view: NSView,
+        into buttons: inout [SidebarAccessibilityNSButton]
+    ) {
+        if let button = view as? SidebarAccessibilityNSButton {
+            buttons.append(button)
+        }
+        for subview in view.subviews {
+            collectSidebarButtons(in: subview, into: &buttons)
+        }
     }
 }

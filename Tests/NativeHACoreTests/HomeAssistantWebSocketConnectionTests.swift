@@ -980,6 +980,34 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testTypedCurrentUserCommandDecodesOnlyRequiredIdentity() async throws {
+        let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let connection = makeConnection(transports: [transport])
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+
+        let task = Task { try await client.fetchCurrentUser() }
+        let request = try await waitForSentMessage(transport) {
+            $0["type"] == .string("auth/current_user")
+        }
+        XCTAssertEqual(Set(request.keys), ["id", "type"])
+        let id = try XCTUnwrap(request["id"]?.testInt)
+        try await transport.push([
+            "id": .int(id),
+            "type": .string("result"),
+            "success": .bool(true),
+            "result": .object([
+                "id": .string("current-user-id"),
+                "name": .string("Must not be retained"),
+                "credentials": .array([.object(["auth_provider_type": .string("homeassistant")])]),
+            ]),
+        ])
+
+        let currentUser = try await task.value
+        XCTAssertEqual(currentUser, HACurrentUser(id: "current-user-id"))
+        await connection.disconnect()
+    }
+
     private func makeConnection(
         transports: [ScriptedWebSocketTransport],
         timeoutNanoseconds: UInt64 = 5_000_000_000,

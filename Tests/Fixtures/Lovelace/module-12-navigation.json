@@ -1,0 +1,68 @@
+{
+  "title": "Module 12 fixture",
+  "views": [
+    {
+      "title": "Home",
+      "path": "default_view",
+      "icon": "mdi:home",
+      "show_icon_and_title": true,
+      "cards": [
+        {"type": "history-graph", "title": "Home graph", "entities": ["sensor.home"]}
+      ]
+    },
+    {
+      "title": "3h maintenance",
+      "path": "home_3h",
+      "cards": [{"type": "history-graph", "entities": ["sensor.maintenance_3h"]}]
+    },
+    {
+      "title": "12h maintenance",
+      "path": "home_12h",
+      "cards": [{"type": "history-graph", "entities": ["sensor.maintenance_12h"]}]
+    },
+    {
+      "title": "Hidden Boolean",
+      "path": "hidden",
+      "visible": false,
+      "cards": []
+    },
+    {
+      "title": "Allowed User",
+      "path": "allowed-user",
+      "visible": [{"user": "user-1"}],
+      "cards": []
+    },
+    {
+      "title": "Other User",
+      "path": "other-user",
+      "visible": [{"user": "user-2"}],
+      "cards": []
+    },
+    {
+      "title": "Subview",
+      "path": "child",
+      "subview": true,
+      "back_path": "default_view",
+      "cards": []
+    },
+    {
+      "title": "Duplicate A",
+      "path": "duplicate",
+      "cards": []
+    },
+    {
+      "title": "Duplicate B",
+      "path": "duplicate",
+      "cards": []
+    },
+    {
+      "cards": []
+    },
+    {
+      "path": "long_unlabeled-view",
+      "icon": "mdi:weather-cloudy",
+      "cards": []
+    },
+    "invalid view"
+  ]
+}

@@ -23,6 +23,10 @@ enum AppConfig {
         maximumExpansion: nil,
         expansionGestureThreshold: nil
     )
+    static let lovelaceNavigationPolicy = LovelaceNavigationPolicy(
+        excludedPrimaryPaths: ["home_3h", "home_12h"],
+        persistedPrimarySelectionKey: "nativeha.navigation.selected-primary-view.v1"
+    )
     static var defaultGraphHours: Int { graphTimeRangePolicy.defaultSelection.hours }
     static var graphHourOptions: [Int] { graphTimeRangePolicy.availableSelections.map(\.hours) }
     static let graphMaxZoomVisibleSamplePercentage: CGFloat = 0.10
@@ -139,6 +143,11 @@ struct WebSocketPolicy {
     let receivePolicy: HomeAssistantWebSocketReceivePolicy
     let subscriptionDeliveryCapacity: Int
     let maximumConcurrentCallbackTasks: Int
+}
+
+struct LovelaceNavigationPolicy {
+    let excludedPrimaryPaths: Set<String>
+    let persistedPrimarySelectionKey: String
 }
 
 enum GraphHoverOverlayDefault: Equatable {

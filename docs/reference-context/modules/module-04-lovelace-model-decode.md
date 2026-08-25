@@ -6,9 +6,9 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: dda63c1b69feed1de38e2f0657504bc9cd8c883c
+nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
 graph_file: ../generated/module-04.dependencies.json
-graph_fingerprint: 355076ba719ce3dd617c46513b248fed8ec9f2bedc034424d9a62209563cf04c
+graph_fingerprint: 4c63559e8c75403be00b231a1ea55a1c2031ffa67d52a6c46d8b4a52ed2cd36d
 last_researched: 2026-08-23
 last_implemented: 2026-08-23
 last_verified: 2026-08-25
@@ -566,6 +566,72 @@ The resolver self-test remains green at 31 nodes / 61 edges with fingerprint
 No C04 observable contract changed, so status remains `complete` and contract
 revision remains 1.
 
+## Bounded post-Module 12 anchor maintenance — 2026-08-25
+
+The pre-refresh checker was yellow for exactly eight shared Module 12 anchors:
+`HomeAssistantWebSocketClient.swift`, `AppConfig.swift`,
+`DashboardView.swift`, `DashboardViewModel.swift`,
+`HomeAssistantHistoryLiveSmokeTests.swift`,
+`DashboardBootstrapLifecycleTests.swift`,
+`GUIRenderingAndPerformanceTests.swift`, and
+`HistoryStreamIntegrationTests.swift`. The complete final diff for all eight
+was inspected against C04 revision 1. The pinned frontend Lovelace config,
+creation/recovery, card/view runtime, and layout sources are unchanged; no broad
+reference audit was repeated.
+
+- The client adds only the typed `auth/current_user` command consumed by view
+  visibility. `AppConfig` adds only exact maintenance-path exclusion and the
+  versioned fixed-deployment selection key. Core Graphics, graph range,
+  WebSocket, tooltip, logging, layout, coordinator, and cache policies remain
+  unchanged.
+- `DashboardView.swift` replaces hardcoded sidebar content with navigation
+  items whose actions carry exact `LovelaceResolvedIdentity`. It renders cards
+  from the selected immutable presentation view, retains the approved
+  `default_view`-only transformation, and uses local native panel/empty
+  presentation. It does not reconstruct or mutate source views/cards/rows.
+- `DashboardViewModel.swift` keeps exact resolved identity as the runtime,
+  SwiftUI, history/feed, mount/coordinator, and cache ownership boundary.
+  `LovelaceViewLocator` is used only for unambiguous routing/persistence and is
+  re-resolved into the candidate's new exact identity; it is never treated as
+  config ancestry. Maintenance, hidden, subview, and ineligible views remain in
+  the lossless resolved/presentation dashboard even when absent from primary
+  navigation. Config/selection/range/history/refresh work remains on the one
+  owner tail. Obsolete delivery ownership detaches before awaits; only the
+  still-final candidate removes visual stores, invalidates mounts, publishes,
+  persists, and starts owners. Same-view and exact-intersection owners remain;
+  A -> B -> A installs one fresh generation without overlap. No hash,
+  `contentRevision`, digest, endpoint time, or first/last timestamp supplies
+  identity, ordering, ancestry, or freshness.
+- The live-smoke extension observes current-user identity without changing raw
+  Lovelace assertions. Bootstrap tests prove optional user metadata failure
+  and whole-dashboard generation/client isolation. GUI and history-integration
+  additions prove exact selected identity, raw maintenance-view preservation,
+  default/non-default/panel/empty presentation, accessibility, cancel-before-
+  install, late-result rejection, final-only mount invalidation, feed observer
+  release, exact owner intersections, and bounded 500-card churn. Existing
+  C04 decode/recovery/canonical identity tests are unchanged.
+
+No C04-01 through C04-10 observable contract changed; Module 12 implements the
+navigation consumer anticipated by C04-06 through C04-08. Status remains
+`complete` and contract revision remains 1. Fresh verification passed the
+navigation/loaded-state suite 11/11, bootstrap lifecycle 9/9, and complete
+history/config integration suite 23/23. The exact final full suite passed 196
+tests with three authorized skips and zero failures. Eleven Module 12 GUI PNGs
+were regenerated and manually inspected at exact 2x dimensions; the hosted
+accessibility test passed with four ordered native buttons and keyboard
+activation. Release `NativeHAMac` built successfully. The authorized read-only
+live smoke passed in 5.085 seconds with three raw views, 22 top-level / 31
+recursive cards, 66 rows, current-user ID present, complete live history, and
+final zero ownership; no state-changing command was made.
+
+Regeneration from the unchanged reviewed manifest is green at 206 nodes /
+2,724 edges, three cycles, zero unresolved edges, no truncation, and
+fingerprint
+`4c63559e8c75403be00b231a1ea55a1c2031ffa67d52a6c46d8b4a52ed2cd36d`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18`.
+No Swift or test file was edited by this maintenance.
+
 ## Remaining risks and stop rules
 
 - Canonical semantic serialization must be deterministic and exact; a digest
@@ -602,7 +668,10 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
   returned GO with no material product question unresolved and supplied the
   exact C04-04 through C04-08 rules above.
 
-Verdict: **complete / independently verified**. Preserve these contracts in
-Module 12 and later work; Module 03 is intentionally skipped under the approved
-fixed-personal-deployment deviation. Do not reopen Module 04 or fold the
-separate Module 09 stale-viewport repair into this handoff.
+Verdict: **complete / independently verified**, with a green post-Module 12
+anchor handoff. Preserve these contracts in Module 05 and later work. Module 03
+is intentionally skipped under the approved fixed-personal-deployment
+deviation; Module 12 is independently complete. The exact next staged action
+is fresh Module 05 orchestration-decomposition research under the fixed-server/
+no-profile assumption. Do not reopen Module 04 or fold the separate Module 09
+stale-viewport repair into this handoff.

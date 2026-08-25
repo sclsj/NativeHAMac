@@ -34,6 +34,17 @@ public struct HAConfig: Decodable, Equatable {
     }
 }
 
+/// The minimal current-user shape needed to evaluate Lovelace view
+/// visibility. Authentication, credentials, names, and MFA metadata remain
+/// owned by the existing Home Assistant connection/bootstrap path.
+public struct HACurrentUser: Decodable, Equatable {
+    public let id: String
+
+    public init(id: String) {
+        self.id = id
+    }
+}
+
 public struct HAEntityRegistryDisplayResponse: Decodable, Equatable {
     public let entities: [HAEntityRegistryDisplayEntry]
 

@@ -35,8 +35,10 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
 
         let registryDisplay = try await client.fetchEntityRegistryDisplay()
         let frontendLocale = try await client.fetchFrontendLocalePreferences()
+        let currentUser = try await client.fetchCurrentUser()
         XCTAssertFalse(registryDisplay.entities.isEmpty)
         XCTAssertFalse(frontendLocale?.language.isEmpty ?? true)
+        XCTAssertFalse(currentUser.id.isEmpty)
 
         let lovelace = try await client.fetchLovelaceConfig()
         guard case let .object(lovelaceRoot) = lovelace.rawValue,
@@ -172,6 +174,7 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
             "precisions=\(registryDisplay.entities.compactMap(\.displayPrecision).count) " +
             "language=\(frontendLocale?.language ?? "system")"
         )
+        print("LIVE_CURRENT_USER id_present=\(!currentUser.id.isEmpty)")
         print("LIVE_HISTORY no_attributes=\(HAHistoryAttributePolicy.noAttributes(entityIDs: requested, currentStates: stateMap))")
         print("LIVE_HISTORY 1h callbacks=\(oneHourSnapshot.callbackCount) points=\(oneHourSnapshot.pointCount) attributes=\(oneHourSnapshot.attributePointCount) fractional=\(oneHourSnapshot.fractionalTimestampCount) elapsed=\(String(format: "%.3f", oneHourElapsed))s")
         print("LIVE_HISTORY reconnect callbacks=\(reconnectSnapshot.callbackCount) loading=\(reconnectSnapshot.loadingCount) points=\(reconnectSnapshot.pointCount)")

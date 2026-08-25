@@ -1364,6 +1364,492 @@ final class HistoryStreamIntegrationTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testViewSwitchCancelsBeforeInstallRejectsLateResultsAndPreservesGlobalState() async throws {
+        let transport = HistoryViewModelTransport()
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-view-switch-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let views = navigationHistoryViews()
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialStates: ["sensor.global": HAState(entityId: "sensor.global", state: "live")],
+            initialViews: views,
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore(),
+            historyNow: { Date(timeIntervalSince1970: 500_000) }
+        )
+        model.status = "Live"
+        await model.synchronizeHistorySubscriptionsForTesting()
+        let firstCommand = try await integrationHistoryCommand(transport, count: 1)
+        let firstID = try XCTUnwrap(firstCommand["id"]?.historyTestInt)
+        let firstCard = try XCTUnwrap(model.homeCards.first)
+        let firstKey = model.historyKey(for: firstCard)
+        let firstFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: firstCard))
+        let lifecycle = GraphChartMountedLifecycle()
+        lifecycle.connect(feed: firstFeed, inputs: [], unit: "°C")
+        let lease = model.graphChartMountRegistry.mount(ownerID: firstCard.nativeID, lifecycle: lifecycle)
+        try await transport.pushHistory(id: firstID, states: [
+            "sensor.a": [compact("1", 499_900)],
+        ])
+        try await integrationWait { await MainActor.run { model.histories[firstKey] != nil } }
+        let acceptedA = model.histories[firstKey]
+
+        model.openDetails(entityID: "sensor.global")
+        model.loadDetailHistory(entityID: "sensor.global", hours: 24)
+        try await integrationWait { await connection.debugSnapshot().subscriptionCount == 2 }
+        await transport.setUnsubscribeAcknowledgementsHeld(true)
+        let viewB = model.presentationDashboard.views[1]
+        let switchTask = Task { await model.selectViewForTesting(viewB.id) }
+        try await integrationWait { await transport.unsubscribeCommands().count >= 1 }
+
+        XCTAssertEqual(model.homeView?.path, "default_view")
+        XCTAssertNil(model.selectedEntityID, "Detail presentation must close synchronously at navigation request")
+        XCTAssertFalse(lifecycle.isInvalidated, "Accepted A visuals remain mounted while cancellation is held")
+        XCTAssertEqual(model.states["sensor.global"]?.state, "live")
+        XCTAssertEqual(model.status, "Live")
+        let commandsWhileCancellationHeld = await transport.historyCommands()
+        XCTAssertEqual(commandsWhileCancellationHeld.count, 2, "Only A and detail may have started")
+
+        try await transport.pushHistory(id: firstID, states: [
+            "sensor.a": [compact("99", 499_950)],
+        ])
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(model.histories[firstKey], acceptedA, "Detached A generation rejects late history")
+
+        let heldUnsubscribes = await transport.unsubscribeCommands()
+        await transport.setUnsubscribeAcknowledgementsHeld(false)
+        for command in heldUnsubscribes {
+            if let id = command["id"]?.historyTestInt {
+                try await transport.resolveUnsubscribeAcknowledgement(id: id)
+            }
+        }
+        await switchTask.value
+        try await integrationWait {
+            let commands = await transport.historyCommands()
+            return commands.contains { self.commandEntities($0) == ["sensor.b"] }
+        }
+        XCTAssertEqual(model.homeView?.path, "genuine")
+        XCTAssertEqual(model.homeCards.map(\.title), ["B"])
+        XCTAssertTrue(lifecycle.isInvalidated)
+        XCTAssertEqual(firstFeed.observerCount, 0)
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(), 0)
+        XCTAssertEqual(model.states["sensor.global"]?.state, "live")
+        XCTAssertEqual(model.status, "Live")
+        let finalSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(finalSnapshot.subscriptionCount, 1)
+        XCTAssertEqual(finalSnapshot.wireSubscriptionCount, 1)
+        XCTAssertEqual(finalSnapshot.deliveryOwnerCount, 1)
+
+        lease.cancel()
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await connection.disconnect()
+    }
+
+    func testViewExactRevertNeverPublishesIntermediateAndRestartsOneFreshOwner() async throws {
+        let transport = HistoryViewModelTransport()
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-view-revert-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialStates: [:],
+            initialViews: navigationHistoryViews(),
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore(),
+            historyNow: { Date(timeIntervalSince1970: 600_000) }
+        )
+        await model.synchronizeHistorySubscriptionsForTesting()
+        _ = try await integrationHistoryCommand(transport, count: 1)
+        let initialIdentity = try XCTUnwrap(model.selectedViewIdentity)
+        let initialCard = try XCTUnwrap(model.homeCards.first)
+        let initialFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: initialCard))
+
+        await transport.setUnsubscribeAcknowledgementsHeld(true)
+        let bTask = Task {
+            await model.selectViewForTesting(model.presentationDashboard.views[1].id)
+        }
+        try await integrationWait { await transport.unsubscribeCommands().count == 1 }
+        let aTask = Task { await model.selectViewForTesting(initialIdentity) }
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(model.selectedViewIdentity, initialIdentity)
+        XCTAssertEqual(model.homeView?.path, "default_view", "B must never publish while obsolete")
+        let commandsBeforeRelease = await transport.historyCommands()
+        XCTAssertEqual(commandsBeforeRelease.count, 1)
+
+        let unsubscribeCommands = await transport.unsubscribeCommands()
+        let unsubscribeID = try XCTUnwrap(unsubscribeCommands.first?["id"]?.historyTestInt)
+        await transport.setUnsubscribeAcknowledgementsHeld(false)
+        try await transport.resolveUnsubscribeAcknowledgement(id: unsubscribeID)
+        await bTask.value
+        await aTask.value
+        try await integrationWait { await transport.historyCommands().count == 2 }
+
+        let commands = await transport.historyCommands()
+        XCTAssertEqual(commands.map { commandEntities($0) }, [["sensor.a"], ["sensor.a"]])
+        XCTAssertEqual(model.selectedViewIdentity, initialIdentity)
+        let restoredCard = try XCTUnwrap(model.homeCards.first)
+        let restoredFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: restoredCard))
+        XCTAssertFalse(restoredFeed === initialFeed)
+        let finalSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(finalSnapshot.subscriptionCount, 1)
+        XCTAssertEqual(finalSnapshot.wireSubscriptionCount, 1)
+
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await connection.disconnect()
+    }
+
+    func testSameViewNoOpRetainsExactOwnerFeedAndWireSubscription() async throws {
+        let transport = HistoryViewModelTransport()
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-same-view-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialViews: navigationHistoryViews(),
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore()
+        )
+        await model.synchronizeHistorySubscriptionsForTesting()
+        _ = try await integrationHistoryCommand(transport, count: 1)
+        let identity = try XCTUnwrap(model.selectedViewIdentity)
+        let card = try XCTUnwrap(model.homeCards.first)
+        let feed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: card))
+        await model.selectViewForTesting(identity)
+        for _ in 0..<100 { await Task.yield() }
+
+        let sameCard = try XCTUnwrap(model.homeCards.first)
+        XCTAssertTrue(model.graphHistoryRevisionFeed(for: sameCard) === feed)
+        let historyCommands = await transport.historyCommands()
+        let unsubscribeCommands = await transport.unsubscribeCommands()
+        XCTAssertEqual(historyCommands.count, 1)
+        XCTAssertEqual(unsubscribeCommands.count, 0)
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.subscriptionCount, 1)
+
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await connection.disconnect()
+    }
+
+    func testLateOldViewSubscriptionAcknowledgementCannotInstallAfterSelectionChanges() async throws {
+        let transport = HistoryViewModelTransport()
+        await transport.setHistoryAcknowledgementsHeld(true)
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-late-ack-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialViews: navigationHistoryViews(),
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore()
+        )
+
+        let initialStartup = Task { await model.synchronizeHistorySubscriptionsForTesting() }
+        let oldCommand = try await integrationHistoryCommand(transport, count: 1)
+        let oldID = try XCTUnwrap(oldCommand["id"]?.historyTestInt)
+        let switchTask = Task {
+            await model.selectViewForTesting(model.presentationDashboard.views[1].id)
+        }
+        for _ in 0..<100 { await Task.yield() }
+        try await transport.resolveHistoryAcknowledgement(id: oldID, success: true)
+        let newCommand = try await integrationHistoryCommand(transport, count: 2)
+        let newID = try XCTUnwrap(newCommand["id"]?.historyTestInt)
+        XCTAssertEqual(commandEntities(newCommand), ["sensor.b"])
+        try await transport.resolveHistoryAcknowledgement(id: newID, success: true)
+        await initialStartup.value
+        await switchTask.value
+
+        try await transport.pushHistory(id: oldID, states: [
+            "sensor.a": [compact("obsolete", 700_000)],
+        ])
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(model.homeView?.path, "genuine")
+        XCTAssertTrue(model.histories.values.flatMap { $0 }.allSatisfy { $0.entityID != "sensor.a" })
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.subscriptionCount, 1)
+        XCTAssertEqual(snapshot.wireSubscriptionCount, 1)
+        XCTAssertEqual(snapshot.deliveryOwnerCount, 1)
+
+        await transport.setHistoryAcknowledgementsHeld(false)
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await connection.disconnect()
+    }
+
+    func testSelectionRacedWithConfigRefreshResolvesLocatorAgainstLatestCandidate() async throws {
+        let transport = HistoryViewModelTransport()
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-selection-refresh-race-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let initialViews = navigationHistoryViews()
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialViews: initialViews,
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore()
+        )
+        await model.synchronizeHistorySubscriptionsForTesting()
+        _ = try await integrationHistoryCommand(transport, count: 1)
+        let oldBIdentity = model.presentationDashboard.views[1].id
+
+        let refreshedB = LovelaceView(
+            title: "B Refreshed",
+            path: "genuine",
+            cards: [LovelaceCard(
+                type: "history-graph",
+                title: "B Refreshed",
+                entities: [LovelaceEntityRef(entity: "sensor.b")]
+            )]
+        )
+        let refreshedA = LovelaceView(
+            title: "A Refreshed",
+            path: "default_view",
+            cards: [LovelaceCard(
+                type: "history-graph",
+                title: "A Refreshed",
+                entities: [LovelaceEntityRef(entity: "sensor.a_refreshed")]
+            )]
+        )
+        await transport.setUnsubscribeAcknowledgementsHeld(true)
+        let refreshTask = Task {
+            await model.applyLovelaceConfigForTesting(
+                LovelaceConfig(views: [refreshedA, refreshedB])
+            )
+        }
+        try await integrationWait { await transport.unsubscribeCommands().count == 1 }
+        let selectionTask = Task { await model.selectViewForTesting(oldBIdentity) }
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(model.homeView?.path, "default_view")
+
+        let unsubscribeCommands = await transport.unsubscribeCommands()
+        let unsubscribeID = try XCTUnwrap(unsubscribeCommands.first?["id"]?.historyTestInt)
+        await transport.setUnsubscribeAcknowledgementsHeld(false)
+        try await transport.resolveUnsubscribeAcknowledgement(id: unsubscribeID)
+        await refreshTask.value
+        await selectionTask.value
+        try await integrationWait {
+            await transport.historyCommands().contains { self.commandEntities($0) == ["sensor.b"] }
+        }
+        XCTAssertEqual(model.homeView?.path, "genuine")
+        XCTAssertEqual(model.homeView?.title, "B Refreshed")
+        XCTAssertEqual(model.navigationItems.first(where: \.isSelected)?.title, "B Refreshed")
+        let commands = await transport.historyCommands()
+        XCTAssertEqual(commands.map { commandEntities($0) }, [["sensor.a"], ["sensor.b"]])
+        let snapshot = await connection.debugSnapshot()
+        XCTAssertEqual(snapshot.subscriptionCount, 1)
+        XCTAssertEqual(snapshot.wireSubscriptionCount, 1)
+
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await connection.disconnect()
+    }
+
+    func testModule12FiveHundredCardWarmedSelectionRangeLifecycleSettlesExactly() async throws {
+        let transport = HistoryViewModelTransport()
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "module12-500-card-lifecycle-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let views = module12FiveHundredCardViews()
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialViews: views,
+            navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore(),
+            historyNow: { Date(timeIntervalSince1970: 900_000) }
+        )
+        await model.synchronizeHistorySubscriptionsForTesting()
+
+        var obsoleteLifecycles: [GraphChartMountedLifecycle] = []
+        var obsoleteLeases: [DashboardGraphChartMountLease] = []
+        var obsoleteFeeds: [GraphHistoryRevisionFeed] = []
+        var weakLifecycles: [WeakGraphLifecycleBox] = []
+        let ranges = AppConfig.graphHourOptions
+        let start = Date()
+
+        for cycle in 0..<100 {
+            let oldHistoryCard = try XCTUnwrap(model.homeCards.first { $0.type == "history-graph" })
+            let oldFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: oldHistoryCard))
+            let coordinator = GraphChartRenderCoordinator(
+                label: "com.nativeha.module12.performance.\(cycle)",
+                preparer: { _, _ in },
+                renderer: { _ in nil }
+            )
+            let lifecycle = GraphChartMountedLifecycle(coordinator: coordinator)
+            lifecycle.connect(feed: oldFeed, inputs: [], unit: "")
+            let lease = model.graphChartMountRegistry.mount(
+                ownerID: oldHistoryCard.nativeID,
+                lifecycle: lifecycle
+            )
+            coordinator.requestVisual(
+                GraphChartVisualRequest(
+                    token: "cycle-\(cycle)",
+                    inputs: [],
+                    unit: "",
+                    size: cycle.isMultiple(of: 2)
+                        ? CGSize(width: 1_792, height: 1_000)
+                        : CGSize(width: 900, height: 700),
+                    scale: 2,
+                    zoomScale: 1,
+                    panFraction: 1,
+                    engine: .coreGraphics
+                ),
+                completion: { _, _ in }
+            )
+            obsoleteLifecycles.append(lifecycle)
+            obsoleteLeases.append(lease)
+            obsoleteFeeds.append(oldFeed)
+            weakLifecycles.append(WeakGraphLifecycleBox(lifecycle))
+
+            let nextView = model.presentationDashboard.views[(cycle + 1) % views.count]
+            await model.selectViewForTesting(nextView.id)
+            let nextRange = ranges[(cycle + 1) % ranges.count]
+            await model.setGraphHoursForTesting(nextRange)
+
+            XCTAssertTrue(lifecycle.isInvalidated)
+            XCTAssertEqual(oldFeed.observerCount, 0)
+            XCTAssertEqual(coordinator.pendingWorkCount, 0)
+            XCTAssertEqual(coordinator.statistics.requestedVisualCount, 1)
+            XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(), 0)
+            XCTAssertEqual(model.homeCards.count, 50)
+            _ = model.dashboardColumns
+        }
+        let elapsed = Date().timeIntervalSince(start)
+
+        let finalCards = model.homeCards
+        let finalHistoryCard = try XCTUnwrap(finalCards.first { $0.type == "history-graph" })
+        let finalFeed = try XCTUnwrap(model.graphHistoryRevisionFeed(for: finalHistoryCard))
+        var finalLifecycle: GraphChartMountedLifecycle? = GraphChartMountedLifecycle(
+            coordinator: GraphChartRenderCoordinator(
+                label: "com.nativeha.module12.performance.final",
+                preparer: { _, _ in },
+                renderer: { _ in nil }
+            )
+        )
+        finalLifecycle?.connect(feed: finalFeed, inputs: [], unit: "")
+        var finalLease: DashboardGraphChartMountLease? = model.graphChartMountRegistry.mount(
+            ownerID: finalHistoryCard.nativeID,
+            lifecycle: try XCTUnwrap(finalLifecycle)
+        )
+        weak var weakFinalLifecycle = finalLifecycle
+
+        let finalOwnerSnapshot = model.dashboardOwnerSnapshotForTesting()
+        let expectedActiveOwners = Set(finalCards.map(\.nativeID))
+        XCTAssertEqual(expectedActiveOwners.count, 50)
+        XCTAssertEqual(finalOwnerSnapshot.activeCardOwnerIDs, expectedActiveOwners)
+        XCTAssertEqual(finalOwnerSnapshot.desiredHistoryKeys.count, 1)
+        XCTAssertEqual(finalOwnerSnapshot.subscriptionKeys, finalOwnerSnapshot.desiredHistoryKeys)
+        XCTAssertEqual(finalOwnerSnapshot.generationKeys, finalOwnerSnapshot.desiredHistoryKeys)
+        XCTAssertEqual(Set(finalOwnerSnapshot.feedObserverCounts.keys), finalOwnerSnapshot.desiredHistoryKeys)
+        XCTAssertEqual(finalOwnerSnapshot.feedObserverCounts.values.reduce(0, +), 1)
+        XCTAssertEqual(finalOwnerSnapshot.startupCount, 0)
+        XCTAssertEqual(finalOwnerSnapshot.mountedOwnerCount, 1)
+        XCTAssertEqual(finalLifecycle?.coordinator.pendingWorkCount, 0)
+        let connectionSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(connectionSnapshot.subscriptionCount, 1)
+        XCTAssertEqual(connectionSnapshot.wireSubscriptionCount, 1)
+        XCTAssertEqual(connectionSnapshot.deliveryOwnerCount, 1)
+        XCTAssertEqual(obsoleteLifecycles.filter { !$0.isInvalidated }.count, 0)
+        XCTAssertEqual(obsoleteFeeds.reduce(0) { $0 + $1.observerCount }, 0)
+        XCTAssertEqual(obsoleteLifecycles.reduce(0) { $0 + $1.coordinator.pendingWorkCount }, 0)
+
+        obsoleteLifecycles.removeAll()
+        obsoleteLeases.removeAll()
+        obsoleteFeeds.removeAll()
+        try await integrationWait { weakLifecycles.allSatisfy { $0.value == nil } }
+
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        XCTAssertTrue(finalLifecycle?.isInvalidated == true)
+        XCTAssertEqual(finalFeed.observerCount, 0)
+        XCTAssertEqual(finalLifecycle?.coordinator.pendingWorkCount, 0)
+        XCTAssertEqual(model.graphChartMountRegistry.liveMountCount(), 0)
+        finalLease = nil
+        finalLifecycle = nil
+        XCTAssertNil(weakFinalLifecycle)
+        let settledModelSnapshot = model.dashboardOwnerSnapshotForTesting()
+        XCTAssertTrue(settledModelSnapshot.activeCardOwnerIDs.isEmpty)
+        XCTAssertTrue(settledModelSnapshot.desiredHistoryKeys.isEmpty)
+        XCTAssertTrue(settledModelSnapshot.subscriptionKeys.isEmpty)
+        XCTAssertTrue(settledModelSnapshot.generationKeys.isEmpty)
+        XCTAssertTrue(settledModelSnapshot.feedObserverCounts.isEmpty)
+        XCTAssertEqual(settledModelSnapshot.startupCount, 0)
+        let settledConnectionSnapshot = await connection.debugSnapshot()
+        XCTAssertEqual(settledConnectionSnapshot.subscriptionCount, 0)
+        XCTAssertEqual(settledConnectionSnapshot.wireSubscriptionCount, 0)
+        XCTAssertEqual(settledConnectionSnapshot.deliveryOwnerCount, 0)
+        print(
+            "MODULE12_LIFECYCLE cycles=100 cards=500 active_cards=50 final_history_owners=1 obsolete_subscriptions=0 obsolete_feed_observers=0 obsolete_mounts=0 obsolete_render_work=0 weak_owners=0 elapsed=\(elapsed)"
+        )
+        _ = finalLease
+        await connection.disconnect()
+    }
+
+    private func navigationHistoryViews() -> [LovelaceView] {
+        [
+            LovelaceView(
+                title: "A",
+                path: "default_view",
+                cards: [LovelaceCard(
+                    type: "history-graph",
+                    title: "A",
+                    entities: [LovelaceEntityRef(entity: "sensor.a")]
+                )]
+            ),
+            LovelaceView(
+                title: "B",
+                path: "genuine",
+                cards: [LovelaceCard(
+                    type: "history-graph",
+                    title: "B",
+                    entities: [LovelaceEntityRef(entity: "sensor.b")]
+                )]
+            ),
+        ]
+    }
+
+    private func module12FiveHundredCardViews() -> [LovelaceView] {
+        (0..<10).map { viewIndex in
+            let history = LovelaceCard(
+                type: "history-graph",
+                title: "History \(viewIndex)",
+                entities: [LovelaceEntityRef(entity: "sensor.history_\(viewIndex)")]
+            )
+            let entities = (1..<50).map { cardIndex in
+                LovelaceCard(
+                    type: "entities",
+                    title: "View \(viewIndex) card \(cardIndex)",
+                    entities: [LovelaceEntityRef(entity: "sensor.fixture_\(viewIndex)_\(cardIndex)")]
+                )
+            }
+            return LovelaceView(
+                title: viewIndex == 0 ? "Home" : "Genuine \(viewIndex)",
+                path: viewIndex == 0 ? "default_view" : "genuine_\(viewIndex)",
+                cards: [history] + entities,
+                sourceIndex: viewIndex
+            )
+        }
+    }
+
     private func integrationHistoryCommand(
         _ transport: HistoryViewModelTransport,
         count: Int
@@ -1392,6 +1878,21 @@ final class HistoryStreamIntegrationTests: XCTestCase {
 
     private func compact(_ state: String, _ timestamp: Double) -> HACompactHistoryState {
         HACompactHistoryState(state: state, lastUpdatedSeconds: timestamp)
+    }
+}
+
+private final class IntegrationMemoryNavigationPreferenceStore: LovelaceNavigationPreferenceStore {
+    private var values: [String: Any] = [:]
+    func object(forKey key: String) throws -> Any? { values[key] }
+    func set(_ value: Any, forKey key: String) throws { values[key] = value }
+    func removeObject(forKey key: String) throws { values.removeValue(forKey: key) }
+}
+
+private final class WeakGraphLifecycleBox {
+    weak var value: GraphChartMountedLifecycle?
+
+    init(_ value: GraphChartMountedLifecycle) {
+        self.value = value
     }
 }
 

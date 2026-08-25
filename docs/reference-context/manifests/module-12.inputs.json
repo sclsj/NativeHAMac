@@ -9,15 +9,15 @@
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-      "symbols": ["HomeAssistantWebSocketClient", "fetchLovelaceConfig"]
+      "symbols": ["HomeAssistantWebSocketClient", "fetchLovelaceConfig", "fetchCurrentUser"]
     },
     {
       "path": "Sources/NativeHACore/Models.swift",
-      "symbols": ["HAFrontendLocalePreferences"]
+      "symbols": ["HAFrontendLocalePreferences", "HACurrentUser"]
     },
     {
       "path": "Sources/NativeHAMac/AppConfig.swift",
-      "symbols": ["AppConfig", "GraphTimeRangePolicy", "CardColumnRule"]
+      "symbols": ["AppConfig", "GraphTimeRangePolicy", "CardColumnRule", "LovelaceNavigationPolicy"]
     },
     {
       "path": "Sources/NativeHAMac/LovelacePresentation.swift",
@@ -30,6 +30,10 @@
     {
       "path": "Sources/NativeHAMac/DashboardView.swift",
       "symbols": ["DashboardView", "SidebarView"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelaceViewNavigation.swift",
+      "symbols": ["LovelaceViewLocator", "LovelaceNavigationSelectionPersistence", "LovelaceViewNavigation"]
     },
     {
       "path": "Sources/NativeHAMac/CardViews.swift",
@@ -62,6 +66,10 @@
     {
       "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
       "symbols": ["DashboardBootstrapLifecycleTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelaceViewNavigationTests.swift",
+      "symbols": ["LovelaceViewNavigationTests"]
     },
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",

@@ -477,6 +477,407 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         XCTAssertEqual(secondLifecycle.coordinator.pendingWorkCount, 0)
     }
 
+    func testModule12SidebarAndActiveViewArtifacts() async throws {
+        let config = try module12VisualConfig()
+        let model = DashboardViewModel(
+            initialStates: [
+                "sensor.home": HAState(
+                    entityId: "sensor.home",
+                    state: "21.5",
+                    attributes: ["friendly_name": .string("Home temperature"), "unit_of_measurement": .string("°C")]
+                ),
+                "sensor.genuine": HAState(
+                    entityId: "sensor.genuine",
+                    state: "42",
+                    attributes: ["friendly_name": .string("Genuine view sensor")]
+                ),
+                "sensor.panel": HAState(
+                    entityId: "sensor.panel",
+                    state: "on",
+                    attributes: ["friendly_name": .string("Panel sensor")]
+                ),
+            ],
+            initialViews: config.views,
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        model.status = "Live"
+
+        XCTAssertEqual(model.navigationItems.map(\.title), [
+            "Home",
+            "A Deliberately Long Genuine Lovelace View Title",
+            "Panel View",
+            "Empty View",
+        ])
+        XCTAssertFalse(model.navigationItems.contains { ["3h maintenance", "12h maintenance"].contains($0.title) })
+
+        let sidebar = try MacViewPNGRenderer.render(
+            SidebarView()
+                .environmentObject(model)
+                .frame(width: AppConfig.sidebarWidth, height: 700)
+                .background(Color(red: 0.105, green: 0.11, blue: 0.108)),
+            size: CGSize(width: AppConfig.sidebarWidth, height: 700),
+            displayScale: 2
+        )
+        try assertUsablePNG(sidebar, minimumBytes: 7_000, minimumChangedSamples: 80)
+        try assertDimensions(
+            sidebar.pngData,
+            width: Int(AppConfig.sidebarWidth * 2),
+            height: 1_400
+        )
+        try persistAndAttach(sidebar.pngData, name: "sidebar-selected-home.png")
+        try persistAndAttach(sidebar.pngData, name: "sidebar-unselected-long-title.png")
+
+        let longView = try XCTUnwrap(model.presentationDashboard.views.first {
+            $0.resolved.source.path == "genuine"
+        })
+        let focusedSidebar = try MacViewPNGRenderer.render(
+            SidebarView(focusedIdentityForRendering: longView.id)
+                .environmentObject(model)
+                .frame(width: AppConfig.sidebarWidth, height: 700)
+                .background(Color(red: 0.105, green: 0.11, blue: 0.108)),
+            size: CGSize(width: AppConfig.sidebarWidth, height: 700),
+            displayScale: 2
+        )
+        try assertUsablePNG(focusedSidebar, minimumBytes: 7_000, minimumChangedSamples: 80)
+        XCTAssertNotEqual(sidebar.pngData, focusedSidebar.pngData)
+        try persistAndAttach(focusedSidebar.pngData, name: "sidebar-focus.png")
+
+        await model.selectViewForTesting(longView.id)
+
+        let genuine = try renderModule12Dashboard(model, size: CGSize(width: 1_792, height: 1_000))
+        try persistAndAttach(genuine.pngData, name: "dashboard-genuine-view.png")
+        let narrow = try renderModule12Dashboard(model, size: CGSize(width: 900, height: 700))
+        try persistAndAttach(narrow.pngData, name: "dashboard-narrow.png")
+
+        let home = try XCTUnwrap(model.presentationDashboard.views.first {
+            $0.resolved.source.path == "default_view"
+        })
+        await model.selectViewForTesting(home.id)
+        let wide = try renderModule12Dashboard(model, size: CGSize(width: 1_792, height: 1_000))
+        try persistAndAttach(wide.pngData, name: "dashboard-three-column.png")
+
+        let panel = try XCTUnwrap(model.presentationDashboard.views.first {
+            $0.resolved.source.path == "panel"
+        })
+        await model.selectViewForTesting(panel.id)
+        let panelImage = try renderModule12Dashboard(model, size: CGSize(width: 1_792, height: 1_000))
+        try persistAndAttach(panelImage.pngData, name: "dashboard-panel-view.png")
+
+        let empty = try XCTUnwrap(model.presentationDashboard.views.first {
+            $0.resolved.source.path == "empty"
+        })
+        await model.selectViewForTesting(empty.id)
+        let emptyImage = try renderModule12Dashboard(model, size: CGSize(width: 900, height: 700))
+        try persistAndAttach(emptyImage.pngData, name: "dashboard-empty-view.png")
+
+        let loadingModel = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        loadingModel.status = "Loading dashboard"
+        let loading = try renderModule12Dashboard(loadingModel, size: CGSize(width: 900, height: 700))
+        try persistAndAttach(loading.pngData, name: "dashboard-loading.png")
+
+        let noViewsModel = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        await noViewsModel.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        noViewsModel.status = "Live"
+        let noViews = try renderModule12Dashboard(noViewsModel, size: CGSize(width: 900, height: 700))
+        try persistAndAttach(noViews.pngData, name: "dashboard-no-views.png")
+
+        let allIneligible = try LovelaceConfig(rawValue: .object([
+            "views": .array([
+                .object([
+                    "title": .string("Maintenance"),
+                    "path": .string("home_3h"),
+                    "cards": .array([]),
+                ]),
+                .object([
+                    "title": .string("Hidden"),
+                    "path": .string("hidden"),
+                    "visible": .bool(false),
+                    "cards": .array([]),
+                ]),
+            ]),
+        ]))
+        let ineligibleModel = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        await ineligibleModel.applyLovelaceConfigForTesting(allIneligible)
+        ineligibleModel.status = "Live"
+        let ineligible = try renderModule12Dashboard(ineligibleModel, size: CGSize(width: 900, height: 700))
+        try persistAndAttach(ineligible.pngData, name: "dashboard-all-ineligible.png")
+
+        XCTAssertNotEqual(genuine.pngData, wide.pngData)
+        XCTAssertNotEqual(panelImage.pngData, wide.pngData)
+        XCTAssertNotEqual(emptyImage.pngData, loading.pngData)
+        XCTAssertNotEqual(noViews.pngData, loading.pngData)
+        XCTAssertEqual(
+            noViews.pngData,
+            ineligible.pngData,
+            "Zero raw views and all-ineligible views share the same controlled loaded-empty presentation"
+        )
+    }
+
+    func testModule12SidebarHostedWindowAccessibilityAndKeyboardTraversal() async throws {
+        let model = DashboardViewModel(
+            initialViews: try module12VisualConfig().views,
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        let secondNavigationIdentity = try XCTUnwrap(model.navigationItems.dropFirst().first?.identity)
+        var focused: [LovelaceResolvedIdentity] = []
+        let hostingView = NSHostingView(
+            rootView: SidebarView(focusObserver: { identity in
+                if let identity = identity { focused.append(identity) }
+            })
+            .environmentObject(model)
+            .frame(width: AppConfig.sidebarWidth, height: 700)
+        )
+        hostingView.frame = CGRect(x: 0, y: 0, width: AppConfig.sidebarWidth, height: 700)
+        let window = NSWindow(
+            contentRect: hostingView.frame,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.contentView = hostingView
+        let previousActivationPolicy = NSApplication.shared.activationPolicy()
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
+        defer {
+            window.orderOut(nil)
+            window.close()
+            NSApplication.shared.setActivationPolicy(previousActivationPolicy)
+        }
+
+        for _ in 0..<4 {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.02))
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.displayIfNeeded()
+        }
+        XCTAssertTrue(window.isVisible)
+        XCTAssertNotEqual(window.windowNumber, 0)
+        window.recalculateKeyViewLoop()
+        let buttons = sidebarAccessibilityButtons(in: hostingView)
+        XCTAssertEqual(buttons.count, 4, "Every primary row must expose one concrete AppKit accessibility button")
+        XCTAssertEqual(buttons.compactMap { $0.accessibilityLabel() }, [
+            "Home",
+            "A Deliberately Long Genuine Lovelace View Title",
+            "Panel View",
+            "Empty View",
+        ])
+        XCTAssertTrue(buttons.allSatisfy { $0.isAccessibilityElement() })
+        XCTAssertTrue(buttons.allSatisfy { $0.accessibilityRole() == .button })
+        XCTAssertTrue(buttons.allSatisfy { NSAccessibility.unignoredAncestor(of: $0) != nil })
+        XCTAssertTrue(buttons.allSatisfy { $0.bounds.width > 200 && $0.bounds.height >= 38 })
+        XCTAssertEqual(buttons.map { $0.isAccessibilitySelected() }, [true, false, false, false])
+
+        XCTAssertTrue(window.makeFirstResponder(buttons[0]))
+        let tab = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            characters: "\t",
+            charactersIgnoringModifiers: "\t",
+            isARepeat: false,
+            keyCode: 48
+        ))
+        buttons[0].keyDown(with: tab)
+        XCTAssertTrue(window.firstResponder === buttons[1])
+
+        let space = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            characters: " ",
+            charactersIgnoringModifiers: " ",
+            isARepeat: false,
+            keyCode: 49
+        ))
+        buttons[1].keyDown(with: space)
+        try await waitForGUICondition {
+            await MainActor.run {
+                model.navigationItems.first(where: \.isSelected)?.title ==
+                    "A Deliberately Long Genuine Lovelace View Title"
+            }
+        }
+        for _ in 0..<2 {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.02))
+            hostingView.layoutSubtreeIfNeeded()
+        }
+        let updatedButtons = sidebarAccessibilityButtons(in: hostingView)
+        XCTAssertEqual(updatedButtons.map { $0.isAccessibilitySelected() }, [false, true, false, false])
+        XCTAssertEqual(
+            focused.filter { $0 == secondNavigationIdentity }.count,
+            1,
+            "Tab traversal must move native focus to the second exact view identity"
+        )
+        print(
+            "MODULE12_AX buttons=\(updatedButtons.count) labels=\(updatedButtons.compactMap { $0.accessibilityLabel() }.joined(separator: "|")) selected=\(updatedButtons.map { $0.isAccessibilitySelected() }) tab_focus=second activation=second"
+        )
+    }
+
+    func testModule12FiveHundredCardNavigationPreparationPerformance() throws {
+        let cards = (0..<50).map { index in
+            LovelaceCard(
+                type: "entities",
+                title: "Card \(index)",
+                entities: [LovelaceEntityRef(entity: "sensor.fixture_\(index)")]
+            )
+        }
+        let config = LovelaceConfig(views: (0..<10).map { index in
+            LovelaceView(
+                title: index == 0 ? "Home" : "View \(index)",
+                path: index == 0 ? "default_view" : "view_\(index)",
+                cards: cards,
+                sourceIndex: index
+            )
+        })
+        let resolved = LovelaceResolvedDashboard(source: config)
+        let models = try config.views.enumerated().map { index, view -> DashboardViewModel in
+            let store = GUIMemoryNavigationPreferenceStore()
+            let persistence = LovelaceNavigationSelectionPersistence(
+                key: AppConfig.lovelaceNavigationPolicy.persistedPrimarySelectionKey,
+                store: store
+            )
+            try persistence.save(.path(try XCTUnwrap(view.path)))
+            let model = DashboardViewModel(
+                initialViews: config.views,
+                navigationPreferenceStore: store
+            )
+            XCTAssertEqual(model.homeView?.path, view.path, "Prepared model \(index) must select its genuine locator")
+            XCTAssertEqual(model.activeCards.count, 50)
+            return model
+        }
+        let initialSize = CGSize(width: 1_792, height: 1_000)
+        let hostingView = NSHostingView(
+            rootView: AnyView(
+                DashboardView(model: models[0], startsOnAppear: false)
+                    .frame(width: initialSize.width, height: initialSize.height)
+            )
+        )
+        hostingView.frame = CGRect(origin: .zero, size: initialSize)
+        let window = NSWindow(
+            contentRect: hostingView.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.contentView = hostingView
+        window.orderBack(nil)
+        defer {
+            window.orderOut(nil)
+            window.close()
+        }
+        hostingView.layoutSubtreeIfNeeded()
+        hostingView.displayIfNeeded()
+        let ranges = AppConfig.graphHourOptions
+
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3
+        measure(
+            metrics: [XCTClockMetric(), XCTCPUMetric(), XCTMemoryMetric()],
+            options: options
+        ) {
+            for cycle in 0..<100 {
+                let model = models[cycle % models.count]
+                model.selectedGraphHours = ranges[cycle % ranges.count]
+                let size = cycle.isMultiple(of: 2)
+                    ? CGSize(width: 1_792, height: 1_000)
+                    : CGSize(width: 900, height: 700)
+                hostingView.rootView = AnyView(
+                    DashboardView(model: model, startsOnAppear: false)
+                        .frame(width: size.width, height: size.height)
+                )
+                hostingView.frame = CGRect(origin: .zero, size: size)
+                hostingView.layoutSubtreeIfNeeded()
+                hostingView.displayIfNeeded()
+                XCTAssertEqual(model.activeCards.count, 50)
+                XCTAssertEqual(model.navigationItems.filter(\.isSelected).count, 1)
+                XCTAssertFalse(model.dashboardColumns.isEmpty)
+                XCTAssertEqual(resolved.views.reduce(0) { $0 + $1.cards.count }, 500)
+            }
+        }
+        print("MODULE12_LAYOUT_METRIC cycles=100 views=10 cards=500 widths=1792|900 ranges=\(ranges)")
+    }
+
+    private func module12VisualConfig() throws -> LovelaceConfig {
+        func entitiesCard(_ title: String, _ entityID: String) -> JSONValue {
+            .object([
+                "type": .string("entities"),
+                "title": .string(title),
+                "entities": .array([.string(entityID)]),
+            ])
+        }
+        return try LovelaceConfig(rawValue: .object([
+            "views": .array([
+                .object([
+                    "title": .string("Home"),
+                    "path": .string("default_view"),
+                    "cards": .array([entitiesCard("Home card", "sensor.home")]),
+                ]),
+                .object([
+                    "title": .string("3h maintenance"),
+                    "path": .string("home_3h"),
+                    "cards": .array([]),
+                ]),
+                .object([
+                    "title": .string("12h maintenance"),
+                    "path": .string("home_12h"),
+                    "cards": .array([]),
+                ]),
+                .object([
+                    "title": .string("A Deliberately Long Genuine Lovelace View Title"),
+                    "path": .string("genuine"),
+                    "icon": .string("mdi:weather-cloudy"),
+                    "show_icon_and_title": .bool(true),
+                    "cards": .array([entitiesCard("Genuine card", "sensor.genuine")]),
+                ]),
+                .object([
+                    "title": .string("Panel View"),
+                    "path": .string("panel"),
+                    "panel": .bool(true),
+                    "cards": .array([entitiesCard("Panel card", "sensor.panel")]),
+                ]),
+                .object([
+                    "title": .string("Empty View"),
+                    "path": .string("empty"),
+                    "cards": .array([]),
+                ]),
+            ]),
+        ]))
+    }
+
+    private func renderModule12Dashboard(
+        _ model: DashboardViewModel,
+        size: CGSize
+    ) throws -> RenderedPNG {
+        let rendered = try MacViewPNGRenderer.render(
+            DashboardView(model: model, startsOnAppear: false)
+                .frame(width: size.width, height: size.height),
+            size: size,
+            displayScale: 2,
+            settleTime: 0.1
+        )
+        try assertUsablePNG(rendered, minimumBytes: 10_000, minimumChangedSamples: 100)
+        try assertDimensions(
+            rendered.pngData,
+            width: Int(size.width * 2),
+            height: Int(size.height * 2)
+        )
+        return rendered
+    }
+
     private func renderLovelaceArtifact<Content: View>(
         _ content: Content,
         size: CGSize,
@@ -1298,6 +1699,13 @@ enum ApprovedVisualReference {
     }
 }
 
+private final class GUIMemoryNavigationPreferenceStore: LovelaceNavigationPreferenceStore {
+    private var values: [String: Any] = [:]
+    func object(forKey key: String) throws -> Any? { values[key] }
+    func set(_ value: Any, forKey key: String) throws { values[key] = value }
+    func removeObject(forKey key: String) throws { values.removeValue(forKey: key) }
+}
+
 private func performanceInput(pointCount: Int, entityID: String) -> GraphRenderSeriesInput {
     let points = (0..<pointCount).map { index -> HAHistoryPoint in
         let offset = index
@@ -1416,4 +1824,42 @@ private func writeRenderArtifact(_ data: Data, name: String) throws -> URL {
     let outputURL = outputDirectory.appendingPathComponent(name)
     try data.write(to: outputURL, options: .atomic)
     return outputURL
+}
+
+private enum GUIConditionTimeout: Error {
+    case conditionNotMet
+}
+
+private func waitForGUICondition(
+    _ condition: @escaping @Sendable () async -> Bool
+) async throws {
+    for _ in 0..<100_000 {
+        if await condition() { return }
+        await Task.yield()
+    }
+    throw GUIConditionTimeout.conditionNotMet
+}
+
+@MainActor
+private func sidebarAccessibilityButtons(in root: NSView) -> [SidebarAccessibilityNSButton] {
+    func collect(_ view: NSView, into result: inout [SidebarAccessibilityNSButton]) {
+        if let button = view as? SidebarAccessibilityNSButton {
+            result.append(button)
+        }
+        for subview in view.subviews {
+            collect(subview, into: &result)
+        }
+    }
+
+    var buttons: [SidebarAccessibilityNSButton] = []
+    collect(root, into: &buttons)
+    return buttons.sorted { lhs, rhs in
+        let lhsY = lhs.window.map {
+            $0.convertToScreen(lhs.convert(lhs.bounds, to: nil)).midY
+        } ?? lhs.frame.midY
+        let rhsY = rhs.window.map {
+            $0.convertToScreen(rhs.convert(rhs.bounds, to: nil)).midY
+        } ?? rhs.frame.midY
+        return lhsY > rhsY
+    }
 }

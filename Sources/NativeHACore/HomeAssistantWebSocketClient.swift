@@ -40,6 +40,13 @@ public final class HomeAssistantWebSocketClient {
         )
     }
 
+    public func fetchCurrentUser() async throws -> HACurrentUser {
+        try await connection.call(
+            ["type": .string("auth/current_user")],
+            as: HACurrentUser.self
+        )
+    }
+
     public func fetchEntityRegistryDisplay() async throws -> HAEntityRegistryDisplayResponse {
         try await connection.call(
             ["type": .string("config/entity_registry/list_for_display")],

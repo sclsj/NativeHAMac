@@ -7,9 +7,9 @@ status: complete
 contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: dda63c1b69feed1de38e2f0657504bc9cd8c883c
+nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 85ce90097513ac12bcf14d24c6b1b661f2d7a1754cc234982ee45eb842564398
+graph_fingerprint: 8080112b8a675b16476f214c5e5450e26321c93bc19081db0fa47a48fa5880cc
 last_validated: 2026-08-25
 ---
 
@@ -1734,18 +1734,79 @@ The resolver self-test remains green at 31 nodes / 61 edges with fingerprint
 No C01 observable contract changed, so status remains `complete` and contract
 revision remains 3.
 
+## Bounded post-Module 12 anchor maintenance — 2026-08-25
+
+The pre-refresh checker was yellow for exactly nine shared Module 12 anchors:
+`HomeAssistantWebSocketClient.swift`, `Models.swift`, `AppConfig.swift`,
+`DashboardView.swift`, `DashboardViewModel.swift`,
+`HomeAssistantHistoryLiveSmokeTests.swift`,
+`HomeAssistantWebSocketConnectionTests.swift`,
+`GUIRenderingAndPerformanceTests.swift`, and
+`HistoryStreamIntegrationTests.swift`. The complete final diff for all nine was
+inspected against C01 revision 3. Pinned frontend history/card/detail and npm
+connection sources are unchanged; no broad reference audit was repeated.
+
+- The client/model additions are the independent minimal current-user command
+  and `id` response needed by Module 12. They do not change typed history
+  decode, accumulation, projection, subscription, or REST separation.
+- The AppConfig change adds only the navigation exclusion/persistence policy.
+  The approved global `[1, 3, 6, 12]` range, 24-hour detail default, 32 MiB
+  receive bound, Core Graphics renderer, tooltip, graph-feed, coordinator,
+  logging, and cache policies are unchanged; raw Lovelace `hoursToShow` remains
+  source data.
+- `DashboardView.swift` now renders the selected presentation view, retains the
+  approved range selector, applies the three-column exception only to
+  `default_view`, and gives unrelated/panel/empty views bounded native
+  presentation. It does not alter history values, request construction, feed
+  publication, prepared-series lineage, or renderer freshness.
+- `DashboardViewModel.swift` generalizes the existing single MainActor owner
+  tail from config/range/load/refresh to exact view selection. Desired history
+  requests come only from the final selected resolved view and retain exact
+  owner identity + ordered entity IDs + effective range. Same-view/exact
+  intersection owners survive; hidden/removed/range-changed owners detach
+  startup, acknowledgement, delivery, subscription, detail, feed, mount, and
+  render ownership in the established cancel-before-final-install order.
+  Every suspended boundary rechecks config/navigation/range/desired keys, and
+  late acknowledgements/history/feed/render work cannot publish. Global state
+  and connection status remain installed. No `contentRevision`, digest,
+  endpoint timestamp, or first/last timestamp infers freshness or ancestry.
+- The live-smoke and WebSocket tests add only current-user presence/typed
+  command evidence. GUI additions exercise selected-view layout/accessibility
+  and the warmed 500-card layout path. History integration additions directly
+  prove view cancellation before install, late history/ack rejection,
+  same-view retention, exact A -> B -> A restart, refresh/selection ordering,
+  100 selection/range cycles, final one-owner settlement, and zero teardown
+  ownership. Existing C01 fixtures remain intact.
+
+Module 12 therefore closes the former visible-view ownership handoff in
+C01-06/C01-07 without changing any C01 observable contract. Status remains
+`complete` and contract revision remains 3. The fresh Module 12 verifier passed
+all 23 inherited-plus-new `HistoryStreamIntegrationTests` in 1.700 seconds and
+the 100-cycle/500-card lifecycle gate in 0.268 seconds. The exact final
+full suite passed 196 tests with three authorized skips and zero failures; the
+release app built successfully. The authorized read-only live smoke passed in
+5.085 seconds with representative one-hour 2,385 points, CO2/VOC one-hour
+8,582 and 8,584 points, 12-hour 102,737 points, 24-hour 57,067 points, and
+final connection/history ownership zero. No state-changing call was made.
+
+Regeneration from the unchanged reviewed manifest is green at 21 nodes / 143
+edges, one cycle, zero unresolved edges, no truncation, and fingerprint
+`8080112b8a675b16476f214c5e5450e26321c93bc19081db0fa47a48fa5880cc`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18`.
+No Swift or test file was edited by this maintenance.
+
 ## Handoff
 
-Module 01 is independently `complete` at contract revision 3. Preserve the
-exact resolved Lovelace history identity, unified dashboard-owner operation
-tail, post-await sequence/generation guards, direct typed transport, exact
-projection lineage, feed-before-`@Published` boundary, reconnectable mounted
-chart lifecycle, Core Graphics default, tooltip metadata, and the separate
-Module 09 fallback. Do not infer freshness from hashes or endpoint timestamps.
-Modules 02, 01, and 04 now have green handoffs. Module 03 is intentionally
-skipped under the approved fixed-personal-deployment deviation; the next staged
-action is Module 12 sidebar/view-navigation work based on the green Module 04
-identity contract.
+Module 01 is independently `complete` at contract revision 3 and its
+post-Module 12 graph is green. Preserve exact resolved active-view history
+identity, the unified dashboard-owner operation tail, post-await config/
+navigation/range/generation guards, direct typed transport, exact projection
+lineage, feed-before-`@Published`, reconnectable mounted chart lifecycles, Core
+Graphics, tooltip metadata, and the separate Module 09 fallback. Never infer
+freshness from hashes or endpoint timestamps. Module 12 is independently
+complete; the exact next staged action is fresh Module 05 orchestration-
+decomposition research under the fixed-server/no-profile assumption.
 
 ## Change log
 

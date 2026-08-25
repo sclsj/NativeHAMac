@@ -230,6 +230,28 @@ seconds. Locale and timezone fall back to the current macOS values when Home
 Assistant preference data is absent. These settings affect crosshair tooltip
 labels; graph-axis time labels remain unchanged.
 
+### 10. Lovelace primary navigation
+
+**Intent:** Keep deployment-specific primary-navigation exclusions and the
+versioned native selection-preference key explicit without adding a settings
+or server-profile UI.
+
+Configure one typed `LovelaceNavigationPolicy` with:
+
+- exact source paths excluded only from primary navigation; and
+- the versioned persistence key for the last unambiguous eligible primary
+  view.
+
+**Implementation note:** Module 12 defines `LovelaceNavigationPolicy` in
+`AppConfig.swift`. The fixed personal deployment excludes exact paths
+`home_3h` and `home_12h` from primary navigation while preserving their raw
+configuration and explicit route lookup. The preference key is
+`nativeha.navigation.selected-primary-view.v1`; its property-list value stores
+only a unique nonempty path or a source index for a pathless view. It stores no
+server, token, profile, resolved identity, hash, content revision, or
+timestamp. This policy does not add a settings UI and does not alter the
+existing token/bootstrap path.
+
 ## Not selected
 
 Render-resolution, reconnect timing, axis-density, and off-live-edge update

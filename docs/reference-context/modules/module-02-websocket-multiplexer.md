@@ -7,10 +7,10 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: f58345bde090444777eb3cbf610822c466ee2300
+nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae
-last_validated: 2026-08-23
+graph_fingerprint: f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18
+last_validated: 2026-08-25
 ---
 
 # Module 02 evidence packet
@@ -1136,16 +1136,70 @@ green 31-node / 61-edge graph with fingerprint
 the resolver self-test passed at the same fingerprint. No Swift or test file
 was edited by this maintenance.
 
+## Bounded post-Module 12 anchor maintenance — 2026-08-25
+
+The pre-refresh checker was yellow for exactly six shared Module 12 anchors:
+`HomeAssistantWebSocketClient.swift`, `Models.swift`, `AppConfig.swift`,
+`DashboardViewModel.swift`, `HomeAssistantWebSocketConnectionTests.swift`, and
+`DashboardBootstrapLifecycleTests.swift`. The complete final Module 12 diff for
+each anchor was inspected against C02 revision 2. The pinned hass-frontend/npm
+transport sources and all other Module 02 anchors remain unchanged; no broad
+reference audit was repeated.
+
+- `HomeAssistantWebSocketClient.swift` adds only the typed
+  `auth/current_user` command facade, routed through the same verified
+  connection `call` path. It adds no receiver, ID allocator, subscription map,
+  send queue, or reconnect owner.
+- `Models.swift` adds the minimal independent `HACurrentUser.id` response
+  shape. The compressed entity-registry and nullable frontend-locale types for
+  C02-08 are unchanged.
+- `AppConfig.swift` adds only the Module 12 primary-view exclusion and
+  selection-persistence policy. The WebSocket policy remains 10 seconds / 32
+  MiB / 256 buffered events / four active callback tasks; graph range,
+  renderer, tooltip, logging, and render-coordinator policies are unchanged.
+- `DashboardViewModel.swift` adds a concurrent optional current-user bootstrap
+  command and exact bootstrap-generation/client guards. Lovelace, registry,
+  locale, and current-user commands still share the one verified connection;
+  current-user failure is owner-local. Required config/state-subscription
+  failure still disconnects owned clients, while overlapping same-client and
+  distinct-client bootstraps cannot let obsolete state/status/config callbacks
+  publish or disconnect current ownership. State batching is now scoped to the
+  installed bootstrap generation. This strengthens C02-05/C02-08 cleanup and
+  late-callback isolation without changing C02 wire semantics.
+- `HomeAssistantWebSocketConnectionTests.swift` adds only the exact typed
+  current-user command/decode regression; all existing multiplexer tests are
+  unchanged. `DashboardBootstrapLifecycleTests.swift` expands the production
+  bootstrap harness for optional metadata failure, overlapping candidates,
+  exact installed ownership, and obsolete callback rejection while retaining
+  the existing malformed-config and rejected-state-subscription cleanup gates.
+
+No C02-01 through C02-08 observable contract changed, so status remains
+`complete` and contract revision remains 2. The fresh Module 12 verifier ran
+the exact final worktree's 196-test full suite with three authorized skips and
+zero failures. Its focused bootstrap lifecycle suite passed 9/9; the typed
+current-user command passed in the full suite. The authorized read-only live
+smoke passed in 5.085 seconds with current-user ID present, 276 registry
+entries / 74 display precisions, one-hour/12-hour/24-hour typed history,
+reconnect coverage, and final command/subscription/wire/delivery/receive
+ownership zero. No state-changing call was made. Release `NativeHAMac` also
+built successfully.
+
+Regeneration from the unchanged reviewed manifest is green at 31 nodes / 61
+edges, zero unresolved edges, no truncation, and fingerprint
+`f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18`.
+The resolver self-test passes at the same 31-node / 61-edge fingerprint. No
+Swift or test file was edited by this maintenance.
+
 ## Handoff
 
-Module 02 is complete and its post-Module 04 evidence graph is
-green. C02-01 through C02-08 have fresh independent deterministic and read-only
-live evidence. Preserve the per-generation outbound FIFO, single receiver,
-bounded callback coordinator, direct typed owner-local decode, production
-receive cleanup, history opt-out, Dashboard bootstrap failure cleanup, and
-32 MiB large-frame policy through Module 04 finalization and later modules. The
-exact next staged action after the current Module 04 gate is bounded Module 03
-research, not further Module 02 redesign.
+Module 02 is complete and its post-Module 12 evidence graph is green. Preserve
+the per-generation outbound FIFO, single receiver, bounded callback
+coordinator, direct typed owner-local decode, production receive cleanup,
+history opt-out, exact bootstrap generation/client guards, required-bootstrap
+failure cleanup, and 32 MiB large-frame policy through Module 05 and later
+modules. Module 12 is independently complete. The exact next staged action is
+fresh Module 05 orchestration-decomposition research under the approved fixed-
+server/no-profile assumption, not further Module 02 redesign.
 
 ## Change log
 
