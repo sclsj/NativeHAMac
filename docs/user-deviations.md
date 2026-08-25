@@ -35,6 +35,21 @@ deviations from implementation convenience or old chat plans.
   frontend. Implement behavior with Swift, SwiftUI, AppKit, CoreGraphics, and
   other native APIs; do not use JavaScript or WebView as the app architecture.
 
+## Fixed personal Home Assistant deployment
+
+- NativeHA targets one fixed personal Home Assistant deployment. Module 03
+  server-profile isolation is intentionally skipped, not completed.
+- Keep the existing local token-file/bootstrap path and fixed server URL
+  candidates. Do not introduce profile switching, a profile store, a settings
+  UI, Keychain/token migration, or cross-profile identity/persistence work
+  unless the user later changes this decision.
+- Approved product, presentation, transport, history, rendering, tooltip,
+  logging, graph-range, and layout choices remain typed policies in
+  `Sources/NativeHAMac/AppConfig.swift`; the fixed-server decision does not
+  remove those configuration contracts.
+- Module 05 orchestration work must assume this single fixed server and omit
+  profile-transition state, cancellation, migration, and tests.
+
 ## Native WebSocket transport semantics
 
 - Preserve Home Assistant's observable WebSocket protocol semantics, including

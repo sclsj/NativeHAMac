@@ -7,14 +7,15 @@ reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
 
 ## Current Readiness
 
-- Modules 02 and 01 are implemented and their focused transport/history tests
-  pass, but both evidence graphs are yellow because shared native anchors
-  changed during the typed-delivery, tooltip, and bounded graph repairs. Give
-  each packet a bounded post-fix contract/anchor refresh before relying on it as
-  the prerequisite handoff for later implementation.
-- Module 04 remains the next module in sequence. Research and create its packet
-  after the Module 02/01 refreshes; do not implement directly from the older
-  rescue-plan line hints.
+- Modules 02, 01, and 04 are complete and independently green. Their evidence
+  packets are the implementation authority for transport, history/feed/render
+  ownership, and exact Lovelace view/card identity.
+- Module 03 is intentionally skipped, not complete. NativeHA targets one fixed
+  personal deployment and keeps the existing token/bootstrap path without a
+  profile store, switching, migration, or settings UI.
+- Module 12 is research-ready at contract revision 1. Implement and
+  independently verify it before researching Module 05; do not implement
+  directly from the older rescue-plan line hints.
 - The bounded Module 09 async repair remains correct, green, and separate from
   broader Module 09. A known stale-viewport request can still cause repeated
   safe off-main alignment/full-preparation fallback. Do not suppress it using
@@ -25,13 +26,13 @@ reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
 
 Implement in this order unless a future audit finds a blocker:
 
-1. Refresh the completed `module-02-websocket-multiplexer.md` evidence packet.
-2. Refresh the completed `module-01-history-ws-stream.md` evidence packet.
-3. Research, then implement `module-04-lovelace-model-decode.md`.
-4. `module-03-appconfig-profile-isolation.md`
-5. `module-12-sidebar-lovelace-views.md`
-6. `module-05-dashboard-viewmodel-state.md`
-7. Card/detail modules: `06`, `07`, `08`, `09`, `10`, `11`
+1. Modules 02, 01, and 04: complete and green.
+2. Module 03: intentionally skipped under the fixed-deployment deviation.
+3. Research, implement, and independently verify
+   `module-12-sidebar-lovelace-views.md`.
+4. Research, implement, and independently verify
+   `module-05-dashboard-viewmodel-state.md` under the fixed-server assumption.
+5. Card/detail modules: `06`, `07`, `08`, `09`, `10`, `11`.
 
 Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 
@@ -41,14 +42,14 @@ Module 1 and later subscription-heavy modules depend on module 2. Module 12 and 
 |---|---|---|---|
 | 01 | History `history/stream` | 02, partly 04 | 05, 09, detail history |
 | 02 | WebSocket multiplexer | none | 01, 07 forecast, 08 templates |
-| 03 | Server profiles / typed `AppConfig` policies | none | 05, 12 cleanup |
+| 03 | Server profiles | intentionally skipped; fixed personal deployment | none |
 | 04 | Lovelace decode robustness | 02 for fetch path only | 01, 05, 06, 07, 08, 12 |
-| 05 | DashboardViewModel orchestration | 01, 02, 03, 04, 12 | Card behavior consistency |
+| 05 | DashboardViewModel orchestration | 01, 02, 04, 12 | Card behavior consistency |
 | 06 | Entities/entity rows | 04, 05 | Current dashboard row correctness |
 | 07 | Weather card | 02, 04, 05 | Forecast subscription later |
 | 08 | Markdown card | 02, 04 | Template rendering later |
 | 09 | Graph rendering | 01, 05 | History visual parity |
-| 10 | Climate detail | 03, 05, 06 | More-info climate correctness |
+| 10 | Climate detail | 05, 06 | More-info climate correctness |
 | 11 | Fan detail | 05, 06 | More-info fan correctness |
 | 12 | Lovelace views/sidebar | 04, partly 01 | Dashboard navigation correctness |
 
@@ -68,7 +69,7 @@ The live server surface from the parent audit should drive prioritization before
 - Do not generally remove `unknown`, `unavailable`, or `none` from history ingestion. The hass-frontend timeline path keeps these as timeline states with distinct colors. Numeric line graph preparation can skip nonnumeric samples in the line-only path.
 - Module 1 cannot be implemented correctly on top of the current WebSocket client. Module 2 must provide a single receive loop and ID-based dispatch first.
 - Keep one configurable graph-range selector on the intended Home dashboard instead of exposing the duplicate `3h` and `12h` maintenance views as separate dashboards.
-- Keep approved product, layout, interaction, scheduling, sampling, and cache choices as typed policies in `AppConfig.swift`; isolate server-profile state and avoid scattering either kind of configuration through rendering code.
+- Keep approved product, layout, interaction, scheduling, sampling, and cache choices as typed policies in `AppConfig.swift`; the fixed server/token bootstrap remains the explicitly approved personal-deployment exception.
 - Weather forecast support is lower priority for the current live dashboard because `show_forecast` is false, but weather icon/current-state/units should be corrected now and forecast subscription should be designed against module 2.
 - Graph rendering is not a failed subsystem. It already has useful bitmap rendering, timeline colors, parsing caches, and min/max downsampling. The remaining work is reference-aligned semantics and interaction polish, not a rewrite.
 

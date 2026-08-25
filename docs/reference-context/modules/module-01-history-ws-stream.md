@@ -7,10 +7,10 @@ status: complete
 contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: f58345bde090444777eb3cbf610822c466ee2300
+nativeha_revision: dda63c1b69feed1de38e2f0657504bc9cd8c883c
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 893b3e913aab46ad04b8e482962229275b5a9119354031202450a4f2d6706b91
-last_validated: 2026-08-23
+graph_fingerprint: 85ce90097513ac12bcf14d24c6b1b661f2d7a1754cc234982ee45eb842564398
+last_validated: 2026-08-25
 ---
 
 # Module 01 evidence packet
@@ -1711,6 +1711,29 @@ bug. Keep it in the bounded Module 09 packet. Do not compare
 two attempted heuristics were rejected and reverted because they can return
 stale graph content.
 
+## Bounded post-housekeeping anchor maintenance — 2026-08-25
+
+The pre-refresh checker was yellow for exactly one anchored file,
+`Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift`, after NativeHA
+commit `dda63c1b69feed1de38e2f0657504bc9cd8c883c`. Exact inspection of
+`933abd5..dda63c1` confirmed that the relevant change only gives the synthetic
+January 2026 `performanceInput` an explicit matching `windowStart` and
+`windowEnd`. This repairs the previously classified fixed-time performance
+fixture, which had otherwise been clipped against the current date. It does not
+change production graph preparation/rendering, history publication, owner
+identity, range policy, or any C01 behavior.
+
+The complete `GUIRenderingAndPerformanceTests` class passed 10/10 on the
+current tree, including the formerly failing warm interaction measurement and
+the Module 01 history/graph and Module 04 Lovelace/lifecycle artifacts that
+share the helper. Regeneration from the unchanged reviewed manifest is green at
+21 nodes / 143 edges, zero unresolved edges, no truncation, and fingerprint
+`85ce90097513ac12bcf14d24c6b1b661f2d7a1754cc234982ee45eb842564398`.
+The resolver self-test remains green at 31 nodes / 61 edges with fingerprint
+`fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`.
+No C01 observable contract changed, so status remains `complete` and contract
+revision remains 3.
+
 ## Handoff
 
 Module 01 is independently `complete` at contract revision 3. Preserve the
@@ -1719,8 +1742,10 @@ tail, post-await sequence/generation guards, direct typed transport, exact
 projection lineage, feed-before-`@Published` boundary, reconnectable mounted
 chart lifecycle, Core Graphics default, tooltip metadata, and the separate
 Module 09 fallback. Do not infer freshness from hashes or endpoint timestamps.
-Modules 02, 01, and 04 now have green handoffs; the next staged action is fresh
-bounded Module 03 research, not implementation directly from its rescue plan.
+Modules 02, 01, and 04 now have green handoffs. Module 03 is intentionally
+skipped under the approved fixed-personal-deployment deviation; the next staged
+action is Module 12 sidebar/view-navigation work based on the green Module 04
+identity contract.
 
 ## Change log
 

@@ -6,12 +6,12 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: f58345bde090444777eb3cbf610822c466ee2300
+nativeha_revision: dda63c1b69feed1de38e2f0657504bc9cd8c883c
 graph_file: ../generated/module-04.dependencies.json
-graph_fingerprint: 0295bb6ce08fba5412d8d81e01816f668c5ad9860317781e2f0c7dd706f9fa8e
+graph_fingerprint: 355076ba719ce3dd617c46513b248fed8ec9f2bedc034424d9a62209563cf04c
 last_researched: 2026-08-23
 last_implemented: 2026-08-23
-last_verified: 2026-08-23
+last_verified: 2026-08-25
 ---
 
 # Module 04 evidence packet
@@ -541,6 +541,31 @@ returned source GO. Final evidence was:
 
 Implementation verdict: **complete / independently verified**.
 
+## Bounded post-housekeeping anchor maintenance — 2026-08-25
+
+The pre-refresh checker was yellow for exactly one anchored file,
+`Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift`, after NativeHA
+commit `dda63c1b69feed1de38e2f0657504bc9cd8c883c`. Exact inspection of
+`933abd5..dda63c1` confirmed that the relevant change only gives the synthetic
+January 2026 `performanceInput` an explicit matching `windowStart` and
+`windowEnd`. This repairs the previously classified fixed-time performance
+fixture, which had otherwise been clipped against the current date. It changes
+neither production Lovelace decode/resolution/presentation nor stable identity,
+history-owner reconciliation, mounted lifecycle, Core Graphics rendering, or
+any C04 behavior.
+
+The complete `GUIRenderingAndPerformanceTests` class passed 10/10 on the
+current tree, including the formerly failing warm interaction measurement and
+the Module 04 fallback, nested-layout, identical-refresh, and mounted-chart
+lifecycle artifacts. Regeneration from the unchanged reviewed manifest is
+green at 206 nodes / 2,724 edges, zero unresolved edges, no truncation, and
+fingerprint
+`355076ba719ce3dd617c46513b248fed8ec9f2bedc034424d9a62209563cf04c`.
+The resolver self-test remains green at 31 nodes / 61 edges with fingerprint
+`fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`.
+No C04 observable contract changed, so status remains `complete` and contract
+revision remains 1.
+
 ## Remaining risks and stop rules
 
 - Canonical semantic serialization must be deterministic and exact; a digest
@@ -578,5 +603,6 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
   exact C04-04 through C04-08 rules above.
 
 Verdict: **complete / independently verified**. Preserve these contracts in
-Module 03 and later work; do not reopen Module 04 or fold the separate Module
-09 stale-viewport repair into this handoff.
+Module 12 and later work; Module 03 is intentionally skipped under the approved
+fixed-personal-deployment deviation. Do not reopen Module 04 or fold the
+separate Module 09 stale-viewport repair into this handoff.

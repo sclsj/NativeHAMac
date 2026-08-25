@@ -13,15 +13,15 @@ packet.
 |---|---|---|---|---|---|
 | 02 | [WebSocket multiplexer](../rescue-plan/module-02-websocket-multiplexer.md) | [Module 02 evidence](modules/module-02-websocket-multiplexer.md) | complete; post-Module 04 anchor refresh green | 2 | Preserve verified transport/lifecycle contracts during Module 04 finalization and later modules |
 | 01 | [History stream](../rescue-plan/module-01-history-ws-stream.md) | [Module 01 evidence](modules/module-01-history-ws-stream.md) | complete; post-Module 04 anchor refresh green | 3 / Module 02 complete | Preserve resolved history identity, unified owner operations, feed/render lifecycle, and the separate Module 09 fallback in later modules |
-| 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | [Module 04 evidence](modules/module-04-lovelace-model-decode.md) | complete; independently verified, implementation graph green | 1 / Fresh complete 02 and 01 handoffs | Preserve exact resolved identity and unified owner lifecycle; dispatch fresh bounded Module 03 research |
-| 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | unresearched | Independent, but ordered after 04 in the rescue plan | Dispatch researcher after 04 |
-| 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | not created | unresearched | Requires 04; coordinates with 01 | Dispatch researcher after 03 |
-| 05 | [Dashboard state](../rescue-plan/module-05-dashboard-viewmodel-state.md) | not created | unresearched | Requires 01, 02, 03, 04, and 12 | Dispatch when prerequisites are verification-ready |
+| 04 | [Lovelace decode](../rescue-plan/module-04-lovelace-model-decode.md) | [Module 04 evidence](modules/module-04-lovelace-model-decode.md) | complete; independently verified, implementation graph green | 1 / Fresh complete 02 and 01 handoffs | Preserve exact resolved identity and unified owner lifecycle through Module 12 |
+| 03 | [Profile isolation](../rescue-plan/module-03-appconfig-profile-isolation.md) | not created | intentionally skipped; not complete | N/A / fixed personal deployment deviation | Preserve the existing server/token bootstrap; no profile switching or settings UI |
+| 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | [Module 12 evidence](modules/module-12-sidebar-lovelace-views.md) | research-ready | 1 / Requires 04; preserves 01 and 02 | Dispatch one fresh sole Swift/test implementer using the packet handoff |
+| 05 | [Dashboard state](../rescue-plan/module-05-dashboard-viewmodel-state.md) | not created | unresearched | Requires complete 01, 02, 04, and independently verified 12 | Dispatch after Module 12 verification; assume one fixed server and omit profile-transition work |
 | 06 | [Entity display](../rescue-plan/module-06-entities-state-display.md) | not created | unresearched | Requires 04 and 05 | Card/detail phase |
 | 07 | [Weather](../rescue-plan/module-07-weather-card.md) | not created | unresearched | Requires 02, 04, and 05 | Card/detail phase |
 | 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | not created | unresearched | Requires 02 and 04 | Card/detail phase |
 | 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | [Module 09 bounded async-repair evidence](modules/module-09-graph-rendering.md) | bounded async repair verified with open stale-viewport fallback; broader module unresearched | 3 / Module 01 implementation complete | Keep the correctness-safe fallback; later repair stale visual inputs with coordinator-owned provenance, not hash/timestamp ordering |
-| 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 03, 05, and 06 | Card/detail phase |
+| 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 05 and 06; fixed-server assumption replaces 03 | Card/detail phase |
 | 11 | [Fan detail](../rescue-plan/module-11-fan-detail.md) | not created | unresearched | Requires 05 and 06 | Card/detail phase |
 
 ## Files

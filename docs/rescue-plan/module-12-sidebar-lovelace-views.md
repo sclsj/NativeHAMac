@@ -62,10 +62,12 @@ Drive navigation from decoded Lovelace config:
   - Resolves view by path or index.
 - `DashboardViewModel`
   - Publishes `views`, `selectedViewID`, `selectedView`, and `selectedViewCards`.
-  - Updates history/weather/template subscriptions for only the selected view.
+  - Updates implemented history ownership for only the selected view and
+    exposes the same active-card seam for future weather/template modules.
 - `SidebarView`
   - Displays Lovelace views rather than hardcoded navigation items for dashboard content.
-  - Keeps app-level settings/profile controls separate from Lovelace views.
+  - Removes the current nonfunctional settings/profile rows; Module 12 adds no
+    settings or profile UI.
 - `DashboardView`
   - Renders active view title and cards.
   - Keeps one graph-range selector driven by the typed `AppConfig` policy.
@@ -74,7 +76,9 @@ Drive navigation from decoded Lovelace config:
 
 - Keep one selector or equivalent control that changes the intended Home dashboard's graph range; configure its ranges, default, and scope in `AppConfig.swift`.
 - Do not expose the live `3h` and `12h` maintenance duplicates as intended separate navigation/content.
-- Do not hardcode the user's profile name or personal labels in the sidebar. Profile display belongs in Module 03.
+- Do not hardcode the user's profile name or personal labels in the sidebar.
+  Module 03 is intentionally skipped, so remove the nonfunctional profile row
+  rather than moving it behind a profile/settings surface.
 
 ## Implementation Tasks
 
@@ -118,11 +122,14 @@ Drive navigation from decoded Lovelace config:
 
 6. Tie subscriptions to active view.
    - History streams from Module 01 should be active only for visible cards in the selected view.
-   - Weather forecast and Markdown template subscriptions should follow the same pattern.
+   - Future weather forecast and Markdown template subscriptions must follow
+     the same active-card seam when Modules 07 and 08 implement them; do not add
+     those subscriptions in Module 12.
    - Cancel obsolete subscriptions when switching views.
 
 7. Add route persistence.
-   - Persist last selected view path in user preferences/profile.
+   - Persist the last unambiguous eligible primary view locator in an injected,
+     versioned fixed-deployment user preference.
    - On launch, restore it if the view still exists.
    - Otherwise fall back to default view.
 
@@ -132,7 +139,8 @@ Drive navigation from decoded Lovelace config:
    - Back navigation should return to the parent/default path when supported.
 
 9. Separate app navigation from Lovelace navigation.
-   - Keep Settings, server profile, diagnostics, or developer tools outside the Lovelace view list.
+   - Do not add settings or server-profile navigation. Any future diagnostics
+     or developer tools remain outside the Lovelace view list.
    - Avoid mixing app pages and Lovelace views in a way that makes selected-card subscriptions ambiguous.
 
 ## File Ownership and Scope
@@ -168,9 +176,15 @@ Use the shared offscreen and performance method in [`../visual-testing.md`](../v
 
 ### Integration tests
 
-Use a fixture containing `default_view`, the `home_3h`/`home_12h` maintenance duplicates, and one genuine unrelated view, plus fake Module 01 history, Module 07 forecast, and Module 08 template coordinators. Assert the maintenance duplicates are not primary navigation items.
+Use a fixture containing `default_view`, the `home_3h`/`home_12h` maintenance
+duplicates, and one genuine unrelated view, plus fake Module 01 history and
+graph render owners. Assert the maintenance duplicates are not primary
+navigation items.
 
-- Initial routing starts subscriptions only for the selected view. Each view switch cancels obsolete history/weather/template owners before or atomically with starting the new set; switching back creates one subscription per visible card, not duplicates.
+- Initial routing starts history subscriptions only for the selected view.
+  Each view switch cancels obsolete history/feed/render owners before or
+  atomically with starting the new set; switching back creates one subscription
+  per visible card, not duplicates.
 - Deliver a late update from a canceled hidden view and assert it does not mutate visible view state or restart rendering. Hidden views must not schedule graph bitmap work.
 - Restore persisted selection, handle removed/hidden restored paths, route into/out of a subview, and verify back-path fallback.
 - Repeated resize/layout recalculation must preserve selected view/card identity and must not recreate subscriptions solely because the window width changed.
@@ -194,21 +208,26 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 - Build a generated `500`-card dashboard fixture outside measured blocks, with nested stacks and a controlled mix of supported/unsupported cards. Measure cold route/layout preparation separately from a warmed render of the selected view.
 - Measure `100` repeated graph-range changes plus genuine view switches with fake coordinators, and repeated narrow/normal layout changes, using `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Consume selected card/subscription/render counts and prefer stored XCTest baselines over tight wall-time assertions.
 - Warm card/graph caches before measuring warm switching. Track subscription registries, render-task counts, and weak owners so each cycle returns to the expected active-view set and memory does not trend upward.
-- Measure cleanup/cancellation separately from initial load. A hidden view must have zero active history/forecast/template subscriptions and no continuing graph render or animation work after bounded settlement.
+- Measure cleanup/cancellation separately from initial load. A hidden view must
+  have zero active history subscriptions and no continuing graph render or
+  animation work after bounded settlement.
 - Use signpost metrics only around intentionally instrumented route-to-visible or subscription-reconciliation intervals. Do not require unavailable `XCTHitchMetric`.
 
 ### Manual QA
 
 - Against the live server, confirm Home appears once, `3h`/`12h` maintenance duplicates are not primary navigation, and the configured selector reproduces those graph ranges without changing unrelated Home content.
-- Switch views rapidly, enter/leave any implemented subview, resize from wide to narrow and back, and relaunch for persisted-route recovery. Confirm hidden graphs stop rendering and old history/weather/template streams stop processing.
+- Switch views rapidly, enter/leave any implemented subview, resize from wide
+  to narrow and back, and relaunch for persisted-route recovery. Confirm hidden
+  graphs stop rendering and old history streams stop processing.
 - Verify keyboard navigation, visible focus, logical focus order, activation, resize behavior, scroll/overflow behavior, long-title truncation, card/sidebar clipping, and empty/loading states manually. Offscreen snapshots cannot establish accessibility or real focus behavior.
 
 ## Dependencies
 
-- Module 04 for robust Lovelace view decoding.
-- Module 05 for active-view state and subscription lifecycle.
-- Module 01 for effective selected history ranges.
-- Module 03 for replacing hardcoded sidebar profile labels.
+- Complete Module 04 for robust Lovelace view decoding and exact identity.
+- Complete Modules 01 and 02 for history and WebSocket ownership.
+- Module 12 owns active-view state and current history/render reconciliation;
+  Module 05 follows only after Module 12 is independently verified.
+- Module 03 is intentionally skipped under the fixed-deployment deviation.
 
 ## Risks
 
@@ -224,7 +243,7 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 - The live Home dashboard appears once; `3h` and `12h` maintenance duplicates are not exposed as intended separate dashboards.
 - The configured graph-range selector changes effective graph windows without mutating decoded card configuration.
 - Active view selection controls which cards and subscriptions are active.
-- Hardcoded personal sidebar labels are removed or isolated behind profile settings.
+- Hardcoded personal/settings/profile sidebar rows are removed; no profile UI is added.
 - Routing, persistence/fallback, subview visibility/back path, and active-card tests pass with stable identities and no mutation of decoded config.
 - Switching views starts exactly the required subscriptions, cancels the old set, rejects late hidden-view updates, and leaves hidden views with no graph rendering/animation work.
 - Selected/unselected/hover/long-title/loading/empty, wide multi-column, and narrow layouts emit valid PNG artifacts at the documented sizes; any enforced references were manually reviewed against hass-frontend and compare tolerantly.

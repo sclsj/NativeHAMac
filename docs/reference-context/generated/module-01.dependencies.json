@@ -3685,7 +3685,7 @@
       "typeResolved": "node_modules/lit/development/index.d.ts"
     }
   ],
-  "graphFingerprint": "893b3e913aab46ad04b8e482962229275b5a9119354031202450a4f2d6706b91",
+  "graphFingerprint": "85ce90097513ac12bcf14d24c6b1b661f2d7a1754cc234982ee45eb842564398",
   "manifest": {
     "module": "01",
     "path": "docs/reference-context/manifests/module-01.inputs.json",
@@ -3807,8 +3807,8 @@
         "worktreeBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5"
       },
       {
-        "dirty": true,
-        "headBlob": "cf70c51ef37cd87c6ab4b2ca3d80cbb971137dfb",
+        "dirty": false,
+        "headBlob": "5d32062bce6acbafaf7a17ef312ef3b12483b5ab",
         "missing": false,
         "path": "Sources/NativeHACore/JSONValue.swift",
         "sha256": "96f5a56e026de116f2cc2c06538d6bd303313502d8bc82538edf3698afccd3e0",
@@ -3820,7 +3820,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
         "sha256": "02bed5b336729a496c7f2a48ecdcf17956af998624076ed0835164c188a9436e",
@@ -3832,8 +3832,8 @@
         "worktreeBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4"
       },
       {
-        "dirty": true,
-        "headBlob": "de4597fdfc470de2cdc2d2d1f071ae56ba3a799d",
+        "dirty": false,
+        "headBlob": "b43c25f217bbef8053468728a569da1c25b234d0",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
         "sha256": "e25788d8b24b6fa1517fcfb104ffe4e3faa7f17dc24ea89564d981d782387a60",
@@ -3847,8 +3847,8 @@
         "worktreeBlob": "b43c25f217bbef8053468728a569da1c25b234d0"
       },
       {
-        "dirty": true,
-        "headBlob": "0e078da2a393a6639a086cc2c47edbb238a23799",
+        "dirty": false,
+        "headBlob": "a93044b070318f2f6fe431920380087ff6b68c1a",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
         "sha256": "06ae89a0048416e79ecfc81e43a27076c23156a5c4fb0dd505ed2a9a78a23910",
@@ -3858,8 +3858,8 @@
         "worktreeBlob": "a93044b070318f2f6fe431920380087ff6b68c1a"
       },
       {
-        "dirty": true,
-        "headBlob": "eac04368a44758c49798ab5b95f6a8e726943437",
+        "dirty": false,
+        "headBlob": "dee92b81f211162990da5e1fc247599a05d564c5",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
         "sha256": "23fffc4f8411aacc8477efafc6b8bd3f80ed5c4f20cfddfba1c66931005f2832",
@@ -3881,8 +3881,8 @@
         "worktreeBlob": "b3c98cedc9928e08e348722abf0fe0675065e76e"
       },
       {
-        "dirty": true,
-        "headBlob": "7e96a695179cd453529bee63deeba63a3b0edfb1",
+        "dirty": false,
+        "headBlob": "b6e22b2a2af82a015396dbbfc60a6d9b6b363953",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "b471d586874816bfdaa4e74c8abcbe81cb8ebc1232a38a09921ba8f2a01d9280",
@@ -3905,8 +3905,8 @@
         "worktreeBlob": "a2666396d811547431710302f8f31244a8ca5794"
       },
       {
-        "dirty": true,
-        "headBlob": "8485459478d6aed9557e7fd76b18bc371112894c",
+        "dirty": false,
+        "headBlob": "e96a925797cc7849663b0f4a6e4157afdd50a386",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
         "sha256": "6bca525704f55123d4f1007a86ed3289bac311a84fbbbadc7b8e6f704a57afb0",
@@ -3920,8 +3920,8 @@
         "worktreeBlob": "e96a925797cc7849663b0f4a6e4157afdd50a386"
       },
       {
-        "dirty": true,
-        "headBlob": "f0dc31c5d29ca328be51e809c6aecd688f76ca06",
+        "dirty": false,
+        "headBlob": "d48ddb27fbe4571e3cf87f96df9682d86e7f318b",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphTooltipFormatting.swift",
         "sha256": "12e1d9bc92b425bd3ee3419577f2b9d496f094c7e52363ff738263df2690fde4",
@@ -3934,7 +3934,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "b04f45a724260f9e9c25dca223649ab857d50f15",
         "missing": false,
         "path": "Sources/NativeHAMac/LovelacePresentation.swift",
         "sha256": "074c6d454d3f9b44135448b3f0444e3d19913eb59c63ca8a0029c603a44f9844",
@@ -3957,8 +3957,8 @@
         "worktreeBlob": "6aeec6002125502dc7905196b19dc2e316182543"
       },
       {
-        "dirty": true,
-        "headBlob": "7630f819ed6521fd96cd5542a74cae52b142c6a1",
+        "dirty": false,
+        "headBlob": "c3a03e23d5da334fe146287f1ef617028660c19d",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
         "sha256": "7a9121659d23b236a46bd1d93a143802479d7f6c92837f320f95f4036d8d9478",
@@ -4013,7 +4013,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "4d8dfebc19effe89bece9acde9137fb5f3648018",
         "missing": false,
         "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
         "sha256": "78206f0be343b66e15b6e105f17707bdd3fb6030903b820d7cb60cab8bfb19f3",
@@ -4034,8 +4034,8 @@
         "worktreeBlob": "d7339928a9658489d6647ad04383fdb86d8d883c"
       },
       {
-        "dirty": true,
-        "headBlob": "24f32b3db9c79a89b7ce32f67becc4e5ce532afa",
+        "dirty": false,
+        "headBlob": "5f292340ec2aae7ab4174d812d19329ac203cf4c",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GraphRenderingTests.swift",
         "sha256": "aa0750b44afb9674893a754649d39fd66a5c148d5b248f0eff5e7ae623215b1c",
@@ -4045,8 +4045,8 @@
         "worktreeBlob": "5f292340ec2aae7ab4174d812d19329ac203cf4c"
       },
       {
-        "dirty": true,
-        "headBlob": "9d5538680b97366159b36e64f957f23c4104eab4",
+        "dirty": false,
+        "headBlob": "8ecead2ce4cc231a36a46cc20044e249c026fc7d",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GraphTooltipFormattingTests.swift",
         "sha256": "176fba7dfbffe28b96c2853fe9217e07ad6bc0ab96cab44436a94dbea1ba4554",
@@ -4056,19 +4056,19 @@
         "worktreeBlob": "8ecead2ce4cc231a36a46cc20044e249c026fc7d"
       },
       {
-        "dirty": true,
-        "headBlob": "4dcac17b29c705b57afae0b04122356e8bf3e1d4",
+        "dirty": false,
+        "headBlob": "4ad201d44e2924046f83028b4c0bdd7647c37008",
         "missing": false,
         "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
-        "sha256": "6f2040f894da56d450eab9d934e58bf1148c7c0f0c5823f2b04c66061a5ad592",
+        "sha256": "6613d0f752ce4a1b703e9b828e02815f0b87c83ff45212ef29f4e1ef7d2edc01",
         "symbols": [
           "GUIRenderingAndPerformanceTests"
         ],
-        "worktreeBlob": "b3558d2e10f3448a6d9f620eda49797149524ab8"
+        "worktreeBlob": "4ad201d44e2924046f83028b4c0bdd7647c37008"
       },
       {
-        "dirty": true,
-        "headBlob": "220958ddd1cb7428a65834baab3e66806af11b37",
+        "dirty": false,
+        "headBlob": "f35943cff2db8334da203b8c27ca5b10895422b4",
         "missing": false,
         "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
         "sha256": "8ed25bd43b78487dd611df69f4e4a479e77ee6d275df43e7f3c13938ce6e386a",
@@ -4079,7 +4079,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "d560242e2017079352e8896b1fd1d688ad4ddb90",
         "missing": false,
         "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
         "sha256": "1c408c6efa08971871aaeb357dc2f74ddcfcd8f0592ca9f6cc3fc7b06c0e62fe",
@@ -4091,7 +4091,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "f58345bde090444777eb3cbf610822c466ee2300"
+    "gitHead": "dda63c1b69feed1de38e2f0657504bc9cd8c883c"
   },
   "nodes": [
     {

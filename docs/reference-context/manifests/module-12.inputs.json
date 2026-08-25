@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "12",
+  "title": "Sidebar and Lovelace view navigation",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/LovelaceModels.swift",
+      "symbols": ["LovelaceView", "LovelaceResolvedIdentity", "LovelaceResolvedView", "LovelaceResolvedDashboard"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": ["HomeAssistantWebSocketClient", "fetchLovelaceConfig"]
+    },
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["HAFrontendLocalePreferences"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig", "GraphTimeRangePolicy", "CardColumnRule"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelacePresentation.swift",
+      "symbols": ["LovelacePresentationView", "LovelacePresentationDashboard", "LovelacePresentationTransformer"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel", "HistoryRequest"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardView.swift",
+      "symbols": ["DashboardView", "SidebarView"]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": ["CardRenderer", "HistoryGraphCard", "UnitGraph", "BitmapLineChart", "DetailHistoryGraph"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartMountedLifecycle", "DashboardGraphChartMountRegistry", "GraphChartRenderCoordinator"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRendering.swift",
+      "symbols": ["GraphRenderSeriesInput", "GraphBitmapRenderer", "GraphPreparedSeriesCache"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
+      "symbols": ["LovelaceModelTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
+      "symbols": ["LovelacePresentationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+      "symbols": ["HistoryStreamIntegrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
+      "symbols": ["GUIRenderingAndPerformanceTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
+      "symbols": ["DashboardBootstrapLifecycleTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
+      "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/data/lovelace/config/view.ts",
+      "symbols": ["LovelaceBaseViewConfig", "LovelaceViewConfig", "computeViewTitle", "computeViewIcon"]
+    },
+    {
+      "path": "src/data/lovelace/config/types.ts",
+      "symbols": ["LovelaceConfig", "fetchConfig"]
+    },
+    {
+      "path": "src/data/lovelace.ts",
+      "symbols": ["subscribeLovelaceUpdates"]
+    },
+    {
+      "path": "src/data/ws-user.ts",
+      "symbols": ["userCollection", "subscribeUser"]
+    },
+    {
+      "path": "src/state/auth-mixin.ts"
+    },
+    {
+      "path": "src/types.ts",
+      "symbols": ["CurrentUser"]
+    },
+    {
+      "path": "src/panels/lovelace/ha-panel-lovelace.ts",
+      "symbols": ["LovelacePanel"]
+    },
+    {
+      "path": "src/panels/lovelace/hui-root.ts",
+      "symbols": ["HUIRoot"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view.ts",
+      "symbols": ["HUIView"]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-view-element.ts",
+      "symbols": ["createViewElement"]
+    },
+    {
+      "path": "src/panels/lovelace/views/get-view-type.ts",
+      "symbols": ["getViewType"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-masonry-view.ts",
+      "symbols": ["MasonryView"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-panel-view.ts",
+      "symbols": ["PanelView"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view-container.ts",
+      "symbols": ["HuiViewContainer"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view-header.ts",
+      "symbols": ["HuiViewHeader"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "symbols": ["HuiHistoryGraphCard"]
+    },
+    {
+      "path": "src/common/navigate.ts",
+      "symbols": ["navigate", "goBack"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "symbols": ["user"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/commands.js",
+      "symbols": ["getUser"]
+    }
+  ],
+  "followPackages": ["home-assistant-js-websocket"],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}

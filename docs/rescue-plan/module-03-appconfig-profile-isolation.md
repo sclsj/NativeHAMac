@@ -1,5 +1,12 @@
 # Module 03: AppConfig - Isolate Server Profiles And Personal Overrides
 
+> **Status: intentionally skipped; not complete.** The user decided on
+> 2026-08-25 that NativeHA targets one fixed personal Home Assistant deployment.
+> Keep the existing fixed server candidates and local token-file bootstrap; do
+> not implement profile switching, migration, or a settings UI. The remainder
+> of this file is retained as historical planning only and is superseded by
+> `docs/user-deviations.md`.
+
 Original Claude module: `3. AppConfig.swift: Remove All Hardcoded Personal Data`.
 
 Priority: high, but not a prerequisite for module 02. This should land before broadening NativeHA beyond the current prototype machine.

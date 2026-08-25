@@ -8,10 +8,12 @@ Turn `DashboardViewModel` from a large mixed coordinator into a predictable appl
 - HA entity states and service calls.
 - WebSocket subscriptions.
 - Configured graph history ranges.
-- Server profiles and typed `AppConfig` policies.
+- The fixed server/bootstrap plus typed `AppConfig` policies.
 - Error, retry, and loading states.
 
-This module should not be treated as a visual redesign. It is the integration layer that lets Modules 01, 02, 03, 04, 06, 07, 08, and 12 work without duplicating business rules across SwiftUI views.
+This module should not be treated as a visual redesign. It is the integration
+layer that lets Modules 01, 02, 04, 06, 07, 08, and 12 work without duplicating
+business rules across SwiftUI views. Module 03 is intentionally absent.
 
 ## Current-Code Findings
 
@@ -27,7 +29,9 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/Dashboa
 - `displayState(for:)`, `displayName(for:)`, `domain(of:)`, and `canToggle(_:)` duplicate rules that should be centralized and aligned with HA frontend helpers.
 - `canToggle(_:)` currently recognizes only `switch`, `fan`, `input_boolean`, and `automation`. HA frontend also treats domains such as `light`, `group`, `humidifier`, and `valve` as toggle-capable when the entity is available.
 - There is no clear retry model. A failed Lovelace load, failed history load, and failed realtime subscription all collapse into limited console/error behavior.
-- There is no explicit cancellation boundary for obsolete history requests when switching views, reconnecting, or changing server profiles.
+- Module 12 owns cancellation for obsolete history requests when switching
+  views. Module 05 must preserve that boundary while decomposing reconnect and
+  dashboard-lifetime ownership; profile switching is intentionally absent.
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
 
@@ -56,9 +60,10 @@ Several original findings above are historical and must not drive new work:
   retain their independent failure handling and injected test seams.
 
 The remaining Module 05 work is orchestration decomposition, explicit loading
-and retry state, active-view ownership, entity/display/service collaborators,
-and profile transition cleanup. Research must refresh all current-code line
-hints before implementation.
+and retry state, preservation of Module 12 active-view ownership, and
+entity/display/service collaborators. Module 03 is intentionally skipped, so
+there is no profile-transition cleanup. Research must refresh all current-code
+line hints before implementation.
 
 ## Reference Implementation Paths
 
@@ -100,8 +105,10 @@ Recommended ownership:
 - `ServiceController`
   - Encapsulates calls such as toggle, climate target temperature, fan percentage, and automation trigger.
   - Keeps REST service-call behavior initially, but has one clear place to move to WebSocket `call_service` later.
-- `ServerProfile`
-  - Comes from Module 03 and owns server connection state; approved product and presentation policies remain typed in `AppConfig.swift`.
+- Fixed bootstrap ownership
+  - Keep the existing server URL candidates and local token-file path without
+    adding a profile model, migration, switching, or settings UI. Approved
+    product and presentation policies remain typed in `AppConfig.swift`.
 
 ## Implementation Tasks
 
@@ -142,7 +149,9 @@ Recommended ownership:
      projection stores, and graph revision feeds behind
      `HistoryCoordinator.subscribe(card:)`-style APIs.
    - Preserve unsubscribe handles and accepted-publication ordering.
-   - Cancel view-owned history subscriptions when the active view changes, when the server profile changes, and when the WebSocket reconnects. Shared low-priority prefetch/cache ownership is separate.
+   - Preserve Module 12 cancellation when the active view changes and reconcile
+     appropriately when the WebSocket reconnects. Shared low-priority
+     prefetch/cache ownership is separate; there is no profile-change path.
 
 8. Extract the implemented realtime state subscription lifecycle.
    - Preserve the Module 02 multiplexer subscription and its unsubscribe token.
@@ -193,7 +202,9 @@ Build fake REST/bootstrap inputs, the Module 02 dispatcher, a fake history coord
 
 - Exercise successful bootstrap, states-without-Lovelace partial data, Lovelace-with-failed-history partial data, realtime disconnect/reconnect, and retry recovery. Assert the published phase, retained data, visible error, and exact subscription set at every step.
 - Verify a state subscription and several card history subscriptions coexist, reconnect exactly once, and do not duplicate entity rows or samples.
-- Switch active views and profiles, then disappear the owning dashboard. Obsolete bootstrap/history/realtime tasks must cancel; late callbacks must not publish; disappeared views must stop receiving updates.
+- Switch active views, reconnect, then disappear the owning dashboard.
+  Obsolete bootstrap/history/realtime tasks must cancel; late callbacks must
+  not publish; disappeared views must stop receiving updates.
 - Verify background parsing/preparation feeds an immutable/prepared result to the main actor. Add an executor/thread or signpost probe only if reliable in Swift 5.6; the contract is that bulk parsing/transformation is not accidentally moved onto the main actor while observable publication remains main-actor isolated.
 
 ### GUI rendering and visual regression
@@ -212,23 +223,30 @@ Exercise state changes by setting the view-model phase directly rather than slee
 
 - Generate a `10,000`-entity initial state fixture and repeated `1,000`-update bursts outside measured blocks. Measure parsing/preparation separately from the short `@MainActor` apply/publish phase, and test cold bootstrap separately from warmed incremental updates.
 - Measure burst coalescing, active-view subscription reconciliation, and retry/reconnect cleanup with `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Warm caches for warm paths, consume the resulting state/card counts, and prefer stored XCTest baselines to tight hard-coded milliseconds.
-- Repeat dashboard appearance/disappearance, view switching, profile switching, and disconnect/reconnect (at least `100` deterministic fake cycles). Assert task/subscription registries return to baseline, weakly held coordinators can deallocate, and memory does not trend upward after cleanup.
+- Repeat dashboard appearance/disappearance, view switching, and
+  disconnect/reconnect (at least `100` deterministic fake cycles). Assert
+  task/subscription registries return to baseline, weakly held coordinators can
+  deallocate, and memory does not trend upward after cleanup.
 - Use signpost metrics only if the implementation instruments a meaningful bootstrap or publication interval. `XCTHitchMetric` and true event-to-frame responsiveness are unavailable in Xcode 13.4.1; defer them to a later XCUITest target under newer Xcode.
 
 ### Manual QA
 
 - Load the intended Home dashboard once and confirm its configurable selector produces `1h`, `3h`, and `12h` graph ranges while realtime state updates continue.
 - Disconnect/restore the server and verify recoverable partial/reconnecting/disconnected UI, retained usable data where intended, and recovery without duplicate rows, samples, or subscriptions.
-- Switch genuine views and profiles and close/reopen the dashboard while watching diagnostics for canceled work. Compare only the module-owned shell/status behavior with hass-frontend; card parity is accepted in the card modules.
+- Switch genuine views and close/reopen the dashboard while watching
+  diagnostics for canceled work. Compare only the module-owned shell/status
+  behavior with hass-frontend; card parity is accepted in the card modules.
 
 ## Dependencies
 
 - Module 02 is required before concurrent WebSocket subscription behavior can be reliable.
 - Module 01 is required before history can be moved off REST.
-- Module 03 should land before server-profile and typed `AppConfig` policy decisions are removed from view-model internals.
+- Module 03 is intentionally skipped. Module 05 assumes one fixed server and
+  must not add profile-transition work.
 - Module 04 should land before active view routing is complete.
 - Module 06 should land before display/toggle helpers are fully removed from this type.
-- Module 12 should land with or shortly after active view state.
+- Module 12 must be complete before Module 05 and supplies the active-view
+  state/ownership contract that this decomposition preserves.
 
 ## Risks
 
