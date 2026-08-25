@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "05",
+  "title": "Dashboard orchestration decomposition and lifecycle state",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": ["HAState", "HAConfig", "HACurrentUser", "HAFrontendLocalePreferences"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
+      "symbols": ["HomeAssistantRESTClient", "fetchConfig", "fetchStates", "callService"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": ["HomeAssistantWebSocketClient", "fetchLovelaceConfig", "fetchCurrentUser", "subscribeToStateChanges", "subscribeHistoryStatesTimeWindow"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+      "symbols": ["HomeAssistantWebSocketConnection", "HAWebSocketConnectionState", "HAWebSocketSubscription"]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
+      "symbols": ["HAHistoryStreamOwnerStatus", "HAHistoryStreamSubscription", "HAHistoryStreamCoordinator"]
+    },
+    {
+      "path": "Sources/NativeHACore/LovelaceModels.swift",
+      "symbols": ["LovelaceConfig", "LovelaceResolvedIdentity", "LovelaceResolvedDashboard"]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": ["AppConfig", "GraphTimeRangePolicy", "WebSocketPolicy", "LovelaceNavigationPolicy", "CardColumnRule"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": ["DashboardViewModel", "HistoryRequest", "DashboardOwnerCandidate", "DashboardOwnerDebugSnapshot"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardView.swift",
+      "symbols": ["DashboardView", "SidebarView"]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": ["CardRenderer", "EntitiesCard", "EntityRow", "HistoryGraphCard", "EntityDetailSheet", "DetailHistoryGraph"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelacePresentation.swift",
+      "symbols": ["LovelacePresentationDashboard", "LovelacePresentationTransformer"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelaceViewNavigation.swift",
+      "symbols": ["LovelaceViewNavigation", "LovelaceNavigationSelectionPersistence"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRenderScheduling.swift",
+      "symbols": ["GraphHistoryRevisionFeed", "GraphChartRenderCoordinator", "GraphChartMountedLifecycle", "DashboardGraphChartMountRegistry"]
+    },
+    {
+      "path": "Sources/NativeHAMac/GraphRendering.swift",
+      "symbols": ["GraphRenderSeriesInput", "GraphPreparedSeriesCache", "GraphBitmapRenderer"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
+      "symbols": ["DashboardBootstrapLifecycleTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
+      "symbols": ["HistoryStreamIntegrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelaceViewNavigationTests.swift",
+      "symbols": ["LovelaceViewNavigationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
+      "symbols": ["LovelacePresentationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift",
+      "symbols": ["GUIRenderingAndPerformanceTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
+      "symbols": ["HomeAssistantWebSocketConnectionTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantRESTClientTests.swift",
+      "symbols": ["HomeAssistantRESTClientTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantHistoryLiveSmokeTests.swift",
+      "symbols": ["HomeAssistantHistoryLiveSmokeTests"]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/panels/lovelace/ha-panel-lovelace.ts",
+      "symbols": ["LovelacePanel"]
+    },
+    {
+      "path": "src/panels/lovelace/hui-root.ts",
+      "symbols": ["HUIRoot"]
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view.ts",
+      "symbols": ["HUIView"]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-history-graph-card.ts",
+      "symbols": ["HuiHistoryGraphCard"]
+    },
+    {
+      "path": "src/data/lovelace.ts",
+      "symbols": ["subscribeLovelaceUpdates", "getLovelaceCollection"]
+    },
+    {
+      "path": "src/data/lovelace/config/types.ts",
+      "symbols": ["fetchConfig", "LovelaceConfig"]
+    },
+    {
+      "path": "src/layouts/hass-loading-screen.ts",
+      "symbols": ["HassLoadingScreen"]
+    },
+    {
+      "path": "src/layouts/hass-error-screen.ts",
+      "symbols": ["HassErrorScreen"]
+    },
+    {
+      "path": "src/common/entity/compute_state_display.ts",
+      "symbols": ["computeStateDisplay", "computeStateDisplayFromEntityAttributes"]
+    },
+    {
+      "path": "src/common/entity/compute_state_name.ts",
+      "symbols": ["computeStateName", "computeStateNameFromEntityAttributes"]
+    },
+    {
+      "path": "src/common/entity/compute_domain.ts",
+      "symbols": ["computeDomain"]
+    },
+    {
+      "path": "src/common/entity/can_toggle_domain.ts",
+      "symbols": ["canToggleDomain"]
+    },
+    {
+      "path": "src/common/entity/can_toggle_state.ts",
+      "symbols": ["canToggleState"]
+    },
+    {
+      "path": "src/components/entity/ha-entity-toggle.ts",
+      "symbols": ["HaEntityToggle"]
+    },
+    {
+      "path": "src/panels/lovelace/common/entity/toggle-entity.ts",
+      "symbols": ["toggleEntity"]
+    },
+    {
+      "path": "src/panels/lovelace/common/entity/turn-on-off-entity.ts",
+      "symbols": ["turnOnOffEntity"]
+    },
+    {
+      "path": "src/data/service.ts",
+      "symbols": ["serviceCallWillDisconnect"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/entities.js",
+      "symbols": ["processEvent", "entitiesColl", "subscribeEntities"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/collection.js",
+      "symbols": ["getCollection"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+      "symbols": ["Connection"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/commands.js",
+      "symbols": ["getStates", "callService"]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "symbols": ["states", "callService"]
+    }
+  ],
+  "followPackages": ["home-assistant-js-websocket"],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}
