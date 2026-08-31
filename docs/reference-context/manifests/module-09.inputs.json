@@ -21,7 +21,11 @@
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-      "symbols": ["DashboardViewModel", "startHistory"]
+      "symbols": ["DashboardViewModel", "beginHistoryStartup", "runHistoryStartup"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardHistoryCoordinator.swift",
+      "symbols": ["DashboardHistoryCoordinator"]
     },
     {
       "path": "Sources/NativeHAMac/GraphRendering.swift",

@@ -22,6 +22,10 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
     private var attemptedCommandIDs: [Int] = []
     private var suspendNextSend = false
     private var suspendedSend: CheckedContinuation<Void, Never>?
+    private var suspendNextConnect = false
+    private var suspendedConnect: CheckedContinuation<Void, Never>?
+    private var suspendNextDisconnect = false
+    private var suspendedDisconnect: CheckedContinuation<Void, Never>?
 
     let automaticAuthentication: Bool
     let automaticSubscriptionAcknowledgement: Bool
@@ -44,6 +48,12 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
     }
 
     func connect() async throws {
+        if suspendNextConnect {
+            suspendNextConnect = false
+            await withCheckedContinuation { continuation in
+                suspendedConnect = continuation
+            }
+        }
         connected = true
         if automaticAuthentication {
             deliver(.success(try frame(for: ["type": .string("auth_required")])))
@@ -134,6 +144,12 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
 
     func disconnect() async {
         disconnectCalls += 1
+        if suspendNextDisconnect {
+            suspendNextDisconnect = false
+            await withCheckedContinuation { continuation in
+                suspendedDisconnect = continuation
+            }
+        }
         connected = false
         if let receiver = receiver {
             self.receiver = nil
@@ -171,13 +187,41 @@ actor ScriptedWebSocketTransport: HomeAssistantWebSocketTransport {
         suspendNextSend = true
     }
 
+    func arrangeNextConnectSuspension() {
+        suspendNextConnect = true
+    }
+
+    func arrangeNextDisconnectSuspension() {
+        suspendNextDisconnect = true
+    }
+
     func hasSuspendedSend() -> Bool {
         suspendedSend != nil
+    }
+
+    func hasSuspendedConnect() -> Bool {
+        suspendedConnect != nil
+    }
+
+    func hasSuspendedDisconnect() -> Bool {
+        suspendedDisconnect != nil
     }
 
     func resumeSuspendedSend() {
         let continuation = suspendedSend
         suspendedSend = nil
+        continuation?.resume()
+    }
+
+    func resumeSuspendedConnect() {
+        let continuation = suspendedConnect
+        suspendedConnect = nil
+        continuation?.resume()
+    }
+
+    func resumeSuspendedDisconnect() {
+        let continuation = suspendedDisconnect
+        suspendedDisconnect = nil
         continuation?.resume()
     }
 

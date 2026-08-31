@@ -661,6 +661,186 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await failedSendConnection.disconnect()
     }
 
+    func testDisconnectDuringHeldReconnectConnectCannotInstallStaleReceiveLoop() async throws {
+        let installed = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let reconnecting = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let factory = ScriptedTransportFactory([installed, reconnecting])
+        let connection = makeConnection(factory: factory, reconnectDelay: { _ in 0 })
+        try await connection.connect()
+
+        // Hold replacement connect after the connection actor has installed
+        // that candidate transport. Disconnect invalidates its generation
+        // while connect is suspended; a late continuation may never begin
+        // authentication, start a receiver, or transition back to ready.
+        await reconnecting.arrangeNextConnectSuspension()
+        await installed.pushFailure()
+        try await waitUntilDeadline(timeout: 2) { factory.count() == 2 }
+        try await waitUntilDeadline(timeout: 2) { await reconnecting.hasSuspendedConnect() }
+
+        await connection.disconnect()
+        let synchronouslyDisconnected = await connection.debugSnapshot()
+        XCTAssertEqual(synchronouslyDisconnected.state, .disconnected)
+        XCTAssertEqual(synchronouslyDisconnected.receiveLoopCount, 0)
+
+        await reconnecting.resumeSuspendedConnect()
+        try await waitUntilDeadline(timeout: 2) {
+            let metrics = await reconnecting.metrics()
+            return metrics.disconnectCalls >= 2 && metrics.activeReceives == 0
+        }
+
+        let afterLateAuthentication = await connection.debugSnapshot()
+        XCTAssertEqual(afterLateAuthentication.state, .disconnected)
+        XCTAssertEqual(afterLateAuthentication.pendingCommandCount, 0)
+        XCTAssertEqual(afterLateAuthentication.subscriptionCount, 0)
+        XCTAssertEqual(afterLateAuthentication.wireSubscriptionCount, 0)
+        XCTAssertEqual(afterLateAuthentication.deliveryOwnerCount, 0)
+        XCTAssertEqual(afterLateAuthentication.receiveLoopCount, 0)
+    }
+
+    func testDisconnectDuringHeldAuthenticationSendCannotInstallStaleReceiveLoop() async throws {
+        let obsolete = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let replacement = ScriptedWebSocketTransport(automaticAuthentication: true)
+        await obsolete.arrangeNextSendSuspension()
+        let factory = ScriptedTransportFactory([obsolete, replacement])
+        let connection = makeConnection(factory: factory, reconnectDelay: { _ in 0 })
+
+        let obsoleteConnect = Task { () -> Error? in
+            do {
+                try await connection.connect()
+                return nil
+            } catch {
+                return error
+            }
+        }
+        try await waitUntilDeadline(timeout: 2) { await obsolete.hasSuspendedSend() }
+
+        // The scripted send deliberately ignores task cancellation. Revoking
+        // the generation while authentication is suspended must prevent that
+        // continuation from installing a receiver or returning to ready.
+        await connection.disconnect()
+        let revoked = await connection.debugSnapshot()
+        XCTAssertEqual(revoked.state, .disconnected)
+        XCTAssertEqual(revoked.receiveLoopCount, 0)
+
+        await obsolete.resumeSuspendedSend()
+        let obsoleteError = await obsoleteConnect.value
+        XCTAssertNotNil(obsoleteError)
+        let afterLateAuthentication = await connection.debugSnapshot()
+        XCTAssertEqual(afterLateAuthentication.state, .disconnected)
+        XCTAssertEqual(afterLateAuthentication.receiveLoopCount, 0)
+        XCTAssertEqual(factory.count(), 1)
+
+        try await connection.connect()
+        let replacementReady = await connection.debugSnapshot()
+        XCTAssertEqual(replacementReady.state, .ready)
+        XCTAssertEqual(replacementReady.receiveLoopCount, 1)
+        XCTAssertEqual(factory.count(), 2)
+
+        await connection.disconnect()
+        let final = await connection.debugSnapshot()
+        XCTAssertEqual(final.state, .disconnected)
+        XCTAssertEqual(final.pendingCommandCount, 0)
+        XCTAssertEqual(final.subscriptionCount, 0)
+        XCTAssertEqual(final.wireSubscriptionCount, 0)
+        XCTAssertEqual(final.deliveryOwnerCount, 0)
+        XCTAssertEqual(final.receiveLoopCount, 0)
+    }
+
+    func testLateCancelledConnectCannotClearNewerHeldConnectTaskSlot() async throws {
+        let obsolete = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let current = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let unexpectedThird = ScriptedWebSocketTransport(automaticAuthentication: true)
+        await obsolete.arrangeNextConnectSuspension()
+        await current.arrangeNextConnectSuspension()
+        let factory = ScriptedTransportFactory([obsolete, current, unexpectedThird])
+        let connection = makeConnection(factory: factory, reconnectDelay: { _ in 0 })
+
+        let obsoleteConnect = Task { () -> Error? in
+            do {
+                try await connection.connect()
+                return nil
+            } catch {
+                return error
+            }
+        }
+        try await waitUntilDeadline(timeout: 2) {
+            let suspended = await obsolete.hasSuspendedConnect()
+            return factory.count() == 1 && suspended
+        }
+
+        await connection.disconnect()
+        let currentConnect = Task { try await connection.connect() }
+        try await waitUntilDeadline(timeout: 2) {
+            let suspended = await current.hasSuspendedConnect()
+            return factory.count() == 2 && suspended
+        }
+
+        // This continuation ignores cancellation and resumes after B owns the
+        // connection task slot. Its outer connect caller may clear only A.
+        await obsolete.resumeSuspendedConnect()
+        _ = await obsoleteConnect.value
+        let joiningConnect = Task { try await connection.connect() }
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(factory.count(), 2, "A stale completion erased B's task slot")
+
+        await current.resumeSuspendedConnect()
+        try await currentConnect.value
+        try await joiningConnect.value
+        let ready = await connection.debugSnapshot()
+        XCTAssertEqual(ready.state, .ready)
+        XCTAssertEqual(ready.receiveLoopCount, 1)
+        XCTAssertEqual(factory.count(), 2)
+
+        await connection.disconnect()
+        let final = await connection.debugSnapshot()
+        XCTAssertEqual(final.state, .disconnected)
+        XCTAssertEqual(final.pendingCommandCount, 0)
+        XCTAssertEqual(final.subscriptionCount, 0)
+        XCTAssertEqual(final.wireSubscriptionCount, 0)
+        XCTAssertEqual(final.deliveryOwnerCount, 0)
+        XCTAssertEqual(final.receiveLoopCount, 0)
+    }
+
+    func testConnectDuringHeldDisconnectInstallsRealOwnerAndOldCleanupCannotOverwriteIt() async throws {
+        let installed = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let replacement = ScriptedWebSocketTransport(automaticAuthentication: true)
+        let factory = ScriptedTransportFactory([installed, replacement])
+        let connection = makeConnection(factory: factory, reconnectDelay: { _ in 0 })
+        try await connection.connect()
+        await installed.arrangeNextDisconnectSuspension()
+
+        let disconnect = Task { await connection.disconnect() }
+        try await waitUntilDeadline(timeout: 2) { await installed.hasSuspendedDisconnect() }
+        let revoked = await connection.debugSnapshot()
+        XCTAssertEqual(revoked.state, .disconnected)
+        XCTAssertEqual(revoked.receiveLoopCount, 0)
+
+        let replacementConnect = Task { try await connection.connect() }
+        try await replacementConnect.value
+        let readyWhileOldDisconnectIsHeld = await connection.debugSnapshot()
+        XCTAssertEqual(factory.count(), 2)
+        XCTAssertEqual(readyWhileOldDisconnectIsHeld.state, .ready)
+        XCTAssertEqual(readyWhileOldDisconnectIsHeld.receiveLoopCount, 1)
+        let replacementMetrics = await replacement.metrics()
+        XCTAssertEqual(replacementMetrics.activeReceives, 1)
+
+        await installed.resumeSuspendedDisconnect()
+        await disconnect.value
+        let afterOldCleanup = await connection.debugSnapshot()
+        XCTAssertEqual(afterOldCleanup.state, .ready)
+        XCTAssertEqual(afterOldCleanup.receiveLoopCount, 1)
+        XCTAssertEqual(factory.count(), 2)
+
+        await connection.disconnect()
+        let final = await connection.debugSnapshot()
+        XCTAssertEqual(final.state, .disconnected)
+        XCTAssertEqual(final.pendingCommandCount, 0)
+        XCTAssertEqual(final.subscriptionCount, 0)
+        XCTAssertEqual(final.wireSubscriptionCount, 0)
+        XCTAssertEqual(final.deliveryOwnerCount, 0)
+        XCTAssertEqual(final.receiveLoopCount, 0)
+    }
+
     func testTypedSubscriptionDecodesLargeEventDirectlyAndPreservesAllSamples() async throws {
         let transport = ScriptedWebSocketTransport(
             automaticAuthentication: true,

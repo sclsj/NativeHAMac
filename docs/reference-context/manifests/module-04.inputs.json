@@ -28,6 +28,10 @@
       "symbols": ["DashboardViewModel", "HistoryRequest"]
     },
     {
+      "path": "Sources/NativeHAMac/LovelaceDashboardStore.swift",
+      "symbols": ["LovelaceDashboardStore"]
+    },
+    {
       "path": "Sources/NativeHAMac/DashboardView.swift",
       "symbols": ["DashboardView"]
     },

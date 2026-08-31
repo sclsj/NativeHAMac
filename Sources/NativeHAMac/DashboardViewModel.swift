@@ -9,12 +9,8 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var selectedViewIdentity: LovelaceResolvedIdentity?
     @Published private(set) var hasLoadedDashboard: Bool
     @Published var states: [String: HAState] = [:]
-    @Published var histories: [String: [HAHistorySeries]] = [:]
-    @Published var detailHistories: [String: HAHistorySeries] = [:]
-    @Published var historyStatuses: [String: HAHistoryStreamOwnerStatus] = [:]
-    @Published var detailHistoryStatuses: [String: HAHistoryStreamOwnerStatus] = [:]
-    @Published var status = "Starting"
-    @Published var errorMessage: String?
+    @Published private var historyPublicationRevision: UInt64 = 0
+    @Published private(set) var lifecycle = DashboardLifecycle()
     @Published var activeBaseURL: URL?
     @Published var showEntityIDs = AppConfig.showEntityIDsByDefault
     @Published var selectedEntityID: String?
@@ -22,26 +18,63 @@ final class DashboardViewModel: ObservableObject {
     private(set) var frontendLocalePreferences: HAFrontendLocalePreferences?
     private(set) var entityDisplayPrecisions: [String: Int] = [:]
 
+    private nonisolated let lifetimeAuthority: DashboardLifetimeAuthority
+    private let emergencyOwnershipBag: DashboardEmergencyOwnershipBag
     private var restClient: HomeAssistantRESTClient?
-    private var webSocketClient: HomeAssistantWebSocketClient?
-    private var stateSubscription: HAWebSocketSubscription?
-    private var connectionStatusTask: Task<Void, Never>?
-    private var historySubscriptions: [String: HAHistoryStreamSubscription] = [:]
-    private var historyStartupTasks: [UUID: HistoryStartupTask] = [:]
-    private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] = [:]
-    private var detailHistoryStartupTasks: [UUID: DetailHistoryStartupTask] = [:]
-    private var historyGenerations: [String: UUID] = [:]
-    private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] = [:]
-    private var desiredHistoryKeys: Set<String> = []
-    private var historyReconciliationEpoch: UInt64 = 0
+    private var webSocketClient: HomeAssistantWebSocketClient? {
+        didSet { emergencyOwnershipBag.setWebSocketClient(webSocketClient) }
+    }
+    private var entityCoordinator: HAEntitySubscriptionCoordinator? {
+        didSet { emergencyOwnershipBag.setEntityCoordinator(entityCoordinator) }
+    }
+    private var lovelaceUpdateSubscription: HAWebSocketSubscription? {
+        didSet { emergencyOwnershipBag.setLovelaceSubscription(lovelaceUpdateSubscription) }
+    }
+    private var lovelaceFetchTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(lovelaceFetchTask, for: .lovelaceFetch) }
+    }
+    private var latestLovelaceFetchGeneration: UInt64 = 0
+    private var connectionStatusTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(connectionStatusTask, for: .connectionStatus) }
+    }
+    private var connectionWasNonReady = false
+    private var bootstrapTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(bootstrapTask, for: .bootstrap) }
+    }
+    private var lifecycleTransitionTail: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(lifecycleTransitionTail, for: .lifecycleTail) }
+    }
+    private var startTransitionTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(startTransitionTask, for: .startTransition) }
+    }
+    private var retryTransitionTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(retryTransitionTask, for: .retryTransition) }
+    }
+    private var reconnectTask: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(reconnectTask, for: .reconnect) }
+    }
+    private var latestLifecycleTransitionSequence: UInt64 = 0
+    private var trackedStartTransitionSequence: UInt64?
+    private var trackedRetryTransitionSequence: UInt64?
+    private let historyCoordinator = DashboardHistoryCoordinator()
     private var latestConfigRequestSequence: UInt64 = 0
     private var latestNavigationRequestSequence: UInt64 = 0
     private var latestBootstrapSequence: UInt64 = 0
-    private var latestBootstrapClient: HomeAssistantWebSocketClient?
+    private var latestBootstrapClient: HomeAssistantWebSocketClient? {
+        didSet { emergencyOwnershipBag.setLatestBootstrapClient(latestBootstrapClient) }
+    }
+    private var latestBootstrapEntityCoordinator: HAEntitySubscriptionCoordinator? {
+        didSet { emergencyOwnershipBag.setCandidateEntityCoordinator(latestBootstrapEntityCoordinator) }
+    }
     private var installedBootstrapSequence: UInt64?
-    private var installedBootstrapClient: HomeAssistantWebSocketClient?
+    private var installedBootstrapClient: HomeAssistantWebSocketClient? {
+        didSet { emergencyOwnershipBag.setInstalledBootstrapClient(installedBootstrapClient) }
+    }
     private var latestDashboardOwnerOperationSequence: UInt64 = 0
-    private var dashboardOwnerOperationTail: Task<Void, Never>?
+    private var dashboardOwnerOperationTail: Task<Void, Never>? {
+        didSet { emergencyOwnershipBag.setTask(dashboardOwnerOperationTail, for: .dashboardOwnerTail) }
+    }
+    private let dashboardOwnerOperationRegistry: DashboardOwnerOperationRegistry
     private var latestQueuedDashboardCandidate: DashboardOwnerCandidate?
     private var desiredSelectedViewIdentity: LovelaceResolvedIdentity?
     private var selectedViewLocator: LovelaceViewLocator?
@@ -51,16 +84,17 @@ final class DashboardViewModel: ObservableObject {
     private var currentUserID: String?
     private let navigationSelectionPersistence: LovelaceNavigationSelectionPersistence
     private(set) var presentationDashboard: LovelacePresentationDashboard
+    private let lovelaceStore: LovelaceDashboardStore
+    private let serviceController: DashboardServiceController
     let graphChartMountRegistry = DashboardGraphChartMountRegistry()
-    private var detailHistoryGenerations: [String: UUID] = [:]
-    private var desiredDetailHistoryKeys: Set<String> = []
     private let historyNow: @Sendable () -> Date
     let graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata?
     private let historyProcessingHook: @Sendable () async -> Void
     private let dashboardOwnerCandidateHook: @Sendable () async -> Void
+    private let lifecycleBootstrapClientOverride: HomeAssistantWebSocketClient?
+    private var emergencyDetachAction: (() -> DashboardEmergencyDeinitCleanup)?
     private var hasStarted = false
-    private var pendingStates: [String: HAState] = [:]
-    private var stateFlushGeneration: UInt64?
+    private var appGeneration: UInt64 = 0
     private let isoFormatter = ISO8601DateFormatter()
     private let fractionalISOFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -100,8 +134,20 @@ final class DashboardViewModel: ObservableObject {
         historyNow: @escaping @Sendable () -> Date = { Date() },
         graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
         historyProcessingHook: @escaping @Sendable () async -> Void = {},
-        dashboardOwnerCandidateHook: @escaping @Sendable () async -> Void = {}
+        dashboardOwnerCandidateHook: @escaping @Sendable () async -> Void = {},
+        lifecycleBootstrapClientOverride: HomeAssistantWebSocketClient? = nil
     ) {
+        let lifetimeAuthority = DashboardLifetimeAuthority()
+        let dashboardOwnerOperationRegistry = DashboardOwnerOperationRegistry()
+        self.lifetimeAuthority = lifetimeAuthority
+        self.dashboardOwnerOperationRegistry = dashboardOwnerOperationRegistry
+        self.emergencyOwnershipBag = DashboardEmergencyOwnershipBag(
+            lifetimeAuthority: lifetimeAuthority,
+            dashboardOwnerOperationRegistry: dashboardOwnerOperationRegistry
+        )
+        self.serviceController = DashboardServiceController(
+            lifetimeAuthority: lifetimeAuthority
+        )
         let initialConfig = LovelaceConfig(views: initialViews)
         let initialResolved = LovelaceResolvedDashboard(source: initialConfig)
         let initialPresentation = LovelacePresentationDashboard(resolved: initialResolved)
@@ -127,6 +173,7 @@ final class DashboardViewModel: ObservableObject {
         }
         let initialSelection = initialNavigation.startupSelection(persisted: persistedLocator)
         self.presentationDashboard = initialPresentation
+        self.lovelaceStore = LovelaceDashboardStore(config: initialConfig)
         self.navigationSelectionPersistence = persistence
         self.currentUserID = currentUserID
         self.hasLoadedDashboard = !initialViews.isEmpty
@@ -151,6 +198,115 @@ final class DashboardViewModel: ObservableObject {
         self.graphAxisTimeFormattingOverride = graphAxisTimeFormattingOverride
         self.historyProcessingHook = historyProcessingHook
         self.dashboardOwnerCandidateHook = dashboardOwnerCandidateHook
+        self.lifecycleBootstrapClientOverride = lifecycleBootstrapClientOverride
+        self.emergencyDetachAction = nil
+        let emergencyBag = emergencyOwnershipBag
+        let emergencyHistory = historyCoordinator
+        let emergencyService = serviceController
+        let emergencyMounts = graphChartMountRegistry
+        emergencyService.setTaskObserver { tasks in
+            emergencyBag.setServiceTasks(tasks)
+        }
+        // Property observers do not run for assignments performed by init.
+        // Seed the emergency mirror explicitly for directly injected clients.
+        emergencyBag.setWebSocketClient(webSocketClient)
+        self.emergencyDetachAction = {
+            DashboardEmergencyDeinitCleanup(
+                ownership: emergencyBag.detachSynchronously(),
+                historyCoordinator: emergencyHistory,
+                serviceController: emergencyService,
+                mountRegistry: emergencyMounts
+            )
+        }
+    }
+
+    var status: String { lifecycle.compatibilityStatus }
+
+    nonisolated func acceptsLifetimeWork() -> Bool {
+        lifetimeAuthority.acceptsWork
+    }
+
+    nonisolated var lifetimeAuthorityForTesting: DashboardLifetimeAuthority {
+        lifetimeAuthority
+    }
+
+    var errorMessage: String? { lifecycle.primaryErrorMessage }
+
+    var componentFailures: [(DashboardComponent, String)] {
+        lifecycle.componentFailures
+    }
+
+    var histories: [String: [HAHistorySeries]] {
+        get { historyCoordinator.histories }
+        set { historyCoordinator.histories = newValue; historyPublicationRevision &+= 1 }
+    }
+
+    var detailHistories: [String: HAHistorySeries] {
+        get { historyCoordinator.detailHistories }
+        set { historyCoordinator.detailHistories = newValue; historyPublicationRevision &+= 1 }
+    }
+
+    var historyStatuses: [String: HAHistoryStreamOwnerStatus] {
+        get { historyCoordinator.statuses }
+        set { historyCoordinator.statuses = newValue; historyPublicationRevision &+= 1 }
+    }
+
+    var detailHistoryStatuses: [String: HAHistoryStreamOwnerStatus] {
+        get { historyCoordinator.detailStatuses }
+        set { historyCoordinator.detailStatuses = newValue; historyPublicationRevision &+= 1 }
+    }
+
+    private var historySubscriptions: [String: HAHistoryStreamSubscription] {
+        get { historyCoordinator.subscriptions }
+        set {
+            historyCoordinator.subscriptions = newValue
+            emergencyOwnershipBag.setHistorySubscriptions(Array(newValue.values))
+        }
+    }
+    private var historyStartupTasks: [UUID: HistoryStartupTask] {
+        get { historyCoordinator.startupTasks }
+        set {
+            historyCoordinator.startupTasks = newValue
+            emergencyOwnershipBag.setHistoryStartupTasks(newValue.values.map(\.task))
+        }
+    }
+    private var detailHistorySubscriptions: [String: HAHistoryStreamSubscription] {
+        get { historyCoordinator.detailSubscriptions }
+        set {
+            historyCoordinator.detailSubscriptions = newValue
+            emergencyOwnershipBag.setDetailHistorySubscriptions(Array(newValue.values))
+        }
+    }
+    private var detailHistoryStartupTasks: [UUID: DetailHistoryStartupTask] {
+        get { historyCoordinator.detailStartupTasks }
+        set {
+            historyCoordinator.detailStartupTasks = newValue
+            emergencyOwnershipBag.setDetailHistoryStartupTasks(newValue.values.map(\.task))
+        }
+    }
+    private var historyGenerations: [String: UUID] {
+        get { historyCoordinator.generations }
+        set { historyCoordinator.generations = newValue }
+    }
+    private var detailHistoryGenerations: [String: UUID] {
+        get { historyCoordinator.detailGenerations }
+        set { historyCoordinator.detailGenerations = newValue }
+    }
+    private var graphHistoryRevisionFeeds: [String: GraphHistoryRevisionFeed] {
+        get { historyCoordinator.graphRevisionFeeds }
+        set { historyCoordinator.graphRevisionFeeds = newValue }
+    }
+    private var desiredHistoryKeys: Set<String> {
+        get { historyCoordinator.desiredKeys }
+        set { historyCoordinator.desiredKeys = newValue }
+    }
+    private var desiredDetailHistoryKeys: Set<String> {
+        get { historyCoordinator.desiredDetailKeys }
+        set { historyCoordinator.desiredDetailKeys = newValue }
+    }
+    private var historyReconciliationEpoch: UInt64 {
+        get { historyCoordinator.reconciliationEpoch }
+        set { historyCoordinator.reconciliationEpoch = newValue }
     }
 
     var homeView: LovelaceView? {
@@ -201,13 +357,176 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func start() {
-        guard !hasStarted else {
-            return
-        }
-        hasStarted = true
+        _ = enqueueLifecycleTransition(.start)
+    }
 
-        Task {
-            await load()
+    func viewDidAppear() {
+        _ = enqueueLifecycleTransition(.start)
+    }
+
+    func viewDidDisappear() {
+        // SwiftUI lifecycle intent must enter the serialized tail before this
+        // MainActor turn ends. Wrapping `stop()` in another Task allows a
+        // same-turn reappearance to enqueue first and then be overwritten by
+        // the delayed disappearance.
+        _ = enqueueLifecycleTransition(.stop)
+    }
+
+    func retryBootstrap() {
+        _ = enqueueLifecycleTransition(.retry)
+    }
+
+    @discardableResult
+    private func enqueueLifecycleTransition(
+        _ transition: DashboardAppLifecycleTransition
+    ) -> Task<Void, Never> {
+        latestLifecycleTransitionSequence &+= 1
+        let sequence = latestLifecycleTransitionSequence
+        let previousTail = lifecycleTransitionTail
+
+        // A newer app-lifecycle intent makes any queued start obsolete. An
+        // already-running retry is allowed to finish its internal stop, but
+        // cancellation prevents it from installing its now-obsolete restart.
+        startTransitionTask?.cancel()
+        retryTransitionTask?.cancel()
+
+        let weakModel = WeakDashboardViewModelBox(self)
+        let task = Task { @MainActor [weakModel] in
+            await previousTail?.value
+            guard transition == .stop || !Task.isCancelled else {
+                weakModel.value?.finishLifecycleTransition(transition, sequence: sequence)
+                return
+            }
+            switch transition {
+            case .start:
+                weakModel.value?.startImmediatelyIfCurrent(transitionSequence: sequence)
+            case .stop:
+                guard let detached = weakModel.value?.detachAppOwnershipSynchronously() else {
+                    return
+                }
+                await Self.finishExplicitAppOwnership(detached)
+                weakModel.value?.finishStopIfCurrent(transitionSequence: sequence)
+            case .retry:
+                guard let detached = weakModel.value?.detachAppOwnershipSynchronously() else {
+                    return
+                }
+                await Self.finishExplicitAppOwnership(detached)
+                guard !Task.isCancelled,
+                      weakModel.value?.latestLifecycleTransitionSequence == sequence
+                else {
+                    weakModel.value?.finishLifecycleTransition(transition, sequence: sequence)
+                    return
+                }
+                weakModel.value?.finishStopIfCurrent(transitionSequence: sequence)
+                weakModel.value?.startImmediatelyIfCurrent(transitionSequence: sequence)
+            }
+            weakModel.value?.finishLifecycleTransition(transition, sequence: sequence)
+        }
+        lifecycleTransitionTail = task
+        switch transition {
+        case .start:
+            startTransitionTask = task
+            trackedStartTransitionSequence = sequence
+        case .retry:
+            retryTransitionTask = task
+            trackedRetryTransitionSequence = sequence
+        case .stop:
+            break
+        }
+        return task
+    }
+
+    private func finishLifecycleTransition(
+        _ transition: DashboardAppLifecycleTransition,
+        sequence: UInt64
+    ) {
+        switch transition {
+        case .start where trackedStartTransitionSequence == sequence:
+            startTransitionTask = nil
+            trackedStartTransitionSequence = nil
+        case .retry where trackedRetryTransitionSequence == sequence:
+            retryTransitionTask = nil
+            trackedRetryTransitionSequence = nil
+        default:
+            break
+        }
+    }
+
+    private func startImmediatelyIfCurrent(transitionSequence: UInt64) {
+        guard latestLifecycleTransitionSequence == transitionSequence,
+              !hasStarted
+        else { return }
+
+        hasStarted = true
+        appGeneration &+= 1
+        lifecycle.begin()
+        let generation = appGeneration
+        let bootstrapClientOverride = lifecycleBootstrapClientOverride
+        let weakModel = WeakDashboardViewModelBox(self)
+        bootstrapTask = Task { @MainActor [weakModel, bootstrapClientOverride] in
+            if let bootstrapClientOverride = bootstrapClientOverride {
+                try? await Self.runOwnedBootstrap(using: bootstrapClientOverride, model: weakModel)
+            } else {
+                await Self.runOwnedLoad(model: weakModel)
+            }
+            guard weakModel.value?.appGeneration == generation else { return }
+            weakModel.value?.bootstrapTask = nil
+        }
+    }
+
+    func retryLovelace() {
+        fetchLovelace(force: true)
+    }
+
+    func retryHistoriesForActiveView() {
+        let weakModel = WeakDashboardViewModelBox(self)
+        Task { @MainActor [weakModel] in
+            let task = weakModel.value?.enqueueFailedActiveHistoryRetry()
+            await task?.value
+        }
+    }
+
+    func reconnectRealtime() {
+        guard lifetimeAuthority.acceptsWork, let client = webSocketClient else { return }
+        let capturedGeneration = appGeneration
+        reconnectTask?.cancel()
+        let weakModel = WeakDashboardViewModelBox(self)
+        let authority = lifetimeAuthority
+        let task = Task { [client, weakModel, authority] in
+            guard authority.acceptsWork, !Task.isCancelled else { return }
+            await Self.runExplicitReconnect(using: client, lifetimeAuthority: authority)
+            await MainActor.run {
+                guard authority.acceptsWork,
+                      weakModel.value?.appGeneration == capturedGeneration,
+                      weakModel.value?.webSocketClient === client
+                else { return }
+                weakModel.value?.reconnectTask = nil
+            }
+        }
+        reconnectTask = task
+    }
+
+    private static func runExplicitReconnect(
+        using client: HomeAssistantWebSocketClient,
+        lifetimeAuthority: DashboardLifetimeAuthority
+    ) async {
+        guard lifetimeAuthority.acceptsWork, !Task.isCancelled else { return }
+        await client.connection.reconnect()
+        guard lifetimeAuthority.acceptsWork, !Task.isCancelled else { return }
+
+        // `reconnect()` initiates the connection-owned retry loop and returns.
+        // Keep the app owner task alive until that loop reaches a terminal
+        // authentication outcome so stop/retry/deinit can inventory and cancel
+        // the complete explicit-reconnect lifetime.
+        let updates = await client.connection.statusUpdates()
+        for await state in updates {
+            guard lifetimeAuthority.acceptsWork, !Task.isCancelled else { return }
+            switch state {
+            case .ready, .authenticationFailed:
+                return
+            case .disconnected, .reconnecting, .connecting:
+                continue
+            }
         }
     }
 
@@ -290,8 +609,45 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    func canControlPower(entityID: String) -> Bool {
+        guard canToggle(entityID: entityID) else { return false }
+        let service = isOn(entityID: entityID) ? "turn_off" : "turn_on"
+        return serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: domain(for: entityID),
+            service: service
+        )
+    }
+
+    func canInvokeService(entityID: String, domain: String, service: String) -> Bool {
+        serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: domain,
+            service: service
+        )
+    }
+
+    func canSetFanPercentage(entityID: String, percentage: Int) -> Bool {
+        canInvokeService(
+            entityID: entityID,
+            domain: "fan",
+            service: percentage <= 0 ? "turn_off" : "set_percentage"
+        )
+    }
+
     func setPower(entityID: String, isOn: Bool) {
-        guard canToggle(entityID: entityID) else {
+        let domain = domain(for: entityID)
+        let service = isOn ? "turn_on" : "turn_off"
+        guard canToggle(entityID: entityID),
+              serviceController.canInvoke(
+                entityID: entityID,
+                state: states[entityID],
+                domain: domain,
+                service: service
+              )
+        else {
             return
         }
 
@@ -299,12 +655,19 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setPower(entityIDs: [String], isOn: Bool) {
-        for entityID in entityIDs where canToggle(entityID: entityID) {
+        for entityID in entityIDs where canControlPower(entityID: entityID) {
             performPowerCall(entityID: entityID, isOn: isOn)
         }
     }
 
     func setFanPercentage(entityID: String, percentage: Int) {
+        let service = percentage <= 0 ? "turn_off" : "set_percentage"
+        guard serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: "fan",
+            service: service
+        ) else { return }
         if percentage <= 0 {
             performPowerCall(entityID: entityID, isOn: false)
             applyOptimisticAttributes(
@@ -332,6 +695,12 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setClimateTemperature(entityID: String, temperature: Double) {
+        guard serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: "climate",
+            service: "set_temperature"
+        ) else { return }
         applyOptimisticAttributes(entityID: entityID, attributes: ["temperature": .double(temperature)])
         callService(
             domain: "climate",
@@ -345,7 +714,14 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setClimateHVACMode(entityID: String, mode: String) {
-        guard states[entityID]?.state != mode else {
+        guard states[entityID]?.state != mode,
+              serviceController.canInvoke(
+                entityID: entityID,
+                state: states[entityID],
+                domain: "climate",
+                service: "set_hvac_mode"
+              )
+        else {
             return
         }
 
@@ -362,6 +738,12 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setClimatePresetMode(entityID: String, mode: String, predictedTemperature: Double? = nil) {
+        guard serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: "climate",
+            service: "set_preset_mode"
+        ) else { return }
         guard states[entityID]?.attributes["preset_mode"]?.asString != mode else {
             if let predictedTemperature = predictedTemperature {
                 applyOptimisticAttributes(
@@ -390,7 +772,14 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setClimateFanMode(entityID: String, mode: String) {
-        guard states[entityID]?.attributes["fan_mode"]?.asString != mode else {
+        guard states[entityID]?.attributes["fan_mode"]?.asString != mode,
+              serviceController.canInvoke(
+                entityID: entityID,
+                state: states[entityID],
+                domain: "climate",
+                service: "set_fan_mode"
+              )
+        else {
             return
         }
 
@@ -407,7 +796,14 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setClimateSwingMode(entityID: String, mode: String) {
-        guard states[entityID]?.attributes["swing_mode"]?.asString != mode else {
+        guard states[entityID]?.attributes["swing_mode"]?.asString != mode,
+              serviceController.canInvoke(
+                entityID: entityID,
+                state: states[entityID],
+                domain: "climate",
+                service: "set_swing_mode"
+              )
+        else {
             return
         }
 
@@ -432,9 +828,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func refreshHistories() {
-        Task {
-            await refreshHistorySubscriptions()
-        }
+        _ = enqueueActiveHistoryRefresh()
     }
 
     func selectView(_ identity: LovelaceResolvedIdentity) {
@@ -547,8 +941,33 @@ final class DashboardViewModel: ObservableObject {
             feedObserverCounts: graphHistoryRevisionFeeds.mapValues(\.observerCount),
             historyKeys: Set(histories.keys),
             statusKeys: Set(historyStatuses.keys),
-            mountedOwnerCount: graphChartMountRegistry.liveMountCount()
+            mountedOwnerCount: graphChartMountRegistry.liveMountCount(),
+            desiredDetailHistoryKeys: desiredDetailHistoryKeys,
+            detailSubscriptionKeys: Set(detailHistorySubscriptions.keys),
+            detailGenerationKeys: Set(detailHistoryGenerations.keys),
+            detailStartupCount: detailHistoryStartupTasks.count,
+            detailHistoryKeys: Set(detailHistories.keys),
+            detailStatusKeys: Set(detailHistoryStatuses.keys),
+            entityOwnerActive: entityCoordinator != nil,
+            candidateEntityOwnerActive: latestBootstrapEntityCoordinator != nil,
+            lovelaceSubscriptionActive: lovelaceUpdateSubscription != nil,
+            bootstrapTaskActive: bootstrapTask != nil,
+            connectionStatusTaskActive: connectionStatusTask != nil,
+            lovelaceFetchTaskActive: lovelaceFetchTask != nil,
+            reconnectTaskActive: reconnectTask != nil,
+            dashboardOwnerTailActive: dashboardOwnerOperationTail != nil,
+            dashboardOwnerNodeCount: dashboardOwnerOperationRegistry.count,
+            serviceTaskCount: serviceController.inFlightCount,
+            webSocketClientActive: webSocketClient != nil,
+            installedClientActive: installedBootstrapClient != nil
         )
+    }
+
+    func retryHistoriesForActiveViewForTesting() async {
+        let startingSequence = latestDashboardOwnerOperationSequence
+        let task = enqueueFailedActiveHistoryRetry()
+        await task.value
+        await awaitStableDashboardOwnerOperationTail(startingAt: startingSequence)
     }
 
     func historyKey(for card: LovelacePresentationCard) -> String {
@@ -593,13 +1012,37 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func loadDetailHistory(entityID: String, hours: Int) {
+        guard lifetimeAuthority.acceptsWork else { return }
         let effectiveHours = AppConfig.graphTimeRangePolicy.detailDefault.hours
         let key = detailHistoryKey(entityID: entityID, hours: effectiveHours)
         desiredDetailHistoryKeys.insert(key)
+        guard detailHistorySubscriptions[key] == nil,
+              detailHistoryGenerations[key] == nil,
+              let client = webSocketClient
+        else { return }
         let startupID = UUID()
-        let task = Task { @MainActor [weak self] in
-            await self?.startDetailHistory(entityID: entityID, hours: effectiveHours, key: key)
-            self?.detailHistoryStartupTasks.removeValue(forKey: startupID)
+        let generation = UUID()
+        let stateSnapshot = states
+        let processingHook = historyProcessingHook
+        let now = historyNow
+        let authority = lifetimeAuthority
+        let weakModel = WeakDashboardViewModelBox(self)
+        detailHistoryGenerations[key] = generation
+        detailHistoryStatuses[key] = .loading
+        let task = Task { @MainActor [weakModel] in
+            await Self.runDetailHistoryStartup(
+                entityID: entityID,
+                hours: effectiveHours,
+                key: key,
+                generation: generation,
+                client: client,
+                stateSnapshot: stateSnapshot,
+                processingHook: processingHook,
+                now: now,
+                lifetimeAuthority: authority,
+                model: weakModel
+            )
+            weakModel.value?.detailHistoryStartupTasks.removeValue(forKey: startupID)
         }
         detailHistoryStartupTasks[startupID] = DetailHistoryStartupTask(key: key, task: task)
     }
@@ -706,22 +1149,331 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    private static func runOwnedLoad(model weakModel: WeakDashboardViewModelBox) async {
+        do {
+            weakModel.value?.lifecycle.set(.bootstrap, phase: .loading)
+            guard let token = try weakModel.value?.loadToken() else { return }
+            weakModel.value?.lifecycle.begin()
+            let connection = try await Self.firstWorkingConnection(token: token)
+            guard let webSocket = weakModel.value?.installOwnedLoadConnection(connection) else { return }
+            try await runOwnedBootstrap(using: webSocket, model: weakModel)
+        } catch {
+            guard weakModel.value?.lifecycle.phase != .stopped else { return }
+            weakModel.value?.lifecycle.failBootstrap(error.localizedDescription)
+        }
+    }
+
+    private static func runOwnedBootstrap(
+        using webSocket: HomeAssistantWebSocketClient,
+        model weakModel: WeakDashboardViewModelBox
+    ) async throws {
+        guard let start = weakModel.value?.beginOwnedBootstrap(using: webSocket) else {
+            await webSocket.disconnect()
+            return
+        }
+        await start.obsoleteCandidate?.stop()
+        guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+            await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+            return
+        }
+
+        do {
+            try await webSocket.connect()
+            guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            async let registryResponse = try? await webSocket.fetchEntityRegistryDisplay()
+            async let localeResponse = try? await webSocket.fetchFrontendLocalePreferences()
+            async let currentUserResponse = fetchCurrentUserResult(using: webSocket)
+            let config = try await webSocket.fetchLovelaceConfig()
+            let (registry, locale, currentUserResult) = await (
+                registryResponse,
+                localeResponse,
+                currentUserResponse
+            )
+            guard let candidate = weakModel.value?.prepareOwnedBootstrapCandidate(
+                sequence: start.sequence,
+                client: webSocket,
+                registry: registry ?? nil,
+                locale: locale ?? nil,
+                currentUserResult: currentUserResult,
+                weakModel: weakModel
+            ) else {
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            _ = try await candidate.start(using: webSocket)
+            guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            await applyLovelaceConfig(
+                config,
+                startHistoryOwners: false,
+                bootstrapSequence: start.sequence,
+                model: weakModel
+            )
+            guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            let updateSubscription = try await webSocket.subscribeLovelaceUpdates {
+                await MainActor.run {
+                    guard weakModel.value?.isCurrentInstalledBootstrap(
+                        start.sequence,
+                        client: webSocket
+                    ) == true else { return }
+                    weakModel.value?.fetchLovelace(force: false)
+                }
+            }
+            guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+                await updateSubscription.cancel()
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            guard let retirement = weakModel.value?.beginOwnedBootstrapInstallation(
+                sequence: start.sequence,
+                client: webSocket
+            ) else {
+                await updateSubscription.cancel()
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+            await retirement.entity?.stop()
+            await retirement.lovelace?.cancel()
+            await retirement.statusTask?.value
+            if let oldClient = retirement.client, oldClient !== webSocket {
+                await disconnectOwnedClientIfNeeded(oldClient, model: weakModel)
+            }
+            guard weakModel.value?.isCurrentBootstrap(start.sequence, client: webSocket) == true else {
+                await updateSubscription.cancel()
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+
+            let proof = try candidate.proveLiveGenerationForInstallation()
+            guard weakModel.value?.finishOwnedBootstrapInstallation(
+                sequence: start.sequence,
+                client: webSocket,
+                entityCoordinator: candidate,
+                lovelaceUpdateSubscription: updateSubscription,
+                entityProof: proof
+            ) == true else {
+                await updateSubscription.cancel()
+                await candidate.stop()
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                return
+            }
+            weakModel.value?.enqueueCurrentDashboardOwnerCandidate(
+                startHistoryOwners: true,
+                runsCandidateHook: false
+            )
+        } catch {
+            guard let failure = weakModel.value?.beginOwnedBootstrapFailure(
+                sequence: start.sequence,
+                client: webSocket,
+                error: error
+            ) else {
+                await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+                throw error
+            }
+            for task in failure.serviceTasks { await task.value }
+            await failure.entity?.stop()
+            if failure.candidate !== failure.entity { await failure.candidate?.stop() }
+            await failure.lovelace?.cancel()
+            await failure.statusTask?.value
+            if let oldClient = failure.installedClient, oldClient !== webSocket {
+                await disconnectOwnedClientIfNeeded(oldClient, model: weakModel)
+            }
+            await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
+            throw error
+        }
+    }
+
+    private static func disconnectOwnedClientIfNeeded(
+        _ client: HomeAssistantWebSocketClient,
+        model weakModel: WeakDashboardViewModelBox
+    ) async {
+        guard weakModel.value?.clientIsCurrentlyOwned(client) != true else { return }
+        await client.disconnect()
+    }
+
+    private func beginOwnedBootstrap(using client: HomeAssistantWebSocketClient) -> OwnedBootstrapStart {
+        latestBootstrapSequence &+= 1
+        let sequence = latestBootstrapSequence
+        let obsolete = latestBootstrapEntityCoordinator
+        latestBootstrapEntityCoordinator = nil
+        latestBootstrapClient = client
+        lifecycle.begin()
+        return OwnedBootstrapStart(sequence: sequence, obsoleteCandidate: obsolete)
+    }
+
+    private func installOwnedLoadConnection(_ connection: Connection) -> HomeAssistantWebSocketClient {
+        activeBaseURL = connection.baseURL
+        restClient = connection.restClient
+        homeAssistantConfig = connection.homeAssistantConfig
+        lifecycle.loading()
+        return HomeAssistantWebSocketClient(
+            configuration: connection.configuration,
+            commandTimeout: AppConfig.webSocketPolicy.commandTimeout,
+            receivePolicy: AppConfig.webSocketPolicy.receivePolicy,
+            subscriptionDeliveryCapacity: AppConfig.webSocketPolicy.subscriptionDeliveryCapacity,
+            maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
+        )
+    }
+
+    private func prepareOwnedBootstrapCandidate(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient,
+        registry: HAEntityRegistryDisplayResponse?,
+        locale: HAFrontendLocalePreferences?,
+        currentUserResult: Result<HACurrentUser, Error>,
+        weakModel: WeakDashboardViewModelBox
+    ) -> HAEntitySubscriptionCoordinator? {
+        guard isCurrentBootstrap(sequence, client: client) else { return nil }
+        entityDisplayPrecisions = Dictionary(uniqueKeysWithValues:
+            (registry?.entities ?? []).compactMap { entry in
+                entry.displayPrecision.map { (entry.entityID, $0) }
+            }
+        )
+        frontendLocalePreferences = locale
+        switch currentUserResult {
+        case let .success(user): currentUserID = user.id
+        case .failure:
+            currentUserID = nil
+            AppLog(
+                "Current user metadata unavailable; user-restricted navigation is hidden",
+                severity: .warning,
+                category: .lifecycle
+            )
+        }
+        let weakEntityOwner = WeakInstalledEntityCoordinatorBox()
+        let entityTaskOwnerID = UUID()
+        let emergencyBag = emergencyOwnershipBag
+        let candidate = HAEntitySubscriptionCoordinator(
+            initialStates: states,
+            lifetimeAuthority: lifetimeAuthority,
+            taskObserver: { tasks in
+                emergencyBag.setEntityCoordinatorTasks(tasks, ownerID: entityTaskOwnerID)
+            },
+            onSnapshot: { snapshot in
+                guard let owner = weakEntityOwner.value,
+                      weakModel.value?.entityCoordinator === owner
+                else { return }
+                weakModel.value?.states = snapshot
+            },
+            onPhase: { phase in
+                guard let owner = weakEntityOwner.value,
+                      weakModel.value?.entityCoordinator === owner
+                else { return }
+                weakModel.value?.lifecycle.set(.entities, phase: phase)
+            }
+        )
+        weakEntityOwner.value = candidate
+        latestBootstrapEntityCoordinator = candidate
+        return candidate
+    }
+
+    private func beginOwnedBootstrapInstallation(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) -> OwnedBootstrapRetirement? {
+        guard isCurrentBootstrap(sequence, client: client) else { return nil }
+        let retirement = OwnedBootstrapRetirement(
+            entity: entityCoordinator,
+            lovelace: lovelaceUpdateSubscription,
+            statusTask: connectionStatusTask,
+            client: installedBootstrapClient
+        )
+        entityCoordinator = nil
+        lovelaceUpdateSubscription = nil
+        connectionStatusTask = nil
+        webSocketClient = nil
+        installedBootstrapClient = nil
+        installedBootstrapSequence = nil
+        retirement.statusTask?.cancel()
+        return retirement
+    }
+
+    private func finishOwnedBootstrapInstallation(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient,
+        entityCoordinator candidate: HAEntitySubscriptionCoordinator,
+        lovelaceUpdateSubscription: HAWebSocketSubscription,
+        entityProof: HAEntitySubscriptionInstallationProof
+    ) -> Bool {
+        guard isCurrentBootstrap(sequence, client: client) else { return false }
+        entityCoordinator = candidate
+        latestBootstrapEntityCoordinator = nil
+        self.lovelaceUpdateSubscription = lovelaceUpdateSubscription
+        states = entityProof.snapshot
+        webSocketClient = client
+        installedBootstrapClient = client
+        installedBootstrapSequence = sequence
+        lifecycle.installed()
+        serviceController.install { [weak restClient] domain, service, data in
+            guard let restClient = restClient else { throw URLError(.cancelled) }
+            _ = try await restClient.callService(domain: domain, service: service, data: data)
+        }
+        connectionStatusTask = makeConnectionStatusTask(sequence: sequence, client: client)
+        return true
+    }
+
+    private func beginOwnedBootstrapFailure(
+        sequence: UInt64,
+        client: HomeAssistantWebSocketClient,
+        error: Error
+    ) -> OwnedBootstrapFailure? {
+        guard isCurrentBootstrap(sequence, client: client) else { return nil }
+        let failure = OwnedBootstrapFailure(
+            serviceTasks: serviceController.stopSynchronously(),
+            entity: entityCoordinator,
+            candidate: latestBootstrapEntityCoordinator,
+            lovelace: lovelaceUpdateSubscription,
+            statusTask: connectionStatusTask,
+            installedClient: installedBootstrapClient
+        )
+        restClient = nil
+        entityCoordinator = nil
+        latestBootstrapEntityCoordinator = nil
+        lovelaceUpdateSubscription = nil
+        connectionStatusTask = nil
+        webSocketClient = nil
+        installedBootstrapClient = nil
+        installedBootstrapSequence = nil
+        latestBootstrapClient = nil
+        failure.statusTask?.cancel()
+        lifecycle.failBootstrap(error.localizedDescription)
+        return failure
+    }
+
+    private func clientIsCurrentlyOwned(_ client: HomeAssistantWebSocketClient) -> Bool {
+        latestBootstrapClient === client || installedBootstrapClient === client || webSocketClient === client
+    }
+
     private func load() async {
         do {
-            status = "Reading token"
+            lifecycle.set(.bootstrap, phase: .loading)
             let token = try loadToken()
 
-            status = "Connecting"
-            let connection = try await firstWorkingConnection(token: token)
+            lifecycle.begin()
+            let connection = try await Self.firstWorkingConnection(token: token)
             activeBaseURL = connection.baseURL
             restClient = connection.restClient
             homeAssistantConfig = connection.homeAssistantConfig
 
-            status = "Loading states"
-            let stateList = try await connection.restClient.fetchStates()
-            states = Dictionary(uniqueKeysWithValues: stateList.map { ($0.entityId, $0) })
-
-            status = "Loading dashboard"
+            lifecycle.loading()
             let webSocket = HomeAssistantWebSocketClient(
                 configuration: connection.configuration,
                 commandTimeout: AppConfig.webSocketPolicy.commandTimeout,
@@ -731,17 +1483,23 @@ final class DashboardViewModel: ObservableObject {
             )
             try await bootstrapDashboard(using: webSocket)
         } catch {
-            status = "Error"
-            errorMessage = error.localizedDescription
+            guard lifecycle.phase != .stopped else { return }
+            lifecycle.failBootstrap(error.localizedDescription)
         }
     }
 
     func bootstrapDashboard(using webSocket: HomeAssistantWebSocketClient) async throws {
         latestBootstrapSequence &+= 1
         let bootstrapSequence = latestBootstrapSequence
+        let obsoleteCandidateEntityCoordinator = latestBootstrapEntityCoordinator
+        latestBootstrapEntityCoordinator = nil
         latestBootstrapClient = webSocket
-        pendingStates.removeAll()
-        stateFlushGeneration = nil
+        lifecycle.begin()
+        await obsoleteCandidateEntityCoordinator?.stop()
+        guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+            await disconnectIfUnownedByCurrentBootstrap(webSocket)
+            return
+        }
 
         do {
             try await webSocket.connect()
@@ -780,6 +1538,38 @@ final class DashboardViewModel: ObservableObject {
                     category: .lifecycle
                 )
             }
+
+            let weakModel = WeakDashboardViewModelBox(self)
+            let weakEntityOwner = WeakInstalledEntityCoordinatorBox()
+            let entityTaskOwnerID = UUID()
+            let emergencyBag = emergencyOwnershipBag
+            let candidateEntityCoordinator = HAEntitySubscriptionCoordinator(
+                initialStates: states,
+                lifetimeAuthority: lifetimeAuthority,
+                taskObserver: { tasks in
+                    emergencyBag.setEntityCoordinatorTasks(tasks, ownerID: entityTaskOwnerID)
+                },
+                onSnapshot: { snapshot in
+                    guard let owner = weakEntityOwner.value,
+                          weakModel.value?.entityCoordinator === owner
+                    else { return }
+                    weakModel.value?.states = snapshot
+                },
+                onPhase: { phase in
+                    guard let owner = weakEntityOwner.value,
+                          weakModel.value?.entityCoordinator === owner
+                    else { return }
+                    weakModel.value?.lifecycle.set(.entities, phase: phase)
+                }
+            )
+            weakEntityOwner.value = candidateEntityCoordinator
+            latestBootstrapEntityCoordinator = candidateEntityCoordinator
+            _ = try await candidateEntityCoordinator.start(using: webSocket)
+            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await candidateEntityCoordinator.stop()
+                await disconnectIfUnownedByCurrentBootstrap(webSocket)
+                return
+            }
             await applyLovelaceConfig(
                 config,
                 startHistoryOwners: false,
@@ -787,42 +1577,57 @@ final class DashboardViewModel: ObservableObject {
             )
 
             guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
+                await candidateEntityCoordinator.stop()
                 await disconnectIfUnownedByCurrentBootstrap(webSocket)
                 return
             }
 
-            let weakModel = WeakDashboardViewModelBox(self)
-            let candidateStateSubscription = try await webSocket.subscribeToStateChanges { state in
+            let candidateLovelaceSubscription = try await webSocket.subscribeLovelaceUpdates {
                 await MainActor.run {
-                    weakModel.value?.queueStateUpdate(
-                        state,
-                        bootstrapSequence: bootstrapSequence,
+                    guard weakModel.value?.isCurrentInstalledBootstrap(
+                        bootstrapSequence,
                         client: webSocket
-                    )
+                    ) == true else { return }
+                    weakModel.value?.fetchLovelace(force: false)
                 }
             }
             guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await candidateStateSubscription.cancel()
+                await candidateLovelaceSubscription.cancel()
+                await candidateEntityCoordinator.stop()
                 await disconnectIfUnownedByCurrentBootstrap(webSocket)
                 return
             }
 
-            let installed = await installBootstrapOwnership(
+            let installed = try await installBootstrapOwnership(
                 sequence: bootstrapSequence,
                 client: webSocket,
-                stateSubscription: candidateStateSubscription
+                entityCoordinator: candidateEntityCoordinator,
+                lovelaceUpdateSubscription: candidateLovelaceSubscription
             )
             guard installed else { return }
 
-            Task { [weak self] in
-                await self?.loadHistories()
-            }
+            enqueueCurrentDashboardOwnerCandidate(
+                startHistoryOwners: true,
+                runsCandidateHook: false
+            )
         } catch {
             guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
                 await disconnectIfUnownedByCurrentBootstrap(webSocket)
                 return
             }
-            await failCurrentBootstrap(sequence: bootstrapSequence, client: webSocket)
+            // A fatal replacement invalidates every installed app-generation
+            // authority before publishing failure or awaiting transport
+            // teardown. In particular, retained cards must not keep using the
+            // previous REST caller while the old and failed socket owners are
+            // being retired.
+            let serviceTasks = serviceController.stopSynchronously()
+            restClient = nil
+            lifecycle.failBootstrap(error.localizedDescription)
+            await failCurrentBootstrap(
+                sequence: bootstrapSequence,
+                client: webSocket,
+                serviceTasks: serviceTasks
+            )
             throw error
         }
     }
@@ -831,7 +1636,9 @@ final class DashboardViewModel: ObservableObject {
         _ sequence: UInt64,
         client: HomeAssistantWebSocketClient
     ) -> Bool {
-        latestBootstrapSequence == sequence && latestBootstrapClient === client
+        lifetimeAuthority.acceptsWork &&
+            latestBootstrapSequence == sequence &&
+            latestBootstrapClient === client
     }
 
     private func isCurrentInstalledBootstrap(
@@ -855,23 +1662,38 @@ final class DashboardViewModel: ObservableObject {
 
     private func failCurrentBootstrap(
         sequence: UInt64,
-        client: HomeAssistantWebSocketClient
+        client: HomeAssistantWebSocketClient,
+        serviceTasks: [Task<Void, Never>]
     ) async {
         guard isCurrentBootstrap(sequence, client: client) else {
+            for task in serviceTasks { await task.value }
             await disconnectIfUnownedByCurrentBootstrap(client)
             return
         }
 
         let installedClient = installedBootstrapClient
-        let subscription = stateSubscription
+        let candidateEntityCoordinator = latestBootstrapEntityCoordinator
+        let entityCoordinator = entityCoordinator
+        let lovelaceSubscription = lovelaceUpdateSubscription
         let statusTask = connectionStatusTask
-        stateSubscription = nil
+        self.entityCoordinator = nil
+        latestBootstrapEntityCoordinator = nil
+        lovelaceUpdateSubscription = nil
         connectionStatusTask = nil
         webSocketClient = nil
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
         statusTask?.cancel()
-        await subscription?.cancel()
+        // stopSynchronously already advanced the action generation, removed
+        // the caller/task registry, and cancelled these captured tasks before
+        // lifecycle failure was published. Settle them before either the old
+        // or failed transport completes its disconnect boundary.
+        for task in serviceTasks { await task.value }
+        await entityCoordinator?.stop()
+        if candidateEntityCoordinator !== entityCoordinator {
+            await candidateEntityCoordinator?.stop()
+        }
+        await lovelaceSubscription?.cancel()
         if let installedClient = installedClient, installedClient !== client {
             await disconnectIfUnownedByCurrentBootstrap(installedClient)
         }
@@ -886,40 +1708,65 @@ final class DashboardViewModel: ObservableObject {
     private func installBootstrapOwnership(
         sequence: UInt64,
         client: HomeAssistantWebSocketClient,
-        stateSubscription candidateStateSubscription: HAWebSocketSubscription
-    ) async -> Bool {
+        entityCoordinator candidateEntityCoordinator: HAEntitySubscriptionCoordinator,
+        lovelaceUpdateSubscription candidateLovelaceSubscription: HAWebSocketSubscription
+    ) async throws -> Bool {
         guard isCurrentBootstrap(sequence, client: client) else {
-            await candidateStateSubscription.cancel()
+            await candidateEntityCoordinator.stop()
+            await candidateLovelaceSubscription.cancel()
             await disconnectIfUnownedByCurrentBootstrap(client)
             return false
         }
 
-        let oldSubscription = stateSubscription
+        let oldEntityCoordinator = entityCoordinator
+        let oldLovelaceSubscription = lovelaceUpdateSubscription
         let oldStatusTask = connectionStatusTask
         let oldClient = installedBootstrapClient
-        stateSubscription = nil
+        entityCoordinator = nil
+        lovelaceUpdateSubscription = nil
         connectionStatusTask = nil
         webSocketClient = nil
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
         oldStatusTask?.cancel()
-        await oldSubscription?.cancel()
+        await oldEntityCoordinator?.stop()
+        await oldLovelaceSubscription?.cancel()
 
         if let oldClient = oldClient, oldClient !== client {
             await disconnectIfUnownedByCurrentBootstrap(oldClient)
         }
 
         guard isCurrentBootstrap(sequence, client: client) else {
-            await candidateStateSubscription.cancel()
+            await candidateEntityCoordinator.stop()
+            await candidateLovelaceSubscription.cancel()
             await disconnectIfUnownedByCurrentBootstrap(client)
             return false
         }
 
-        stateSubscription = candidateStateSubscription
+        // This is the final candidate check. No suspension may occur between
+        // proving the accepted live entity generation, copying its retained
+        // store, assigning publication authority, and publishing lifecycle
+        // readiness. A candidate invalidated while bootstrap work was held can
+        // therefore never be installed from its stale retained snapshot.
+        let entityProof: HAEntitySubscriptionInstallationProof
+        do {
+            entityProof = try candidateEntityCoordinator.proveLiveGenerationForInstallation()
+        } catch {
+            await candidateLovelaceSubscription.cancel()
+            throw error
+        }
+        entityCoordinator = candidateEntityCoordinator
+        latestBootstrapEntityCoordinator = nil
+        lovelaceUpdateSubscription = candidateLovelaceSubscription
+        states = entityProof.snapshot
         webSocketClient = client
         installedBootstrapClient = client
         installedBootstrapSequence = sequence
-        status = "Live"
+        lifecycle.installed()
+        serviceController.install { [weak restClient] domain, service, data in
+            guard let restClient = restClient else { throw URLError(.cancelled) }
+            _ = try await restClient.callService(domain: domain, service: service, data: data)
+        }
         AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
         connectionStatusTask = makeConnectionStatusTask(sequence: sequence, client: client)
         return true
@@ -929,29 +1776,48 @@ final class DashboardViewModel: ObservableObject {
         sequence: UInt64,
         client: HomeAssistantWebSocketClient
     ) -> Task<Void, Never> {
-        Task { [weak self, client] in
+        let authority = lifetimeAuthority
+        return Task { [weak self, client, authority] in
             for await connectionState in await client.connection.statusUpdates() {
+                guard authority.acceptsWork, !Task.isCancelled else { return }
                 await MainActor.run {
-                    guard self?.isCurrentInstalledBootstrap(sequence, client: client) == true else {
+                    guard authority.acceptsWork,
+                          self?.isCurrentInstalledBootstrap(sequence, client: client) == true
+                    else {
                         return
                     }
                     let nextStatus: String
                     switch connectionState {
                     case .ready:
                         nextStatus = "Live"
+                        self?.lifecycle.connectionChanged(.ready)
+                        if self?.connectionWasNonReady == true {
+                            self?.connectionWasNonReady = false
+                            self?.refreshLovelaceAfterReconnect(
+                                bootstrapSequence: sequence,
+                                client: client
+                            )
+                        }
                     case .disconnected:
                         nextStatus = "Disconnected"
+                        self?.connectionWasNonReady = true
+                        self?.lifecycle.connectionChanged(.disconnected)
                     case .reconnecting:
                         nextStatus = "Reconnecting"
+                        self?.connectionWasNonReady = true
+                        self?.lifecycle.connectionChanged(.reconnecting)
                     case let .authenticationFailed(message):
                         nextStatus = "Error"
-                        self?.errorMessage = "WebSocket authentication failed: \(message)"
+                        self?.lifecycle.set(
+                            .realtime,
+                            phase: .failed("WebSocket authentication failed: \(message)")
+                        )
                     case .connecting:
                         nextStatus = "Connecting"
+                        self?.connectionWasNonReady = true
+                        self?.lifecycle.set(.realtime, phase: .loading)
                     }
-                    if self?.status != nextStatus {
-                        self?.status = nextStatus
-                    }
+                    _ = nextStatus
                 }
             }
         }
@@ -967,62 +1833,495 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    private func fetchLovelace(force: Bool) {
+        guard lifetimeAuthority.acceptsWork,
+              let client = webSocketClient,
+              let sequence = installedBootstrapSequence,
+              isCurrentInstalledBootstrap(sequence, client: client)
+        else { return }
+        latestLovelaceFetchGeneration &+= 1
+        let fetchGeneration = latestLovelaceFetchGeneration
+        let capturedAppGeneration = appGeneration
+        let authority = lifetimeAuthority
+        lovelaceFetchTask?.cancel()
+        lovelaceStore.beginLoading(retainingInstalled: hasLoadedDashboard)
+        lifecycle.set(.lovelace, phase: hasLoadedDashboard ? .reconnecting : .loading)
+        lovelaceFetchTask = Task { @MainActor [weak self, authority] in
+            guard authority.acceptsWork, !Task.isCancelled else { return }
+            do {
+                let config = try await client.fetchLovelaceConfig(force: force)
+                guard authority.acceptsWork,
+                      !Task.isCancelled,
+                      self?.appGeneration == capturedAppGeneration,
+                      self?.latestLovelaceFetchGeneration == fetchGeneration,
+                      self?.isCurrentInstalledBootstrap(sequence, client: client) == true
+                else { return }
+                guard let weakModel = self.map(WeakDashboardViewModelBox.init) else { return }
+                await Self.applyLovelaceConfig(
+                    config,
+                    startHistoryOwners: true,
+                    bootstrapSequence: nil,
+                    model: weakModel
+                )
+                guard authority.acceptsWork,
+                      weakModel.value?.appGeneration == capturedAppGeneration,
+                      weakModel.value?.latestLovelaceFetchGeneration == fetchGeneration,
+                      weakModel.value?.isCurrentInstalledBootstrap(sequence, client: client) == true
+                else { return }
+                weakModel.value?.lifecycle.set(.lovelace, phase: .ready)
+                weakModel.value?.lovelaceFetchTask = nil
+            } catch is CancellationError {
+                return
+            } catch {
+                guard authority.acceptsWork,
+                      self?.appGeneration == capturedAppGeneration,
+                      self?.latestLovelaceFetchGeneration == fetchGeneration,
+                      self?.isCurrentInstalledBootstrap(sequence, client: client) == true
+                else { return }
+                self?.lovelaceStore.fail(error.localizedDescription)
+                self?.lifecycle.set(.lovelace, phase: .failed(error.localizedDescription))
+                self?.lovelaceFetchTask = nil
+            }
+        }
+    }
+
+    private func refreshLovelaceAfterReconnect(
+        bootstrapSequence: UInt64,
+        client: HomeAssistantWebSocketClient
+    ) {
+        guard isCurrentInstalledBootstrap(bootstrapSequence, client: client) else { return }
+        fetchLovelace(force: false)
+    }
+
+    private func enqueueFailedActiveHistoryRetry() -> Task<Void, Never> {
+        let capturedConfigSequence = latestConfigRequestSequence
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let weakModel = WeakDashboardViewModelBox(self)
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [weakModel, operationRegistry] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
+            await previousTail?.value
+            guard !Task.isCancelled,
+                  let detached = weakModel.value?.detachFailedActiveHistoryOwnership(
+                    configRequestSequence: capturedConfigSequence
+                  )
+            else { return }
+            operationRegistry.setDetachedOwnership(
+                DetachedDashboardOwnership(
+                    startups: detached.cardStartups,
+                    subscriptions: detached.cardSubscriptions,
+                    detailStartups: detached.detailStartups,
+                    detailSubscriptions: [detached.detailSubscription].compactMap { $0 }
+                ),
+                sequence: operationSequence
+            )
+
+            for startup in detached.cardStartups { await startup.value }
+            for subscription in detached.cardSubscriptions { await subscription.cancel() }
+            for startup in detached.detailStartups { await startup.value }
+            await detached.detailSubscription?.cancel()
+
+            guard !Task.isCancelled,
+                  weakModel.value?.latestConfigRequestSequence == capturedConfigSequence
+            else { return }
+            let startups = weakModel.value?.beginMissingActiveHistoryStartups(
+                configRequestSequence: capturedConfigSequence
+            ) ?? []
+            if let detail = detached.detailRetry,
+               weakModel.value?.selectedEntityID == detail.entityID,
+               weakModel.value?.desiredDetailHistoryKeys.contains(detail.key) == true {
+                weakModel.value?.loadDetailHistory(
+                    entityID: detail.entityID,
+                    hours: detail.hours
+                )
+            }
+            for startup in startups { await startup.value }
+        }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(task: task, detachedOwnership: nil),
+            sequence: operationSequence
+        )
+        dashboardOwnerOperationTail = task
+        return task
+    }
+
+    private func enqueueActiveHistoryRefresh() -> Task<Void, Never> {
+        let capturedConfigSequence = latestConfigRequestSequence
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let weakModel = WeakDashboardViewModelBox(self)
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [weakModel, operationRegistry] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
+            await previousTail?.value
+            guard !Task.isCancelled,
+                  let ownership = weakModel.value?.prepareActiveHistoryRefresh(
+                    configRequestSequence: capturedConfigSequence
+                  )
+            else { return }
+
+            for startup in ownership.startups { await startup.value }
+            for owner in ownership.refreshes {
+                guard !Task.isCancelled,
+                      weakModel.value?.isCurrentHistoryRefreshOwner(
+                        owner,
+                        configRequestSequence: capturedConfigSequence
+                      ) == true
+                else { return }
+                do {
+                    try await owner.subscription.refresh()
+                } catch {
+                    weakModel.value?.failHistoryRefresh(
+                        owner,
+                        configRequestSequence: capturedConfigSequence,
+                        error: error
+                    )
+                }
+            }
+        }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(task: task, detachedOwnership: nil),
+            sequence: operationSequence
+        )
+        dashboardOwnerOperationTail = task
+        return task
+    }
+
+    private func prepareActiveHistoryRefresh(
+        configRequestSequence: UInt64
+    ) -> HistoryRefreshOwnership? {
+        guard latestConfigRequestSequence == configRequestSequence else { return nil }
+        let startups = beginMissingActiveHistoryStartups(
+            configRequestSequence: configRequestSequence
+        )
+        let reconciliationEpoch = historyReconciliationEpoch
+        let refreshes: [HistoryRefreshOwner] = historySubscriptions.compactMap { key, subscription in
+            guard desiredHistoryKeys.contains(key),
+                  let generation = historyGenerations[key]
+            else { return nil }
+            historyStatuses[key] = .loading
+            return HistoryRefreshOwner(
+                key: key,
+                generation: generation,
+                reconciliationEpoch: reconciliationEpoch,
+                subscription: subscription
+            )
+        }
+        return HistoryRefreshOwnership(startups: startups, refreshes: refreshes)
+    }
+
+    private func isCurrentHistoryRefreshOwner(
+        _ owner: HistoryRefreshOwner,
+        configRequestSequence: UInt64
+    ) -> Bool {
+        latestConfigRequestSequence == configRequestSequence &&
+            historyReconciliationEpoch == owner.reconciliationEpoch &&
+            desiredHistoryKeys.contains(owner.key) &&
+            historyGenerations[owner.key] == owner.generation &&
+            historySubscriptions[owner.key] === owner.subscription
+    }
+
+    private func failHistoryRefresh(
+        _ owner: HistoryRefreshOwner,
+        configRequestSequence: UInt64,
+        error: Error
+    ) {
+        guard isCurrentHistoryRefreshOwner(
+            owner,
+            configRequestSequence: configRequestSequence
+        ) else { return }
+        historyStatuses[owner.key] = .error(error.localizedDescription)
+    }
+
+    private func detachFailedActiveHistoryOwnership(
+        configRequestSequence: UInt64
+    ) -> FailedHistoryRetryOwnership? {
+        guard latestConfigRequestSequence == configRequestSequence else { return nil }
+        let activeKeys = Set(historyRequests().map(\.key))
+        let failedKeys = activeKeys.filter { key in
+                guard let status = historyStatuses[key] else { return true }
+                if case .error = status { return true }
+                return historySubscriptions[key] == nil
+        }
+        let startupIDs = historyStartupTasks.compactMap { id, startup in
+            failedKeys.contains(startup.key) ? id : nil
+        }
+        let cardStartups = startupIDs.compactMap {
+            historyStartupTasks.removeValue(forKey: $0)?.task
+        }
+        cardStartups.forEach { $0.cancel() }
+        var cardSubscriptions: [HAHistoryStreamSubscription] = []
+        for key in failedKeys {
+            if let subscription = historySubscriptions.removeValue(forKey: key) {
+                cardSubscriptions.append(subscription)
+            }
+            historyGenerations.removeValue(forKey: key)
+            graphHistoryRevisionFeeds.removeValue(forKey: key)
+            historyStatuses.removeValue(forKey: key)
+            histories.removeValue(forKey: key)
+        }
+
+        let detail = detachCurrentFailedDetailForRetry()
+        return FailedHistoryRetryOwnership(
+            cardStartups: cardStartups,
+            cardSubscriptions: cardSubscriptions,
+            detailStartups: detail?.startups ?? [],
+            detailSubscription: detail?.subscription,
+            detailRetry: detail.map {
+                FailedDetailHistoryRetry(entityID: $0.entityID, key: $0.key, hours: $0.hours)
+            }
+        )
+    }
+
+    private func beginMissingActiveHistoryStartups(
+        configRequestSequence: UInt64
+    ) -> [Task<Void, Never>] {
+        guard latestConfigRequestSequence == configRequestSequence,
+              let client = webSocketClient
+        else { return [] }
+        let reconciliationEpoch = historyReconciliationEpoch
+        return historyRequests().compactMap { request in
+            beginHistoryStartup(
+                request,
+                webSocketClient: client,
+                reconciliationEpoch: reconciliationEpoch,
+                configRequestSequence: configRequestSequence
+            )
+        }
+    }
+
+    private func detachCurrentFailedDetailForRetry() -> (
+        entityID: String,
+        key: String,
+        hours: Int,
+        startups: [Task<Void, Never>],
+        subscription: HAHistoryStreamSubscription?
+    )? {
+        let hours = AppConfig.graphTimeRangePolicy.detailDefault.hours
+        guard let entityID = selectedEntityID else { return nil }
+        let key = detailHistoryKey(entityID: entityID, hours: hours)
+        guard desiredDetailHistoryKeys.contains(key) else { return nil }
+        let shouldRetry: Bool
+        if case .error = detailHistoryStatuses[key] {
+            shouldRetry = true
+        } else {
+            shouldRetry = detailHistorySubscriptions[key] == nil
+        }
+        guard shouldRetry else { return nil }
+
+        let startupIDs = detailHistoryStartupTasks.compactMap { id, startup in
+            startup.key == key ? id : nil
+        }
+        let startups = startupIDs.compactMap {
+            detailHistoryStartupTasks.removeValue(forKey: $0)?.task
+        }
+        startups.forEach { $0.cancel() }
+        let subscription = detailHistorySubscriptions.removeValue(forKey: key)
+        detailHistoryGenerations.removeValue(forKey: key)
+        detailHistoryStatuses.removeValue(forKey: key)
+        detailHistories.removeValue(forKey: key)
+        return (entityID, key, hours, startups, subscription)
+    }
+
+    func stop() async {
+        let transition = enqueueLifecycleTransition(.stop)
+        await transition.value
+    }
+
+    private func finishStopIfCurrent(transitionSequence: UInt64) {
+        guard latestLifecycleTransitionSequence == transitionSequence else { return }
+        lovelaceStore.stop()
+        lifecycle.stop()
+    }
+
+    private func detachAppOwnershipSynchronously() -> DetachedDashboardAppOwnership {
+        // All callback authority and owner registries are invalidated before
+        // the first await. Captured handles are the only objects retired below.
+        appGeneration &+= 1
+        latestBootstrapSequence &+= 1
+        latestConfigRequestSequence &+= 1
+        latestNavigationRequestSequence &+= 1
+        latestLovelaceFetchGeneration &+= 1
+        latestDashboardOwnerOperationSequence &+= 1
+        hasStarted = false
+        connectionWasNonReady = false
+        desiredSelectedViewIdentity = nil
+        latestQueuedDashboardCandidate = nil
+
+        let bootstrapTask = self.bootstrapTask
+        let statusTask = connectionStatusTask
+        let configTask = lovelaceFetchTask
+        let reconnectTask = self.reconnectTask
+        let ownerTail = dashboardOwnerOperationTail
+        let ownerOperations = dashboardOwnerOperationRegistry.detachSynchronously()
+        let entityOwner = entityCoordinator
+        let candidateEntityOwner = latestBootstrapEntityCoordinator
+        let lovelaceSubscription = lovelaceUpdateSubscription
+        var clients: [HomeAssistantWebSocketClient] = []
+        for client in [installedBootstrapClient, latestBootstrapClient, webSocketClient].compactMap({ $0 })
+            where !clients.contains(where: { $0 === client })
+        {
+            clients.append(client)
+        }
+        var detachedEntityOwnerships: [HAEntitySubscriptionDetachedOwnership] = []
+        if let entityOwner = entityOwner {
+            detachedEntityOwnerships.append(entityOwner.detachOwnershipSynchronously())
+        }
+        if let candidateEntityOwner = candidateEntityOwner,
+           candidateEntityOwner !== entityOwner
+        {
+            detachedEntityOwnerships.append(candidateEntityOwner.detachOwnershipSynchronously())
+        }
+        let detachedHistory = detachOwnershipSynchronously(notIn: [])
+        // Explicit app stop is stronger than ordinary view/config
+        // reconciliation. A card startup may be suspended awaiting its wire
+        // acknowledgement; cancelling the captured task propagates into the
+        // Module 02 registration cancellation handler before we await it or
+        // disconnect the socket. Ordinary reconciliation deliberately keeps
+        // its acknowledgement-before-cancel ordering unchanged.
+        detachedHistory.startups.forEach { $0.cancel() }
+        for operation in ownerOperations {
+            operation.task.cancel()
+            operation.detachedOwnership?.startups.forEach { $0.cancel() }
+            operation.detachedOwnership?.detailStartups.forEach { $0.cancel() }
+        }
+        graphChartMountRegistry.invalidateOwners(notIn: [])
+        graphHistoryRevisionFeeds.removeAll()
+        historyStatuses.removeAll()
+        histories.removeAll()
+        let serviceTasks = serviceController.stopSynchronously()
+
+        self.bootstrapTask = nil
+        connectionStatusTask = nil
+        lovelaceFetchTask = nil
+        self.reconnectTask = nil
+        dashboardOwnerOperationTail = nil
+        entityCoordinator = nil
+        latestBootstrapEntityCoordinator = nil
+        lovelaceUpdateSubscription = nil
+        webSocketClient = nil
+        installedBootstrapClient = nil
+        installedBootstrapSequence = nil
+        latestBootstrapClient = nil
+        restClient = nil
+
+        bootstrapTask?.cancel()
+        statusTask?.cancel()
+        configTask?.cancel()
+        reconnectTask?.cancel()
+        ownerTail?.cancel()
+        serviceTasks.forEach { $0.cancel() }
+        return DetachedDashboardAppOwnership(
+            bootstrapTask: bootstrapTask,
+            statusTask: statusTask,
+            configTask: configTask,
+            reconnectTask: reconnectTask,
+            ownerTail: ownerTail,
+            ownerOperations: ownerOperations,
+            serviceTasks: serviceTasks,
+            entityOwnerships: detachedEntityOwnerships,
+            lovelaceSubscription: lovelaceSubscription,
+            historyOwnership: detachedHistory,
+            clients: clients
+        )
+    }
+
+    private static func finishExplicitAppOwnership(
+        _ detached: DetachedDashboardAppOwnership
+    ) async {
+        for ownership in detached.entityOwnerships {
+            await ownership.finish()
+        }
+        await detached.lovelaceSubscription?.cancel()
+        await finishDetachedOwnership(detached.historyOwnership)
+        for operation in detached.ownerOperations {
+            if let ownership = operation.detachedOwnership {
+                await finishDetachedOwnership(ownership)
+            }
+        }
+        await detached.bootstrapTask?.value
+        await detached.statusTask?.value
+        await detached.configTask?.value
+        await detached.reconnectTask?.value
+        for operation in detached.ownerOperations { await operation.task.value }
+        await detached.ownerTail?.value
+        for task in detached.serviceTasks { await task.value }
+        for client in detached.clients { await client.disconnect() }
+    }
+
+    func setLifecyclePhaseForTesting(_ phase: DashboardLifecyclePhase) {
+        switch phase {
+        case .ready:
+            lifecycle.installed()
+        case .reconnecting, .disconnected:
+            lifecycle.connectionChanged(phase)
+        case .failed:
+            lifecycle.failBootstrap("Injected test failure")
+        case .stopped:
+            lifecycle.stop()
+        case .connecting:
+            lifecycle.begin()
+        case .loading:
+            lifecycle.begin(); lifecycle.loading()
+        case .idle:
+            lifecycle = DashboardLifecycle()
+        }
+    }
+
+    func setComponentPhaseForTesting(
+        _ component: DashboardComponent,
+        phase: DashboardComponentPhase
+    ) {
+        lifecycle.set(component, phase: phase)
+    }
+
+    func bootstrapCandidateEntityCoordinatorForTesting() -> HAEntitySubscriptionCoordinator? {
+        latestBootstrapEntityCoordinator
+    }
+
+    func installedEntityCoordinatorForTesting() -> HAEntitySubscriptionCoordinator? {
+        entityCoordinator
+    }
+
+    func installBootstrapCandidateEntityCoordinatorForTesting(
+        _ coordinator: HAEntitySubscriptionCoordinator
+    ) {
+        latestBootstrapEntityCoordinator = coordinator
+    }
+
+    func installDashboardOwnerTailForTesting(_ task: Task<Void, Never>) {
+        latestDashboardOwnerOperationSequence &+= 1
+        dashboardOwnerOperationTail = task
+    }
+
+    func awaitLifecycleTransitionsForTesting() async {
+        var observedSequence = latestLifecycleTransitionSequence
+        while true {
+            await lifecycleTransitionTail?.value
+            let latestSequence = latestLifecycleTransitionSequence
+            if latestSequence == observedSequence { return }
+            observedSequence = latestSequence
+        }
+    }
+
+    func installServiceCallerForTesting(_ caller: @escaping DashboardServiceController.Caller) {
+        serviceController.install(caller: caller)
+    }
+
     private func parseDate(_ value: String) -> Date? {
         fractionalISOFormatter.date(from: value) ?? isoFormatter.date(from: value)
     }
 
-    private func queueStateUpdate(
-        _ state: HAState,
-        bootstrapSequence: UInt64,
-        client: HomeAssistantWebSocketClient
-    ) {
-        guard isCurrentInstalledBootstrap(bootstrapSequence, client: client) else {
-            return
-        }
-        pendingStates[state.entityId] = state
-
-        guard stateFlushGeneration != bootstrapSequence else {
-            return
-        }
-
-        stateFlushGeneration = bootstrapSequence
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(
-                nanoseconds: AppConfig.graphRenderSchedulingPolicy.realtimeStateCoalesceNanoseconds
-            )
-            self?.flushPendingStates(
-                bootstrapSequence: bootstrapSequence,
-                client: client
-            )
-        }
-    }
-
-    private func flushPendingStates(
-        bootstrapSequence: UInt64,
-        client: HomeAssistantWebSocketClient
-    ) {
-        guard stateFlushGeneration == bootstrapSequence else { return }
-        stateFlushGeneration = nil
-        guard isCurrentInstalledBootstrap(bootstrapSequence, client: client) else {
-            pendingStates.removeAll()
-            return
-        }
-        guard !pendingStates.isEmpty else {
-            return
-        }
-
-        if pendingStates.contains(where: { states[$0.key] != $0.value }) {
-            var updatedStates = states
-            for (entityID, state) in pendingStates {
-                updatedStates[entityID] = state
-            }
-            states = updatedStates
-        }
-        pendingStates.removeAll()
-    }
-
     func synchronizeHistorySubscriptionsForTesting() async {
-        await loadHistories()
+        let startingSequence = latestDashboardOwnerOperationSequence
+        enqueueCurrentDashboardOwnerCandidate(
+            startHistoryOwners: webSocketClient != nil,
+            runsCandidateHook: false
+        )
+        await awaitStableDashboardOwnerOperationTail(startingAt: startingSequence)
     }
 
     func applyLovelaceConfigForTesting(_ config: LovelaceConfig) async {
@@ -1034,27 +2333,56 @@ final class DashboardViewModel: ObservableObject {
         startHistoryOwners: Bool,
         bootstrapSequence: UInt64? = nil
     ) async {
-        guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
+        let weakModel = WeakDashboardViewModelBox(self)
+        await Self.applyLovelaceConfig(
+            config,
+            startHistoryOwners: startHistoryOwners,
+            bootstrapSequence: bootstrapSequence,
+            model: weakModel
+        )
+    }
+
+    private static func applyLovelaceConfig(
+        _ config: LovelaceConfig,
+        startHistoryOwners: Bool,
+        bootstrapSequence: UInt64?,
+        model weakModel: WeakDashboardViewModelBox
+    ) async {
+        var tail = weakModel.value?.enqueueLovelaceConfig(
+            config,
+            startHistoryOwners: startHistoryOwners,
+            bootstrapSequence: bootstrapSequence
+        )
+        var observedSequence = weakModel.value?.latestDashboardOwnerOperationSequence ?? 0
+        while true {
+            await tail?.value
+            guard let latestSequence = weakModel.value?.latestDashboardOwnerOperationSequence else {
+                return
+            }
+            if latestSequence == observedSequence { return }
+            observedSequence = latestSequence
+            tail = weakModel.value?.dashboardOwnerOperationTail
+        }
+    }
+
+    private func enqueueLovelaceConfig(
+        _ config: LovelaceConfig,
+        startHistoryOwners: Bool,
+        bootstrapSequence: UInt64?
+    ) -> Task<Void, Never>? {
+        guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return nil }
         if latestQueuedConfigRawValue == config.rawValue,
            dashboardOwnerOperationTail != nil,
            latestQueuedDashboardCandidate?.bootstrapSequence == bootstrapSequence
         {
-            await awaitStableDashboardOwnerOperationTail(
-                startingAt: latestDashboardOwnerOperationSequence
-            )
-            guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
-            return
+            return dashboardOwnerOperationTail
         }
         if bootstrapSequence == nil,
            hasLoadedDashboard,
            latestQueuedConfigRawValue == nil,
            presentationDashboard.resolved.source.rawValue == config.rawValue
         {
-            await awaitStableDashboardOwnerOperationTail(
-                startingAt: latestDashboardOwnerOperationSequence
-            )
-            guard bootstrapSequence.map({ latestBootstrapSequence == $0 }) ?? true else { return }
-            return
+            return dashboardOwnerOperationTail
         }
 
         let dashboard = LovelacePresentationDashboard(
@@ -1089,14 +2417,14 @@ final class DashboardViewModel: ObservableObject {
         }
         latestConfigRequestSequence &+= 1
         let requestSequence = latestConfigRequestSequence
-        let operationSequence = enqueueDashboardOwnerCandidate(
+        _ = enqueueDashboardOwnerCandidate(
             dashboard: dashboard,
             selectedView: selected,
             startHistoryOwners: startHistoryOwners,
             configRequestSequence: requestSequence,
             bootstrapSequence: bootstrapSequence
         )
-        await awaitStableDashboardOwnerOperationTail(startingAt: operationSequence)
+        return dashboardOwnerOperationTail
     }
 
     @discardableResult
@@ -1110,27 +2438,14 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
-    private func enqueueDashboardOwnerOperation(
-        _ operation: @escaping @MainActor (DashboardViewModel) async -> Void
-    ) async {
-        latestDashboardOwnerOperationSequence &+= 1
-        let previousTail = dashboardOwnerOperationTail
-        let task = Task { @MainActor [weak self] in
-            await previousTail?.value
-            guard let self = self else { return }
-            await operation(self)
-        }
-        dashboardOwnerOperationTail = task
-        await task.value
-    }
-
     @discardableResult
     private func enqueueDashboardOwnerCandidate(
         dashboard: LovelacePresentationDashboard,
         selectedView: LovelaceResolvedView?,
         startHistoryOwners: Bool,
         configRequestSequence: UInt64,
-        bootstrapSequence: UInt64? = nil
+        bootstrapSequence: UInt64? = nil,
+        runsCandidateHook: Bool = true
     ) -> UInt64 {
         latestNavigationRequestSequence &+= 1
         let navigationSequence = latestNavigationRequestSequence
@@ -1169,31 +2484,47 @@ final class DashboardViewModel: ObservableObject {
         latestDashboardOwnerOperationSequence &+= 1
         let operationSequence = latestDashboardOwnerOperationSequence
         let previousTail = dashboardOwnerOperationTail
-        let task = Task { @MainActor [weak self] in
+        let weakModel = WeakDashboardViewModelBox(self)
+        let candidateHook = dashboardOwnerCandidateHook
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [weakModel, candidateHook, operationRegistry] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
             await previousTail?.value
-            guard let self = self else { return }
-            await self.dashboardOwnerCandidateHook()
-            await self.finishDetachedOwnership(detached)
-            guard self.isCurrent(candidate) else {
-                if self.latestQueuedDashboardCandidate?.navigationRequestSequence ==
+            guard !Task.isCancelled else { return }
+            if runsCandidateHook {
+                await candidateHook()
+            }
+            await Self.finishDetachedOwnership(detached)
+            guard weakModel.value?.isCurrent(candidate) == true else {
+                if weakModel.value?.latestQueuedDashboardCandidate?.navigationRequestSequence ==
                     candidate.navigationRequestSequence
                 {
-                    self.latestQueuedDashboardCandidate = nil
+                    weakModel.value?.latestQueuedDashboardCandidate = nil
                 }
                 return
             }
-            await self.installDashboardOwnerCandidate(candidate)
-            if self.latestQueuedDashboardCandidate?.navigationRequestSequence ==
+            let shouldStartHistories = weakModel.value?.installDashboardOwnerCandidateSynchronously(candidate) == true
+            if shouldStartHistories {
+                await Self.startCandidateHistories(candidate, model: weakModel)
+            }
+            if weakModel.value?.latestQueuedDashboardCandidate?.navigationRequestSequence ==
                 candidate.navigationRequestSequence
             {
-                self.latestQueuedDashboardCandidate = nil
+                weakModel.value?.latestQueuedDashboardCandidate = nil
             }
         }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(task: task, detachedOwnership: detached),
+            sequence: operationSequence
+        )
         dashboardOwnerOperationTail = task
         return operationSequence
     }
 
-    private func enqueueCurrentDashboardOwnerCandidate(startHistoryOwners: Bool) {
+    private func enqueueCurrentDashboardOwnerCandidate(
+        startHistoryOwners: Bool,
+        runsCandidateHook: Bool = true
+    ) {
         let dashboard = latestQueuedDashboardCandidate?.dashboard ?? presentationDashboard
         let navigation = self.navigation(for: dashboard)
         let selected = navigation.view(identity: desiredSelectedViewIdentity)
@@ -1202,7 +2533,8 @@ final class DashboardViewModel: ObservableObject {
             dashboard: dashboard,
             selectedView: selected,
             startHistoryOwners: startHistoryOwners,
-            configRequestSequence: latestConfigRequestSequence
+            configRequestSequence: latestConfigRequestSequence,
+            runsCandidateHook: runsCandidateHook
         )
     }
 
@@ -1248,7 +2580,7 @@ final class DashboardViewModel: ObservableObject {
         )
     }
 
-    private func finishDetachedOwnership(_ detached: DetachedDashboardOwnership) async {
+    private static func finishDetachedOwnership(_ detached: DetachedDashboardOwnership) async {
         for startup in detached.startups {
             await startup.value
         }
@@ -1264,7 +2596,8 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func isCurrent(_ candidate: DashboardOwnerCandidate) -> Bool {
-        latestConfigRequestSequence == candidate.configRequestSequence &&
+        lifetimeAuthority.acceptsWork &&
+            latestConfigRequestSequence == candidate.configRequestSequence &&
             (candidate.bootstrapSequence.map { latestBootstrapSequence == $0 } ?? true) &&
             latestNavigationRequestSequence == candidate.navigationRequestSequence &&
             desiredSelectedViewIdentity == candidate.selectedViewIdentity &&
@@ -1272,7 +2605,9 @@ final class DashboardViewModel: ObservableObject {
             desiredHistoryKeys == Set(candidate.desiredRequests.map(\.key))
     }
 
-    private func installDashboardOwnerCandidate(_ candidate: DashboardOwnerCandidate) async {
+    private func installDashboardOwnerCandidateSynchronously(
+        _ candidate: DashboardOwnerCandidate
+    ) -> Bool {
         let desiredKeys = Set(candidate.desiredRequests.map(\.key))
         let obsoleteVisualKeys = Set(graphHistoryRevisionFeeds.keys)
             .union(historyStatuses.keys)
@@ -1288,6 +2623,8 @@ final class DashboardViewModel: ObservableObject {
         // chart feeds and coordinator/render generations.
         graphChartMountRegistry.invalidateOwners(notIn: candidate.desiredGraphOwnerIDs)
         presentationDashboard = candidate.dashboard
+        lovelaceStore.install(candidate.dashboard)
+        lifecycle.set(.lovelace, phase: .ready)
         views = candidate.dashboard.resolved.source.views
         hasLoadedDashboard = true
         selectedViewIdentity = candidate.selectedViewIdentity
@@ -1314,326 +2651,278 @@ final class DashboardViewModel: ObservableObject {
             clearPersistedNavigationSelection()
         }
 
-        guard candidate.startHistoryOwners, isCurrent(candidate) else { return }
-        await loadHistoriesInline(configRequestSequence: candidate.configRequestSequence)
-        guard isCurrent(candidate) else {
-            await retireCardHistoryOwnership(notIn: latestQueuedHistoryKeys)
-            return
-        }
+        return candidate.startHistoryOwners && isCurrent(candidate)
     }
 
-    private func loadHistories(configRequestSequence: UInt64? = nil) async {
-        if let configRequestSequence = configRequestSequence {
-            await loadHistoriesInline(configRequestSequence: configRequestSequence)
-            return
-        }
-
-        let capturedConfigSequence = latestConfigRequestSequence
-        await enqueueDashboardOwnerOperation { model in
-            await model.loadHistoriesInline(configRequestSequence: capturedConfigSequence)
-        }
-    }
-
-    private func loadHistoriesInline(configRequestSequence: UInt64) async {
-        guard latestConfigRequestSequence == configRequestSequence else { return }
-        guard let webSocketClient = webSocketClient else { return }
-
-        let requests = historyRequests()
-        let desiredKeys = Set(requests.map(\.key))
-        if desiredKeys != desiredHistoryKeys {
-            desiredHistoryKeys = desiredKeys
-            historyReconciliationEpoch &+= 1
-        }
-        let reconciliationEpoch = historyReconciliationEpoch
-        let obsoleteKeys = Set(historySubscriptions.keys)
-            .union(historyGenerations.keys)
-            .union(graphHistoryRevisionFeeds.keys)
-            .union(historyStatuses.keys)
-            .union(histories.keys)
-            .subtracting(desiredKeys)
-        var obsoleteSubscriptions: [HAHistoryStreamSubscription] = []
-        for key in obsoleteKeys {
-            if let subscription = historySubscriptions.removeValue(forKey: key) {
-                obsoleteSubscriptions.append(subscription)
-            }
-            historyGenerations.removeValue(forKey: key)
-            graphHistoryRevisionFeeds.removeValue(forKey: key)
-            historyStatuses.removeValue(forKey: key)
-            histories.removeValue(forKey: key)
-        }
-        for subscription in obsoleteSubscriptions {
-            await subscription.cancel()
-        }
-
-        guard
-            latestConfigRequestSequence == configRequestSequence,
-            historyReconciliationEpoch == reconciliationEpoch
-        else { return }
-        for request in requests {
-            guard latestConfigRequestSequence == configRequestSequence else { return }
-            guard historyReconciliationEpoch == reconciliationEpoch else { return }
-            guard
-                desiredHistoryKeys.contains(request.key),
-                historySubscriptions[request.key] == nil,
-                historyGenerations[request.key] == nil
-            else { continue }
-            await startHistoryTracked(
+    private static func startCandidateHistories(
+        _ candidate: DashboardOwnerCandidate,
+        model weakModel: WeakDashboardViewModelBox
+    ) async {
+        for request in candidate.desiredRequests {
+            guard !Task.isCancelled,
+                  weakModel.value?.isCurrent(candidate) == true
+            else { break }
+            guard let startup = weakModel.value?.beginHistoryStartup(
                 request,
-                webSocketClient: webSocketClient,
-                reconciliationEpoch: reconciliationEpoch,
-                configRequestSequence: configRequestSequence
-            )
+                reconciliationEpoch: weakModel.value?.historyReconciliationEpoch ?? 0,
+                configRequestSequence: candidate.configRequestSequence
+            ) else { continue }
+            await startup.value
         }
+
+        guard weakModel.value?.isCurrent(candidate) != true,
+              let detached = weakModel.value?.detachOwnershipSynchronously(
+                notIn: weakModel.value?.latestQueuedHistoryKeys ?? []
+              )
+        else { return }
+        detached.startups.forEach { $0.cancel() }
+        await finishDetachedOwnership(detached)
     }
 
-    private func startHistoryTracked(
+    private func beginHistoryStartup(
         _ request: HistoryRequest,
-        webSocketClient: HomeAssistantWebSocketClient,
+        webSocketClient explicitClient: HomeAssistantWebSocketClient? = nil,
         reconciliationEpoch: UInt64,
         configRequestSequence: UInt64?
-    ) async {
-        let startupID = UUID()
-        let task = Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            await self.startHistory(
-                request,
-                webSocketClient: webSocketClient,
-                reconciliationEpoch: reconciliationEpoch,
-                configRequestSequence: configRequestSequence
-            )
-        }
-        historyStartupTasks[startupID] = HistoryStartupTask(key: request.key, task: task)
-        await task.value
-        historyStartupTasks.removeValue(forKey: startupID)
-    }
-
-    private func startHistory(
-        _ request: HistoryRequest,
-        webSocketClient: HomeAssistantWebSocketClient,
-        reconciliationEpoch: UInt64,
-        configRequestSequence: UInt64? = nil
-    ) async {
+    ) -> Task<Void, Never>? {
         let key = request.key
-        guard
-            historyReconciliationEpoch == reconciliationEpoch,
-            desiredHistoryKeys.contains(key),
-            historySubscriptions[key] == nil,
-            historyGenerations[key] == nil
-        else { return }
+        guard lifetimeAuthority.acceptsWork,
+              historyReconciliationEpoch == reconciliationEpoch,
+              desiredHistoryKeys.contains(key),
+              historySubscriptions[key] == nil,
+              historyGenerations[key] == nil,
+              let client = explicitClient ?? webSocketClient
+        else { return nil }
+
         let generation = UUID()
+        let startupID = UUID()
         let stateSnapshot = states
-        historyGenerations[key] = generation
         let graphRevisionFeed = GraphHistoryRevisionFeed()
+        let processingHook = historyProcessingHook
+        let now = historyNow
+        let authority = lifetimeAuthority
+        let weakModel = WeakDashboardViewModelBox(self)
+        historyGenerations[key] = generation
         graphHistoryRevisionFeeds[key] = graphRevisionFeed
         historyStatuses[key] = .loading
-        let weakModel = WeakDashboardViewModelBox(self)
-        let processingHook = historyProcessingHook
+
+        let task = Task { @MainActor [weakModel] in
+            await Self.runHistoryStartup(
+                request,
+                client: client,
+                reconciliationEpoch: reconciliationEpoch,
+                configRequestSequence: configRequestSequence,
+                generation: generation,
+                stateSnapshot: stateSnapshot,
+                graphRevisionFeed: graphRevisionFeed,
+                processingHook: processingHook,
+                now: now,
+                lifetimeAuthority: authority,
+                model: weakModel
+            )
+            weakModel.value?.historyStartupTasks.removeValue(forKey: startupID)
+        }
+        historyStartupTasks[startupID] = HistoryStartupTask(key: key, task: task)
+        return task
+    }
+
+    private static func runHistoryStartup(
+        _ request: HistoryRequest,
+        client: HomeAssistantWebSocketClient,
+        reconciliationEpoch: UInt64,
+        configRequestSequence: UInt64?,
+        generation: UUID,
+        stateSnapshot: [String: HAState],
+        graphRevisionFeed: GraphHistoryRevisionFeed,
+        processingHook: @escaping @Sendable () async -> Void,
+        now: @escaping @Sendable () -> Date,
+        lifetimeAuthority: DashboardLifetimeAuthority,
+        model weakModel: WeakDashboardViewModelBox
+    ) async {
+        let key = request.key
         let projectionStore = HAHistoryProjectionStore(
             orderedEntityIDs: request.entityIDs,
             currentStates: stateSnapshot
         )
-
         do {
-            let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
+            guard lifetimeAuthority.acceptsWork, !Task.isCancelled else { return }
+            let subscription = try await client.subscribeHistoryStatesTimeWindow(
                 entityIDs: request.entityIDs,
                 hoursToShow: request.hoursToShow,
                 currentStates: stateSnapshot,
-                now: historyNow,
+                now: now,
                 onStatus: { status in
                     await MainActor.run {
-                        guard weakModel.value?.historyGenerations[key] == generation else { return }
-                        guard weakModel.value?.desiredHistoryKeys.contains(key) == true else { return }
-                        guard weakModel.value?.historyStatuses[key] != status else { return }
+                        guard lifetimeAuthority.acceptsWork,
+                              weakModel.value?.historyGenerations[key] == generation,
+                              weakModel.value?.desiredHistoryKeys.contains(key) == true,
+                              weakModel.value?.historyStatuses[key] != status
+                        else { return }
                         weakModel.value?.historyStatuses[key] = status
                     }
                 },
                 onPublication: { publication in
                     if case .unchanged = publication.transition { return }
-                    let resetsPreparedGraphState: Bool
+                    let resetPreparedState: Bool
                     switch publication.transition {
-                    case .reset, .outOfOrderReset:
-                        resetsPreparedGraphState = true
-                    case .normal, .unchanged:
-                        resetsPreparedGraphState = false
+                    case .reset, .outOfOrderReset: resetPreparedState = true
+                    case .normal, .unchanged: resetPreparedState = false
                     }
                     await processingHook()
-                    guard !Task.isCancelled else { return }
-                    guard let projected = await projectionStore.series(from: publication) else { return }
-                    guard !Task.isCancelled else { return }
+                    guard lifetimeAuthority.acceptsWork,
+                          !Task.isCancelled,
+                          let projected = await projectionStore.series(from: publication),
+                          !Task.isCancelled
+                    else { return }
                     await MainActor.run {
-                        guard !Task.isCancelled else { return }
-                        guard weakModel.value?.historyGenerations[key] == generation else { return }
-                        guard weakModel.value?.desiredHistoryKeys.contains(key) == true else { return }
-                        graphRevisionFeed.publish(
-                            projected,
-                            resetPreparedState: resetsPreparedGraphState
-                        )
+                        guard lifetimeAuthority.acceptsWork,
+                              !Task.isCancelled,
+                              weakModel.value?.historyGenerations[key] == generation,
+                              weakModel.value?.desiredHistoryKeys.contains(key) == true
+                        else { return }
+                        graphRevisionFeed.publish(projected, resetPreparedState: resetPreparedState)
                         weakModel.value?.histories[key] = projected
                     }
                 }
             )
-            guard
-                configRequestSequence.map({
-                    latestConfigRequestSequence == $0 ||
-                        latestQueuedHistoryKeys.contains(key) ||
-                        (latestQueuedConfigRawValue == nil && desiredHistoryKeys.contains(key))
-                }) ?? true,
-                desiredHistoryKeys.contains(key),
-                historyGenerations[key] == generation
-            else {
-                if historyGenerations[key] == generation {
-                    historyGenerations.removeValue(forKey: key)
-                    graphHistoryRevisionFeeds.removeValue(forKey: key)
-                    historyStatuses.removeValue(forKey: key)
-                    histories.removeValue(forKey: key)
-                }
+            guard lifetimeAuthority.acceptsWork,
+                  weakModel.value?.acceptHistoryStartup(
+                key: key,
+                generation: generation,
+                reconciliationEpoch: reconciliationEpoch,
+                configRequestSequence: configRequestSequence,
+                subscription: subscription
+            ) == true else {
                 await subscription.cancel()
                 return
             }
-            historySubscriptions[key] = subscription
         } catch {
-            guard
-                desiredHistoryKeys.contains(key),
-                historyGenerations[key] == generation
-            else { return }
-            historyGenerations.removeValue(forKey: key)
-            graphHistoryRevisionFeeds.removeValue(forKey: key)
-            historyStatuses[key] = .error(error.localizedDescription)
-            errorMessage = "History stream failed: \(error.localizedDescription)"
+            weakModel.value?.failHistoryStartup(key: key, generation: generation, error: error)
         }
     }
 
-    private func retireCardHistoryOwnership(notIn retainedKeys: Set<String>) async {
-        historyReconciliationEpoch &+= 1
-        desiredHistoryKeys.formIntersection(retainedKeys)
-        // This reconciliation has already been superseded. Retire only live
-        // delivery ownership so the final queued candidate cannot overlap it.
-        // Accepted visual stores and mounted lifecycles still belong to the
-        // published dashboard; only the final candidate may retire those.
-        let obsoleteOwnershipKeys = Set(historySubscriptions.keys)
-            .union(historyGenerations.keys)
-            .union(historyStartupTasks.values.map(\.key))
-            .subtracting(retainedKeys)
-        let startupIDs = historyStartupTasks.compactMap { id, startup in
-            obsoleteOwnershipKeys.contains(startup.key) ? id : nil
-        }
-        let startups = startupIDs.compactMap { historyStartupTasks.removeValue(forKey: $0)?.task }
-        var subscriptions: [HAHistoryStreamSubscription] = []
-        for key in obsoleteOwnershipKeys {
-            if let subscription = historySubscriptions.removeValue(forKey: key) {
-                subscriptions.append(subscription)
+    private func acceptHistoryStartup(
+        key: String,
+        generation: UUID,
+        reconciliationEpoch _: UInt64,
+        configRequestSequence: UInt64?,
+        subscription: HAHistoryStreamSubscription
+    ) -> Bool {
+        guard lifetimeAuthority.acceptsWork,
+              !Task.isCancelled,
+              configRequestSequence.map({
+                latestConfigRequestSequence == $0 ||
+                    latestQueuedHistoryKeys.contains(key) ||
+                    (latestQueuedConfigRawValue == nil && desiredHistoryKeys.contains(key))
+              }) ?? true,
+              desiredHistoryKeys.contains(key),
+              historyGenerations[key] == generation
+        else {
+            if historyGenerations[key] == generation {
+                historyGenerations.removeValue(forKey: key)
+                graphHistoryRevisionFeeds.removeValue(forKey: key)
+                historyStatuses.removeValue(forKey: key)
+                histories.removeValue(forKey: key)
             }
-            historyGenerations.removeValue(forKey: key)
+            return false
         }
-        for startup in startups {
-            await startup.value
-        }
-        for subscription in subscriptions {
-            await subscription.cancel()
-        }
+        historySubscriptions[key] = subscription
+        return true
     }
 
-    private func refreshHistorySubscriptions() async {
-        let capturedConfigSequence = latestConfigRequestSequence
-        await enqueueDashboardOwnerOperation { model in
-            await model.refreshHistorySubscriptionsInline(
-                configRequestSequence: capturedConfigSequence
-            )
-        }
-    }
-
-    private func refreshHistorySubscriptionsInline(configRequestSequence: UInt64) async {
-        guard latestConfigRequestSequence == configRequestSequence else { return }
-        let currentDesiredKeys = Set(historyRequests().map(\.key))
-        if historySubscriptions.isEmpty || currentDesiredKeys != desiredHistoryKeys {
-            await loadHistoriesInline(configRequestSequence: configRequestSequence)
-            return
-        }
-        let reconciliationEpoch = historyReconciliationEpoch
-        let subscriptions = historySubscriptions.compactMap { key, subscription in
-            historyGenerations[key].map { (key, subscription, $0) }
-        }
-        for (key, subscription, generation) in subscriptions {
-            guard
-                latestConfigRequestSequence == configRequestSequence,
-                historyReconciliationEpoch == reconciliationEpoch,
-                desiredHistoryKeys.contains(key),
-                historyGenerations[key] == generation,
-                historySubscriptions[key] === subscription
-            else { continue }
-            historyStatuses[key] = .loading
-            do {
-                try await subscription.refresh()
-            } catch {
-                guard
-                    latestConfigRequestSequence == configRequestSequence,
-                    desiredHistoryKeys.contains(key),
-                    historyGenerations[key] == generation,
-                    historySubscriptions[key] === subscription
-                else { continue }
-                historyStatuses[key] = .error(error.localizedDescription)
-            }
-        }
-    }
-
-    private func startDetailHistory(entityID: String, hours: Int, key: String) async {
-        guard
-            !Task.isCancelled,
-            desiredDetailHistoryKeys.contains(key),
-            detailHistorySubscriptions[key] == nil,
-            let webSocketClient = webSocketClient
+    private func failHistoryStartup(key: String, generation: UUID, error: Error) {
+        guard lifetimeAuthority.acceptsWork,
+              desiredHistoryKeys.contains(key),
+              historyGenerations[key] == generation
         else { return }
+        historyGenerations.removeValue(forKey: key)
+        graphHistoryRevisionFeeds.removeValue(forKey: key)
+        historyStatuses[key] = .error(error.localizedDescription)
+    }
 
-        let generation = UUID()
-        let stateSnapshot = states
-        detailHistoryGenerations[key] = generation
-        detailHistoryStatuses[key] = .loading
-        let weakModel = WeakDashboardViewModelBox(self)
-        let processingHook = historyProcessingHook
+    private static func runDetailHistoryStartup(
+        entityID: String,
+        hours: Int,
+        key: String,
+        generation: UUID,
+        client: HomeAssistantWebSocketClient,
+        stateSnapshot: [String: HAState],
+        processingHook: @escaping @Sendable () async -> Void,
+        now: @escaping @Sendable () -> Date,
+        lifetimeAuthority: DashboardLifetimeAuthority,
+        model weakModel: WeakDashboardViewModelBox
+    ) async {
         let projectionStore = HAHistoryProjectionStore(
             orderedEntityIDs: [entityID],
             currentStates: stateSnapshot
         )
         do {
-            let subscription = try await webSocketClient.subscribeHistoryStatesTimeWindow(
+            guard lifetimeAuthority.acceptsWork, !Task.isCancelled else { return }
+            let subscription = try await client.subscribeHistoryStatesTimeWindow(
                 entityIDs: [entityID],
                 hoursToShow: hours,
                 currentStates: stateSnapshot,
-                now: historyNow,
+                now: now,
                 onStatus: { status in
                     await MainActor.run {
-                        guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
-                        guard weakModel.value?.detailHistoryStatuses[key] != status else { return }
+                        guard lifetimeAuthority.acceptsWork,
+                              weakModel.value?.detailHistoryGenerations[key] == generation,
+                              weakModel.value?.detailHistoryStatuses[key] != status
+                        else { return }
                         weakModel.value?.detailHistoryStatuses[key] = status
                     }
                 },
                 onPublication: { publication in
                     if case .unchanged = publication.transition { return }
                     await processingHook()
-                    guard !Task.isCancelled else { return }
-                    guard let projection = await projectionStore.series(from: publication)?.first else { return }
-                    guard !Task.isCancelled else { return }
+                    guard lifetimeAuthority.acceptsWork,
+                          !Task.isCancelled,
+                          let projection = await projectionStore.series(from: publication)?.first,
+                          !Task.isCancelled
+                    else { return }
                     await MainActor.run {
-                        guard !Task.isCancelled else { return }
-                        guard weakModel.value?.detailHistoryGenerations[key] == generation else { return }
+                        guard lifetimeAuthority.acceptsWork,
+                              !Task.isCancelled,
+                              weakModel.value?.detailHistoryGenerations[key] == generation
+                        else { return }
                         weakModel.value?.detailHistories[key] = projection
                     }
                 }
             )
-            guard
-                !Task.isCancelled,
-                desiredDetailHistoryKeys.contains(key),
-                detailHistoryGenerations[key] == generation
-            else {
+            guard lifetimeAuthority.acceptsWork,
+                  weakModel.value?.acceptDetailHistoryStartup(
+                key: key,
+                generation: generation,
+                subscription: subscription
+            ) == true else {
                 await subscription.cancel()
                 return
             }
-            detailHistorySubscriptions[key] = subscription
         } catch {
-            guard detailHistoryGenerations[key] == generation else { return }
-            detailHistoryStatuses[key] = .error(error.localizedDescription)
-            errorMessage = "Detail history failed for \(entityID): \(error.localizedDescription)"
+            weakModel.value?.failDetailHistoryStartup(key: key, generation: generation, error: error)
         }
+    }
+
+    private func acceptDetailHistoryStartup(
+        key: String,
+        generation: UUID,
+        subscription: HAHistoryStreamSubscription
+    ) -> Bool {
+        guard lifetimeAuthority.acceptsWork,
+              !Task.isCancelled,
+              desiredDetailHistoryKeys.contains(key),
+              detailHistoryGenerations[key] == generation
+        else { return false }
+        detailHistorySubscriptions[key] = subscription
+        return true
+    }
+
+    private func failDetailHistoryStartup(key: String, generation: UUID, error: Error) {
+        guard lifetimeAuthority.acceptsWork,
+              detailHistoryGenerations[key] == generation
+        else { return }
+        detailHistoryGenerations.removeValue(forKey: key)
+        detailHistoryStatuses[key] = .error(error.localizedDescription)
     }
 
     private func detailHistoryKey(entityID: String, hours: Int) -> String {
@@ -1741,7 +3030,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
 
-    private func firstWorkingConnection(token: String) async throws -> Connection {
+    private static func firstWorkingConnection(token: String) async throws -> Connection {
         var lastError: Error?
 
         for baseURL in AppConfig.baseURLs {
@@ -1772,6 +3061,12 @@ final class DashboardViewModel: ObservableObject {
     private func performPowerCall(entityID: String, isOn: Bool) {
         let service = isOn ? "turn_on" : "turn_off"
         let domain = domain(for: entityID)
+        guard serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: domain,
+            service: service
+        ) else { return }
         applyOptimisticState(entityID: entityID, state: isOn ? "on" : "off")
         callService(
             domain: domain,
@@ -1787,16 +3082,22 @@ final class DashboardViewModel: ObservableObject {
         data: [String: JSONValue],
         errorContext: String
     ) {
-        guard let restClient = restClient else {
-            return
+        guard case let .string(entityID)? = data["entity_id"] else { return }
+        lifecycle.set(.service, phase: .loading)
+        let invoked = serviceController.invoke(
+            entityID: entityID,
+            domain: domain,
+            service: service,
+            data: data,
+            errorContext: errorContext
+        ) { [weak self] failure in
+            self?.lifecycle.set(
+                .service,
+                phase: failure.map(DashboardComponentPhase.failed) ?? .ready
+            )
         }
-
-        Task {
-            do {
-                _ = try await restClient.callService(domain: domain, service: service, data: data)
-            } catch {
-                self.errorMessage = "\(errorContext): \(error.localizedDescription)"
-            }
+        if !invoked, serviceController.errorMessage == nil {
+            lifecycle.set(.service, phase: .idle)
         }
     }
 
@@ -1822,6 +3123,7 @@ final class DashboardViewModel: ObservableObject {
             entityId: old.entityId,
             state: state ?? old.state,
             attributes: attributes,
+            context: old.context,
             lastChanged: old.lastChanged,
             lastUpdated: old.lastUpdated
         )
@@ -1840,20 +3142,45 @@ final class DashboardViewModel: ObservableObject {
     }
 
     deinit {
-        connectionStatusTask?.cancel()
-        let stateSubscription = stateSubscription
-        let historySubscriptions = Array(historySubscriptions.values)
-        let detailHistorySubscriptions = Array(detailHistorySubscriptions.values)
-        let client = webSocketClient
-        Task {
-            await stateSubscription?.cancel()
-            for subscription in historySubscriptions {
+        guard let cleanup = emergencyDetachAction?() else { return }
+        Task { @MainActor in
+            cleanup.mountRegistry.invalidateOwners(notIn: [])
+            cleanup.historyCoordinator.reconciliationEpoch &+= 1
+            cleanup.historyCoordinator.desiredKeys.removeAll()
+            cleanup.historyCoordinator.desiredDetailKeys.removeAll()
+            cleanup.historyCoordinator.generations.removeAll()
+            cleanup.historyCoordinator.detailGenerations.removeAll()
+            cleanup.historyCoordinator.startupTasks.removeAll()
+            cleanup.historyCoordinator.detailStartupTasks.removeAll()
+            cleanup.historyCoordinator.subscriptions.removeAll()
+            cleanup.historyCoordinator.detailSubscriptions.removeAll()
+            cleanup.historyCoordinator.graphRevisionFeeds.removeAll()
+            cleanup.historyCoordinator.statuses.removeAll()
+            cleanup.historyCoordinator.detailStatuses.removeAll()
+            cleanup.historyCoordinator.histories.removeAll()
+            cleanup.historyCoordinator.detailHistories.removeAll()
+            let serviceTasks = cleanup.serviceController.stopSynchronously()
+
+            var entityOwnerships: [HAEntitySubscriptionDetachedOwnership] = []
+            if let entity = cleanup.ownership.entityCoordinator {
+                entityOwnerships.append(entity.detachOwnershipSynchronously())
+            }
+            if let candidate = cleanup.ownership.candidateEntityCoordinator,
+               candidate !== cleanup.ownership.entityCoordinator
+            {
+                entityOwnerships.append(candidate.detachOwnershipSynchronously())
+            }
+            for ownership in entityOwnerships { await ownership.finish() }
+            await cleanup.ownership.lovelaceSubscription?.cancel()
+            for subscription in cleanup.ownership.historySubscriptions {
                 await subscription.cancel()
             }
-            for subscription in detailHistorySubscriptions {
+            for subscription in cleanup.ownership.detailHistorySubscriptions {
                 await subscription.cancel()
             }
-            await client?.disconnect()
+            for client in cleanup.ownership.clients { await client.disconnect() }
+            for task in cleanup.ownership.tasks { await task.value }
+            for task in serviceTasks { await task.value }
         }
     }
 }
@@ -1871,6 +3198,10 @@ private final class WeakDashboardViewModelBox: @unchecked Sendable {
     init(_ value: DashboardViewModel) {
         self.value = value
     }
+}
+
+private final class WeakInstalledEntityCoordinatorBox: @unchecked Sendable {
+    weak var value: HAEntitySubscriptionCoordinator?
 }
 
 struct HistoryRequest: Hashable {
@@ -1894,11 +3225,24 @@ struct DashboardOwnerDebugSnapshot: Equatable {
     let historyKeys: Set<String>
     let statusKeys: Set<String>
     let mountedOwnerCount: Int
-}
-
-private struct HistoryStartupTask {
-    let key: String
-    let task: Task<Void, Never>
+    let desiredDetailHistoryKeys: Set<String>
+    let detailSubscriptionKeys: Set<String>
+    let detailGenerationKeys: Set<String>
+    let detailStartupCount: Int
+    let detailHistoryKeys: Set<String>
+    let detailStatusKeys: Set<String>
+    let entityOwnerActive: Bool
+    let candidateEntityOwnerActive: Bool
+    let lovelaceSubscriptionActive: Bool
+    let bootstrapTaskActive: Bool
+    let connectionStatusTaskActive: Bool
+    let lovelaceFetchTaskActive: Bool
+    let reconnectTaskActive: Bool
+    let dashboardOwnerTailActive: Bool
+    let dashboardOwnerNodeCount: Int
+    let serviceTaskCount: Int
+    let webSocketClientActive: Bool
+    let installedClientActive: Bool
 }
 
 private struct DetachedDashboardOwnership {
@@ -1908,9 +3252,366 @@ private struct DetachedDashboardOwnership {
     let detailSubscriptions: [HAHistoryStreamSubscription]
 }
 
-private struct DetailHistoryStartupTask {
-    let key: String
+private struct DashboardOwnerOperationNode {
     let task: Task<Void, Never>
+    var detachedOwnership: DetachedDashboardOwnership?
+}
+
+/// Every node in the one dashboard-owner chain remains visible here until its
+/// task and task-local retirement finish. Stop and nonisolated deinit can thus
+/// cancel hidden predecessors without changing ordinary reconciliation order.
+private final class DashboardOwnerOperationRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var nodes: [UInt64: DashboardOwnerOperationNode] = [:]
+    private var isPermanentlyRevoked = false
+
+    func register(_ node: DashboardOwnerOperationNode, sequence: UInt64) {
+        lock.lock()
+        let reject = isPermanentlyRevoked
+        if !reject { nodes[sequence] = node }
+        lock.unlock()
+        if reject { cancel(node) }
+    }
+
+    func setDetachedOwnership(
+        _ ownership: DetachedDashboardOwnership,
+        sequence: UInt64
+    ) {
+        lock.lock()
+        let reject = isPermanentlyRevoked || nodes[sequence] == nil
+        if !reject { nodes[sequence]?.detachedOwnership = ownership }
+        lock.unlock()
+        if reject { cancel(ownership) }
+    }
+
+    func finish(sequence: UInt64) {
+        lock.lock()
+        nodes.removeValue(forKey: sequence)
+        lock.unlock()
+    }
+
+    func detachSynchronously(revokingPermanently: Bool = false) -> [DashboardOwnerOperationNode] {
+        lock.lock()
+        if revokingPermanently { isPermanentlyRevoked = true }
+        let detached = Array(nodes.values)
+        nodes.removeAll()
+        lock.unlock()
+        detached.forEach(cancel)
+        return detached
+    }
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return nodes.count
+    }
+
+    private func cancel(_ node: DashboardOwnerOperationNode) {
+        node.task.cancel()
+        if let ownership = node.detachedOwnership { cancel(ownership) }
+    }
+
+    private func cancel(_ ownership: DetachedDashboardOwnership) {
+        ownership.startups.forEach { $0.cancel() }
+        ownership.detailStartups.forEach { $0.cancel() }
+        Task {
+            for subscription in ownership.subscriptions { await subscription.cancel() }
+            for subscription in ownership.detailSubscriptions { await subscription.cancel() }
+        }
+    }
+}
+
+private struct FailedHistoryRetryOwnership {
+    let cardStartups: [Task<Void, Never>]
+    let cardSubscriptions: [HAHistoryStreamSubscription]
+    let detailStartups: [Task<Void, Never>]
+    let detailSubscription: HAHistoryStreamSubscription?
+    let detailRetry: FailedDetailHistoryRetry?
+}
+
+private struct FailedDetailHistoryRetry {
+    let entityID: String
+    let key: String
+    let hours: Int
+}
+
+private struct HistoryRefreshOwnership {
+    let startups: [Task<Void, Never>]
+    let refreshes: [HistoryRefreshOwner]
+}
+
+private struct HistoryRefreshOwner {
+    let key: String
+    let generation: UUID
+    let reconciliationEpoch: UInt64
+    let subscription: HAHistoryStreamSubscription
+}
+
+private struct DetachedDashboardAppOwnership {
+    let bootstrapTask: Task<Void, Never>?
+    let statusTask: Task<Void, Never>?
+    let configTask: Task<Void, Never>?
+    let reconnectTask: Task<Void, Never>?
+    let ownerTail: Task<Void, Never>?
+    let ownerOperations: [DashboardOwnerOperationNode]
+    let serviceTasks: [Task<Void, Never>]
+    let entityOwnerships: [HAEntitySubscriptionDetachedOwnership]
+    let lovelaceSubscription: HAWebSocketSubscription?
+    let historyOwnership: DetachedDashboardOwnership
+    let clients: [HomeAssistantWebSocketClient]
+}
+
+private struct DashboardEmergencyDeinitCleanup {
+    let ownership: DashboardEmergencyBagOwnership
+    let historyCoordinator: DashboardHistoryCoordinator
+    let serviceController: DashboardServiceController
+    let mountRegistry: DashboardGraphChartMountRegistry
+}
+
+private enum DashboardEmergencyTaskKey: Hashable {
+    case bootstrap
+    case connectionStatus
+    case lovelaceFetch
+    case lifecycleTail
+    case startTransition
+    case retryTransition
+    case reconnect
+    case dashboardOwnerTail
+}
+
+private struct DashboardEmergencyBagOwnership {
+    let tasks: [Task<Void, Never>]
+    let entityCoordinator: HAEntitySubscriptionCoordinator?
+    let candidateEntityCoordinator: HAEntitySubscriptionCoordinator?
+    let lovelaceSubscription: HAWebSocketSubscription?
+    let historySubscriptions: [HAHistoryStreamSubscription]
+    let detailHistorySubscriptions: [HAHistoryStreamSubscription]
+    let clients: [HomeAssistantWebSocketClient]
+}
+
+/// Thread-safe, non-self-retaining emergency inventory. The model writes this
+/// mirror only from MainActor, while nonisolated `deinit` may atomically revoke
+/// acceptance and cancel Task handles from any executor. MainActor-only owner
+/// registries and graph lifecycles are cleared by the follow-up cleanup task,
+/// which captures this detached inventory and fixed collaborators, never the
+/// deinitializing model.
+private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
+    private let lock = NSLock()
+    private let lifetimeAuthority: DashboardLifetimeAuthority
+    private let dashboardOwnerOperationRegistry: DashboardOwnerOperationRegistry
+    private var isDetached = false
+    private var tasks: [DashboardEmergencyTaskKey: Task<Void, Never>] = [:]
+    private var serviceTasks: [Task<Void, Never>] = []
+    private var entityCoordinatorTasks: [UUID: [Task<Void, Never>]] = [:]
+    private var historyStartupTasks: [Task<Void, Never>] = []
+    private var detailHistoryStartupTasks: [Task<Void, Never>] = []
+    private var entityCoordinator: HAEntitySubscriptionCoordinator?
+    private var candidateEntityCoordinator: HAEntitySubscriptionCoordinator?
+    private var lovelaceSubscription: HAWebSocketSubscription?
+    private var historySubscriptions: [HAHistoryStreamSubscription] = []
+    private var detailHistorySubscriptions: [HAHistoryStreamSubscription] = []
+    private var webSocketClient: HomeAssistantWebSocketClient?
+    private var latestBootstrapClient: HomeAssistantWebSocketClient?
+    private var installedBootstrapClient: HomeAssistantWebSocketClient?
+
+    init(
+        lifetimeAuthority: DashboardLifetimeAuthority,
+        dashboardOwnerOperationRegistry: DashboardOwnerOperationRegistry
+    ) {
+        self.lifetimeAuthority = lifetimeAuthority
+        self.dashboardOwnerOperationRegistry = dashboardOwnerOperationRegistry
+    }
+
+    func setTask(_ task: Task<Void, Never>?, for key: DashboardEmergencyTaskKey) {
+        lock.lock()
+        guard !isDetached else {
+            lock.unlock()
+            task?.cancel()
+            return
+        }
+        tasks[key] = task
+        lock.unlock()
+    }
+
+    func setServiceTasks(_ value: [Task<Void, Never>]) {
+        lock.lock()
+        guard !isDetached else {
+            lock.unlock()
+            value.forEach { $0.cancel() }
+            return
+        }
+        serviceTasks = value
+        lock.unlock()
+    }
+
+    func setEntityCoordinatorTasks(
+        _ value: [Task<Void, Never>],
+        ownerID: UUID
+    ) {
+        lock.lock()
+        guard !isDetached else {
+            lock.unlock()
+            value.forEach { $0.cancel() }
+            return
+        }
+        if value.isEmpty {
+            entityCoordinatorTasks.removeValue(forKey: ownerID)
+        } else {
+            entityCoordinatorTasks[ownerID] = value
+        }
+        lock.unlock()
+    }
+
+    func setHistoryStartupTasks(_ value: [Task<Void, Never>]) {
+        lock.lock()
+        guard !isDetached else {
+            lock.unlock()
+            value.forEach { $0.cancel() }
+            return
+        }
+        historyStartupTasks = value
+        lock.unlock()
+    }
+
+    func setDetailHistoryStartupTasks(_ value: [Task<Void, Never>]) {
+        lock.lock()
+        guard !isDetached else {
+            lock.unlock()
+            value.forEach { $0.cancel() }
+            return
+        }
+        detailHistoryStartupTasks = value
+        lock.unlock()
+    }
+
+    func setEntityCoordinator(_ value: HAEntitySubscriptionCoordinator?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { entityCoordinator = value }
+    }
+
+    func setCandidateEntityCoordinator(_ value: HAEntitySubscriptionCoordinator?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { candidateEntityCoordinator = value }
+    }
+
+    func setLovelaceSubscription(_ value: HAWebSocketSubscription?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { lovelaceSubscription = value }
+    }
+
+    func setHistorySubscriptions(_ value: [HAHistoryStreamSubscription]) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { historySubscriptions = value }
+    }
+
+    func setDetailHistorySubscriptions(_ value: [HAHistoryStreamSubscription]) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { detailHistorySubscriptions = value }
+    }
+
+    func setWebSocketClient(_ value: HomeAssistantWebSocketClient?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { webSocketClient = value }
+    }
+
+    func setLatestBootstrapClient(_ value: HomeAssistantWebSocketClient?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { latestBootstrapClient = value }
+    }
+
+    func setInstalledBootstrapClient(_ value: HomeAssistantWebSocketClient?) {
+        lock.lock(); defer { lock.unlock() }
+        if !isDetached { installedBootstrapClient = value }
+    }
+
+    func detachSynchronously() -> DashboardEmergencyBagOwnership {
+        // This is intentionally the first deinit operation: all background
+        // callbacks consult the same lock-protected authority, so they become
+        // inert even when MainActor cleanup is deliberately delayed.
+        lifetimeAuthority.revoke()
+        let ownerOperations = dashboardOwnerOperationRegistry.detachSynchronously(
+            revokingPermanently: true
+        )
+        lock.lock()
+        isDetached = true
+        var detachedTasks = Array(tasks.values)
+        detachedTasks.append(contentsOf: serviceTasks)
+        detachedTasks.append(contentsOf: entityCoordinatorTasks.values.flatMap { $0 })
+        detachedTasks.append(contentsOf: ownerOperations.map(\.task))
+        detachedTasks.append(contentsOf: historyStartupTasks)
+        detachedTasks.append(contentsOf: detailHistoryStartupTasks)
+        for operation in ownerOperations {
+            detachedTasks.append(contentsOf: operation.detachedOwnership?.startups ?? [])
+            detachedTasks.append(contentsOf: operation.detachedOwnership?.detailStartups ?? [])
+        }
+        let detachedEntity = entityCoordinator
+        let detachedCandidate = candidateEntityCoordinator
+        let detachedLovelace = lovelaceSubscription
+        var detachedHistory = historySubscriptions
+        var detachedDetail = detailHistorySubscriptions
+        for operation in ownerOperations {
+            detachedHistory.append(contentsOf: operation.detachedOwnership?.subscriptions ?? [])
+            detachedDetail.append(contentsOf: operation.detachedOwnership?.detailSubscriptions ?? [])
+        }
+        var clients: [HomeAssistantWebSocketClient] = []
+        for client in [webSocketClient, latestBootstrapClient, installedBootstrapClient].compactMap({ $0 })
+            where !clients.contains(where: { $0 === client })
+        {
+            clients.append(client)
+        }
+        tasks.removeAll()
+        serviceTasks.removeAll()
+        entityCoordinatorTasks.removeAll()
+        historyStartupTasks.removeAll()
+        detailHistoryStartupTasks.removeAll()
+        entityCoordinator = nil
+        candidateEntityCoordinator = nil
+        lovelaceSubscription = nil
+        historySubscriptions.removeAll()
+        detailHistorySubscriptions.removeAll()
+        webSocketClient = nil
+        latestBootstrapClient = nil
+        installedBootstrapClient = nil
+        lock.unlock()
+
+        detachedTasks.forEach { $0.cancel() }
+        return DashboardEmergencyBagOwnership(
+            tasks: detachedTasks,
+            entityCoordinator: detachedEntity,
+            candidateEntityCoordinator: detachedCandidate,
+            lovelaceSubscription: detachedLovelace,
+            historySubscriptions: detachedHistory,
+            detailHistorySubscriptions: detachedDetail,
+            clients: clients
+        )
+    }
+}
+
+private struct OwnedBootstrapStart {
+    let sequence: UInt64
+    let obsoleteCandidate: HAEntitySubscriptionCoordinator?
+}
+
+private struct OwnedBootstrapRetirement {
+    let entity: HAEntitySubscriptionCoordinator?
+    let lovelace: HAWebSocketSubscription?
+    let statusTask: Task<Void, Never>?
+    let client: HomeAssistantWebSocketClient?
+}
+
+private struct OwnedBootstrapFailure {
+    let serviceTasks: [Task<Void, Never>]
+    let entity: HAEntitySubscriptionCoordinator?
+    let candidate: HAEntitySubscriptionCoordinator?
+    let lovelace: HAWebSocketSubscription?
+    let statusTask: Task<Void, Never>?
+    let installedClient: HomeAssistantWebSocketClient?
+}
+
+private enum DashboardAppLifecycleTransition: Equatable {
+    case start
+    case stop
+    case retry
 }
 
 private struct DashboardOwnerCandidate {

@@ -6,17 +6,32 @@ struct DashboardView: View {
     @StateObject private var model: DashboardViewModel
     @State private var showGraphDemo = false
     private let startsOnAppear: Bool
+    private let retryBootstrapOverride: (() -> Void)?
+    private let retryLovelaceOverride: (() -> Void)?
+    private let reconnectRealtimeOverride: (() -> Void)?
 
     @MainActor
     init() {
         _model = StateObject(wrappedValue: DashboardViewModel())
         startsOnAppear = true
+        retryBootstrapOverride = nil
+        retryLovelaceOverride = nil
+        reconnectRealtimeOverride = nil
     }
 
     @MainActor
-    init(model: DashboardViewModel, startsOnAppear: Bool = true) {
+    init(
+        model: DashboardViewModel,
+        startsOnAppear: Bool = true,
+        retryBootstrapOverride: (() -> Void)? = nil,
+        retryLovelaceOverride: (() -> Void)? = nil,
+        reconnectRealtimeOverride: (() -> Void)? = nil
+    ) {
         _model = StateObject(wrappedValue: model)
         self.startsOnAppear = startsOnAppear
+        self.retryBootstrapOverride = retryBootstrapOverride
+        self.retryLovelaceOverride = retryLovelaceOverride
+        self.reconnectRealtimeOverride = reconnectRealtimeOverride
     }
 
     var body: some View {
@@ -31,8 +46,8 @@ struct DashboardView: View {
                     Divider()
                         .background(Color.white.opacity(0.12))
 
-                    if let errorMessage = model.errorMessage {
-                        errorBanner(errorMessage)
+                    if model.hasLoadedDashboard {
+                        lifecycleBanners
                     }
 
                     content
@@ -54,8 +69,12 @@ struct DashboardView: View {
         }
         .onAppear {
             if startsOnAppear {
-                model.start()
+                model.viewDidAppear()
             }
+        }
+        .onDisappear {
+            guard startsOnAppear else { return }
+            model.viewDidDisappear()
         }
     }
 
@@ -162,7 +181,7 @@ struct DashboardView: View {
     private var statusPill: some View {
         HStack(spacing: 7) {
             Circle()
-                .fill(model.status == "Live" ? Color.green : Color.orange)
+                .fill(model.lifecycle.phase == .ready ? Color.green : Color.orange)
                 .frame(width: 8, height: 8)
             Text(model.status)
                 .font(.system(size: 12, weight: .medium))
@@ -176,7 +195,9 @@ struct DashboardView: View {
     @ViewBuilder
     private var content: some View {
         let columns = model.dashboardColumns
-        if columns.allSatisfy(\.isEmpty) {
+        if model.lifecycle.phase == .failed && !model.hasLoadedDashboard {
+            fatalErrorView
+        } else if columns.allSatisfy(\.isEmpty) {
             if model.hasLoadedDashboard {
                 VStack(spacing: 10) {
                     Image(systemName: "rectangle.stack.badge.minus")
@@ -227,18 +248,199 @@ struct DashboardView: View {
         }
     }
 
-    private func errorBanner(_ errorMessage: String) -> some View {
-        HStack {
+    private var fatalErrorView: some View {
+        VStack(spacing: 14) {
             Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 30))
                 .foregroundColor(.yellow)
-            Text(errorMessage)
+            Text("NativeHA could not start")
+                .font(.system(size: 18, weight: .semibold))
+            Text(model.errorMessage ?? "The dashboard bootstrap failed.")
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 520)
+            Module05ShellAccessibilityButton(
+                title: "Retry connection",
+                accessibilityLabel: "Retry dashboard connection",
+                identifier: "nativeha.shell.retry-bootstrap",
+                isDefaultAction: true,
+                action: retryBootstrap
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var lifecycleBanners: some View {
+        if model.lifecycle.phase == .reconnecting {
+            statusBanner("Reconnecting; showing the last accepted dashboard", icon: "arrow.triangle.2.circlepath")
+        } else if model.lifecycle.phase == .disconnected {
+            HStack {
+                statusBanner("Disconnected; showing the last accepted dashboard", icon: "wifi.slash")
+                Module05ShellAccessibilityButton(
+                    title: "Reconnect",
+                    accessibilityLabel: "Reconnect realtime connection",
+                    identifier: "nativeha.shell.reconnect-realtime",
+                    action: reconnectRealtime
+                )
+                    .padding(.trailing, 14)
+            }
+            .background(Color.orange.opacity(0.12))
+        }
+        ForEach(model.componentFailures, id: \.0) { component, message in
+            componentErrorBanner(component: component, message: message)
+        }
+    }
+
+    private func statusBanner(_ message: String, icon: String) -> some View {
+        HStack {
+            Image(systemName: icon).foregroundColor(.orange)
+            Text(message).font(.system(size: 13))
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 9)
+        .background(Color.orange.opacity(0.12))
+    }
+
+    private func componentErrorBanner(component: DashboardComponent, message: String) -> some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.yellow)
+            Text("\(component.rawValue.capitalized): \(message)")
                 .font(.system(size: 13))
                 .lineLimit(2)
             Spacer()
+            if component == .lovelace {
+                Module05ShellAccessibilityButton(
+                    title: "Retry",
+                    accessibilityLabel: "Retry Lovelace configuration",
+                    identifier: "nativeha.shell.retry-lovelace",
+                    action: retryLovelace
+                )
+            } else if component == .bootstrap {
+                Module05ShellAccessibilityButton(
+                    title: "Retry",
+                    accessibilityLabel: "Retry dashboard connection",
+                    identifier: "nativeha.shell.retry-bootstrap",
+                    action: retryBootstrap
+                )
+            } else if component == .entities || component == .realtime {
+                Module05ShellAccessibilityButton(
+                    title: "Reconnect",
+                    accessibilityLabel: "Reconnect realtime connection",
+                    identifier: "nativeha.shell.reconnect-realtime",
+                    action: reconnectRealtime
+                )
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(Color.yellow.opacity(0.12))
+    }
+
+    private func retryBootstrap() {
+        if let retryBootstrapOverride = retryBootstrapOverride {
+            retryBootstrapOverride()
+        } else {
+            model.retryBootstrap()
+        }
+    }
+
+    private func retryLovelace() {
+        if let retryLovelaceOverride = retryLovelaceOverride {
+            retryLovelaceOverride()
+        } else {
+            model.retryLovelace()
+        }
+    }
+
+    private func reconnectRealtime() {
+        if let reconnectRealtimeOverride = reconnectRealtimeOverride {
+            reconnectRealtimeOverride()
+        } else {
+            model.reconnectRealtime()
+        }
+    }
+}
+
+private struct Module05ShellAccessibilityButton: View {
+    let title: String
+    let accessibilityLabel: String
+    let identifier: String
+    var isDefaultAction = false
+    let action: () -> Void
+
+    var body: some View {
+        Representable(
+            title: title,
+            accessibilityLabel: accessibilityLabel,
+            identifier: identifier,
+            isDefaultAction: isDefaultAction,
+            action: action
+        )
+        // NSViewRepresentable otherwise accepts the HStack/VStack's complete
+        // proposal even though NSButton has a compact intrinsic size. Keeping
+        // both axes ideal-sized prevents shell actions from inflating retained
+        // banners or the fatal-error page while preserving the concrete AppKit
+        // accessibility element and its complete hit bounds.
+        .fixedSize(horizontal: true, vertical: true)
+    }
+
+    private struct Representable: NSViewRepresentable {
+        let title: String
+        let accessibilityLabel: String
+        let identifier: String
+        let isDefaultAction: Bool
+        let action: () -> Void
+
+        func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+        func makeNSView(context: Context) -> Module05ShellAccessibilityNSButton {
+            let button = Module05ShellAccessibilityNSButton(frame: .zero)
+            button.target = context.coordinator
+            button.action = #selector(Coordinator.activate)
+            configure(button)
+            return button
+        }
+
+        func updateNSView(_ button: Module05ShellAccessibilityNSButton, context: Context) {
+            context.coordinator.parent = self
+            configure(button)
+        }
+
+        private func configure(_ button: Module05ShellAccessibilityNSButton) {
+            button.title = title
+            button.bezelStyle = isDefaultAction ? .rounded : .inline
+            button.keyEquivalent = isDefaultAction ? "\r" : ""
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            button.setContentHuggingPriority(.required, for: .vertical)
+            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+            button.setContentCompressionResistancePriority(.required, for: .vertical)
+            button.setAccessibilityElement(true)
+            button.setAccessibilityRole(.button)
+            button.setAccessibilityLabel(accessibilityLabel)
+            button.setAccessibilityIdentifier(identifier)
+        }
+
+        final class Coordinator: NSObject {
+            var parent: Representable
+            init(parent: Representable) { self.parent = parent }
+            @objc func activate() { parent.action() }
+        }
+    }
+}
+
+final class Module05ShellAccessibilityNSButton: NSButton {
+    override var acceptsFirstResponder: Bool { isEnabled && !isHidden }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 36, 49:
+            performClick(self)
+        default:
+            super.keyDown(with: event)
+        }
     }
 }
 

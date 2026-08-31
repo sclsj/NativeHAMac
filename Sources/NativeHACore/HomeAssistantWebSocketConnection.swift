@@ -66,10 +66,15 @@ private struct HAWebSocketDelivery: @unchecked Sendable {
     let perform: @Sendable () async -> Void
 }
 
+private enum HAWebSocketPayloadDeliveryResult {
+    case delivery(HAWebSocketDelivery)
+    case decodingFailure(Error)
+}
+
 private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
     let prefersDirectData: Bool
-    let deliveryFromValue: @Sendable (JSONValue) -> HAWebSocketDelivery?
-    let deliveryFromData: @Sendable (Data) -> HAWebSocketDelivery?
+    let deliveryFromValue: @Sendable (JSONValue) -> HAWebSocketPayloadDeliveryResult
+    let deliveryFromData: @Sendable (Data) -> HAWebSocketPayloadDeliveryResult
 
     static func raw(
         _ callback: @escaping @Sendable (JSONValue) async -> Void
@@ -77,19 +82,20 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
         HAWebSocketSubscriptionPayloadHandler(
             prefersDirectData: false,
             deliveryFromValue: { value in
-                HAWebSocketDelivery {
+                .delivery(HAWebSocketDelivery {
                     guard !Task.isCancelled else { return }
                     await callback(value)
-                }
+                })
             },
             deliveryFromData: { data in
-                HAWebSocketDelivery {
-                    guard
-                        !Task.isCancelled,
-                        let value = try? JSONDecoder().decode(JSONValue.self, from: data)
-                    else { return }
-                    guard !Task.isCancelled else { return }
-                    await callback(value)
+                do {
+                    let value = try JSONDecoder().decode(JSONValue.self, from: data)
+                    return .delivery(HAWebSocketDelivery {
+                        guard !Task.isCancelled else { return }
+                        await callback(value)
+                    })
+                } catch {
+                    return .decodingFailure(error)
                 }
             }
         )
@@ -97,30 +103,35 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
 
     static func typed<T: Decodable>(
         _ type: T.Type,
+        onDecodingFailure: @escaping @Sendable (Error) async -> Void,
         callback: @escaping @Sendable (T) async -> Void
     ) -> HAWebSocketSubscriptionPayloadHandler {
         HAWebSocketSubscriptionPayloadHandler(
             prefersDirectData: true,
             deliveryFromValue: { value in
-                HAWebSocketDelivery {
-                    guard
-                        !Task.isCancelled,
-                        let data = try? JSONEncoder().encode(value),
-                        let decoded = try? JSONDecoder().decode(type, from: data)
-                    else { return }
-                    guard !Task.isCancelled else { return }
-                    await callback(decoded)
-                }
+                .delivery(HAWebSocketDelivery {
+                    do {
+                        let data = try JSONEncoder().encode(value)
+                        let decoded = try JSONDecoder().decode(type, from: data)
+                        guard !Task.isCancelled else { return }
+                        await callback(decoded)
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
+                    }
+                })
             },
             deliveryFromData: { data in
-                HAWebSocketDelivery {
-                    guard
-                        !Task.isCancelled,
-                        let decoded = try? JSONDecoder().decode(type, from: data)
-                    else { return }
-                    guard !Task.isCancelled else { return }
-                    await callback(decoded)
-                }
+                .delivery(HAWebSocketDelivery {
+                    do {
+                        let decoded = try JSONDecoder().decode(type, from: data)
+                        guard !Task.isCancelled else { return }
+                        await callback(decoded)
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
+                    }
+                })
             }
         )
     }
@@ -180,8 +191,12 @@ public actor HomeAssistantWebSocketConnection {
     private var transport: HomeAssistantWebSocketTransport?
     private var outboundSender: HomeAssistantWebSocketSendSerializer?
     private var connectionTask: Task<Void, Error>?
+    private var connectionTaskOwner: UInt64?
+    private var nextConnectionTaskOwner: UInt64 = 0
     private var receiveTask: Task<Void, Never>?
     private var reconnectTask: Task<Void, Never>?
+    private var reconnectTaskOwner: UInt64?
+    private var nextReconnectTaskOwner: UInt64 = 0
     private var generation = 0
     private var receiveLoopCount = 0
     private var nextID = 1
@@ -250,7 +265,7 @@ public actor HomeAssistantWebSocketConnection {
 
     public func connect() async throws {
         AppLog("WebSocket connect() called", category: .webSocket)
-        if state == .ready {
+        if hasReadyConnectionOwner {
             return
         }
 
@@ -259,39 +274,57 @@ public actor HomeAssistantWebSocketConnection {
             return
         }
 
+        nextConnectionTaskOwner &+= 1
+        let owner = nextConnectionTaskOwner
         let task = Task {
-            try await self.performInitialConnection()
+            try await self.performInitialConnection(owner: owner)
         }
+        connectionTaskOwner = owner
         connectionTask = task
         do {
             try await task.value
-            connectionTask = nil
+            clearConnectionTask(ifOwnedBy: owner)
         } catch {
-            connectionTask = nil
+            clearConnectionTask(ifOwnedBy: owner)
             throw error
         }
     }
 
-    private func performInitialConnection() async throws {
-        if state == .ready {
+    private func performInitialConnection(owner: UInt64) async throws {
+        guard connectionTaskOwner == owner else { throw CancellationError() }
+        if hasReadyConnectionOwner {
             return
         }
 
         reconnectTask?.cancel()
         reconnectTask = nil
+        reconnectTaskOwner = nil
         disconnectRequested = false
         transition(to: .connecting)
 
         do {
             try await establishConnection()
         } catch {
+            guard connectionTaskOwner == owner,
+                  !Task.isCancelled,
+                  !disconnectRequested
+            else {
+                throw CancellationError()
+            }
             AppLog(
                 "WebSocket initial connection failed: \(error)",
                 severity: .warning,
                 category: .webSocket
             )
             disconnectRequested = true
-            await abandonCurrentTransport()
+            let oldTransport = detachCurrentTransportSynchronously()
+            await oldTransport?.disconnect()
+            guard connectionTaskOwner == owner,
+                  !Task.isCancelled,
+                  disconnectRequested
+            else {
+                throw CancellationError()
+            }
             if case let HomeAssistantWebSocketError.authenticationFailed(message) = error {
                 transition(to: .authenticationFailed(message))
             } else {
@@ -306,19 +339,16 @@ public actor HomeAssistantWebSocketConnection {
         disconnectRequested = true
         connectionTask?.cancel()
         connectionTask = nil
+        connectionTaskOwner = nil
         reconnectTask?.cancel()
         reconnectTask = nil
-        generation += 1
-        receiveTask?.cancel()
-        receiveTask = nil
-        receiveLoopCount = 0
+        reconnectTaskOwner = nil
 
-        let oldTransport = transport
-        transport = nil
-        let oldSender = outboundSender
-        outboundSender = nil
-        oldSender?.stop()
-        await oldTransport?.disconnect()
+        // Revoke the complete old generation before the first suspension. A
+        // concurrent connect may then install a fresh owner without observing
+        // `.ready` with no transport, and this cleanup owns only fixed handles
+        // from the retired generation.
+        let oldTransport = detachCurrentTransportSynchronously()
 
         failAllPending(with: HomeAssistantWebSocketError.disconnected)
         registeringCommandIDs.removeAll()
@@ -328,10 +358,15 @@ public actor HomeAssistantWebSocketConnection {
         wireSubscriptions.removeAll()
         registeringSubscriptionIDs.removeAll()
         cancelledBeforeSubscriptionRegistration.removeAll()
-        await callbackCoordinator.removeAllOwners()
         for record in records {
             record.timeoutTask?.cancel()
             record.acknowledgement?.resume(throwing: HomeAssistantWebSocketError.disconnected)
+        }
+        transition(to: .disconnected)
+
+        await oldTransport?.disconnect()
+        for record in records {
+            await callbackCoordinator.remove(ownerID: record.logicalID)
             if record.acknowledgement == nil {
                 await callbackCoordinator.submitTermination(
                     record.termination,
@@ -339,14 +374,44 @@ public actor HomeAssistantWebSocketConnection {
                 )
             }
         }
-        transition(to: .disconnected)
     }
 
     public func reconnect() async {
-        guard !disconnectRequested, transport != nil else {
+        guard !Task.isCancelled, hasReadyConnectionOwner else {
             return
         }
         await handleConnectionFailure(HomeAssistantWebSocketError.disconnected, generation: generation)
+    }
+
+    private var hasReadyConnectionOwner: Bool {
+        state == .ready &&
+            !disconnectRequested &&
+            transport != nil &&
+            outboundSender != nil &&
+            receiveTask != nil &&
+            receiveLoopCount == 1
+    }
+
+    private func clearConnectionTask(ifOwnedBy owner: UInt64) {
+        guard connectionTaskOwner == owner else { return }
+        connectionTask = nil
+        connectionTaskOwner = nil
+    }
+
+    /// Invalidates the installed transport generation and detaches every fixed
+    /// transport/receiver handle without suspension. Callers may await the
+    /// returned transport after all public state and registries are non-ready.
+    private func detachCurrentTransportSynchronously() -> HomeAssistantWebSocketTransport? {
+        generation += 1
+        receiveTask?.cancel()
+        receiveTask = nil
+        receiveLoopCount = 0
+        let oldTransport = transport
+        transport = nil
+        let oldSender = outboundSender
+        outboundSender = nil
+        oldSender?.stop()
+        return oldTransport
     }
 
     public func statusUpdates() -> AsyncStream<HAWebSocketConnectionState> {
@@ -427,7 +492,13 @@ public actor HomeAssistantWebSocketConnection {
         try await subscribe(
             message,
             resubscribe: resubscribe,
-            payloadHandler: .typed(type, callback: onMessage),
+            payloadHandler: .typed(
+                type,
+                onDecodingFailure: { error in
+                    await onTermination?(error)
+                },
+                callback: onMessage
+            ),
             onTermination: onTermination
         )
     }
@@ -549,8 +620,19 @@ public actor HomeAssistantWebSocketConnection {
         transport = newTransport
         outboundSender = HomeAssistantWebSocketSendSerializer(transport: newTransport)
         try await newTransport.connect()
+        try await validateConnectionAttempt(
+            transport: newTransport,
+            generation: connectionGeneration
+        )
 
-        let version = try await authenticate(on: newTransport)
+        let version = try await authenticate(
+            on: newTransport,
+            generation: connectionGeneration
+        )
+        try await validateConnectionAttempt(
+            transport: newTransport,
+            generation: connectionGeneration
+        )
         nextID = 1
         if supportsCoalescing(version: version) {
             let featureID = allocateID()
@@ -559,18 +641,57 @@ public actor HomeAssistantWebSocketConnection {
                 "type": .string("supported_features"),
                 "features": .object(["coalesce_messages": .int(1)]),
             ], over: newTransport)
+            try await validateConnectionAttempt(
+                transport: newTransport,
+                generation: connectionGeneration
+            )
         }
 
+        guard !Task.isCancelled,
+              !disconnectRequested,
+              generation == connectionGeneration,
+              transport === newTransport
+        else { throw CancellationError() }
         startReceiveLoop(transport: newTransport, generation: connectionGeneration)
         try await resubscribeStoredSubscriptions(over: newTransport)
+        try await validateConnectionAttempt(
+            transport: newTransport,
+            generation: connectionGeneration
+        )
         transition(to: .ready)
     }
 
-    private func authenticate(on transport: HomeAssistantWebSocketTransport) async throws -> String? {
+    private func validateConnectionAttempt(
+        transport candidate: HomeAssistantWebSocketTransport,
+        generation candidateGeneration: Int
+    ) async throws {
+        guard !Task.isCancelled,
+              !disconnectRequested,
+              generation == candidateGeneration,
+              transport === candidate
+        else {
+            // A test or platform factory may reuse one transport object across
+            // generations. Never let obsolete work disconnect that object once
+            // a newer generation has installed it again.
+            if transport !== candidate {
+                await candidate.disconnect()
+            }
+            throw CancellationError()
+        }
+    }
+
+    private func authenticate(
+        on transport: HomeAssistantWebSocketTransport,
+        generation connectionGeneration: Int
+    ) async throws -> String? {
         var sentAuthentication = false
 
         while true {
             let frame = try await transport.receive()
+            try await validateConnectionAttempt(
+                transport: transport,
+                generation: connectionGeneration
+            )
             let messages = try decodeFrame(frame)
             for message in messages {
                 guard case let .object(object) = message else {
@@ -586,6 +707,10 @@ public actor HomeAssistantWebSocketConnection {
                         "type": .string("auth"),
                         "access_token": .string(accessToken),
                     ], over: transport)
+                    try await validateConnectionAttempt(
+                        transport: transport,
+                        generation: connectionGeneration
+                    )
                 case "auth_ok":
                     guard sentAuthentication else {
                         throw HomeAssistantWebSocketError.invalidMessage
@@ -693,19 +818,23 @@ public actor HomeAssistantWebSocketConnection {
                 let eventRange = envelope.eventRange,
                 let logicalID = wireSubscriptions[id],
                 let record = subscriptions[logicalID],
-                record.payloadHandler.prefersDirectData,
-                let delivery = record.payloadHandler.deliveryFromData(data.subdata(in: eventRange))
+                record.payloadHandler.prefersDirectData
             {
-                directTypedEventDecodeCount += 1
-                let accepted = await callbackCoordinator.enqueue(
-                    ownerID: logicalID,
-                    delivery: delivery
-                )
-                if !accepted,
-                   canDispatchDecodedFrame(expectedGeneration: expectedGeneration),
-                   wireSubscriptions[id] == logicalID,
-                   subscriptions[logicalID]?.wireID == id {
-                    await overflowSubscription(logicalID, record: record)
+                switch record.payloadHandler.deliveryFromData(data.subdata(in: eventRange)) {
+                case let .delivery(delivery):
+                    directTypedEventDecodeCount += 1
+                    let accepted = await callbackCoordinator.enqueue(
+                        ownerID: logicalID,
+                        delivery: delivery
+                    )
+                    if !accepted,
+                       canDispatchDecodedFrame(expectedGeneration: expectedGeneration),
+                       wireSubscriptions[id] == logicalID,
+                       subscriptions[logicalID]?.wireID == id {
+                        await overflowSubscription(logicalID, record: record)
+                    }
+                case .decodingFailure:
+                    await failSubscription(logicalID, with: HomeAssistantWebSocketError.invalidMessage)
                 }
                 continue
             }
@@ -781,17 +910,21 @@ public actor HomeAssistantWebSocketConnection {
             guard
                 let id = id,
                 let logicalID = wireSubscriptions[id],
-                let record = subscriptions[logicalID],
-                let delivery = record.payloadHandler.deliveryFromValue(message["event"] ?? .null)
+                let record = subscriptions[logicalID]
             else {
                 return
             }
-            let accepted = await callbackCoordinator.enqueue(
-                ownerID: logicalID,
-                delivery: delivery
-            )
-            if !accepted {
-                await overflowSubscription(logicalID, record: record)
+            switch record.payloadHandler.deliveryFromValue(message["event"] ?? .null) {
+            case let .delivery(delivery):
+                let accepted = await callbackCoordinator.enqueue(
+                    ownerID: logicalID,
+                    delivery: delivery
+                )
+                if !accepted {
+                    await overflowSubscription(logicalID, record: record)
+                }
+            case .decodingFailure:
+                await failSubscription(logicalID, with: HomeAssistantWebSocketError.invalidMessage)
             }
 
         case "pong":
@@ -1022,57 +1155,59 @@ public actor HomeAssistantWebSocketConnection {
             category: .webSocket
         )
 
-        self.generation += 1
-        receiveTask?.cancel()
-        receiveTask = nil
-        receiveLoopCount = 0
-        let oldTransport = transport
-        transport = nil
-        let oldSender = outboundSender
-        outboundSender = nil
-        oldSender?.stop()
-        await oldTransport?.disconnect()
-
+        let oldTransport = detachCurrentTransportSynchronously()
         failAllPending(with: HomeAssistantWebSocketError.disconnected)
         wireSubscriptions.removeAll()
 
         let records = Array(subscriptions.values)
+        var callbackOwnersToRemove: [UUID] = []
+        var terminations: [(@Sendable (Error) async -> Void)?] = []
         for var record in records {
             record.timeoutTask?.cancel()
             record.timeoutTask = nil
             record.wireID = nil
             if let acknowledgement = record.acknowledgement {
                 acknowledgement.resume(throwing: HomeAssistantWebSocketError.disconnected)
-                await callbackCoordinator.remove(ownerID: record.logicalID)
+                callbackOwnersToRemove.append(record.logicalID)
                 subscriptions.removeValue(forKey: record.logicalID)
             } else if record.resubscribe {
                 subscriptions[record.logicalID] = record
             } else {
-                await callbackCoordinator.remove(ownerID: record.logicalID)
-                await callbackCoordinator.submitTermination(
-                    record.termination,
-                    error: HomeAssistantWebSocketError.disconnected
-                )
+                callbackOwnersToRemove.append(record.logicalID)
+                terminations.append(record.termination)
                 subscriptions.removeValue(forKey: record.logicalID)
             }
         }
 
         transition(to: .disconnected)
         scheduleReconnect()
+        await oldTransport?.disconnect()
+        for ownerID in callbackOwnersToRemove {
+            await callbackCoordinator.remove(ownerID: ownerID)
+        }
+        for termination in terminations {
+            await callbackCoordinator.submitTermination(
+                termination,
+                error: HomeAssistantWebSocketError.disconnected
+            )
+        }
     }
 
     private func scheduleReconnect() {
         guard reconnectTask == nil, !disconnectRequested else {
             return
         }
+        nextReconnectTaskOwner &+= 1
+        let owner = nextReconnectTaskOwner
+        reconnectTaskOwner = owner
         reconnectTask = Task { [weak self] in
-            await self?.runReconnectLoop()
+            await self?.runReconnectLoop(owner: owner)
         }
     }
 
-    private func runReconnectLoop() async {
+    private func runReconnectLoop(owner: UInt64) async {
         var attempt = 0
-        while !disconnectRequested, !Task.isCancelled {
+        while reconnectTaskOwner == owner, !disconnectRequested, !Task.isCancelled {
             transition(to: .reconnecting(attempt: attempt))
             let delay = reconnectDelayNanoseconds(attempt)
             if delay > 0 {
@@ -1085,33 +1220,47 @@ public actor HomeAssistantWebSocketConnection {
 
             do {
                 try await establishConnection()
-                reconnectTask = nil
+                clearReconnectTask(ifOwnedBy: owner)
                 return
             } catch let error as HomeAssistantWebSocketError {
+                guard reconnectTaskOwner == owner,
+                      !Task.isCancelled,
+                      !disconnectRequested
+                else { break }
                 await abandonCurrentTransport()
+                guard reconnectTaskOwner == owner,
+                      !Task.isCancelled,
+                      !disconnectRequested
+                else { break }
                 if case let .authenticationFailed(message) = error {
                     transition(to: .authenticationFailed(message))
-                    reconnectTask = nil
+                    clearReconnectTask(ifOwnedBy: owner)
                     return
                 }
             } catch {
+                guard reconnectTaskOwner == owner,
+                      !Task.isCancelled,
+                      !disconnectRequested
+                else { break }
                 await abandonCurrentTransport()
+                guard reconnectTaskOwner == owner,
+                      !Task.isCancelled,
+                      !disconnectRequested
+                else { break }
             }
             attempt += 1
         }
+        clearReconnectTask(ifOwnedBy: owner)
+    }
+
+    private func clearReconnectTask(ifOwnedBy owner: UInt64) {
+        guard reconnectTaskOwner == owner else { return }
         reconnectTask = nil
+        reconnectTaskOwner = nil
     }
 
     private func abandonCurrentTransport() async {
-        generation += 1
-        receiveTask?.cancel()
-        receiveTask = nil
-        receiveLoopCount = 0
-        let oldTransport = transport
-        transport = nil
-        let oldSender = outboundSender
-        outboundSender = nil
-        oldSender?.stop()
+        let oldTransport = detachCurrentTransportSynchronously()
         await oldTransport?.disconnect()
     }
 

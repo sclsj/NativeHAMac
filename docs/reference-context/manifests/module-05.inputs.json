@@ -17,7 +17,7 @@
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-      "symbols": ["HomeAssistantWebSocketConnection", "HAWebSocketConnectionState", "HAWebSocketSubscription"]
+      "symbols": ["HomeAssistantWebSocketConnection", "HAWebSocketConnectionState", "HAWebSocketSubscription", "hasReadyConnectionOwner", "clearConnectionTask", "detachCurrentTransportSynchronously", "validateConnectionAttempt", "clearReconnectTask"]
     },
     {
       "path": "Sources/NativeHACore/HomeAssistantHistoryStream.swift",
@@ -33,15 +33,39 @@
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-      "symbols": ["DashboardViewModel", "HistoryRequest", "DashboardOwnerCandidate", "DashboardOwnerDebugSnapshot"]
+      "symbols": ["DashboardViewModel", "HistoryRequest", "DashboardOwnerCandidate", "DashboardOwnerDebugSnapshot", "DetachedDashboardOwnership", "DashboardOwnerOperationRegistry"]
     },
     {
       "path": "Sources/NativeHAMac/DashboardView.swift",
       "symbols": ["DashboardView", "SidebarView"]
     },
     {
+      "path": "Sources/NativeHAMac/DashboardLifecycle.swift",
+      "symbols": ["DashboardLifetimeAuthority", "DashboardLifecycle", "DashboardLifecyclePhase", "DashboardComponent", "DashboardComponentPhase"]
+    },
+    {
+      "path": "Sources/NativeHAMac/HAEntityStore.swift",
+      "symbols": ["HAEntityStore", "HAEntityStoreApplication"]
+    },
+    {
+      "path": "Sources/NativeHAMac/HAEntitySubscriptionCoordinator.swift",
+      "symbols": ["HAEntitySubscriptionCoordinator", "HAEntitySubscriptionError", "HAEntitySubscriptionDebugSnapshot", "HAEntitySubscriptionInstallationProof"]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelaceDashboardStore.swift",
+      "symbols": ["LovelaceDashboardStore"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardHistoryCoordinator.swift",
+      "symbols": ["DashboardHistoryCoordinator"]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardServiceController.swift",
+      "symbols": ["DashboardServiceController", "DashboardServiceAction"]
+    },
+    {
       "path": "Sources/NativeHAMac/CardViews.swift",
-      "symbols": ["CardRenderer", "EntitiesCard", "EntityRow", "HistoryGraphCard", "EntityDetailSheet", "DetailHistoryGraph"]
+      "symbols": ["CardRenderer", "EntitiesCard", "EntityRow", "HistoryGraphCard", "EntityDetailSheet", "DetailHistoryGraph", "BitmapLineChart"]
     },
     {
       "path": "Sources/NativeHAMac/LovelacePresentation.swift",
@@ -64,6 +88,22 @@
       "symbols": ["DashboardBootstrapLifecycleTests"]
     },
     {
+      "path": "Tests/NativeHAMacTests/HAEntityStoreTests.swift",
+      "symbols": ["HAEntityStoreTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardLifecycleTests.swift",
+      "symbols": ["DashboardLifecycleTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardOrchestrationTests.swift",
+      "symbols": ["DashboardOrchestrationTests"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/DashboardServiceControllerTests.swift",
+      "symbols": ["DashboardServiceControllerTests"]
+    },
+    {
       "path": "Tests/NativeHAMacTests/HistoryStreamIntegrationTests.swift",
       "symbols": ["HistoryStreamIntegrationTests"]
     },
@@ -81,7 +121,11 @@
     },
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
-      "symbols": ["HomeAssistantWebSocketConnectionTests"]
+      "symbols": ["HomeAssistantWebSocketConnectionTests", "testDisconnectDuringHeldReconnectConnectCannotInstallStaleReceiveLoop", "testDisconnectDuringHeldAuthenticationSendCannotInstallStaleReceiveLoop", "testLateCancelledConnectCannotClearNewerHeldConnectTaskSlot", "testConnectDuringHeldDisconnectInstallsRealOwnerAndOldCleanupCannotOverwriteIt"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/ScriptedWebSocketTransport.swift",
+      "symbols": ["ScriptedWebSocketTransport", "arrangeNextSendSuspension", "arrangeNextConnectSuspension", "arrangeNextDisconnectSuspension", "resumeSuspendedSend", "resumeSuspendedConnect", "resumeSuspendedDisconnect"]
     },
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantRESTClientTests.swift",

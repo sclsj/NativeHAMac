@@ -116,6 +116,7 @@ public struct HAState: Decodable, Equatable, Identifiable {
     public let entityId: String
     public let state: String
     public let attributes: [String: JSONValue]
+    public let context: HAContext?
     public let lastChanged: String?
     public let lastUpdated: String?
 
@@ -123,6 +124,7 @@ public struct HAState: Decodable, Equatable, Identifiable {
         case entityId = "entity_id"
         case state
         case attributes
+        case context
         case lastChanged = "last_changed"
         case lastUpdated = "last_updated"
     }
@@ -131,14 +133,237 @@ public struct HAState: Decodable, Equatable, Identifiable {
         entityId: String,
         state: String,
         attributes: [String: JSONValue] = [:],
+        context: HAContext? = nil,
         lastChanged: String? = nil,
         lastUpdated: String? = nil
     ) {
         self.entityId = entityId
         self.state = state
         self.attributes = attributes
+        self.context = context
         self.lastChanged = lastChanged
         self.lastUpdated = lastUpdated
+    }
+}
+
+/// Home Assistant's state context. Entity-stream compression may send either
+/// this complete object or only its `id`; keeping it on `HAState` preserves the
+/// typed stream without changing the existing display surface.
+public struct HAContext: Codable, Equatable {
+    public let id: String?
+    public let parentID: String?
+    public let userID: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case parentID = "parent_id"
+        case userID = "user_id"
+    }
+
+    public init(id: String?, parentID: String? = nil, userID: String? = nil) {
+        self.id = id
+        self.parentID = parentID
+        self.userID = userID
+    }
+}
+
+/// One typed `subscribe_entities` event. Structural decoding happens before
+/// any owner is allowed to mutate its accepted entity snapshot.
+public struct HAEntitySubscriptionPayload: Decodable, Equatable {
+    public let additions: [String: HACompressedEntityState]?
+    public let removals: [String]?
+    public let changes: [String: HACompressedEntityChange]?
+
+    private enum CodingKeys: String, CodingKey {
+        case additions = "a"
+        case removals = "r"
+        case changes = "c"
+    }
+
+    public init(
+        additions: [String: HACompressedEntityState]? = nil,
+        removals: [String]? = nil,
+        changes: [String: HACompressedEntityChange]? = nil
+    ) {
+        self.additions = additions
+        self.removals = removals
+        self.changes = changes
+    }
+}
+
+public struct HACompressedEntityState: Decodable, Equatable {
+    public let state: String
+    public let attributes: [String: JSONValue]
+    public let context: HACompressedContext
+    public let lastChanged: Double
+    public let lastUpdated: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case state = "s"
+        case attributes = "a"
+        case context = "c"
+        case lastChanged = "lc"
+        case lastUpdated = "lu"
+    }
+
+    public init(
+        state: String,
+        attributes: [String: JSONValue],
+        context: HACompressedContext,
+        lastChanged: Double,
+        lastUpdated: Double? = nil
+    ) {
+        self.state = state
+        self.attributes = attributes
+        self.context = context
+        self.lastChanged = lastChanged
+        self.lastUpdated = lastUpdated
+    }
+}
+
+public enum HACompressedContext: Decodable, Equatable {
+    case id(String)
+    case object(HAContext)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let id = try? container.decode(String.self) {
+            self = .id(id)
+        } else {
+            let context = try container.decode(HAContext.self)
+            guard context.id != nil else {
+                throw DecodingError.dataCorruptedError(
+                    in: container,
+                    debugDescription: "A full compressed context object requires id"
+                )
+            }
+            self = .object(context)
+        }
+    }
+
+    public var value: HAContext {
+        switch self {
+        case let .id(id):
+            return HAContext(id: id)
+        case let .object(context):
+            return context
+        }
+    }
+}
+
+public struct HACompressedEntityChange: Decodable, Equatable {
+    public let additions: HACompressedEntityPatch?
+    public let removals: HACompressedEntityPatchRemoval?
+
+    private enum CodingKeys: String, CodingKey {
+        case additions = "+"
+        case removals = "-"
+    }
+
+    public init(
+        additions: HACompressedEntityPatch? = nil,
+        removals: HACompressedEntityPatchRemoval? = nil
+    ) {
+        self.additions = additions
+        self.removals = removals
+    }
+}
+
+public struct HACompressedEntityPatch: Decodable, Equatable {
+    public let state: String?
+    public let attributes: [String: JSONValue]?
+    public let context: HACompressedContextPatch?
+    public let lastChanged: Double?
+    public let lastUpdated: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case state = "s"
+        case attributes = "a"
+        case context = "c"
+        case lastChanged = "lc"
+        case lastUpdated = "lu"
+    }
+
+    public init(
+        state: String? = nil,
+        attributes: [String: JSONValue]? = nil,
+        context: HACompressedContextPatch? = nil,
+        lastChanged: Double? = nil,
+        lastUpdated: Double? = nil
+    ) {
+        self.state = state
+        self.attributes = attributes
+        self.context = context
+        self.lastChanged = lastChanged
+        self.lastUpdated = lastUpdated
+    }
+}
+
+/// Entity deltas may provide only part of a context object. Unlike a full
+/// compressed entity context, this shape deliberately keeps every field
+/// optional so the store can merge present values over the prior context,
+/// matching `Object.assign({}, entityState.context, toAdd.c)` in entities.js.
+public enum HACompressedContextPatch: Decodable, Equatable {
+    case id(String)
+    case object(HAContextObjectPatch)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let id = try? container.decode(String.self) {
+            self = .id(id)
+        } else {
+            self = .object(try container.decode(HAContextObjectPatch.self))
+        }
+    }
+}
+
+public struct HAContextObjectPatch: Decodable, Equatable {
+    public let id: HAContextPatchField
+    public let parentID: HAContextPatchField
+    public let userID: HAContextPatchField
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case parentID = "parent_id"
+        case userID = "user_id"
+    }
+
+    public init(
+        id: HAContextPatchField = .absent,
+        parentID: HAContextPatchField = .absent,
+        userID: HAContextPatchField = .absent
+    ) {
+        self.id = id
+        self.parentID = parentID
+        self.userID = userID
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = container.contains(.id)
+            ? .value(try container.decodeIfPresent(String.self, forKey: .id))
+            : .absent
+        parentID = container.contains(.parentID)
+            ? .value(try container.decodeIfPresent(String.self, forKey: .parentID))
+            : .absent
+        userID = container.contains(.userID)
+            ? .value(try container.decodeIfPresent(String.self, forKey: .userID))
+            : .absent
+    }
+}
+
+public enum HAContextPatchField: Equatable {
+    case absent
+    case value(String?)
+}
+
+public struct HACompressedEntityPatchRemoval: Decodable, Equatable {
+    public let attributes: [String]?
+
+    private enum CodingKeys: String, CodingKey { case attributes = "a" }
+
+    public init(attributes: [String]? = nil) {
+        self.attributes = attributes
     }
 }
 

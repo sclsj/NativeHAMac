@@ -571,6 +571,90 @@ final class HistoryStreamIntegrationTests: XCTestCase {
         await connection.disconnect()
     }
 
+    func testScopedRetryRestartsCurrentFailedDetailWithoutTouchingHealthyCardOwner() async throws {
+        let transport = HistoryViewModelTransport()
+        await transport.setHistoryAcknowledgementsHeld(true)
+        let connection = HomeAssistantWebSocketConnection(
+            accessToken: "detail-scoped-retry-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            reconnectDelayNanoseconds: { _ in 0 },
+            transportFactory: { transport }
+        )
+        try await connection.connect()
+        let client = HomeAssistantWebSocketClient(connection: connection)
+        let card = LovelaceCard(
+            type: "history-graph",
+            title: "Healthy card",
+            entities: [LovelaceEntityRef(entity: "sensor.card")]
+        )
+        let model = DashboardViewModel(
+            webSocketClient: client,
+            initialStates: [
+                "sensor.card": HAState(entityId: "sensor.card", state: "1"),
+                "sensor.detail": HAState(entityId: "sensor.detail", state: "2"),
+            ],
+            initialViews: [LovelaceView(title: "Home", path: "default_view", cards: [card])],
+            historyNow: { Date(timeIntervalSince1970: 500_000) }
+        )
+
+        let initialCard = Task { await model.synchronizeHistorySubscriptionsForTesting() }
+        let cardCommand = try await integrationHistoryCommand(transport, count: 1)
+        let cardID = try XCTUnwrap(cardCommand["id"]?.historyTestInt)
+        try await transport.resolveHistoryAcknowledgement(id: cardID, success: true)
+        await initialCard.value
+        try await integrationWait {
+            let snapshot = await connection.debugSnapshot()
+            return snapshot.subscriptionCount == 1
+        }
+        let cardOwnerBefore = model.dashboardOwnerSnapshotForTesting().subscriptionKeys
+
+        model.openDetails(entityID: "sensor.detail")
+        model.loadDetailHistory(entityID: "sensor.detail", hours: 24)
+        let rejectedDetail = try await integrationHistoryCommand(transport, count: 2)
+        let rejectedDetailID = try XCTUnwrap(rejectedDetail["id"]?.historyTestInt)
+        XCTAssertEqual(commandEntities(rejectedDetail), ["sensor.detail"])
+        try await transport.resolveHistoryAcknowledgement(id: rejectedDetailID, success: false)
+        try await integrationWait {
+            await MainActor.run {
+                if case .error = model.detailHistoryStatus(entityID: "sensor.detail", hours: 24) {
+                    return true
+                }
+                return false
+            }
+        }
+
+        model.retryHistoriesForActiveView()
+        let retriedDetail = try await integrationHistoryCommand(transport, count: 3)
+        let retriedDetailID = try XCTUnwrap(retriedDetail["id"]?.historyTestInt)
+        XCTAssertEqual(commandEntities(retriedDetail), ["sensor.detail"])
+        XCTAssertEqual(model.dashboardOwnerSnapshotForTesting().subscriptionKeys, cardOwnerBefore)
+        let commandsAfterRetry = await transport.historyCommands()
+        XCTAssertEqual(
+            commandsAfterRetry.filter { commandEntities($0) == ["sensor.card"] }.count,
+            1,
+            "Scoped detail retry must not restart the healthy card owner"
+        )
+
+        try await transport.resolveHistoryAcknowledgement(id: retriedDetailID, success: true)
+        try await integrationWait {
+            let snapshot = await connection.debugSnapshot()
+            return snapshot.subscriptionCount == 2
+        }
+        try await transport.pushHistory(id: retriedDetailID, states: [
+            "sensor.detail": [compact("3", 499_900)],
+        ])
+        try await integrationWait {
+            await MainActor.run {
+                model.detailHistory(entityID: "sensor.detail", hours: 24) != nil
+            }
+        }
+
+        model.closeDetails()
+        await model.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
+        await model.synchronizeHistorySubscriptionsForTesting()
+        await connection.disconnect()
+    }
+
     func testLovelaceIdenticalRefreshReusesOwnerAndReplacementRejectsLatePublication() async throws {
         let transport = HistoryViewModelTransport()
         let connection = HomeAssistantWebSocketConnection(
@@ -1382,7 +1466,7 @@ final class HistoryStreamIntegrationTests: XCTestCase {
             navigationPreferenceStore: IntegrationMemoryNavigationPreferenceStore(),
             historyNow: { Date(timeIntervalSince1970: 500_000) }
         )
-        model.status = "Live"
+        model.setLifecyclePhaseForTesting(.ready)
         await model.synchronizeHistorySubscriptionsForTesting()
         let firstCommand = try await integrationHistoryCommand(transport, count: 1)
         let firstID = try XCTUnwrap(firstCommand["id"]?.historyTestInt)

@@ -7,10 +7,10 @@ status: complete
 contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 8080112b8a675b16476f214c5e5450e26321c93bc19081db0fa47a48fa5880cc
-last_validated: 2026-08-25
+graph_fingerprint: 75ba7d234b0d5af43ac039dbd4776508dcf55e0315594ff81e0f35fa94c8116d
+last_validated: 2026-08-31
 ---
 
 # Module 01 evidence packet
@@ -1796,17 +1796,59 @@ The resolver self-test passes at 31 nodes / 61 edges with fingerprint
 `f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18`.
 No Swift or test file was edited by this maintenance.
 
+## Bounded post-Module 05 anchor maintenance — 2026-08-31
+
+The pre-refresh checker was yellow for exactly ten shared Module 05 anchors:
+`HomeAssistantWebSocketClient.swift`,
+`HomeAssistantWebSocketConnection.swift`, `Models.swift`, `CardViews.swift`,
+`DashboardView.swift`, `DashboardViewModel.swift`,
+`HomeAssistantHistoryLiveSmokeTests.swift`,
+`HomeAssistantWebSocketConnectionTests.swift`,
+`GUIRenderingAndPerformanceTests.swift`, and
+`HistoryStreamIntegrationTests.swift`. The exact accepted Module 05 diff and
+final independent evidence were inspected against C01 revision 3. The pinned
+frontend history/card/detail and npm connection sources are unchanged; no broad
+reference audit was repeated.
+
+Module 05 extracts history dictionaries, generations, startup tasks,
+subscriptions, desired keys, and graph revision feeds into the synchronous
+MainActor `DashboardHistoryCoordinator` façade. The sole
+`dashboardOwnerOperationTail`, request construction, startup/publication
+guards, feed-before-`@Published` boundary, and reconnect behavior remain in
+`DashboardViewModel` and Module 01 core. The manifest now pins that new storage
+owner in addition to the unchanged `DashboardViewModel`/`HistoryRequest`
+boundary. The remaining changed anchors add the typed entity owner, explicit
+shell/lifecycle presentation, stronger connection attempt isolation, and
+expanded stop/retry/race evidence; they do not alter history accumulation,
+projection lineage, exact active-view/range keys, detail isolation, mounted
+feed/render ownership, Core Graphics, or tooltip semantics. No hash,
+`contentRevision`, endpoint time, or first/last timestamp is used for
+freshness.
+
+Regeneration is green at 21 nodes / 143 edges, one cycle, zero unresolved
+edges, no truncation, and fingerprint
+`75ba7d234b0d5af43ac039dbd4776508dcf55e0315594ff81e0f35fa94c8116d`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The fresh final Module 05 verifier passed 360/360 race processes, the 237-test
+full suite with three authorized skips and zero failures, release, GUI, and
+authorized read-only live smoke with no state-changing call. No C01 observable
+contract changed, so status remains `complete` and contract revision remains 3.
+The separate Module 09 stale-viewport fallback remains open. No Swift or test
+file was edited by this maintenance.
+
 ## Handoff
 
 Module 01 is independently `complete` at contract revision 3 and its
-post-Module 12 graph is green. Preserve exact resolved active-view history
+post-Module 05 graph is green. Preserve exact resolved active-view history
 identity, the unified dashboard-owner operation tail, post-await config/
 navigation/range/generation guards, direct typed transport, exact projection
 lineage, feed-before-`@Published`, reconnectable mounted chart lifecycles, Core
 Graphics, tooltip metadata, and the separate Module 09 fallback. Never infer
-freshness from hashes or endpoint timestamps. Module 12 is independently
-complete; the exact next staged action is fresh Module 05 orchestration-
-decomposition research under the fixed-server/no-profile assumption.
+freshness from hashes or endpoint timestamps. Module 05 is independently
+complete on the reviewed worktree. After the supervisor commits that exact
+tree, the next staged action is Module 06 research under the fixed-server/no-
+profile assumption.
 
 ## Change log
 
@@ -1940,3 +1982,7 @@ decomposition research under the fixed-server/no-profile assumption.
   15/15 identity/presentation tests, the hosted mounted-chart test, and fresh
   read-only 1h/reconnect/12h/recovery/24h live smoke all passed. C01 contracts
   are preserved, contract revision remains 3, and the graph is green.
+- 2026-08-31: pinned the extracted `DashboardHistoryCoordinator` storage owner,
+  inspected all ten shared Module 05 anchors, and regenerated a green
+  21-node / 143-edge graph without changing C01 revision 3 or the open Module
+  09 stale-viewport boundary. Status remains `complete`.

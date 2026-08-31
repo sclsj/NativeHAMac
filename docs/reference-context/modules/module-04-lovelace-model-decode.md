@@ -6,12 +6,13 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-04.dependencies.json
-graph_fingerprint: 4c63559e8c75403be00b231a1ea55a1c2031ffa67d52a6c46d8b4a52ed2cd36d
+graph_fingerprint: beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e
 last_researched: 2026-08-23
 last_implemented: 2026-08-23
 last_verified: 2026-08-25
+last_validated: 2026-08-31
 ---
 
 # Module 04 evidence packet
@@ -632,6 +633,42 @@ The resolver self-test passes at 31 nodes / 61 edges with fingerprint
 `f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18`.
 No Swift or test file was edited by this maintenance.
 
+## Bounded post-Module 05 anchor maintenance — 2026-08-31
+
+The pre-refresh checker was yellow for exactly eight shared Module 05 anchors:
+`HomeAssistantWebSocketClient.swift`, `CardViews.swift`,
+`DashboardView.swift`, `DashboardViewModel.swift`,
+`HomeAssistantHistoryLiveSmokeTests.swift`,
+`DashboardBootstrapLifecycleTests.swift`,
+`GUIRenderingAndPerformanceTests.swift`, and
+`HistoryStreamIntegrationTests.swift`. The exact accepted Module 05 diff and
+final independent evidence were inspected against C04 revision 1. The pinned
+frontend Lovelace config, element-creation/recovery, card/view runtime, and
+layout sources are unchanged; no broad reference audit was repeated.
+
+Module 05 moves installed raw, resolved, and presentation dashboard storage
+into `LovelaceDashboardStore`, which the manifest now pins as an explicit
+native owner. Decode, resolution, source paths, resolved view/card identities,
+raw configuration, and non-destructive presentation remain unchanged.
+`DashboardViewModel` still serializes config/navigation/range/history ownership
+on its one MainActor tail and installs a candidate only after exact generation,
+client, selection, and desired-owner checks. The client, shell/card, live,
+bootstrap, GUI, and integration changes add typed entity/lifecycle ownership
+and stronger stop/retry/race evidence without reconstructing raw Lovelace or
+weakening unsupported-content recovery. Cross-refresh identity is never
+inferred from a hash, `contentRevision`, timestamp, or semantic similarity.
+
+Regeneration is green at 206 nodes / 2,724 edges, three cycles, zero unresolved
+edges, no truncation, and fingerprint
+`beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The fresh final Module 05 verifier passed 360/360 race processes, the 237-test
+full suite with three authorized skips and zero failures, release, GUI, and
+authorized read-only live smoke with no state-changing call. No C04 observable
+contract changed, so status remains `complete` and contract revision remains 1.
+No Swift or test file was edited by this maintenance.
+
 ## Remaining risks and stop rules
 
 - Canonical semantic serialization must be deterministic and exact; a digest
@@ -657,10 +694,10 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
 ## Research validation and handoff
 
 - Graph: green, 206 nodes / 2,724 edges, three cycles, zero unresolved edges,
-  no truncation, implementation fingerprint
-  `0295bb6ce08fba5412d8d81e01816f668c5ad9860317781e2f0c7dd706f9fa8e`.
+  no truncation, post-Module 05 fingerprint
+  `beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e`.
 - Resolver self-test: pass, 31 nodes / 61 edges, fingerprint
-  `fa0fc2aa9b4855bf7f52040f5f7f20f8fb7f1f36693be7d9a22a89fa88f7afae`.
+  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
 - A fresh researcher reviewed the complete relevant current Swift and
   hass-frontend config/model/runtime sources and performed the read-only live
   shape smoke.
@@ -668,10 +705,10 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
   returned GO with no material product question unresolved and supplied the
   exact C04-04 through C04-08 rules above.
 
-Verdict: **complete / independently verified**, with a green post-Module 12
-anchor handoff. Preserve these contracts in Module 05 and later work. Module 03
-is intentionally skipped under the approved fixed-personal-deployment
-deviation; Module 12 is independently complete. The exact next staged action
-is fresh Module 05 orchestration-decomposition research under the fixed-server/
-no-profile assumption. Do not reopen Module 04 or fold the separate Module 09
-stale-viewport repair into this handoff.
+Verdict: **complete / independently verified**, with a green post-Module 05
+anchor handoff. Preserve these contracts in later work. Module 03 is
+intentionally skipped under the approved fixed-personal-deployment deviation;
+Module 05 is independently complete on the reviewed worktree. After the
+supervisor commits that exact tree, the next staged action is Module 06
+research under the fixed-server/no-profile assumption. Do not reopen Module 04
+or fold the separate Module 09 stale-viewport repair into this handoff.

@@ -7,11 +7,12 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02", "04"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-12.dependencies.json
-graph_fingerprint: 520448b227d6950243f102ec6ed5a3bbee6b0e1e542d84b01b5b93ecaa1100a6
+graph_fingerprint: 7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4
 last_researched: 2026-08-25
 last_verified: 2026-08-25
+last_validated: 2026-08-31
 ---
 
 # Module 12 evidence packet
@@ -780,6 +781,45 @@ Module 05 orchestration-decomposition research, assuming one fixed server and
 omitting profile-transition work. Do not begin Module 05 implementation before
 its own research-ready packet and independent ownership audit exist.
 
+## Bounded post-Module 05 anchor maintenance — 2026-08-31
+
+The pre-refresh checker was yellow for exactly nine shared Module 05 anchors:
+`HomeAssistantWebSocketClient.swift`, `Models.swift`, `CardViews.swift`,
+`DashboardView.swift`, `DashboardViewModel.swift`,
+`HomeAssistantHistoryLiveSmokeTests.swift`,
+`DashboardBootstrapLifecycleTests.swift`,
+`GUIRenderingAndPerformanceTests.swift`, and
+`HistoryStreamIntegrationTests.swift`. The exact accepted Module 05 diff and
+final independent evidence were inspected against C12 revision 1. The pinned
+frontend navigation/Lovelace/user sources and npm current-user command remain
+unchanged; no broad reference audit was repeated.
+
+Module 05 moves installed raw/resolved/presentation dashboard storage into
+`LovelaceDashboardStore` and history dictionaries/tasks/subscriptions/feeds
+into `DashboardHistoryCoordinator`; the manifest now pins both explicit
+owners. `DashboardViewModel` retains the only config/navigation/range/history
+owner tail, exact selected resolved identity and locator reconciliation,
+cancel-before-install ordering, final-candidate persistence, and exact active-
+owner intersections. Cards that remain visible retain their owners; hidden or
+removed card startup, delivery, subscription, feed, mount/coordinator, and
+render ownership still retires before final publication. The shell/client/
+model/test changes add explicit dashboard lifecycle, typed entity ownership,
+and stronger stop/retry/late-result evidence without reconnecting the fixed
+server for navigation or changing the approved range selector. No hash,
+`contentRevision`, endpoint timestamp, or semantic similarity establishes
+freshness, identity, or ancestry.
+
+Regeneration is green at 121 nodes / 901 edges, two cycles, zero unresolved
+edges, no truncation, and fingerprint
+`7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The fresh final Module 05 verifier passed 360/360 race processes, the 237-test
+full suite with three authorized skips and zero failures, release, GUI, and
+authorized read-only live smoke with no state-changing call. No C12 observable
+contract changed, so status remains `complete` and contract revision remains 1.
+No Swift or test file was edited by this maintenance.
+
 ## Resolved questions, risks, and stop rules
 
 Resolved product questions:
@@ -839,17 +879,17 @@ The implementation test/documentation surface is:
 - `docs/configurability.md` plus this Module 12 packet/index/generated graph if
   implementation changes their recorded anchors/status/evidence.
 
-Do not edit Module 03, begin Module 05, add settings/profile/token migration,
-or implement Modules 06-11 as part of this completed gate. Module 12 is now
-independently complete. The exact next action is fresh Module 05 research and a
-separate ownership audit under the fixed-server/no-profile assumption; do not
-begin Module 05 implementation until its own packet is `research-ready`.
+Do not edit Module 03 or add settings/profile/token migration. Module 12 and
+Module 05 are independently complete on the reviewed worktree. After the
+supervisor commits that exact tree, the next staged action is Module 06
+research under the fixed-server/no-profile assumption; do not begin Module 06
+implementation until its own packet is `research-ready`.
 
 ## Research validation
 
 - Pre-generation context check: expected `ENOENT` because no Module 12 graph
   existed.
-- Generated graph: 121 nodes, 901 edges, zero unresolved, not truncated,
+- Initial generated graph: 121 nodes, 901 edges, zero unresolved, not truncated,
   fingerprint `2029b45105e24649341ec59dc5f68a571a643059b6efd9c01a3b00c1b2eb0475`.
 - Post-generation context check: GREEN.
 - Resolver self-test: PASS, 31 nodes, 61 edges, fingerprint
@@ -860,6 +900,11 @@ begin Module 05 implementation until its own packet is `research-ready`.
   current-user runtime tracing, fail-closed user-list eligibility, one-tail
   ordering, global-versus-view ownership, exact-revert, persistence, and cache
   rules now recorded above.
+- Post-Module 05 anchor graph: GREEN, 121 nodes / 901 edges, two cycles,
+  zero unresolved, not truncated, fingerprint
+  `7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4`;
+  resolver PASS at
+  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
 
 ## Change log
 
@@ -881,3 +926,6 @@ begin Module 05 implementation until its own packet is `research-ready`.
   passed every C12 contract and all four prior NO-GO gates. Status advanced to
   `complete`; fresh Module 05 research is unlocked under the fixed-server/no-
   profile assumption.
+- 2026-08-31, contract revision 1 unchanged: pinned the extracted Lovelace and
+  history storage owners, inspected all nine shared Module 05 anchors, and
+  regenerated a green 121-node / 901-edge graph. Status remains `complete`.

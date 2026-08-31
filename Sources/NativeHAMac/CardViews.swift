@@ -72,6 +72,7 @@ struct EntitiesCard: View {
                     ))
                     .toggleStyle(.switch)
                     .labelsHidden()
+                    .disabled(toggleableEntityIDs.contains { !model.canControlPower(entityID: $0) })
                 }
             }
             .padding(.bottom, 14)
@@ -134,6 +135,7 @@ struct EntityRow: View {
                     ))
                     .toggleStyle(.switch)
                     .labelsHidden()
+                    .disabled(!model.canControlPower(entityID: entityID))
                     .onTapGesture {}
                 } else {
                     Text(model.displayState(for: entityID))
@@ -417,6 +419,9 @@ struct UnitGraph: View {
                 axisTimeFormattingOverride: axisTimeFormattingOverride,
                 mountOwnerID: mountOwnerID,
                 mountRegistry: model.graphChartMountRegistry,
+                acceptsWork: { [weak model] in
+                    model?.acceptsLifetimeWork() == true
+                },
                 zoomScale: zoomScale,
                 panFraction: panFraction,
                 hoverLocation: $hoverLocation
@@ -582,6 +587,7 @@ struct BitmapLineChart: View {
     let axisTimeFormattingOverride: GraphTooltipFormattingMetadata?
     let mountOwnerID: String?
     let mountRegistry: DashboardGraphChartMountRegistry?
+    let acceptsWork: @Sendable () -> Bool
     let zoomScale: CGFloat
     let panFraction: Double
     let showsHoverOverlay: Bool
@@ -602,6 +608,7 @@ struct BitmapLineChart: View {
         axisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
         mountOwnerID: String? = nil,
         mountRegistry: DashboardGraphChartMountRegistry? = nil,
+        acceptsWork: @escaping @Sendable () -> Bool = { true },
         mountedLifecycle: GraphChartMountedLifecycle? = nil,
         zoomScale: CGFloat,
         panFraction: Double,
@@ -617,6 +624,7 @@ struct BitmapLineChart: View {
         self.axisTimeFormattingOverride = axisTimeFormattingOverride
         self.mountOwnerID = mountOwnerID
         self.mountRegistry = mountRegistry
+        self.acceptsWork = acceptsWork
         _mountedLifecycle = StateObject(
             wrappedValue: mountedLifecycle ?? GraphChartMountedLifecycle()
         )
@@ -740,7 +748,11 @@ struct BitmapLineChart: View {
         scale: CGFloat,
         engine: GraphRenderEngine
     ) {
-        guard size.width > 1, size.height > 1, renderedToken != token else { return }
+        guard acceptsWork(),
+              size.width > 1,
+              size.height > 1,
+              renderedToken != token
+        else { return }
         guard !mountedLifecycle.isInvalidated else { return }
         mountedLifecycle.coordinator.requestVisual(GraphChartVisualRequest(
             token: token,
@@ -752,7 +764,7 @@ struct BitmapLineChart: View {
             panFraction: panFraction,
             engine: engine
         )) { completedToken, result in
-            guard completedToken == token else { return }
+            guard acceptsWork(), completedToken == token else { return }
             rendered = result
             renderedToken = completedToken
             renderAttempted = true
@@ -763,11 +775,16 @@ struct BitmapLineChart: View {
     }
 
     private func connectRevisionFeed() {
+        guard acceptsWork() else { return }
         mountedLifecycle.connect(feed: revisionFeed, inputs: inputs, unit: unit)
     }
 
     private func connectMountRegistry() {
-        guard mountLease == nil, let ownerID = mountOwnerID, let mountRegistry = mountRegistry else {
+        guard acceptsWork(),
+              mountLease == nil,
+              let ownerID = mountOwnerID,
+              let mountRegistry = mountRegistry
+        else {
             return
         }
         mountLease = mountRegistry.mount(ownerID: ownerID, lifecycle: mountedLifecycle)
@@ -1318,6 +1335,11 @@ struct ClimateDetailContent: View {
                 onSetTarget: setTarget
             )
             .frame(width: 320, height: 320)
+            .disabled(!model.canInvokeService(
+                entityID: entityID,
+                domain: "climate",
+                service: "set_temperature"
+            ))
 
             HStack(spacing: 10) {
                 menuControl(
@@ -1328,6 +1350,11 @@ struct ClimateDetailContent: View {
                 ) { mode in
                     model.setClimateHVACMode(entityID: entityID, mode: mode)
                 }
+                .disabled(!model.canInvokeService(
+                    entityID: entityID,
+                    domain: "climate",
+                    service: "set_hvac_mode"
+                ))
 
                 menuControl(
                     title: "Preset",
@@ -1337,6 +1364,11 @@ struct ClimateDetailContent: View {
                 ) { mode in
                     setPresetMode(mode)
                 }
+                .disabled(!model.canInvokeService(
+                    entityID: entityID,
+                    domain: "climate",
+                    service: "set_preset_mode"
+                ))
 
                 if !fanModes.isEmpty {
                     menuControl(
@@ -1347,6 +1379,11 @@ struct ClimateDetailContent: View {
                     ) { mode in
                         model.setClimateFanMode(entityID: entityID, mode: mode)
                     }
+                    .disabled(!model.canInvokeService(
+                        entityID: entityID,
+                        domain: "climate",
+                        service: "set_fan_mode"
+                    ))
                 }
 
                 if !swingModes.isEmpty {
@@ -1358,6 +1395,11 @@ struct ClimateDetailContent: View {
                     ) { mode in
                         model.setClimateSwingMode(entityID: entityID, mode: mode)
                     }
+                    .disabled(!model.canInvokeService(
+                        entityID: entityID,
+                        domain: "climate",
+                        service: "set_swing_mode"
+                    ))
                 }
             }
         }
@@ -1843,6 +1885,10 @@ struct FanDetailContent: View {
                         .foregroundColor(.white)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!model.canSetFanPercentage(
+                        entityID: entityID,
+                        percentage: speed.percentage
+                    ))
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 28))
@@ -1902,6 +1948,7 @@ struct SwitchDetailContent: View {
                 ))
                 .toggleStyle(.switch)
                 .labelsHidden()
+                .disabled(!model.canControlPower(entityID: entityID))
             }
 
             DetailHistoryGraph(entityID: entityID, title: "History", hours: 24)

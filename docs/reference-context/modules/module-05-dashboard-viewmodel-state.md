@@ -3,14 +3,16 @@ schema: nativeha-evidence/v1
 module: "05"
 title: Dashboard orchestration decomposition and lifecycle state
 plan: ../../rescue-plan/module-05-dashboard-viewmodel-state.md
-status: research-ready
+status: complete
 contract_revision: 1
 depends_on: ["01", "02", "04", "12"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 983a41504b622c123708ba7473249d0b2edb7dbb
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-05.dependencies.json
-graph_fingerprint: 8523f46cac0ffd523c0207e491dfcdb45eba1c2982cb88254d0edf7b4298786c
+graph_fingerprint: 00efdbb8b3aad955689b9a4083320dc1c0151b6e60a5d6f8dc8f7c074f91402b
 last_researched: 2026-08-25
+last_implemented: 2026-08-30
+last_verified: 2026-08-31
 ---
 
 # Module 05 evidence packet
@@ -502,9 +504,1839 @@ models/store tests, followed by C05-04 subscription ownership, then lifecycle
 and mechanical collaborator extraction. Independent verification is required
 after implementation; no later module may begin in the same gate.
 
+## Implementation evidence
+
+One fresh sole Swift/test writer implemented C05-01 through C05-14 without a
+commit. The bounded production diff adds typed compressed entity wire models,
+an explicit `subscribe_entities` client API with `resubscribe: false`, and six
+permitted macOS collaborators: `DashboardLifecycle`, `HAEntityStore`,
+`HAEntitySubscriptionCoordinator`, `LovelaceDashboardStore`,
+`DashboardHistoryCoordinator`, and `DashboardServiceController`.
+`DashboardViewModel` now composes those owners, keeps the pre-existing
+`dashboardOwnerOperationTail` as the only history/navigation reconciliation
+tail, and exposes explicit scoped retry and idempotent stop/restart boundaries.
+`DashboardView` renders typed loading, fatal, partial, reconnecting,
+disconnected, ready, and empty shell states.
+
+Normal bootstrap no longer reads REST `/api/states`; each initial connection
+and reconnect creates one fresh entity subscription whose first full payload
+atomically replaces retained state. Lovelace updates and reconnect refreshes
+use normal fetches, while an explicit Lovelace retry sends `force: true`.
+History/detail dictionaries, task generations, subscriptions, and feeds moved
+mechanically behind the façade without changing the Module 01 core or Module
+12 owner ordering. Existing REST service calls retain their payloads and
+optimistic behavior, but now have per-action task tokens, missing/unavailable/
+duplicate gating, scoped error ownership, stop cancellation, and no automatic
+retry.
+
+No profile/settings UI, token/server migration, preference key, typed
+`AppConfig` surface/value, personal entity identifier, second owner tail,
+hash/timestamp/`contentRevision` freshness rule, renderer change, service-call
+retry, or Module 06-11 behavior was added. `AppConfig.swift`,
+`docs/configurability.md`, Core Graphics production rendering, exact Module 04
+identity, Module 12 selection/persistence, graph range, history feed,
+coordinator/cache, tooltip, logging, and transport policy remain unchanged.
+
+Contract evidence before independent verification:
+
+| Contracts | Implementation evidence |
+|---|---|
+| C05-01, C05-09, C05-11 | Two pure lifecycle tests cover valid/invalid phase transitions, compatibility projections, independent component errors, reconnect freshness, and stop. Eleven bootstrap lifecycle tests cover optional metadata isolation, same/distinct client overlap, held late generations, disconnect-on-required-failure, explicit stop/restart, normal Lovelace update fetch, forced scoped retry, and entity-subscription failure. Seven deterministic dark 2x shell artifacts cover loading, fatal retry, ready, retained reconnect, retained disconnect/reconnect, usable partial Lovelace failure/retry, and empty content; automated signature/dimension/nonblank checks pass and direct visual inspection found coherent retained-content/banner/retry states. |
+| C05-03, C05-12 | Six `HAEntityStoreTests` prove authoritative full replacement; exact add-remove-change ordering; state/attribute/context/`lc`/`lu` patches; `last_updated` without false `last_changed`; unknown/malformed isolation; 10,000-entity full input; and ordered 1,000-delta bursts. Typed decode averages 0.123 s and immutable preparation 0.035 s in the implementation run. One 10,000-entity MainActor publication averages approximately 3 microseconds wall time and 0.00036 s CPU, with the final count consumed. These are measurements, not new product thresholds. |
+| C05-04, C05-10 | Four orchestration tests prove fresh authoritative reconnect replacement, one live owner after reconnect, synchronous stop detachment, idempotent dashboard stop, exact empty history/mount registries, 100 entity-owner start/stop cycles with zero subscription and delivery owners after every cycle, and weak coordinator release. The app rejects old startup/config/entity/service callbacks by app/config/action generation and detaches ownership before awaited cancellation. |
+| C05-05, C05-06, C05-07 | Bootstrap and the 23-test history integration suite prove normal/update/reconnect Lovelace fetches, forced retry, exact identity preservation, same-view owner reuse, A-B-A latest-only publication, late acknowledgement rejection, cancel-before-replace, feed/mount/render ordering, active-view range ownership, and the warmed 500-card / 100-cycle Module 12 lifecycle ending with one final owner and zero obsolete subscriptions, feeds, mounts, render work, or weak owners. Raw configuration and effective range remain separate. |
+| C05-08 | Two service-controller tests prove exact REST domain/service/body forwarding, missing and unavailable gating, duplicate in-flight rejection, isolated failure, one call after timeout with no retry, synchronous stop detachment, and rejection of late completion. The authorized live smoke contains no service invocation. |
+| C05-13, C05-14 | No `AppConfig`, configurability, bootstrap token/server, or navigation-preference file changed. The full suite passes 213 tests with three authorized skips and zero failures in 115.652 seconds; the production `NativeHAMac` release build passes in 23.42 seconds. The inherited Module 02/01/04/12 and bounded Module 09 behavioral suites are included. Module 05 checker and resolver are green. |
+
+Implementation-time authorized read-only live smoke passed in 6.774 seconds.
+It decoded the existing three-view Lovelace dashboard (22 top-level / 31
+recursive cards and 66 rows), read formatting/current-user metadata, received
+an authoritative 280-entity typed snapshot both initially and after reconnect
+with `resubscribe=false`, and exercised one-, twelve-, and twenty-four-hour
+history. It made no service call or state mutation and emitted no credential.
+
+Implementation validation:
+
+- Module 05 pre-generation checker: expected YELLOW only for deliberately
+  changed NativeHA implementation/test anchors;
+- regenerated Module 05 graph: GREEN, 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `e8e81d6eaa163f185a409c0d2fe82bda540d80d1e334d7cfb5ee4ec907d42426`;
+- resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `8d7de132989d36260bf970b04275f754729b6ac385d4dccd72a788fc0678e404`;
+- focused store, lifecycle, orchestration, service, bootstrap, history,
+  navigation, GUI, performance, and live tests: PASS;
+- full suite: 213 tests executed, three authorized skips, zero failures;
+- production release build: PASS; and
+- exact seven shell PNGs: visually coherent after deterministic inspection.
+
+The implementation run exposed no production regression. One lifecycle test
+expectation was corrected to match the contract that socket/entity readiness
+alone cannot promote the dashboard until Lovelace revalidation also settles.
+Two inherited graph-image tests were made deterministic in test code by waiting
+for the renderer's existing semantic readiness callback instead of a fixed
+settle interval; no production graph/render file changed.
+
+Implementation verdict: **GO to independent verification**. Status is
+`verification-ready`, not `complete`; Module 06 remains locked. The verifier
+must inspect the exact implementation diff, rerun checker/resolver/focused/
+full/release/live gates, regenerate and inspect all seven shell artifacts, and
+specifically audit compressed patch fidelity, same-client bootstrap overlap,
+fresh reconnect ownership, synchronous stop ordering, scoped retry boundaries,
+one-tail history reconciliation, service no-retry/late-result behavior,
+accessible retry controls, raw Lovelace/identity preservation, and zero-owner
+cleanup. Any old-generation publication, owner overlap/leak, product-policy or
+bootstrap migration, raw-config mutation, freshness heuristic, Core Graphics
+demotion, service call during live smoke, or credential artifact is NO-GO.
+
+## Independent verification
+
+The fresh independent verifier's 2026-08-25 verdict is **NO-GO**. Module 05
+remains `verification-ready`, contract revision 1 is unchanged, and Module 06
+remains locked. The product, fixed-server, token/bootstrap, migration,
+identity, renderer, raw-configuration, and graph-range decisions remain fully
+resolved; the failures are bounded implementation and evidence defects.
+
+### Blocking contract findings
+
+1. **C05-01, C05-03, C05-04, C05-14 — malformed entity payloads do not fail
+   their owner generation.** The typed WebSocket delivery seam decodes with
+   `try?` and silently returns on schema failure. A malformed initial payload
+   can leave bootstrap waiting indefinitely, and a malformed delta leaves the
+   owner apparently live with retained state. The current malformed test calls
+   `JSONDecoder` in isolation and never crosses the connection/coordinator
+   boundary required by the contract.
+2. **C05-03 — context-object patch semantics differ from the pinned package.**
+   `home-assistant-js-websocket@9.6.0` merges object context patches onto the
+   prior context. NativeHA replaces the entire object and requires an `id`, so
+   a partial object patch can fail decoding or discard unchanged parent/user
+   fields. String-context, attribute, positive `lc`/`lu`, unknown-entity, and
+   add/remove/change ordering otherwise match the reference.
+3. **C05-03, C05-04 — a fresh owner accepts a non-full first payload.** All
+   payload fields are optional, and the coordinator treats `{}` or a
+   change-only event as its authoritative snapshot and publishes `ready`.
+   Presence of `a` must be required for the first accepted event while still
+   allowing the legitimate empty snapshot `{"a":{}}`.
+4. **C05-02, C05-03, C05-04, C05-12, C05-14 — accepted bootstrap deltas can be
+   lost.** Candidate callbacks are suppressed until the entity coordinator is
+   installed. Bootstrap then awaits Lovelace reconciliation and update-owner
+   creation before installing the captured first snapshot. A delta accepted
+   during those suspensions updates the coordinator's private store but is not
+   published; installation writes the older captured snapshot, and no later
+   event is guaranteed to repair it.
+5. **C05-10, C05-14 — stop does not detach a candidate entity owner.**
+   `stop()` captures the installed `entityCoordinator` but neither captures nor
+   clears `latestBootstrapEntityCoordinator` before its first suspension. A
+   stop during post-snapshot bootstrap can therefore leave the candidate's
+   status task/client referenced after disconnect. Existing stop coverage
+   exercises only fully installed ownership.
+6. **C05-08 — service controls are not observably disabled for all contracted
+   cases.** `DashboardServiceController` rejects a missing, unavailable, or
+   exact duplicate action, but card/detail controls still render from
+   `canToggle`, which ignores state availability and in-flight work. Opposite
+   power actions for the same entity also use different task keys and may
+   overlap even though they are incompatible. Controller-only tests do not
+   prove disabled SwiftUI controls.
+7. **C05-09 — the history retry scope omits current detail ownership.**
+   `retryHistoriesForActiveView()` retries failed/missing active card owners,
+   but does not retire or restart a failed/missing current detail-history owner
+   as required by the packet's retry matrix.
+8. **C05-10, C05-11, C05-12, C05-14 — required lifecycle and accessibility
+   evidence is incomplete.** Seven shell PNGs are rendered and visually
+   coherent, but the Module 05 GUI test asserts only bitmap validity and
+   dimensions; it does not inspect retry/reconnect accessibility nodes,
+   keyboard focus, or activation. The 100-cycle evidence covers the entity
+   coordinator and inherited Module 12 view/range ownership separately, not
+   repeated complete dashboard start/stop, reconnect, and scoped-retry
+   lifecycles with exact final owner/task counts and memory consumption.
+
+### Independent evidence that passed
+
+- focused lifecycle/entity/service/bootstrap/history/navigation suites: 59
+  tests, zero failures in 3.823 seconds;
+- full suite: 213 tests, three authorized skips, zero failures in 115.355
+  seconds, including inherited Modules 02, 01, 04, 12 and bounded Module 09
+  regressions;
+- production `NativeHAMac` release build: PASS in 8.05 seconds compilation,
+  8.60 seconds wall time;
+- Module 05 checker: GREEN, 130 nodes / 811 edges, one recorded frontend cycle,
+  zero unresolved, not truncated, fingerprint
+  `e8e81d6eaa163f185a409c0d2fe82bda540d80d1e334d7cfb5ee4ec907d42426`;
+- resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `8d7de132989d36260bf970b04275f754729b6ac385d4dccd72a788fc0678e404`;
+- read-only live smoke: PASS in 6.552 seconds with three views, 22 top-level /
+  31 recursive cards, 66 rows, registry 276 / 74 precision entries, current
+  user present, authoritative typed snapshots of 280 entities initially and
+  after reconnect with `resubscribe=false`, representative 1h 2,385 points,
+  CO2/VOC 1h 8,554 points, CO2/VOC 12h 102,306 points, and 24h 57,015 points;
+  it made no service or other state-changing call;
+- all seven required shell artifacts were regenerated at 2400 x 1600,
+  visually inspected, and found coherent for loading, fatal retry, ready,
+  retained reconnect, retained disconnect, partial Lovelace failure, and empty
+  states; no animation was added, so animation/reduced-motion evidence is N/A;
+- `AppConfig.swift`, `docs/configurability.md`, the token path, ordered server
+  candidates, Module 12 preference key, raw Lovelace configuration, approved
+  range, and Core Graphics primary rendering are unchanged; and
+- exact changed source/test/docs plus the seven PNGs contain no live token,
+  and `git diff --check` passes.
+
+The complete prerequisite behavioral suites pass. Their generated graphs are
+expected YELLOW solely because the uncommitted Module 05 implementation changes
+shared anchored Swift/test files: Module 02 reports four changed anchors,
+Module 01 seven, Module 04 seven, and Module 12 eight. The verifier did not
+refresh those inherited graphs before the final source is accepted.
+
+### Bounded correction and next action
+
+Return the exact tree to the sole implementation writer. Add an entity-specific
+decode-error path that fails only the current owner generation; merge partial
+context objects exactly like pinned `entities.js`; require an `a` field on the
+fresh first payload; and preserve every accepted candidate update through
+bootstrap installation. Synchronously capture/clear/stop the candidate entity
+coordinator in the explicit stop boundary. Expose service availability and
+entity-level incompatible in-flight ownership to the actual card/detail
+controls. Include the current detail owner in scoped history retry.
+
+Add held malformed-initial/delta, partial-context, non-full-first-event,
+pre-install-delta, stop-during-candidate, opposite-action, detail-retry,
+Module 05 shell accessibility/keyboard, and complete 100-cycle dashboard
+lifecycle tests. Then rerun focused/full/release/live/GUI/context gates and
+dispatch a new fresh verifier. Do not begin Module 06 or refresh inherited
+graphs until the corrected final source is independently accepted.
+
+## Bounded correction evidence
+
+The sole implementation writer completed the verifier's bounded correction on
+2026-08-26 without changing contract revision 1, fixed-server product scope,
+bootstrap storage, raw Lovelace policy, graph-range policy, or renderer. The
+historical NO-GO findings and their passing evidence above remain preserved.
+
+The corrected tree now provides the following direct closure evidence:
+
+- **C05-01, C05-03, C05-04:** typed event decoding remains in the established
+  off-actor, per-owner ordered delivery task. A typed decode failure invokes
+  only that owner's optional termination path. The entity coordinator
+  synchronously invalidates its generation, resumes an initial waiter with an
+  error, cancels its wire owner, and rejects later callbacks; unrelated typed
+  owners retain their established drop-and-continue behavior. The complete 23
+  WebSocket connection tests and six dashboard orchestration tests pass.
+- **C05-03:** compressed context-object patches distinguish absent fields from
+  explicit null and merge present `id`, `parent_id`, and `user_id` fields onto
+  the prior context exactly like the pinned `entities.js`; a string patch
+  replaces only `id`. A focused store fixture covers preserve, replace, and
+  explicit-clear branches.
+- **C05-03, C05-04:** a fresh owner accepts a first event only when `a` is
+  explicitly present. `{"a":{}}` is a valid authoritative empty snapshot;
+  `{}`, change-only, and schema-malformed first events fail without partial
+  publication. A later malformed delta fails the current generation and
+  settles its socket/delivery ownership at zero.
+- **C05-02, C05-03, C05-04, C05-12:** bootstrap installs the candidate
+  coordinator's latest accepted store at the atomic ownership boundary rather
+  than an earlier captured snapshot. A held-bootstrap test injects an accepted
+  delta between first snapshot and install and proves the installed model
+  contains it.
+- **C05-10:** stop captures and clears both installed and candidate entity
+  owners before its first suspension, then awaits their retirement. A held
+  candidate test proves synchronous detachment, zero socket ownership, stopped
+  status observation, and weak release. Stop also clears card history feeds,
+  statuses, and visual history stores after detaching their owners so a fresh
+  restart cannot retain stale visual cache state.
+- **C05-08:** same-entity `turn_on` and `turn_off` share one incompatible
+  `power` action owner. Card and detail controls now derive disabled state from
+  missing/unavailable/unknown state, exact service availability, and in-flight
+  ownership. Opposite power actions cannot overlap, and no automatic service
+  retry was added.
+- **C05-09:** scoped history retry serializes on the existing sole dashboard
+  owner tail and includes the currently selected failed/missing detail owner.
+  Its focused test proves a failed detail is restarted while one healthy card
+  subscription and feed remain unchanged.
+- **C05-11:** fatal bootstrap retry, retained-disconnect reconnect, and partial
+  Lovelace retry use concrete AppKit accessibility buttons with stable labels
+  and identifiers. A hosted real-window test proves one unignored enabled
+  button node per action, nonzero bounds, first-responder focus, and one Space
+  key activation. Its metric is
+  `MODULE05_AX ... concrete_nodes=3 focus=true keyboard_activation=true
+  counts=1|1|1`.
+- **C05-10, C05-12, C05-14:** a genuine 100-cycle dashboard gate performs
+  bootstrap, card-history startup, mounted feed/render ownership, realtime
+  reconnect, forced Lovelace retry, detail-history startup, healthy scoped
+  retry, and stop. Across 100 cycles it records exactly 200 entity
+  subscriptions, 300 history subscriptions, and 300 Lovelace fetches. Every
+  stop asserts zero card/detail desired keys, startups, generations,
+  subscriptions, histories, statuses, feed observers, graph mounts,
+  coordinator render work, entity/Lovelace owners, bootstrap/status/fetch/
+  owner-tail/service tasks, WebSocket callback/delivery owners, and client
+  handles. Every mounted lifecycle and the final dashboard model weakly
+  release. The final full-suite instance completed in 5.840 seconds.
+
+Correction validation is green:
+
+- focused WebSocket/orchestration regression run: 29 tests, zero failures in
+  3.704 seconds; the broader store/bootstrap/service/history correction run
+  also passed 52 tests with zero failures;
+- complete debug suite: 221 tests, three intentional opt-in skips, zero
+  failures in 100.530 seconds, including the inherited Module 02, 01, 04, 12,
+  and bounded Module 09 behavioral suites;
+- production release build: PASS in 21.03 seconds;
+- authorized read-only live smoke: PASS in 5.619 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  a current user, fresh authoritative snapshots of 280 entities initially and
+  after reconnect, representative 1h history (2,384 points), CO2/VOC 1h
+  (8,606 points), CO2/VOC 12h (96,056 points), and 24h history (57,023 points),
+  followed by exact zero final socket/history ownership; no service or other
+  state-changing call was made;
+- Module 05 graph: GREEN, 130 nodes / 811 edges, one recorded frontend cycle,
+  zero unresolved, not truncated, fingerprint
+  `96837ffb58096c33a59423c7e0c15553fb7ba9e363ca7f750df4affa415b9b18`;
+- resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `f65efe1e53bc0b5623e28b013d564fea375f66650d346d1350062b611d3af908`;
+- inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and
+  expected YELLOW only for shared uncommitted Module 05 Swift/test anchors;
+- credential scan, policy-file scan, freshness-heuristic scan, live-service
+  scan, out-of-scope scan, and `git diff --check`: PASS; `AppConfig.swift`,
+  `docs/configurability.md`, `docs/user-deviations.md`, the token/bootstrap
+  path, ordered server candidates, Module 12 preference key, Core Graphics
+  default, and Modules 06-11 remain unchanged.
+
+Correction verdict: **correction-ready pending a new fresh independent
+verifier**. This is not completion and does not erase the prior NO-GO. The next
+action is to dispatch a verifier that reads this exact uncommitted diff,
+repeats the applicable focused/full/release/live/GUI/context gates, and either
+marks Module 05 complete or records precise remaining contract failures.
+Module 06 remains locked.
+
+## Interrupted fresh re-verification
+
+A new fresh verifier began reviewing the first corrected tree on 2026-08-26
+but was interrupted before completing the full independent gate. Its concrete
+provisional verdict was **NO-GO** on two bounded findings; it did not supersede
+or erase the original independent NO-GO above:
+
+1. **C05-11 — the concrete AppKit retry/reconnect controls had unbounded
+   representable geometry.** Although the controls exposed correct
+   accessibility nodes, focus, identifiers, and Space activation, SwiftUI
+   offered the raw `NSViewRepresentable` the banner/page's complete proposal.
+   The disconnected-retained and partial-error artifacts therefore contained
+   enormous oval controls and roughly 300-point-high banners; the fatal retry
+   control stretched nearly the full content width. The existing test asserted
+   only nonzero lower bounds and could not reject this visible failure.
+2. **C05-03, C05-08 — optimistic service reconstruction discarded accepted
+   entity context.** `applyOptimisticAttributes` reconstructed `HAState`
+   without forwarding `old.context`. A local user action could therefore erase
+   the accepted context identity/parent/user fields until the next entity
+   publication. No product decision authorizes that loss.
+
+Because the verifier was interrupted, these are provisional concrete findings,
+not a complete second independent verdict. Module 05 remains incomplete and
+Module 06 remains locked.
+
+## Second bounded correction evidence
+
+The sole implementation writer corrected those two findings without expanding
+product scope on 2026-08-26:
+
+- **C05-11:** a SwiftUI wrapper now applies ideal sizing on both axes around
+  the concrete AppKit representable, while the `NSButton` declares required
+  content hugging and compression resistance. The concrete button remains the
+  accessibility element. Hosted-window tests retain stable labels/identifiers,
+  first-responder focus, and one Space activation, and now require both AppKit
+  bounds and the exposed accessibility frame to be greater than 20 x 10 points
+  and no larger than 180 x 36 points. Thus the prior giant control/banner
+  geometry fails deterministically.
+- All seven 1200 x 800-point dark shell states were regenerated as 2400 x 1600
+  PNGs and visually inspected. Fatal retry is intrinsic-sized;
+  disconnected-retained and partial-Lovelace-error banners are one compact row
+  with right-aligned actions; loading, ready, reconnecting-retained, and empty
+  states remain coherent. No card redesign or animation was introduced.
+- **C05-03, C05-08:** optimistic state/attribute reconstruction now forwards
+  the complete accepted `HAContext` along with prior timestamps and untouched
+  attributes. A focused service/model test performs an optimistic switch
+  action and proves state changes while context, attributes, `lastChanged`, and
+  `lastUpdated` remain exact. An audit of all three production `HAState`
+  construction sites confirms the entity-store full and patch paths already
+  preserve or deliberately construct context; no other local reconstruction
+  drops it.
+
+Second-correction validation is green:
+
+- final focused shell artifact/accessibility, service/context, entity-store,
+  and orchestration run: 18 tests, zero failures in 12.170 seconds;
+- an initial focused run exposed a real current-state replay race in the
+  malformed-delta cleanup assertion: `statusUpdates()` could replay its
+  baseline `.ready` after malformed-owner failure and mistake it for a
+  reconnect, creating a fresh owner. It reproduced once in 30 pre-fix
+  iterations. The narrow correction ignores only the first replay when it is
+  `.ready`; a first non-ready state is still processed normally, and no sleep
+  or reconnect-policy redesign was introduced. The exact test passed 30 of 30
+  post-fix iterations;
+- complete debug suite: 222 tests, three intentional opt-in skips, zero
+  failures in 99.519 seconds; the genuine 100-cycle dashboard gate finished
+  in 6.111 seconds with its exact zero-owner/render/release assertions;
+- production release build: PASS in 23.04 seconds;
+- authorized read-only live smoke: PASS in 6.091 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  a current user, fresh authoritative snapshots of 280 entities initially and
+  after reconnect, representative 1h history (2,333 points), CO2/VOC 1h
+  (8,393 then 8,394 points), CO2/VOC 12h (103,400 points), and 24h history
+  (57,017 points); no service or other state-changing call was made;
+- current Module 05 graph: GREEN, 130 nodes / 811 edges, one recorded frontend
+  cycle, zero unresolved, not truncated, fingerprint
+  `e1582091a6c7cdc6e3ab68602f2041dd960c8af9f21e3c942d418561901f03b9`;
+- resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `338cc251384f261a60a55c250a708ed4ea6cd8530192e9530f8c24a5822f5ca5`;
+- inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and
+  expected YELLOW only for shared uncommitted Module 05 Swift/test anchors;
+  the fixed-server bootstrap, token/configuration policy, Core Graphics
+  renderer, raw Lovelace/range/identity policy, and Modules 06-11 are unchanged.
+
+Second-correction verdict: **correction-ready pending a new fresh independent
+verifier**. Neither provisional finding is treated as independent acceptance.
+The next verifier must inspect this exact tree and repeat the applicable
+focused/full/release/live/GUI/context gates. Module 06 remains locked.
+
+## Complete fresh verification of the second-corrected tree
+
+The complete fresh verifier's 2026-08-26 verdict is **NO-GO**. The verifier
+read the exact uncommitted production, test, manifest, generated-graph, packet,
+and index diff; read the pinned `home-assistant-js-websocket@9.6.0`
+`entities.js` at SHA-256
+`e29222ee8551dfcde7d6abea2d1b3f82237fef2cc5b346de715bf1bafaac448d`;
+and audited C05-01 through C05-14. The two interrupted-verifier findings and
+the original independent findings are closed, but one additional bounded
+bootstrap/entity-owner race prevents completion.
+
+### Blocking contract finding
+
+**C05-02, C05-03, C05-04, C05-14 — a candidate entity owner that terminates
+after its first full snapshot but before installation can still be installed
+as ready.** `HAEntitySubscriptionCoordinator.failCurrentOwner` advances its
+generation, clears `acceptedFirstSnapshot`, detaches the subscription, and
+cancels the wire owner. During bootstrap, however, the candidate's phase
+callback is deliberately rejected until `DashboardViewModel.entityCoordinator`
+identically owns it. Therefore a malformed delta delivered while the Module 12
+candidate hook is suspended produces no model-visible failure.
+
+After that termination, bootstrap checks only the app/bootstrap sequence,
+subscribes to Lovelace updates, and calls `installBootstrapOwnership`.
+Installation reads `snapshotForInstallation()`, assigns the already-failed
+coordinator, and calls `lifecycle.installed()` without proving that the
+candidate still has its accepted authoritative generation and live
+subscription. The dashboard can consequently publish `ready` with retained
+entity data but zero entity wire ownership until a later connection transition.
+This contradicts the required acknowledged entity ownership gate and the rule
+that a malformed delta fails its owner generation rather than being promoted
+through installation.
+
+The current held-bootstrap test proves that a valid pre-install delta is not
+lost. The current malformed-delta test proves termination only for a standalone
+already-started coordinator. Neither crosses malformed delivery through the
+held candidate and subsequent bootstrap installation, so the passing suite
+does not cover this sequence.
+
+### Fresh evidence that passed
+
+- Correction-focused transport, store, lifecycle, orchestration, bootstrap,
+  service, history, navigation, and Module 05 GUI tests: 81 tests, zero
+  failures in 24.119 seconds. The exact malformed-delta/current-status replay
+  test then passed 30 of 30 separate `--skip-build` stress iterations.
+- Complete debug suite: 222 tests, three intentional opt-in skips, zero
+  failures in 101.790 seconds. The genuine 100-cycle whole-dashboard gate
+  finished in 5.793 seconds with exactly 200 entity subscriptions, 300 history
+  subscriptions, 300 Lovelace fetches, and zero final socket, card, detail,
+  feed, mount, render, task, client, or weak-model ownership.
+- Production `NativeHAMac` release build: PASS in 8.25 seconds compilation and
+  8.59 seconds wall time.
+- Authorized read-only live smoke: PASS in 6.137 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  a current user, authoritative typed snapshots of 280 entities initially and
+  after reconnect with `resubscribe=false`, representative 1h history (2,343
+  points), CO2/VOC 1h (8,472 then 8,479 points), CO2/VOC 12h (103,394 points),
+  and 24h history (57,015 points). Final ownership assertions passed, and no
+  service or other state-changing call was made.
+- All seven Module 05 shell PNGs were regenerated at 2400 x 1600 and inspected.
+  Loading, fatal retry, ready, retained reconnect, retained disconnect,
+  partial Lovelace failure, and empty states are coherent. Retry/reconnect
+  controls are compact rather than shell-sized. Hosted accessibility evidence
+  reports three concrete enabled buttons with stable labels/identifiers,
+  bounded AppKit and accessibility frames, real first-responder focus, and one
+  Space activation each. No animation was added, so animation/reduced-motion
+  evidence remains N/A.
+- Entity performance evidence consumed exact results: 10,000-entity typed
+  decode averaged 0.124 seconds, immutable preparation 0.034 seconds, and the
+  bounded MainActor dictionary publication approximately 3 microseconds in the
+  full run. The 500-card warmed Module 12 lifecycle and all inherited
+  transport/history/identity/render behavioral suites stayed green.
+- Module 05 checker: GREEN, 130 nodes / 811 edges, one recorded frontend cycle,
+  zero unresolved, not truncated, fingerprint
+  `e1582091a6c7cdc6e3ab68602f2041dd960c8af9f21e3c942d418561901f03b9`.
+  Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `338cc251384f261a60a55c250a708ed4ea6cd8530192e9530f8c24a5822f5ca5`.
+- Inherited Module 02, 01, 04, and 12 graphs are intentionally YELLOW only
+  because the uncommitted Module 05 tree changes respectively 5, 9, 8, and 9
+  shared anchored Swift/test files. Their behavioral suites pass; the verifier
+  did not refresh inherited graphs before Module 05 source acceptance.
+- Exact diff whitespace, live-token/JWT artifact, policy-file, freshness-
+  heuristic, read-only-live-service, and out-of-scope scans passed.
+  `AppConfig.swift`, `docs/configurability.md`, `docs/user-deviations.md`, the
+  fixed token/server bootstrap, Module 12 preference key, raw Lovelace/range
+  policy, Core Graphics default, and Modules 06-11 remain unchanged.
+
+### Bounded correction and next action
+
+Return the exact tree to the sole implementation writer. Make candidate
+termination durably observable to bootstrap and require one synchronous,
+generation-exact installation handoff that can return the latest snapshot only
+while the authoritative first payload and live entity owner are still valid.
+A terminated candidate must fail bootstrap and retire/disconnect its ownership;
+it must never be promoted to `ready`.
+
+Add a held-candidate integration test that delivers a schema-malformed delta
+after the accepted first full payload and before installation. It must prove
+bootstrap does not install or publish ready, the candidate and socket delivery
+owners reach zero, late payloads cannot mutate state, the candidate weakly
+releases, and a subsequent explicit retry starts one fresh authoritative owner.
+Stress that exact sequence, then rerun focused/full/release/live/GUI/context
+gates and dispatch another fresh independent verifier. No product, token,
+migration, renderer, range, or Module 06 decision is unresolved. Module 06
+remains locked.
+
+## Third bounded correction evidence
+
+The sole implementation writer corrected the complete fresh verifier's final
+blocking finding on 2026-08-26 without expanding Module 05 scope:
+
+- **C05-02, C05-03, C05-04, C05-14:**
+  `HAEntitySubscriptionCoordinator` now records the exact accepted live
+  subscription generation. Every fresh subscription, malformed/terminated
+  owner, connection invalidation, and explicit stop clears that proof. Its
+  synchronous MainActor installation API returns the generation and latest
+  retained snapshot only when the coordinator is not stopped, still owns its
+  client and subscription handle, has settled the first-snapshot waiter, and
+  the accepted generation exactly equals its current generation.
+- `DashboardViewModel.installBootstrapOwnership` invokes that proof as its
+  final candidate check. On success there is no suspension between proof,
+  retained-snapshot copy, publication-authority assignment, installed-client
+  assignment, and `lifecycle.installed()`. Because both owners are
+  MainActor-isolated, a termination callback cannot interleave that handoff.
+  On failed proof, the not-yet-installed Lovelace update owner is cancelled and
+  the existing current-bootstrap failure path stops the entity candidate and
+  disconnects the client exactly once; no stale snapshot or ready phase is
+  published.
+- The deterministic held-candidate integration test now accepts the first full
+  entity snapshot, suspends before installation, delivers a structurally
+  malformed delta, and waits for generation invalidation. It proves the live
+  installation API rejects the candidate, a later payload on the dead wire ID
+  is fully decoded but cannot mutate model state, bootstrap ends failed rather
+  than ready, every
+  entity/candidate/Lovelace/status/client/socket delivery owner reaches zero,
+  transport disconnect occurs exactly once, and the candidate weakly releases.
+  A subsequent explicit bootstrap creates exactly one fresh authoritative
+  entity owner, accepts a fresh delta, and returns all ownership to zero on
+  stop. The pre-existing valid held-delta and reconnect tests remain green.
+
+Third-correction validation is green:
+
+- the exact held-malformed/late-payload/fresh-retry test passed once focused
+  and then 30 of 30 separate `--skip-build` stress iterations;
+- the existing valid pre-install-delta and fresh-start tests pass, and all six
+  entity orchestration tests pass, including fresh authoritative reconnect,
+  malformed-owner failure, 100 start/stop owner cycles, and zero retained
+  subscriptions;
+- complete debug suite: 223 tests, three intentional opt-in skips, zero
+  failures in 100.525 seconds; the genuine 100-cycle whole-dashboard gate
+  finished in 5.778 seconds with 200 entity subscriptions, 300 history
+  subscriptions, 300 Lovelace fetches, and zero final socket, card, detail,
+  feed, mount, render, task, client, or weak-model ownership;
+- the full suite regenerated and passed all 15 GUI/performance tests, including
+  seven 2400 x 1600 Module 05 shell artifacts, bounded concrete AppKit action
+  frames, labels/identifiers, first-responder focus, and one Space activation;
+  this correction changed no shell or card rendering code;
+- production `NativeHAMac` release build: PASS in 23.40 seconds;
+- authorized read-only live smoke: PASS in 5.760 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  a current user, fresh authoritative snapshots of 280 entities initially and
+  after reconnect with `resubscribe=false`, representative 1h history (2,378
+  points), CO2/VOC 1h (8,587 then 8,588 points), CO2/VOC 12h (103,398 points),
+  and 24h history (57,013 points); final ownership assertions passed and no
+  service or other state-changing call was made;
+- refreshed Module 05 graph: GREEN, 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `2ea871192c5e723a3068bd56adfeae7e90c000e0d192d2074bf11a2d3a19fd32`;
+  resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `afa21ec0bad846cc51389e1aa9f193b41a168ea3842cbe139efee04c796e1d22`;
+- inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and
+  expected YELLOW only for respectively 5, 9, 8, and 9 shared uncommitted
+  Module 05 Swift/test anchors. Their complete behavioral suites are included
+  in the green full run. AppConfig, configurability, the fixed token/server
+  bootstrap, raw Lovelace/range/identity policy, Core Graphics primacy, the
+  separate Module 09 fallback, and Modules 06-11 are unchanged.
+
+Third-correction verdict: **correction-ready pending another entirely fresh
+independent verifier**. No finding is self-accepted by the implementation
+writer. The verifier must inspect this exact tree, repeat the held malformed
+candidate sequence and applicable full/release/live/GUI/context gates, and
+return GO before the supervisor commits Module 05. Module 06 remains locked.
+
+## Final fresh acceptance verification of the third-corrected tree
+
+The entirely fresh acceptance verifier's 2026-08-26 verdict is **NO-GO**.
+The third correction closes the malformed-candidate pre-install race: the
+exact held malformed-delta / dead-owner late-payload / fresh-retry test passed
+once after build and 30 of 30 separate `--skip-build` stress iterations. The
+prior malformed-delta/current-ready-replay race also passed 30 of 30 separate
+stress iterations. Every historical finding recorded above is closed. Two
+additional bounded C05-08/C05-10 defects nevertheless prevent final
+acceptance.
+
+### Blocking contract findings
+
+1. **C05-10, C05-14 — explicit stop detaches but does not cancel an in-flight
+   card-history startup.** `detachOwnershipSynchronously(notIn:)` removes
+   obsolete card startup tasks into `DetachedDashboardOwnership.startups`, but
+   cancels only `detailStartups`. `finishDetachedOwnership` then awaits every
+   card startup before `stop()` reaches the installed-client disconnect. The
+   startup is a separately created unstructured `Task` in
+   `startHistoryTracked`; cancelling `dashboardOwnerOperationTail` does not
+   propagate cancellation into it. A held WebSocket history acknowledgement
+   can therefore keep explicit stop suspended until the command timeout while
+   the connection still owns the pending command/receive loop. Generation and
+   desired-key guards prevent late publication, but they do not satisfy the
+   required synchronous detach plus cancel/await retirement boundary. Existing
+   held-history tests release/reject their acknowledgements manually, and the
+   100-cycle dashboard test stops only settled subscriptions, so neither
+   exercises this sequence.
+2. **C05-08, C05-14 — controls can remain enabled and optimistically mutate
+   after service ownership has been removed.**
+   `DashboardServiceController.canInvoke` checks state availability and the
+   incompatible-action task key but not whether its `caller` is installed.
+   `stopSynchronously()` deliberately clears that caller. Thus retained cards
+   after a stopped/failed full bootstrap can still report
+   `canControlPower`/`canInvokeService == true`. A user action applies the
+   optimistic state first; only afterward does `invoke` discover that no
+   caller exists and return `false`, leaving a local state mutation with no
+   service request. The optimistic-context test constructs an uninstalled
+   model and expects this mutation, so it preserves context but masks the
+   missing service-availability gate. Missing/unavailable state, opposite
+   power-action exclusion, in-flight completion, cancellation, and no-retry
+   behavior otherwise pass.
+
+### Fresh acceptance evidence that passed
+
+- Third-correction race: 31/31 total held malformed-candidate passes (one
+  focused plus 30 stress), with failed rather than ready installation, zero
+  candidate/socket/delivery ownership, dead-wire late-payload suppression,
+  weak release, exactly one fresh authoritative retry owner, accepted fresh
+  delta, and exact final cleanup. The earlier malformed-owner status-replay
+  race passed 30/30 stress iterations.
+- Focused transport, store, lifecycle, orchestration, bootstrap, service,
+  history, and navigation matrix: 91 tests, zero failures in 13.117 seconds.
+  This includes malformed/off-actor owner failure, first-`a`, empty full,
+  context merge/null, valid pre-install delta, candidate stop/weak release,
+  same/distinct-client bootstrap races, observable missing/unavailable/
+  opposite-action gating, optimistic context preservation, detail retry, and
+  all one-tail history/navigation regressions. The exact 100-cycle dashboard
+  gate completed in 5.844 seconds with 200 entity subscriptions, 300 history
+  subscriptions, 300 Lovelace fetches, and zero final settled ownership.
+- Complete debug suite: 223 tests, three intentional opt-in skips, zero
+  failures in 100.240 seconds. Its 100-cycle dashboard gate completed in
+  5.841 seconds; all inherited Module 02, 01, 04, 12, and bounded Module 09
+  behavioral suites passed.
+- Production `NativeHAMac` release build: PASS in 7.65 seconds compilation /
+  7.92 seconds wall time.
+- Authorized read-only live smoke: PASS in 6.869 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision
+  entries, current user present, authoritative typed snapshots of 280 entities
+  initially and after reconnect with `resubscribe=false`, representative 1h
+  history (2,379 points), CO2/VOC 1h (8,530 then 8,523 points), CO2/VOC 12h
+  (103,057 points), and 24h history (57,014 points). Final ownership assertions
+  passed, and no service or other state-changing call was made.
+- All seven Module 05 shell artifacts were regenerated at 2400 x 1600 and
+  individually inspected: loading, intrinsic-sized fatal retry, ready,
+  retained reconnect, retained disconnect with compact reconnect, partial
+  Lovelace failure with compact retry, and empty. Hosted accessibility evidence
+  reports three concrete enabled AppKit button nodes with stable labels and
+  identifiers, bounded AppKit/accessibility frames, first-responder focus, and
+  one Space activation each. No animation was introduced, so animation and
+  reduced-motion evidence remain N/A.
+- Entity performance evidence consumed exact results: 10,000-entity typed
+  decode averaged 0.124 seconds, immutable preparation 0.034 seconds, and
+  MainActor publication microseconds. The warmed 500-card Module 12 metric and
+  exact owner lifecycle stayed green.
+- Module 05 checker: GREEN, 130 nodes / 811 edges, one recorded frontend cycle,
+  zero unresolved, not truncated, fingerprint
+  `2ea871192c5e723a3068bd56adfeae7e90c000e0d192d2074bf11a2d3a19fd32`.
+  Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `afa21ec0bad846cc51389e1aa9f193b41a168ea3842cbe139efee04c796e1d22`.
+- Inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and
+  expected YELLOW only for respectively 5, 9, 8, and 9 shared uncommitted
+  Module 05 anchors. Credential/JWT, freshness-heuristic, policy-file,
+  read-only-live-service, out-of-scope path, personal-entity-source, and exact
+  diff whitespace scans passed. `AppConfig.swift`, configurability, user
+  deviations, fixed token/server bootstrap, raw Lovelace/range/identity
+  policy, Core Graphics primacy, and Modules 06-11 are unchanged.
+
+### Bounded correction and next action
+
+Return the tree to the sole implementation writer. Cancel every detached card
+history startup synchronously alongside detail startups, then await it and its
+wire cancellation before client disconnect. Add a held-ack explicit-stop test
+that does not release the acknowledgement; it must prove prompt stop completion,
+zero pending command/subscription/delivery/receive ownership, late-result
+suppression, idempotence, and weak release.
+
+Make service availability part of `canInvoke`, and ensure all optimistic
+mutations occur only after an action has atomically acquired an installed
+service task token. Add model/control tests for pre-install, stopped, retained
+fatal-retry, and post-restart states, proving disabled controls and no local
+mutation when no caller exists while preserving the accepted context on a real
+installed action. Then rerun focused/full/release/live/GUI/context gates and
+dispatch another entirely fresh verifier. No product, token, migration,
+renderer, range, or later-module question is unresolved. Module 06 remains
+locked.
+
+## Fourth bounded correction evidence
+
+The sole implementation writer corrected the final acceptance verifier's two
+bounded findings on 2026-08-26 without changing product scope or ordinary
+Module 04/12 reconciliation semantics:
+
+- **C05-10, C05-14:** explicit app stop now cancels every synchronously
+  detached card-history startup before awaiting detached ownership or
+  disconnecting the installed client. This stop-only boundary propagates task
+  cancellation into Module 02's pending command registration and receive
+  ownership. Ordinary view/config/range reconciliation still preserves its
+  verified acknowledgement-before-cancel ordering; the existing external
+  held-startup and gated-cancellation tests remain unchanged and green.
+- The deterministic held-ack integration test starts a genuine visible-card
+  `history/stream` owner with a five-second command timeout, retains its
+  acknowledgement, and calls explicit stop without releasing or rejecting the
+  acknowledgement. Stop completes promptly and reaches `stopped` with zero
+  card startup, history generation, subscription, wire subscription, pending
+  command, delivery, termination, receive-loop, feed, mount, or render
+  ownership. A result delivered only after stop cannot recreate ownership, and
+  the stopped model weakly releases. The exact test passed focused and 30 of 30
+  separate `--skip-build` stress iterations.
+- **C05-08, C05-14:** `DashboardServiceController.canInvoke` now requires an
+  installed caller as well as a present/available entity and a free exact
+  action token. Every model action therefore crosses service availability
+  before optimistic publication. The previously exceptional same-preset
+  climate prediction path now uses that same gate before changing retained
+  temperature attributes.
+- Controller and full-model lifecycle tests prove that a model/controller with
+  no installed caller, and a stopped model retaining usable switch and climate
+  state, report controls disabled, emit no service task or call, and perform no
+  optimistic state/attribute mutation. A fresh successful bootstrap installs a
+  caller and restores control eligibility. The accepted optimistic state
+  reconstruction test now installs an actual caller first and continues to
+  preserve attributes, context, and timestamps.
+
+Fourth-correction validation is green:
+
+- focused held-stop stress: 30/30 passes without acknowledgement release or
+  timeout; full `DashboardBootstrapLifecycleTests`: 17 tests, zero failures in
+  6.203 seconds in the focused run; full `HistoryStreamIntegrationTests`: 24
+  tests, zero failures in 1.789 seconds, including ordinary external held
+  startup acknowledgement and cancellation ordering; and all four
+  `DashboardServiceControllerTests` pass;
+- complete exact-tree debug suite: 226 tests, three intentional opt-in skips,
+  zero failures in 99.606 seconds. Its genuine 100-cycle whole-dashboard gate
+  completed in 5.834 seconds with 200 entity subscriptions, 300 history
+  subscriptions, 300 Lovelace fetches, and zero final socket, card, detail,
+  feed, mount, render, task, client, or weak-model ownership;
+- all 15 GUI/performance tests passed in 44.142 seconds and regenerated the
+  Module 05 shell/accessibility artifacts. No shell, card visual, renderer, or
+  animation behavior changed;
+- production `NativeHAMac` release build: PASS in 21.20 seconds;
+- authorized read-only live smoke: PASS in 5.806 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  current user present, fresh authoritative snapshots of 280 entities
+  initially and after reconnect with `resubscribe=false`, representative 1h
+  history (2,378 points), CO2/VOC 1h (8,539 then 8,539 points), CO2/VOC 12h
+  (103,029 points), and 24h history (57,015 points). Final ownership assertions
+  passed and no service or other state-changing call was made;
+- Module 05 checker before regeneration was expected YELLOW only for the four
+  corrected source/test anchors. The refreshed graph is GREEN at 130 nodes /
+  811 edges, one recorded frontend cycle, zero unresolved, not truncated,
+  fingerprint
+  `795206004eb636e1f4265d7617ad764b4af88d940bbb8d1f8305d7a2b1bd47df`.
+  Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `7b548dff6cd5081f8bf29e99ea8de428002bcaa460fcb2b80e1fa0f85a42d803`;
+- inherited Module 02/01/04/12 graphs remain intentionally unrefreshed. Their
+  checkers are expected YELLOW for shared post-verification Module 05 anchors,
+  while their complete behavioral suites remain included in the green full
+  run. No inherited graph was refreshed or reinterpreted as Module 05
+  acceptance; and
+- `AppConfig.swift`, configurability, user deviations, the fixed token/server
+  bootstrap, raw Lovelace/range/identity policy, Core Graphics primacy, the
+  separate Module 09 fallback, and Modules 06-11 are unchanged.
+
+Fourth-correction verdict: **correction-ready pending another entirely fresh
+independent verifier**. The implementation writer does not self-accept these
+findings. The next verifier must inspect this exact tree, repeat the held-ack
+stop and stopped-retained-service sequences plus the applicable
+full/release/live/GUI/context gates, and return GO before the supervisor
+commits Module 05. Module 06 remains locked.
+
+## Release-candidate independent verification of the fourth-corrected tree
+
+The entirely fresh release-candidate verifier's 2026-08-26 verdict is
+**NO-GO**. The fourth correction closes the held card-history startup stop
+defect and the stopped-state service-availability defect, and every earlier
+entity/context/first-snapshot/bootstrap/one-tail/history/feed/retry/GUI/layout
+finding remains closed. One bounded fatal-bootstrap cleanup defect nevertheless
+prevents C05-08, C05-10, and C05-14 acceptance.
+
+### Blocking contract finding
+
+**C05-08, C05-10, C05-14 — a fatal replacement bootstrap retires transport
+ownership but leaves the previously installed service caller authoritative.**
+`DashboardViewModel.failCurrentBootstrap` clears the installed entity,
+Lovelace-update, connection-status, and WebSocket owners at lines 1087-1113,
+but it neither calls `serviceController.stopSynchronously()` nor otherwise
+invalidates its caller/action generation. `installBootstrapOwnership` had
+installed that caller at lines 1173-1177, and
+`DashboardServiceController.canInvoke` treats a nonnil caller as current
+authority. Therefore an installed model that retains usable switch/climate
+state and then fails a latest full bootstrap can still expose enabled controls.
+A subsequent power action or same-preset climate prediction can mutate retained
+state; where the old REST client remains available it can also invoke the old
+service caller after all installed WebSocket ownership has been removed.
+
+The fourth-correction lifecycle test proves stopped state and fresh restart,
+but it always calls explicit `stop()` before asserting service gating. The
+existing distinct-client fatal-bootstrap test proves socket cleanup only; it
+does not retain controllable state or assert `canInvoke`, optimistic state,
+service-call count, or service-task ownership after failure. Thus the complete
+green suite does not cover the explicitly required fatal-retained-state case.
+
+### Fresh release evidence that passed
+
+- The exact held-history-stop, held malformed-candidate installation, and
+  malformed-owner/current-ready replay races each passed 30 of 30 independent
+  `--skip-build` iterations. Held stop required no acknowledgement release or
+  timeout. The focused transport/history/entity/lifecycle/orchestration/
+  bootstrap/service/navigation matrix passed 114 tests with zero failures in
+  13.144 seconds. The complete 24-test history integration suite preserved
+  ordinary acknowledgement-before-cancel reconciliation.
+- The complete exact-tree debug suite passed 226 tests with three authorized
+  opt-in skips and zero failures in 99.378 seconds. Its genuine 100-cycle
+  dashboard gate completed in 5.746 seconds with 200 entity subscriptions,
+  300 history subscriptions, 300 Lovelace fetches, and exact zero final socket,
+  card, detail, feed, mount, render, task, client, and weak-model ownership.
+  The warmed 500-card Module 12 lifecycle also remained exact and green.
+- Production `NativeHAMac` release build: PASS in 7.14 seconds compilation /
+  7.35 seconds wall time.
+- All 15 GUI/performance tests passed in 44.519 seconds. The seven Module 05
+  shell artifacts were freshly regenerated at 2400 x 1600 and individually
+  inspected: loading, intrinsic fatal retry, ready, retained reconnect,
+  retained disconnect with compact reconnect, partial Lovelace failure with
+  compact retry, and empty. Hosted accessibility exposed three concrete,
+  enabled, bounded AppKit buttons with exact labels/identifiers, real focus,
+  and one Space activation each. No Module 05 animation was introduced, so
+  animation/reduced-motion evidence remains N/A.
+- Entity performance consumed exact results: the 10,000-entity typed decode
+  averaged 0.125 seconds, immutable preparation 0.034 seconds, and MainActor
+  publication remained microseconds. The warmed hosted 500-card layout metric
+  averaged 0.758 seconds for 100 alternating-size cycles, and the production
+  owner lifecycle completed 100 view/range cycles in 0.251 seconds.
+- Authorized read-only live smoke: PASS in 5.289 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision
+  entries, current user present, and fresh authoritative snapshots of 280
+  entities initially and after reconnect with `resubscribe=false`.
+  Representative history returned 2,376 points at 1h, CO2/VOC returned 8,548
+  points at 1h and 103,024 at 12h, and the 24h request returned 57,011 points.
+  Final ownership assertions passed; no service or state-changing call was
+  made.
+- Module 05 context checker: GREEN, 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `795206004eb636e1f4265d7617ad764b4af88d940bbb8d1f8305d7a2b1bd47df`.
+  Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `7b548dff6cd5081f8bf29e99ea8de428002bcaa460fcb2b80e1fa0f85a42d803`.
+  Inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and are
+  expected YELLOW only for respectively 5, 9, 8, and 9 shared Module 05
+  anchors; their behavioral suites passed in the full run.
+- Exact diff whitespace, credential/JWT, freshness-heuristic, policy-file,
+  read-only-live-service, out-of-scope path, persistence-key, personal-entity
+  source, and protected renderer/history/identity scans passed. The pinned
+  reference remains clean at
+  `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`; the exact
+  `home-assistant-js-websocket@9.6.0` `entities.js` SHA-256 remains
+  `e29222ee8551dfcde7d6abea2d1b3f82237fef2cc5b346de715bf1bafaac448d`.
+  `AppConfig.swift`, configurability, user deviations, the fixed token/server
+  path, raw Lovelace/range/identity policy, Core Graphics primacy, the separate
+  Module 09 fallback, and Modules 06-11 are unchanged.
+
+### Bounded correction and next action
+
+Return the exact tree to the sole implementation writer. At the synchronous
+fatal-bootstrap invalidation boundary, detach and cancel the service
+controller's installed caller and every action token before any await, await
+the captured service tasks before disconnect completes, and ensure the old REST
+caller cannot remain usable. Extend the distinct-client fatal-bootstrap test
+with retained switch and same-preset climate state plus a service-call recorder.
+It must prove controls disabled, no optimistic state/attribute mutation, no
+service request, and zero service tasks after failure, then prove a fresh
+successful bootstrap installs new service authority and re-enables controls.
+
+Rerun that exact fatal sequence under stress together with held-stop,
+held-malformed, ready-replay, focused/full/release/live/GUI/context gates, then
+dispatch another entirely fresh verifier. No product, token, migration,
+renderer, range, or later-module question is unresolved. Module 06 remains
+locked.
+
+## Fifth bounded correction evidence
+
+The sole implementation writer corrected the release-candidate verifier's one
+remaining fatal-bootstrap service-authority defect on 2026-08-28 without
+expanding Module 05 scope:
+
+- **C05-08, C05-10, C05-14:** after confirming that a caught bootstrap error
+  still belongs to the current replacement generation,
+  `DashboardViewModel.bootstrapDashboard` now invokes
+  `DashboardServiceController.stopSynchronously()` before publishing the fatal
+  lifecycle state or reaching any cleanup suspension. That synchronous call
+  advances the action generation, removes the installed caller and task
+  registry, cancels every captured service task, and the same boundary clears
+  the retained REST client handle. Retained entity and dashboard data are
+  deliberately untouched.
+- `failCurrentBootstrap` receives those already-detached service tasks and
+  awaits them before either the previously installed or failed replacement
+  transport completes its disconnect boundary. A caller that ignores prompt
+  cancellation may delay final teardown, but it cannot remain discoverable,
+  authorize another action, publish a late completion/error, or mutate the
+  retained/new generation. Obsolete bootstrap failures do not revoke authority
+  installed by a newer winning generation.
+- The expanded distinct-client integration test installs a dashboard with
+  retained switch and same-preset climate state, installs an old recorded
+  caller, begins an intentionally held service call, and starts a malformed
+  replacement bootstrap. While the old caller remains physically held, the
+  test observes its cancellation handler, fatal lifecycle, disabled switch and
+  climate controls, and an empty service task registry. Attempted power and
+  climate prediction actions leave both retained states byte-for-byte equal
+  and create no additional old or new call.
+- Only after those synchronous assertions does the test release the old caller
+  with a late failure. The fatal bootstrap error remains authoritative, the old
+  recorder remains at its one original intentional call, and the old and
+  failed transports settle every pending command, subscription, delivery,
+  termination, and receive owner at zero with one disconnect each. A fresh
+  successful bootstrap installs new service availability; after a fresh entity
+  snapshot, control is enabled and one intentional action reaches only the new
+  recorder. Final explicit stop drains the fresh transport exactly.
+
+Fifth-correction validation is green:
+
+- the exact installed / held old service / fatal distinct-client replacement /
+  fresh authority sequence passed once after build and then 30 of 30 separate
+  `--skip-build` stress iterations;
+- combined `DashboardBootstrapLifecycleTests` and
+  `DashboardServiceControllerTests`: 21 tests, zero failures in 6.605 seconds.
+  This includes the held-history stop, stopped-retained service gating, normal
+  bootstrap/service behavior, late-result suppression, fresh restart, and the
+  genuine 100-cycle dashboard gate with exact final cleanup;
+- complete exact-tree debug suite: 226 tests, three intentional opt-in skips,
+  zero failures in 102.335 seconds. Its 100-cycle gate completed in 5.837
+  seconds with 200 entity subscriptions, 300 history subscriptions, 300
+  Lovelace fetches, and zero final socket, card, detail, feed, mount, render,
+  task, client, or weak-model ownership;
+- all 15 GUI/performance tests passed and regenerated the
+  established Module 05 shell/accessibility artifacts. The correction changes
+  no view, card, layout, renderer, or animation code;
+- production `NativeHAMac` release build: PASS in 21.83 seconds;
+- authorized read-only live smoke: PASS in 7.490 seconds with three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision entries,
+  current user present, and fresh authoritative snapshots of 280 entities
+  initially and after reconnect with `resubscribe=false`. Representative
+  history returned 2,382 points at 1h, CO2/VOC returned 8,593 points at 1h and
+  103,000 at 12h, and the 24h request returned 56,979 points. Final ownership
+  assertions passed; no service or state-changing live call was made;
+- the Module 05 checker was GREEN before editing, expected YELLOW before
+  regeneration only for `DashboardViewModel.swift` and
+  `DashboardBootstrapLifecycleTests.swift`, and GREEN after regeneration at
+  130 nodes / 811 edges, one recorded frontend cycle, zero unresolved, not
+  truncated, fingerprint
+  `f3c0f0bb3eb4819d3c82162ea659fc48fe48855262e50ca05f27af61520afd75`.
+  Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint
+  `475d74da6fdd90453ba3330e4a8745980eaa98ab3fef8bf90323139c3904af31`;
+- inherited Module 02/01/04/12 graphs remain intentionally unrefreshed. Their
+  complete behavioral suites remain included in the green full run; and
+- `AppConfig.swift`, configurability, user deviations, fixed token/server
+  bootstrap, raw Lovelace/range/identity policy, Core Graphics primacy, the
+  separate Module 09 fallback, and Modules 06-11 are unchanged.
+
+Fifth-correction verdict: **correction-ready pending another entirely fresh
+independent verifier**. The implementation writer does not self-accept the
+release finding. The verifier must inspect this exact tree, repeat the held
+fatal-service sequence plus applicable stress/full/release/live/GUI/context
+gates, and return GO before the supervisor commits Module 05. Module 06 remains
+locked.
+
+## Holistic final independent acceptance of the fifth-corrected tree
+
+An entirely fresh verifier inspected the exact fifth-corrected tree on
+2026-08-28. The fifth correction itself is sound: fatal replacement bootstrap
+now revokes installed service authority before its first suspension, old
+service completion cannot mutate retained or new state, and a later successful
+bootstrap alone installs fresh authority. The release verdict is nevertheless
+**NO-GO** because the holistic lifecycle review found two additional material
+contract gaps outside that corrected sequence.
+
+### Blocking findings
+
+1. **C05-01, C05-09, C05-10, C05-11, C05-14 — duplicate full retry and rapid
+   disappear/reappear are not serialized across the stop barrier.**
+   `retryBootstrap()` creates an independent untracked task for every
+   activation. Each task awaits `stop()` and then calls `start()`, but `stop()`
+   has no retained transition task, coalescing barrier, or final generation
+   check. The first stop synchronously clears `hasStarted` and owner handles,
+   then suspends while retiring captured work. A second retry can therefore
+   take the empty fast path and start a new generation before the first stop
+   resumes. The first stop can then execute its unconditional final
+   `lovelaceStore.stop()` and `lifecycle.stop()` against that newer generation.
+   The same ordering is possible between the view's untracked asynchronous
+   `onDisappear` stop and a rapid `onAppear` start: the appearance can either
+   be ignored while the old generation still reports started or be overwritten
+   by the late stop. This violates the packet's explicit latest-wins/coalescing
+   rule and its requirement that restart begin only after the stop barrier.
+   No test invokes `DashboardViewModel.retryBootstrap()` or exercises duplicate
+   full-retry activation.
+2. **C05-10, C05-14 — the deinitialization safety backstop leaves owned work
+   running after owner disappearance.** `DashboardViewModel.deinit` cancels
+   only the status/bootstrap/Lovelace-fetch tasks and asynchronously retires
+   the installed entity owner, Lovelace subscription, installed history
+   subscriptions, and current WebSocket client. It does not synchronously
+   revoke/cancel service caller authority and action tasks; candidate entity or
+   bootstrap-client ownership; dashboard-owner tail and startup tasks; detail
+   startups; or graph feed, mount, coordinator, and render ownership. In
+   particular, service work need not retain the model, so an in-flight
+   state-changing caller can outlive owner disappearance. Explicit view stop
+   remains the primary path, but the contract requires `deinit` to provide a
+   complete nonawaiting emergency cancellation backstop rather than this
+   partial subset.
+
+These are implementation/lifecycle defects, not unresolved product choices.
+No token, migration, server, renderer, graph-range, identity, or later-module
+decision is required to correct them.
+
+### Fresh evidence retained as green
+
+- The exact fatal replacement-bootstrap authority test and each of the three
+  other historical held-race tests passed 30 of 30 independent
+  `--skip-build` iterations: 120 of 120 total.
+- The focused orchestration, bootstrap, service, entity, history, navigation,
+  presentation, connection, and transport matrix passed 103 tests with zero
+  failures in 14.791 seconds. Its real 100-cycle gate completed in 6.007
+  seconds with 200 entity, 300 history, and 300 Lovelace owners created and
+  exact zero final ownership.
+- The complete debug suite passed 226 tests with three authorized opt-in skips
+  and zero failures in 101.229 seconds. Its real 100-cycle gate completed in
+  5.852 seconds with exact zero final ownership. All 15 GUI/performance tests
+  passed in 44.794 seconds.
+- All seven established Module 05 shell states were regenerated and visually
+  inspected. Accessibility exposed concrete controls for retry, reconnect, and
+  graph-range selection; focus and keyboard activation passed with exact
+  action counts `1 | 1 | 1`.
+- Production `NativeHAMac` release build passed in 6.97 seconds.
+- The authorized read-only live smoke passed in 6.117 seconds: three views, 22
+  top-level / 31 recursive cards, 66 rows, registry 276 / 74, current user,
+  authoritative 280-entity initial and reconnect snapshots with
+  `resubscribe=false`, representative 1h/12h/24h history, and exact zero final
+  ownership. No service or other state-changing live call was made.
+- Module 05 context checking is GREEN at 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `f3c0f0bb3eb4819d3c82162ea659fc48fe48855262e50ca05f27af61520afd75`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `475d74da6fdd90453ba3330e4a8745980eaa98ab3fef8bf90323139c3904af31`.
+  Inherited Module 02/01/04/12 graphs remain intentionally unrefreshed and
+  yellow only for their recorded stale anchors; their behavior remains covered
+  by the green full suite.
+- Diff, credential, policy, scope, and reference scans passed. Core Graphics
+  remains primary; fixed server/token bootstrap, raw Lovelace identity and
+  approved graph range, Module 09's separate fallback, and Modules 06-11 are
+  unchanged. The pinned reference is clean at
+  `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`, with exact `entities.js`
+  SHA-256
+  `e29222ee8551dfcde7d6abea2d1b3f82237fef2cc5b346de715bf1bafaac448d`.
+
+### Bounded correction and next action
+
+Return the exact tree to the sole Module 05 implementation writer. Add one
+MainActor-serialized lifecycle transition/barrier shared by explicit stop,
+full retry, and view appearance/disappearance. Duplicate full retries must
+coalesce or be generation-safe latest-wins; no restart may begin until captured
+stop work finishes; and an older stop's final publications must be rejected
+after a newer generation wins. Add deterministic held-teardown coverage for
+two full-retry activations and for disappear/reappear, proving exactly one
+fresh bootstrap owner, no lost start, and no late `stopped` publication.
+
+Also add a synchronous nonawaiting emergency-detach path used by `deinit` that
+revokes service caller/action tokens and cancels or detaches candidate,
+dashboard-owner, startup, detail, feed/mount/coordinator, and render ownership
+before scheduling asynchronous cleanup. Add weak-owner release evidence with a
+held service call and held candidate/startup work, proving cancellation, no
+post-disappearance service call or publication, and exact zero registries.
+
+Rerun the focused and full suites, both new races under stress, the genuine
+100-cycle gate, release, GUI/accessibility, performance, authorized read-only
+live, context, resolver, policy, credential, scope, and inherited behavior
+gates. Then dispatch another entirely fresh verifier. Module 06 remains locked.
+
+## Sixth bounded correction evidence and handoff
+
+The sole implementation writer completed the verifier-requested lifecycle and
+deinitialization correction on 2026-08-30. Writer verdict: **correction-ready
+pending another entirely fresh independent verifier**. This is not self-
+acceptance; Module 06 remains locked.
+
+### Correction applied
+
+- `start()`, `retryBootstrap()`, explicit `stop()`, `viewDidAppear()`, and
+  `viewDidDisappear()` now enter one MainActor lifecycle-transition tail.
+  Lifecycle intent is enqueued synchronously, queued start/retry work is
+  cancelled when superseded, restart waits for captured teardown, and final
+  stopped/start publication is guarded by the latest transition sequence.
+- Long-running lifecycle, bootstrap-candidate, history/detail, Lovelace, and
+  reconnect workers use weak model boxes and two-phase await/publication so a
+  task owned by the model cannot keep the model alive through its own awaited
+  work. Explicit realtime reconnect is tracked through ready/authentication
+  failure rather than only through the connection's initiating call.
+- A thread-safe, non-self-retaining emergency ownership mirror inventories and
+  synchronously cancels lifecycle/bootstrap/config/reconnect/dashboard-tail,
+  service, history/detail-startup, entity/candidate, Lovelace, and installed/
+  candidate client ownership from `deinit`. Follow-up MainActor cleanup captures
+  fixed collaborators and detached handles, never the deinitializing model;
+  it clears feed/mount/history registries and drains subscriptions/transports.
+  Directly injected clients are explicitly seeded because Swift property
+  observers do not run during initialization.
+- Scoped history retry and forced refresh remain serialized on the one
+  dashboard-owner tail. Candidate application now waits until that tail is
+  stable; an unrelated sibling startup no longer rejects a still-desired
+  pending owner, and an already-installed owner no longer prevents later
+  missing owners from starting. Existing Module 01/12 cancellation,
+  publication, identity, and range behavior remains green.
+- The deterministic GUI renderer now allocates its backing bitmap at the
+  requested pixel scale and sets the logical size before `cacheDisplay`. This
+  makes the established 2x bitmap oracle deterministic without changing
+  production rendering; Core Graphics remains the primary renderer.
+
+### Fresh correction evidence
+
+- `DashboardBootstrapLifecycleTests`: 22 tests, zero failures in 7.342 seconds.
+  Duplicate retry and disappear/reappear each exercise 30 held transition
+  cycles, and the full dashboard lifecycle test completes 100 real cycles with
+  200 entity, 300 history, and 300 Lovelace owners created, exact zero final
+  socket/card/detail/feed/mount/render ownership, and weak model release.
+- Six focused held lifecycle methods each passed 30/30 independent `xctest`
+  executions (180/180 total): same-client candidate supersession, duplicate
+  retry, disappear/reappear, explicit reconnect followed by full retry, actual
+  held-bootstrap deinit, and full held service/history/detail/feed/mount/render
+  deinit.
+- The focused orchestration/service/lifecycle/entity/history/navigation matrix
+  passed 54 tests with zero failures in 3.495 seconds. The complete debug suite
+  passed 231 tests with three authorized live-gated skips and zero failures in
+  82.766 seconds. It includes the complete inherited Module 02/01/04/12 and
+  bounded Module 09 behavioral suites.
+- All 15 GUI/performance tests passed in the complete unsandboxed run in 25.539
+  seconds. The seven Module 05 shell artifacts were regenerated. Hosted-window
+  accessibility proves three concrete actions, focus, keyboard activation, and
+  exact retry/reconnect/Lovelace counts `1 | 1 | 1`; the separate Module 12 tab
+  focus/activation assertion also passes.
+- Production `NativeHAMac` release build passed in 25.76 seconds. The authorized
+  read-only live smoke passed in 3.484 seconds with three views, 22 top-level /
+  31 recursive cards, 66 rows, registry 276 / 74, current user, authoritative
+  280-entity initial and reconnect snapshots with `resubscribe=false`, and
+  representative 1h/12h/24h history. No service or state-changing call was
+  made.
+- The pre-generation context result was yellow only for the deliberately
+  changed Swift/test anchors. Regeneration and the post-generation checker are
+  GREEN at 130 nodes / 811 edges, one recorded frontend cycle, zero unresolved,
+  not truncated, fingerprint
+  `4461b4ab65dc6927cef33cf215049c535ad121666d0c7a9772881049f841c6f9`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `faa3d51039252cf06d51fc6a8283da82f658226f819ea19e7b066eda26e9f1cd`.
+- Exact whitespace, live-token/JWT artifact, configuration/product-policy,
+  persistence/keychain/bootstrap, freshness-heuristic, renderer, read-only
+  live-service, and scope scans pass. `AppConfig.swift`, configurability, user
+  deviations, token/server bootstrap, raw Lovelace/range/identity policy, and
+  Modules 06-11 are unchanged. The pinned frontend remains at
+  `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`; pinned `entities.js` remains
+  `e29222ee8551dfcde7d6abea2d1b3f82237fef2cc5b346de715bf1bafaac448d`.
+
+### Exact next action
+
+Dispatch an entirely fresh read-only Module 05 verifier. It must inspect this
+exact tree and independently repeat the two original lifecycle findings plus
+the explicit-reconnect and actual-deinit held races, then run applicable
+focused/full/release/live/GUI/context/policy gates. It may mark Module 05
+complete only if no model-owned task cycle, duplicate owner, late publication,
+or emergency-cleanup gap remains. Do not begin Module 06 unless that verifier
+returns GO and the supervisor accepts and commits the exact verified tree.
+
+## Independent verification of the sixth-corrected tree
+
+The entirely fresh verifier's 2026-08-30 verdict is **NO-GO**. The sixth
+correction closes the previously reported duplicate full-retry,
+disappear/reappear, explicit-reconnect, model-retention, and ordinary tested
+deinit races. Two additional C05-10/C05-14 ownership gaps remain material, so
+Module 05 is `correction-required` and Module 06 remains locked.
+
+### Blocking contract findings
+
+1. **C05-10, C05-14 — explicit stop can wait for a hidden predecessor owner
+   operation until a held history acknowledgement times out.** Each dashboard
+   owner-tail node captures and unconditionally awaits its predecessor at
+   `DashboardViewModel.swift:2392-2401`. Ordinary reconciliation removes
+   obsolete card startup tasks from the shared registry into that node's local
+   `DetachedDashboardOwnership` without cancelling them at lines 2441-2488,
+   preserving Module 12's required acknowledgement-before-cancel ordering.
+   If a later owner operation is queued, explicit stop sees only the latest
+   tail and only startup tasks still present in the registry at lines
+   2077-2133. Cancelling the latest tail does not cancel its predecessor or
+   the predecessor's task-local startup. `finishExplicitAppOwnership` then
+   awaits that latest tail before disconnecting the client at lines 2148-2162.
+   A held wire acknowledgement can therefore keep stop/retry/disappearance
+   teardown suspended until command timeout even though generation guards
+   prevent late publication. The existing held-ack stop test covers a startup
+   still present in the registry, not one already detached into a predecessor
+   owner-tail node.
+2. **C05-10, C05-14 — deinit's emergency path does not synchronously revoke the
+   complete owned graph and has no off-MainActor final-release proof.** The
+   lock-protected bag at lines 3204-3322 clears its mirror and cancels mirrored
+   `Task` handles, but its `acceptanceGeneration` is never read and it does not
+   synchronously call entity/candidate detachment, service-controller stop,
+   history/feed detachment, mount invalidation, or coordinator/render reset.
+   Those authority-revoking operations occur only in a subsequently scheduled
+   untracked `Task { @MainActor ... }` at lines 3021-3061. If the final release
+   occurs off MainActor while MainActor is occupied, the model's weak callback
+   boxes prevent mutation of the deinitializing object, but service caller/
+   action authority, entity wire ownership, history/feed observers, mounts,
+   and render work can remain live until that task is scheduled. Both deinit
+   tests are methods of an `@MainActor` test class and set their final strong
+   model reference to nil on MainActor at
+   `DashboardBootstrapLifecycleTests.swift:1155` and `:1269`; they immediately
+   yield to the same executor and therefore do not exercise the required
+   off-MainActor last release or a delayed MainActor cleanup.
+
+These are bounded implementation and evidence defects, not unresolved product,
+server, credential, migration, identity, graph-range, renderer, or Module 06
+questions.
+
+### Fresh independent evidence that passed
+
+- The six requested held methods each passed 30/30 independent XCTest-process
+  executions, 180/180 total: same-client candidate supersession, duplicate
+  full retry, disappear/reappear, explicit reconnect followed by full retry,
+  actual held-bootstrap deinit, and installed held service/history/detail/
+  feed/mount/render deinit.
+- The complete debug suite passed 231 tests with three authorized live-gated
+  skips and zero failures in 82.951 seconds. Its genuine 100-cycle dashboard
+  gate completed in 5.987 seconds with 200 entity subscriptions, 300 history
+  subscriptions, 300 Lovelace fetches, exact zero final socket/card/detail/
+  feed/mount/render ownership, and weak model release. All 15 GUI/performance
+  tests passed in 25.539 seconds.
+- The seven 2400 x 1600 Module 05 shell artifacts were regenerated and
+  independently inspected. Loading, intrinsic fatal retry, ready, retained
+  reconnect, retained disconnect, partial Lovelace failure, and empty states
+  are coherent. Hosted AppKit accessibility reports three bounded concrete
+  actions, real focus, keyboard activation, and exact action counts `1|1|1`.
+  No Module 05 animation was introduced, so animation/reduced-motion evidence
+  remains N/A.
+- The production `NativeHAMac` release build passed in 21.03 seconds.
+- The authorized read-only live smoke passed in 4.313 seconds with three
+  views, 22 top-level / 31 recursive cards, 66 rows, registry 276 / 74
+  precision entries, current user present, and authoritative 280-entity
+  snapshots initially and after reconnect with `resubscribe=false`.
+  Representative history returned 2,386 points at 1h, CO2/VOC returned 8,589
+  then 8,590 points at 1h and 92,754 at 12h, and the 24h request returned
+  30,863 points. Final ownership assertions passed. The test contains no
+  service invocation and made no state-changing call.
+- Module 05 context checking is GREEN at 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `4461b4ab65dc6927cef33cf215049c535ad121666d0c7a9772881049f841c6f9`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `faa3d51039252cf06d51fc6a8283da82f658226f819ea19e7b066eda26e9f1cd`.
+- Inherited Module 02, 01, 04, and 12 checkers remain intentionally YELLOW for
+  respectively 5, 9, 8, and 9 shared uncommitted Module 05 anchors. Module 09
+  is also YELLOW for seven shared/pre-existing anchored files. Their complete
+  behavioral suites remain included in the green full run; no inherited graph
+  was refreshed before Module 05 source acceptance.
+- Exact diff whitespace, policy-file, persistence/keychain/bootstrap,
+  freshness-heuristic, renderer/scope, and read-only-live-service review
+  passed. `AppConfig.swift`, configurability, user deviations, fixed token/
+  server bootstrap, raw Lovelace/range/identity policy, Core Graphics primacy,
+  the separate Module 09 fallback, and Modules 06-11 remain unchanged.
+
+### Bounded correction and exact next action
+
+Return the exact tree to the sole Module 05 implementation writer. Make
+explicit stop/retry/disappearance able to retire every predecessor owner-tail
+node and any task-local detached history/detail ownership without weakening
+ordinary Module 12 acknowledgement-before-cancel reconciliation. A safe design
+may use an explicitly owned cancellable tail-node chain or a stop-only
+transport-settlement order, but it must not infer freshness and must not add a
+second reconciliation tail. Add a deterministic test that starts a held card
+history acknowledgement, queues a removal that moves that startup into a
+predecessor node, queues another owner operation behind it, and calls public
+`stop()` without resolving the acknowledgement. Prove prompt stop, one socket
+disconnect, exact zero pending/subscription/delivery/receive/tail ownership,
+late-result rejection, idempotence, and weak release; stress the exact sequence
+30 times.
+
+Replace the deinit mirror's unused acceptance counter with a real detached
+resource authority whose nonisolated synchronous operation revokes/cancels the
+complete service, entity/candidate, history/detail startup, feed, mount,
+coordinator/render, Lovelace/status, bootstrap/reconnect, tail, and client
+inventory without touching a deinitializing MainActor model or calling
+MainActor-only APIs off-main. Async cleanup may await only fixed detached
+resources. Add an actual off-MainActor final-release test while MainActor
+cleanup is deliberately held; prove prompt weak nil and synchronous
+generation/authority cancellation first, then exact eventual zero owners,
+tasks, feeds, mounts, render work, transports, and no trap or late publication.
+
+Rerun both new tests 30/30, the six existing held races, complete debug,
+release, GUI/accessibility/performance, read-only live, context/resolver,
+policy/credential/scope, and inherited behavioral gates, then dispatch another
+entirely fresh verifier. Do not begin Module 06.
+
+## Seventh bounded correction: complete stop retirement and synchronous lifetime authority
+
+The sole Module 05 writer corrected both sixth-verification findings without
+changing product behavior or widening scope. Module 05 is `correction-ready`,
+not complete; Module 06 remains locked pending an entirely fresh independent
+verifier.
+
+### Corrected ownership design
+
+- A lock-protected `DashboardOwnerOperationRegistry` now retains every owner-
+  tail node until retirement, including each node's task-local detached
+  history/detail startup ownership. Ordinary view reconciliation still allows
+  the current acknowledgement-before-cancel settlement required by Module 12.
+  Public stop/retry/disappearance synchronously detaches and cancels every
+  registered node, predecessor, and startup before draining, so no hidden
+  predecessor can make teardown wait for a wire timeout. Explicit stop detaches
+  the registry for later restart; deinit permanently revokes it.
+- `DashboardLifetimeAuthority` is shared by the model, entity coordinator,
+  service controller, and mounted bitmap chart work. Nonisolated deinit revokes
+  this authority synchronously before cancelling the emergency ownership
+  inventory. Post-revocation task-mirror writes are rejected and cancelled;
+  late service, entity/status, bootstrap, history, feed/mount, and render
+  callbacks cannot mutate or remain authoritative while the fixed-resource
+  MainActor drain is delayed.
+- Fresh-process stress exposed a narrower transport race rather than being
+  hidden by a relaxed assertion: cancellation-insensitive reconnect transport
+  `connect()` could resume after disconnect and install one stale receive loop.
+  `HomeAssistantWebSocketConnection` now validates cancellation, disconnect
+  intent, generation, and candidate transport identity after every awaited
+  connection phase. An invalid candidate is disconnected and cannot
+  authenticate, resubscribe, publish ready, or install a receiver. Dashboard
+  reconnect also checks the shared lifetime authority before initiation and
+  across every awaited/status boundary. No hash, `contentRevision`, endpoint-
+  timestamp, or other freshness heuristic was introduced.
+
+### Deterministic and stress evidence
+
+- `testPublicStopCancelsHeldHistoryStartupHiddenBehindPredecessorThirtyTimes`
+  creates the verifier's exact held-ack/predecessor/later-tail sequence. It
+  passed 30/30 independent XCTest processes, with 30 cycles per process (900
+  cycles total), proving prompt public stop without acknowledgement, one
+  disconnect, exact zero ownership, late-ack rejection, idempotence, and weak
+  model release.
+- `testOffMainFinalReleaseRevokesAcceptanceBeforeDelayedMainActorCleanup`
+  passed 30/30 independent XCTest processes. Each process releases the final
+  model reference on a background queue while MainActor cleanup is blocked,
+  proves immediate weak nil and synchronous authority revocation, queues late
+  entity/history/render work during the block, then proves exact eventual zero
+  service/entity/status/reconnect/history/feed/mount/render/transport ownership
+  with no accepted late publication.
+- `testDisconnectDuringHeldReconnectConnectCannotInstallStaleReceiveLoop`
+  passed 30/30 independent XCTest processes. Its scripted replacement transport
+  suspends `connect()`, disconnects the live connection, then resumes late and
+  proves the stale candidate is disconnected again with no authentication,
+  receiver, ready status, subscription, or storage ownership.
+- The six pre-existing held lifecycle regressions also passed 30 independent
+  processes each (180 method runs total). Complete
+  `DashboardBootstrapLifecycleTests` passed 24/24 in 7.625 seconds; complete
+  `HomeAssistantWebSocketConnectionTests` passed 24/24 in 3.120 seconds. The
+  genuine 100-cycle dashboard oracle created 200 entity subscriptions, 300
+  history subscriptions, and 300 Lovelace fetches, then reported exact zero
+  socket/card/detail/feed/mount/render ownership and `model_released=true`.
+
+### Full, release, GUI, live, and context evidence
+
+- The complete GUI-capable debug suite passed 234 tests with three authorized
+  opt-in skips and zero failures in 81.707 seconds. This includes the complete
+  inherited Module 02, 01, 04, and 12 suites plus the bounded Module 09
+  behavioral coverage.
+- All 15 GUI/performance tests passed in 24.975 seconds. The seven established
+  2400 x 1600 Module 05 shell artifacts were regenerated. Hosted AppKit
+  accessibility reports three concrete action nodes, real focus and keyboard
+  activation, with exact retry/reconnect/Lovelace counts `1|1|1`. No Module 05
+  animation was added, so animation/reduced-motion evidence remains N/A. Core
+  Graphics remains the primary renderer.
+- The production `NativeHAMac` release build passed in 27.15 seconds. The
+  authorized read-only live smoke passed 1/1 in 4.899 seconds with three views,
+  22 top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision
+  entries, current-user metadata, authoritative 280-entity initial and
+  reconnect snapshots with `resubscribe=false`, and representative 1h/12h/24h
+  history. Final ownership was zero; the smoke contains no service invocation
+  and made no state-changing call.
+- The pre-generation Module 05 checker was expected YELLOW only for eight
+  deliberately changed Swift/test anchors. The manifest now pins the lifetime
+  authority, complete owner registry, transport attempt validation, and
+  deterministic suspended-connect fixture. The refreshed graph is GREEN at
+  130 nodes / 811 edges, one recorded frontend cycle, zero unresolved, not
+  truncated, fingerprint
+  `fb8adbe770b1c38be8a64497e4a1ddfdc1887e09820825ee1ddcd46ab3065b62`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `ddf92c7aef0e052d4f32be0d33fe70714f2ead8bb86aca33517f20d1ec696eba`.
+- Inherited Module 02, 01, 04, and 12 checkers are expected YELLOW for 6, 10,
+  8, and 9 shared uncommitted Module 05 anchors; Module 09 is expected YELLOW
+  for seven shared/pre-existing anchors. Their behavior remains green in the
+  complete suite. No inherited graph was refreshed before Module 05 source
+  acceptance.
+- `AppConfig.swift`, configurability, user deviations, the fixed token/server
+  bootstrap, raw Lovelace/range/resolved identity, Core Graphics primacy, the
+  separate Module 09 stale-viewport fallback, and Modules 06-11 are unchanged.
+  No profile, settings, keychain, persistence, token migration, service-call
+  retry, product-policy, or credential artifact was introduced.
+
+### Exact verifier handoff
+
+Dispatch an entirely fresh read-only Module 05 verifier against this exact
+tree. It must inspect both prior blocking paths and the reconnect race revealed
+by stress, independently repeat all three new 30-process oracles plus the six
+held regressions, and rerun applicable focused/full/release/live/GUI/context/
+policy gates. It may mark Module 05 complete only if stop drains hidden
+predecessors promptly, off-MainActor final release revokes authority before
+delayed MainActor cleanup, stale reconnect attempts cannot reinstall work, and
+all historical C05 contracts remain green. Do not begin Module 06 unless that
+verifier returns GO and the supervisor accepts and commits the exact verified
+tree.
+
+## Independent verification of the seventh-corrected tree
+
+The entirely fresh verifier's 2026-08-30 verdict is **NO-GO**. Direct source
+audit confirms that the seventh correction's registered predecessor-tail
+retirement and synchronous lifetime-authority revocation close the two sixth-
+verification findings: registry lock ordering has no inversion, every sole-
+tail node is registered before it can run on MainActor, task-local detached
+startup ownership is mirrored before its next suspension, explicit stop
+detaches and cancels the complete chain, ordinary Module 12 acknowledgement-
+before-cancel ordering remains intact, and off-MainActor deinit revokes the
+shared authority before delayed fixed-resource MainActor cleanup. A separate
+connection-lifecycle race in the newly corrected transport path nevertheless
+violates C05-10/C05-14 and the inherited Module 02 lifecycle contract.
+
+### Blocking transport ownership findings
+
+1. **C05-10, C05-14 — an obsolete cancellation-insensitive `connect()` can
+   clear a newer connection owner's task slot.** `connect()` stores a newly
+   created task at `HomeAssistantWebSocketConnection.swift:273-276`, suspends
+   on that captured task, then unconditionally assigns `connectionTask = nil`
+   in both the success and failure paths at lines 277-282. `disconnect()`
+   cancels and clears that slot at lines 318-324, but cancellation does not
+   forcibly end an arbitrary transport's suspended `connect()`. A later
+   `connect()` can therefore install task B while task A is still suspended;
+   when A resumes and correctly fails generation/candidate validation at lines
+   571-575 and 610-621, A's outer caller clears B's slot. A third `connect()`
+   then creates a concurrent candidate instead of joining B.
+2. **C05-10, C05-14 — `disconnect()` exposes a false ready/no-transport state
+   across its first suspension.** It clears the transport and sender at lines
+   330-334, then awaits the old transport's disconnect at line 335 while the
+   public connection state remains `.ready` until cleanup eventually reaches
+   its final transition. A concurrent `connect()` returns success immediately
+   from lines 264-266 without a transport or receiver. When the suspended
+   disconnect resumes, the connection becomes disconnected. This is a lost
+   newer lifecycle intent and proves that generation validation inside
+   `establishConnection()` alone does not serialize the public connect/
+   disconnect ownership boundary.
+
+Both races were reproduced without modifying the repository by compiling the
+current `NativeHACore` in a temporary diagnostic package with a deliberately
+cancellation-insensitive transport:
+
+- held connect A -> disconnect -> held connect B -> late A completion ->
+  connect C created three transports rather than joining B; the exact oracle
+  failed `3 != 2` in 0.115 seconds; and
+- ready connection -> held transport disconnect -> concurrent connect returned
+  success while the transport was nil -> old disconnect completion produced
+  `.disconnected` with zero receive loops; the exact oracle failed the expected
+  ready/one-receiver state in 0.084 seconds.
+
+These are deterministic ownership failures, not timing-only speculation, and
+they require no product, server, credential, migration, renderer, range, or
+identity decision. Because a release-blocking deterministic gate failed, the
+verifier did not spend quota repeating the nine requested 30-process stress
+sets, complete debug/release/GUI/live matrix, or inherited anchor refresh. The
+initial Module 05 checker was GREEN at 130 nodes / 811 edges with fingerprint
+`fb8adbe770b1c38be8a64497e4a1ddfdc1887e09820825ee1ddcd46ab3065b62`;
+the resolver passed at 31 nodes / 61 edges with fingerprint
+`ddf92c7aef0e052d4f32be0d33fe70714f2ead8bb86aca33517f20d1ec696eba`.
+All seventh-writer full/release/live/GUI evidence remains provisional rather
+than independently accepted.
+
+### Bounded correction and exact next action
+
+Return the exact tree to the sole Module 05 implementation writer. Give every
+public connection lifecycle operation explicit identity and one serialized
+connect/disconnect barrier. An obsolete `connect()` or reconnect loop may clear
+only its own task slot; `connect()` must not report ready unless the current
+generation has a current transport/receiver, and it must await or supersede a
+disconnect barrier without letting old fixed-resource cleanup erase newer
+owners. Detach the old disconnect generation's registries synchronously before
+its first await, or otherwise keep new connection work behind that complete
+barrier. Apply the same owner-token rule to unconditional reconnect-task
+cleanup at lines 1151, 1158, and 1167.
+
+Add deterministic repository regressions for both exact temporary probes with
+cancellation-insensitive connect and disconnect suspensions. They must prove
+one candidate, one task owner, no false successful connect, no old-generation
+status publication or registry removal, restartability, and exact zero final
+transport/receiver/command/subscription/delivery ownership. Stress both in 30
+fresh processes, rerun the seventh correction's three new and six prior held
+oracles, then rerun complete debug, release, GUI/accessibility/performance,
+read-only live, context/resolver, policy/credential/scope, and inherited
+behavioral gates. Dispatch another entirely fresh verifier. Module 06 remains
+locked.
+
+## Eighth bounded correction: serialized connection lifecycle ownership
+
+The sole Module 05 implementation writer corrected the two deterministic
+connection-lifecycle races reported by the fresh seventh-correction verifier.
+The change is bounded to transport ownership and its scripted regressions; it
+does not change product behavior, server/bootstrap policy, Lovelace identity,
+history semantics, graph ranges, or rendering. Module 05 is
+`correction-ready`, not complete, pending another entirely fresh independent
+verifier. Module 06 remains locked.
+
+### Corrected transport ownership
+
+- Every public connection attempt and reconnect loop now has a monotonically
+  allocated owner token. Completion can clear only the task slot bearing that
+  token, so a cancellation-insensitive obsolete connect cannot erase or race a
+  newer held connect. The ready fast path additionally requires the current
+  transport, sender, receive task, and exactly one receive loop rather than
+  trusting the public state enum alone.
+- `disconnect()` now revokes the installed generation, cancels and detaches
+  connection/reconnect/receive owners, stops the fixed sender, clears old
+  registries, and publishes `.disconnected` before its first suspension. It
+  then awaits only the captured old transport and removes only captured old
+  callback owners. That post-await cleanup cannot overwrite a replacement
+  transport, receiver, task slot, or status.
+- Initial-connect failure, receive-loop failure, reconnect abandonment, and
+  reconnect-task retirement use the same fixed-resource and owner-token rules.
+  Stale candidate validation runs immediately after transport connect, after
+  each authentication receive, after the authentication send, after feature
+  negotiation, and after resubscription. No cancellation-insensitive old
+  continuation can authenticate, publish ready, install a receiver, or
+  disconnect a reused transport object already owned by a newer generation.
+- No hash, `contentRevision`, endpoint timestamp, semantic equality, or other
+  freshness heuristic was added. Generation plus exact owner/candidate
+  identity remains the sole lifecycle authority.
+
+### Deterministic, stress, and inherited evidence
+
+- `testLateCancelledConnectCannotClearNewerHeldConnectTaskSlot` reproduces held
+  connect A, disconnect, held connect B, late cancellation-insensitive A, then
+  connect C. C joins B, the factory count remains exactly two rather than
+  three, B owns one receiver, and final command/subscription/delivery/receive
+  ownership is exactly zero. It passed 30/30 fresh XCTest processes.
+- `testConnectDuringHeldDisconnectInstallsRealOwnerAndOldCleanupCannotOverwriteIt`
+  holds old transport disconnect, proves public state and receiver ownership
+  are synchronously non-ready, installs a real replacement owner, then resumes
+  old cleanup and proves the replacement remains ready with one receiver. It
+  passed 30/30 fresh XCTest processes and ends at exact zero ownership.
+- The pre-existing suspended reconnect-candidate oracle and a new
+  cancellation-insensitive suspended authentication-send oracle each passed
+  30/30 fresh XCTest processes. Both prove an obsolete continuation cannot
+  install a receive loop or ready state and that a fresh connection remains
+  restartable. Complete `HomeAssistantWebSocketConnectionTests` passed 27/27
+  in 3.282 seconds.
+- The seventh correction's two dashboard regressions and all six prior held
+  bootstrap/retry/disappearance/deinit regressions passed independently.
+  Complete `DashboardBootstrapLifecycleTests` passed 24/24 in 8.254 seconds;
+  its genuine 100-cycle gate again created 200 entity subscriptions, 300
+  history subscriptions, and 300 Lovelace fetches, then reported exact zero
+  socket/card/detail/feed/mount/render ownership and weak model release.
+- The complete GUI-capable debug suite passed 237 tests with three authorized
+  opt-in skips and zero failures in 82.419 seconds. All inherited Module 02,
+  01, 04, 12, and bounded Module 09 behavioral suites remain green. A restricted
+  preliminary run failed four hosted accessibility assertions only because the
+  seatbelt denied macOS accessibility services; the required unsandboxed run
+  passed all 15 GUI/performance tests in 25.182 seconds.
+- The seven established 2400 x 1600 Module 05 artifacts were regenerated and
+  visually inspected: loading, fatal retry, ready, retained reconnect,
+  retained disconnect, partial Lovelace failure, and empty states remain
+  coherent. Hosted accessibility exposes three concrete actions with real
+  focus and keyboard activation and exact counts `1|1|1`. Core Graphics
+  remains the primary renderer.
+- The production `NativeHAMac` release build passed in 23.62 seconds. The
+  authorized read-only live smoke passed 1/1 in 5.378 seconds with three views,
+  22 top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision
+  entries, current-user metadata, authoritative 280-entity initial and
+  reconnect snapshots with `resubscribe=false`, and representative 1h/12h/24h
+  history. Final ownership assertions passed; no service or state-changing
+  call was made.
+- Before graph regeneration, the Module 05 checker was expected YELLOW for
+  exactly the three corrected Swift/test anchors. The manifest now pins the
+  ready-owner predicate, connect/reconnect token cleanup, synchronous transport
+  detachment, stale-candidate checks, and connect/send/disconnect suspension
+  fixtures. The regenerated graph is GREEN at 130 nodes / 811 edges, one
+  recorded frontend cycle, zero unresolved, not truncated, fingerprint
+  `00efdbb8b3aad955689b9a4083320dc1c0151b6e60a5d6f8dc8f7c074f91402b`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+- `AppConfig.swift`, configurability, user deviations, fixed token/server
+  bootstrap, persistence, raw Lovelace/range/resolved identity, Core Graphics
+  primacy, the separate Module 09 stale-viewport fallback, and Modules 06-11
+  are unchanged. Exact diff whitespace, credential, service-call, freshness,
+  renderer, persistence, and scope scans passed at this handoff.
+
+### Exact next action
+
+Dispatch an entirely fresh read-only Module 05 verifier against this exact
+tree. It must audit the attempt-token and fixed-resource cleanup boundaries,
+repeat both original temporary-probe sequences and the suspended reconnect/
+authentication boundaries, rerun applicable fresh-process stress and focused/
+full/release/GUI/live/context/policy gates, and inspect the complete historical
+Module 05 diff. Only that verifier may return GO; the supervisor must then
+accept and commit the exact verified tree before Module 06 research begins.
+Do not refresh inherited graphs or begin Module 06 meanwhile.
+
+## Independent verification of the eighth-corrected tree
+
+The entirely fresh verifier's 2026-08-31 verdict is **GO**. Module 05 is
+complete and independently verified at contract revision 1. Module 06 remains
+locked only for the supervisor's inherited-anchor refresh, exact-tree commit,
+and clean handoff; no further Module 05 Swift correction is required.
+
+### Connection and retained-lifecycle acceptance
+
+- Source audit confirms that initial-connect and reconnect work have distinct
+  owner tokens; obsolete success and catch paths can clear only their own task
+  slots. The ready fast path requires the current non-disconnect intent,
+  transport, outbound sender, receive task, and exactly one receive loop.
+  `disconnect()` revokes the generation, detaches connection/reconnect/receive
+  owners and fixed transport/sender handles, clears command/subscription
+  registries, and publishes `.disconnected` before awaiting the captured old
+  transport. Its post-await callback retirement cannot overwrite a replacement
+  owner or status. Candidate identity, cancellation, disconnect intent, and
+  generation are revalidated after transport connect, each authentication
+  receive, authentication send, feature negotiation, and resubscription.
+- The four exact cancellation-insensitive connection races each passed 30/30
+  fresh XCTest processes (120/120 total): suspended reconnect connect,
+  suspended authentication send, late obsolete connect task-slot completion,
+  and connect during held old disconnect. The complete
+  `HomeAssistantWebSocketConnectionTests` class passed 27/27 in 3.342 seconds.
+  The wrapping `UInt64` owner namespace can alias only after 2^64 allocations
+  while an ancient process-local task remains alive; this is not a reachable
+  lifetime risk and every practical identity comparison remains exact.
+- The seventh correction's hidden-predecessor stop, off-main final release,
+  same-client bootstrap, duplicate retry, disappear/reappear, reconnect retry,
+  and both deinit drains each passed 30/30 fresh processes (240/240 total).
+  Registry audit confirms no await under its lock, no lock-order inversion,
+  registration before MainActor execution can yield, atomic detached-startup
+  mirroring, and synchronous lifetime-authority revocation before delayed
+  MainActor cleanup. Complete `DashboardBootstrapLifecycleTests` passed 24/24
+  in 8.077 seconds. Its 100-cycle oracle created 200 entity subscriptions, 300
+  history subscriptions, and 300 Lovelace fetches, then ended with exact zero
+  socket/card/detail/feed/mount/render ownership and `model_released=true`.
+
+### Full candidate, live, visual, and context evidence
+
+- The complete unsandboxed debug suite passed 237 tests with three authorized
+  opt-in skips and zero failures in 87.519 seconds. This includes all inherited
+  Module 02, 01, 04, and 12 behavior plus the bounded Module 09 coverage. All
+  15 GUI/performance tests passed in 25.893 seconds. Hosted accessibility
+  exposed three concrete actions, real focus and keyboard activation, and exact
+  retry/reconnect/Lovelace counts `1|1|1`.
+- The production `NativeHAMac` release build passed in 6.94 seconds. The
+  authorized read-only live smoke passed 1/1 in 5.207 seconds with three views,
+  22 top-level / 31 recursive cards, 66 rows, registry 276 / 74 precision
+  entries, current-user identity, authoritative 280-entity initial and
+  reconnect snapshots with `resubscribe=false`, and representative 1h/12h/24h
+  history. Final ownership was zero and no service or state-changing call was
+  made.
+- All seven regenerated 2400 x 1600 Module 05 artifacts were visually
+  inspected and remain coherent: loading, fatal retry, ready, reconnecting with
+  retained content, disconnected with retained content, partial Lovelace
+  failure, and empty view. Core Graphics remains the primary renderer; no new
+  animation exists, so reduced-motion evidence remains N/A.
+- The Module 05 checker is GREEN at 130 nodes / 811 edges, one recorded
+  frontend cycle, zero unresolved, not truncated, fingerprint
+  `00efdbb8b3aad955689b9a4083320dc1c0151b6e60a5d6f8dc8f7c074f91402b`.
+  Resolver self-test passes at 31 nodes / 61 edges, fingerprint
+  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+  Inherited Module 02, 01, 04, and 12 graphs are expected YELLOW for 6, 10, 8,
+  and 9 shared uncommitted anchors; Module 09 is expected YELLOW for seven
+  shared/pre-existing anchors. Their behavior is green above. The supervisor
+  must refresh those inherited anchors only after accepting this exact tree.
+- Final whitespace, scope, credential-artifact, service-call, renderer,
+  persistence, and hash/timestamp-freshness scans passed. `AppConfig.swift`,
+  configurability, user deviations, knowledge base, README, fixed token/server
+  bootstrap, Module 04 resolved identity, raw Lovelace/range policy, and the
+  separate Module 09 stale-viewport fallback are unchanged.
+
+### Exact supervisor handoff
+
+Accept this exact independently verified tree. Refresh the inherited Module 02,
+01, 04, 12, and 09 source anchors without changing their contracts, rerun their
+checkers plus Module 05 and the resolver, inspect the exact staged diff, and
+commit the complete Module 05 implementation/evidence set. Module 06 research
+may begin only after that commit and a clean worktree. Module 05 must return to
+correction-required if any source/test file changes before commit or any
+refreshed checker, focused race, full, release, GUI, or live ownership gate
+fails.
+
+## Final supervisor acceptance and inherited-anchor refresh — 2026-08-31
+
+The supervisor accepted the exact independently verified Module 05 tree and
+completed the bounded inherited-anchor refresh. The Module 02, 01, 04, 12, and
+09 context checkers are green with zero unresolved anchors and no truncation:
+
+- Module 02: 31 nodes / 61 edges,
+  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`;
+- Module 01: 21 nodes / 143 edges,
+  `75ba7d234b0d5af43ac039dbd4776508dcf55e0315594ff81e0f35fa94c8116d`;
+- Module 04: 206 nodes / 2,724 edges,
+  `beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e`;
+- Module 12: 121 nodes / 901 edges,
+  `7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4`;
+  and
+- Module 09 bounded repair: 41 nodes / 241 edges,
+  `da934dc5939cea850cf2c1eb9567350ce240c8f59e71a3d6a378fa9982259c8a`.
+
+Module 05 remains green and `complete` at 130 nodes / 811 edges with
+fingerprint
+`00efdbb8b3aad955689b9a4083320dc1c0151b6e60a5d6f8dc8f7c074f91402b`.
+The resolver passes at 31 nodes / 61 edges with fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The Module 09 stale-viewport fallback remains open and broader Module 09 remains
+unresearched; no hash or timestamp freshness heuristic was introduced.
+
+The exact next action is for the supervisor to inspect, stage, and commit this
+complete accepted tree and confirm the worktree is clean. Only then may Module
+06 research begin under the fixed-server/no-profile assumption. Module 06
+implementation remains locked until its own research-ready handoff exists.
+
 ## Change log
 
 - 2026-08-25: Research revision 1 pins fixed-server scope, modern typed entity
   ownership, explicit lifecycle/retry/stop contracts, Module 12 single-tail and
   Module 01 publication/reconnect preservation, exact evidence matrix, and
   bounded implementation files/order.
+- 2026-08-25, contract revision 1 unchanged: bounded implementation evidence
+  recorded; focused, full, release, read-only live, GUI, context, and resolver
+  gates are green. Status advanced to `verification-ready` pending a fresh
+  independent verifier; Module 06 remains locked.
+- 2026-08-25, contract revision 1 unchanged: fresh independent verification
+  returned NO-GO for entity decode/context/first-snapshot/bootstrap-publication
+  correctness, candidate stop ownership, observable service gating, detail
+  retry scope, and lifecycle/accessibility evidence. Passing release/live/full
+  evidence is retained above; status remains `verification-ready` for bounded
+  correction and a new fresh verifier.
+- 2026-08-26, contract revision 1 unchanged: bounded correction closes every
+  recorded finding with focused/full/release/read-only-live/GUI/context
+  evidence. Status is `correction-ready` pending a new fresh independent
+  verifier; Module 06 remains locked.
+- 2026-08-26, contract revision 1 unchanged: an interrupted fresh verifier's
+  two provisional NO-GO findings (unbounded shell-action geometry and lost
+  optimistic entity context) are preserved, followed by the second bounded
+  correction and green evidence. Status remains `correction-ready` pending a
+  complete new fresh verifier; Module 06 remains locked.
+- 2026-08-26, contract revision 1 unchanged: complete fresh verification of
+  the second-corrected tree returned NO-GO for one newly identified
+  malformed-candidate pre-install race. All other correction, full, release,
+  read-only live, GUI/accessibility, performance, context, resolver, policy,
+  and credential gates passed. Status is `correction-required`; Module 06
+  remains locked pending a bounded correction and another fresh verifier.
+- 2026-08-26, contract revision 1 unchanged: the third bounded correction adds
+  an exact accepted-live-generation installation proof and closes the held
+  malformed-candidate promotion race. Focused and 30/30 stress, late-payload,
+  fresh-retry, full, release, read-only live, GUI/accessibility, performance,
+  context, resolver, policy, and inherited behavioral gates are green. Status
+  is `correction-ready` pending another entirely fresh verifier; Module 06
+  remains locked.
+- 2026-08-26, contract revision 1 unchanged: final fresh acceptance proves the
+  third correction and every historical finding closed, but returns NO-GO for
+  uncancelled held card-history startup work during explicit stop and missing
+  installed-caller gating before optimistic service mutation. All other
+  focused, stress, full, release, live, GUI/accessibility, performance,
+  context, resolver, policy, and credential gates pass. Status is
+  `correction-required`; Module 06 remains locked.
+- 2026-08-26, contract revision 1 unchanged: the fourth bounded correction
+  cancels detached card-history startups at explicit stop and requires an
+  installed service caller before control eligibility or optimistic mutation.
+  Focused and 30/30 held-ack stress, ordinary reconciliation, stopped-retained
+  service, full, release, read-only live, GUI/accessibility, performance,
+  context, resolver, policy, and inherited behavioral gates are green. Status
+  is `correction-ready` pending another entirely fresh verifier; Module 06
+  remains locked.
+- 2026-08-26, contract revision 1 unchanged: fresh release-candidate
+  verification proves the fourth held-history-stop and stopped-service fixes
+  plus all historical corrections, but returns NO-GO because fatal replacement
+  bootstrap cleanup leaves the installed service caller authoritative over
+  retained state. All stress, focused, full, release, read-only-live,
+  GUI/accessibility, performance, context, resolver, policy, credential, and
+  inherited behavioral gates otherwise pass. Status is `correction-required`;
+  Module 06 remains locked.
+- 2026-08-28, contract revision 1 unchanged: the fifth bounded correction
+  revokes and cancels service authority synchronously before fatal-bootstrap
+  publication/teardown, awaits captured tasks before transport disconnect, and
+  proves retained-state isolation plus fresh-authority replacement. Exact
+  30/30 stress, focused, full, release, read-only-live, GUI/accessibility,
+  performance, context, resolver, policy, and inherited behavioral gates are
+  green. Status is `correction-ready` pending another entirely fresh verifier;
+  Module 06 remains locked.
+- 2026-08-28, contract revision 1 unchanged: holistic final independent
+  acceptance proves the fifth fatal-bootstrap authority correction and all
+  historical race tests green, but returns NO-GO for unserialized duplicate
+  full-retry / rapid disappear-reappear transitions and an incomplete
+  deinitialization emergency-cancellation backstop. All focused, stress, full,
+  release, read-only-live, GUI/accessibility, performance, context, resolver,
+  policy, credential, scope, and inherited behavior gates otherwise pass.
+  Status is `correction-required`; Module 06 remains locked.
+- 2026-08-30, contract revision 1 unchanged: the sixth bounded correction
+  serializes app lifecycle intent, makes awaited owners weak/non-self-retaining,
+  tracks explicit reconnect through its terminal status, and completes the
+  synchronous deinit emergency inventory. New held transition/reconnect/deinit
+  tests plus 180/180 stress, focused/full/release/read-only-live/GUI/context and
+  policy gates are green. Status is `correction-ready` pending another entirely
+  fresh independent verifier; Module 06 remains locked.
+- 2026-08-30, contract revision 1 unchanged: fresh independent verification
+  proves the sixth retry/reappear/reconnect and tested deinit corrections stable
+  across 180/180 held executions, with full/release/live/GUI/context gates
+  green, but returns NO-GO for a hidden predecessor owner-tail/history-startup
+  stop barrier and a deinit mirror that defers complete authority revocation to
+  MainActor without off-MainActor last-release evidence. Status is
+  `correction-required`; Module 06 remains locked.
+- 2026-08-30, contract revision 1 unchanged: the seventh bounded correction
+  adds complete registered predecessor-tail retirement, synchronous shared
+  lifetime-authority revocation, and per-phase stale reconnect-attempt
+  validation. The three new exact regressions pass 30/30 fresh processes each,
+  all prior held races and full/release/live/GUI/context gates are green, and
+  status is `correction-ready` pending an entirely fresh verifier. Module 06
+  remains locked.
+- 2026-08-30, contract revision 1 unchanged: fresh independent verification
+  confirms the registered predecessor-tail and lifetime-authority corrections,
+  but deterministic cancellation-insensitive probes expose obsolete connect-
+  task slot clearing and a false ready/no-transport interval during suspended
+  disconnect. Status is `correction-required`; Module 06 remains locked.
+- 2026-08-30, contract revision 1 unchanged: the eighth bounded correction
+  gives connect/reconnect work stable attempt tokens, revokes the old
+  generation and publishes non-ready state before suspended disconnect
+  cleanup, validates every authentication boundary, and adds the two exact
+  verifier probes plus an internal-authentication oracle. All four transport
+  races pass 30/30 fresh processes; focused/full/release/read-only-live/GUI/
+  context gates are green. Status is `correction-ready` pending another
+  entirely fresh verifier; Module 06 remains locked.
+- 2026-08-31, contract revision 1 unchanged: entirely fresh independent
+  verification accepts the eighth connection correction, all seven historical
+  lifecycle corrections, 360/360 fresh race processes, focused/full/release/
+  read-only-live/GUI/context gates, and exact policy/scope preservation. Status
+  is `complete`; the supervisor must refresh inherited anchors and commit this
+  exact tree before Module 06 research begins.
+- 2026-08-31, contract revision 1 unchanged: the supervisor accepted the exact
+  verified tree and refreshed Modules 02, 01, 04, 12, and bounded 09 to green
+  finalized graphs. The Module 09 stale-viewport fallback remains open. The
+  only remaining gate before Module 06 research is the exact-tree commit and
+  clean-worktree confirmation.

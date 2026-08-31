@@ -7,6 +7,209 @@ import XCTest
 
 @MainActor
 final class GUIRenderingAndPerformanceTests: XCTestCase {
+    func testModule05TypedShellStateArtifacts() throws {
+        let size = CGSize(width: 1_200, height: 800)
+
+        let loading = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        loading.setLifecyclePhaseForTesting(.loading)
+        try renderModule05Shell(loading, size: size, name: "module-05-loading.png")
+
+        let fatal = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        fatal.setLifecyclePhaseForTesting(.failed)
+        try renderModule05Shell(fatal, size: size, name: "module-05-fatal-retry.png")
+
+        for (phase, name) in [
+            (DashboardLifecyclePhase.ready, "module-05-ready.png"),
+            (.reconnecting, "module-05-reconnecting-retained.png"),
+            (.disconnected, "module-05-disconnected-retained.png"),
+        ] {
+            let model = DashboardViewModel(
+                initialStates: [
+                    "sensor.home": HAState(entityId: "sensor.home", state: "21.5"),
+                ],
+                initialViews: try module12VisualConfig().views,
+                navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+            )
+            model.setLifecyclePhaseForTesting(phase)
+            try renderModule05Shell(model, size: size, name: name)
+        }
+
+        let partial = DashboardViewModel(
+            initialStates: [
+                "sensor.home": HAState(entityId: "sensor.home", state: "21.5"),
+            ],
+            initialViews: try module12VisualConfig().views,
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        partial.setLifecyclePhaseForTesting(.ready)
+        partial.setComponentPhaseForTesting(.lovelace, phase: .failed("Configuration unavailable"))
+        try renderModule05Shell(partial, size: size, name: "module-05-partial-error.png")
+
+        let empty = DashboardViewModel(
+            initialViews: [
+                LovelaceView(title: "Empty", path: "default_view", cards: []),
+            ],
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        empty.setLifecyclePhaseForTesting(.ready)
+        try renderModule05Shell(empty, size: size, name: "module-05-empty.png")
+    }
+
+    func testModule05ShellActionsExposeHostedAccessibilityFocusAndKeyboardActivation() async throws {
+        var fatalRetryCount = 0
+        let fatal = DashboardViewModel(
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        fatal.setLifecyclePhaseForTesting(.failed)
+        try await assertModule05ShellAction(
+            rootView: DashboardView(
+                model: fatal,
+                startsOnAppear: false,
+                retryBootstrapOverride: { fatalRetryCount += 1 }
+            ),
+            label: "Retry dashboard connection",
+            identifier: "nativeha.shell.retry-bootstrap",
+            activationCount: { fatalRetryCount }
+        )
+
+        var reconnectCount = 0
+        let disconnected = DashboardViewModel(
+            initialStates: [
+                "sensor.home": HAState(entityId: "sensor.home", state: "21.5"),
+            ],
+            initialViews: try module12VisualConfig().views,
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        disconnected.setLifecyclePhaseForTesting(.disconnected)
+        try await assertModule05ShellAction(
+            rootView: DashboardView(
+                model: disconnected,
+                startsOnAppear: false,
+                reconnectRealtimeOverride: { reconnectCount += 1 }
+            ),
+            label: "Reconnect realtime connection",
+            identifier: "nativeha.shell.reconnect-realtime",
+            activationCount: { reconnectCount }
+        )
+
+        var lovelaceRetryCount = 0
+        let partial = DashboardViewModel(
+            initialStates: [
+                "sensor.home": HAState(entityId: "sensor.home", state: "21.5"),
+            ],
+            initialViews: try module12VisualConfig().views,
+            navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
+        )
+        partial.setLifecyclePhaseForTesting(.ready)
+        partial.setComponentPhaseForTesting(.lovelace, phase: .failed("Configuration unavailable"))
+        try await assertModule05ShellAction(
+            rootView: DashboardView(
+                model: partial,
+                startsOnAppear: false,
+                retryLovelaceOverride: { lovelaceRetryCount += 1 }
+            ),
+            label: "Retry Lovelace configuration",
+            identifier: "nativeha.shell.retry-lovelace",
+            activationCount: { lovelaceRetryCount }
+        )
+
+        print(
+            "MODULE05_AX actions=retry-bootstrap|reconnect-realtime|retry-lovelace " +
+                "concrete_nodes=3 focus=true keyboard_activation=true counts=" +
+                "\(fatalRetryCount)|\(reconnectCount)|\(lovelaceRetryCount)"
+        )
+    }
+
+    private func assertModule05ShellAction(
+        rootView: DashboardView,
+        label: String,
+        identifier: String,
+        activationCount: @escaping () -> Int
+    ) async throws {
+        let size = CGSize(width: 1_200, height: 800)
+        let hostingView = NSHostingView(rootView: rootView.frame(width: size.width, height: size.height))
+        hostingView.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(
+            contentRect: hostingView.frame,
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.contentView = hostingView
+        let previousActivationPolicy = NSApplication.shared.activationPolicy()
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        window.orderFrontRegardless()
+        window.makeKey()
+        defer {
+            window.orderOut(nil)
+            window.close()
+            NSApplication.shared.setActivationPolicy(previousActivationPolicy)
+        }
+
+        for _ in 0..<4 {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.02))
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.displayIfNeeded()
+        }
+        XCTAssertTrue(window.isVisible)
+        XCTAssertNotEqual(window.windowNumber, 0)
+        window.recalculateKeyViewLoop()
+        let matching = module05ShellAccessibilityButtons(in: hostingView).filter {
+            $0.accessibilityLabel() == label
+        }
+        XCTAssertEqual(matching.count, 1, "The shell action must expose one concrete AppKit node")
+        let button = try XCTUnwrap(matching.first)
+        XCTAssertTrue(button.isAccessibilityElement())
+        XCTAssertEqual(button.accessibilityRole(), .button)
+        XCTAssertEqual(button.accessibilityIdentifier(), identifier)
+        XCTAssertNotNil(NSAccessibility.unignoredAncestor(of: button))
+        XCTAssertTrue(button.isEnabled)
+        XCTAssertGreaterThan(button.bounds.width, 20)
+        XCTAssertGreaterThan(button.bounds.height, 10)
+        XCTAssertLessThanOrEqual(
+            button.bounds.width,
+            180,
+            "A shell action must keep its compact intrinsic width"
+        )
+        XCTAssertLessThanOrEqual(
+            button.bounds.height,
+            36,
+            "A shell action must not inflate its containing banner"
+        )
+        let accessibilityFrame = button.accessibilityFrame()
+        XCTAssertGreaterThan(accessibilityFrame.width, 20)
+        XCTAssertGreaterThan(accessibilityFrame.height, 10)
+        XCTAssertLessThanOrEqual(accessibilityFrame.width, 180)
+        XCTAssertLessThanOrEqual(accessibilityFrame.height, 36)
+        XCTAssertTrue(window.makeFirstResponder(button))
+        XCTAssertTrue(window.firstResponder === button)
+
+        let before = activationCount()
+        let space = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            characters: " ",
+            charactersIgnoringModifiers: " ",
+            isARepeat: false,
+            keyCode: 49
+        ))
+        button.keyDown(with: space)
+        try await waitForGUICondition {
+            await MainActor.run { activationCount() == before + 1 }
+        }
+        XCTAssertEqual(activationCount(), before + 1)
+    }
+
     func testEntitiesCardCanRenderToPNG() throws {
         let model = DashboardViewModel()
         model.states = [
@@ -52,6 +255,7 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
 
     func testHistoryGraphViewCanRenderToPNG() throws {
         let input = performanceInput(pointCount: 720, entityID: "sensor.visual_graph")
+        let probe = HistoryVisualSettlementProbe()
         let rendered = try MacViewPNGRenderer.render(
             BitmapLineChart(
                 unit: "µg/m³",
@@ -60,12 +264,13 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
                 panFraction: 1,
                 hoverLocation: .constant(nil),
                 onMagnify: { _, _, _ in },
-                onPan: { _ in }
+                onPan: { _ in },
+                onRenderReady: { probe.record($0) }
             )
             .frame(width: 496, height: 178),
             size: CGSize(width: 496, height: 178),
             displayScale: 2,
-            settleTime: 0.25
+            readiness: { probe.isReady }
         )
 
         try assertUsablePNG(rendered, minimumBytes: 8_000, minimumChangedSamples: 100)
@@ -86,7 +291,8 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         let size = CGSize(width: 496, height: 178)
 
         func render(hover: CGPoint?, showsHoverOverlay: Bool) throws -> RenderedPNG {
-            try MacViewPNGRenderer.render(
+            let probe = HistoryVisualSettlementProbe()
+            return try MacViewPNGRenderer.render(
                 BitmapLineChart(
                     unit: "µg/m³",
                     inputs: [input],
@@ -95,12 +301,13 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
                     showsHoverOverlay: showsHoverOverlay,
                     hoverLocation: .constant(hover),
                     onMagnify: { _, _, _ in },
-                    onPan: { _ in }
+                    onPan: { _ in },
+                    onRenderReady: { probe.record($0) }
                 )
                 .frame(width: size.width, height: size.height),
                 size: size,
                 displayScale: 2,
-                settleTime: 0.25
+                readiness: { probe.isReady }
             )
         }
 
@@ -121,7 +328,8 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         let size = CGSize(width: 496, height: 178)
 
         func render(hover: CGPoint?) throws -> RenderedPNG {
-            try MacViewPNGRenderer.render(
+            let probe = HistoryVisualSettlementProbe()
+            return try MacViewPNGRenderer.render(
                 BitmapLineChart(
                     unit: "µg/m³",
                     inputs: [input],
@@ -130,12 +338,13 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
                     showsHoverOverlay: true,
                     hoverLocation: .constant(hover),
                     onMagnify: { _, _, _ in },
-                    onPan: { _ in }
+                    onPan: { _ in },
+                    onRenderReady: { probe.record($0) }
                 )
                 .frame(width: size.width, height: size.height),
                 size: size,
                 displayScale: 2,
-                settleTime: 0.25
+                readiness: { probe.isReady }
             )
         }
 
@@ -500,7 +709,7 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
             initialViews: config.views,
             navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
         )
-        model.status = "Live"
+        model.setLifecyclePhaseForTesting(.ready)
 
         XCTAssertEqual(model.navigationItems.map(\.title), [
             "Home",
@@ -573,7 +782,7 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
         let loadingModel = DashboardViewModel(
             navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
         )
-        loadingModel.status = "Loading dashboard"
+        loadingModel.setLifecyclePhaseForTesting(.loading)
         let loading = try renderModule12Dashboard(loadingModel, size: CGSize(width: 900, height: 700))
         try persistAndAttach(loading.pngData, name: "dashboard-loading.png")
 
@@ -581,7 +790,7 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
             navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
         )
         await noViewsModel.applyLovelaceConfigForTesting(LovelaceConfig(views: []))
-        noViewsModel.status = "Live"
+        noViewsModel.setLifecyclePhaseForTesting(.ready)
         let noViews = try renderModule12Dashboard(noViewsModel, size: CGSize(width: 900, height: 700))
         try persistAndAttach(noViews.pngData, name: "dashboard-no-views.png")
 
@@ -604,7 +813,7 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
             navigationPreferenceStore: GUIMemoryNavigationPreferenceStore()
         )
         await ineligibleModel.applyLovelaceConfigForTesting(allIneligible)
-        ineligibleModel.status = "Live"
+        ineligibleModel.setLifecyclePhaseForTesting(.ready)
         let ineligible = try renderModule12Dashboard(ineligibleModel, size: CGSize(width: 900, height: 700))
         try persistAndAttach(ineligible.pngData, name: "dashboard-all-ineligible.png")
 
@@ -876,6 +1085,23 @@ final class GUIRenderingAndPerformanceTests: XCTestCase {
             height: Int(size.height * 2)
         )
         return rendered
+    }
+
+    private func renderModule05Shell(
+        _ model: DashboardViewModel,
+        size: CGSize,
+        name: String
+    ) throws {
+        let rendered = try MacViewPNGRenderer.render(
+            DashboardView(model: model, startsOnAppear: false)
+                .frame(width: size.width, height: size.height),
+            size: size,
+            displayScale: 2,
+            settleTime: 0.1
+        )
+        try assertUsablePNG(rendered, minimumBytes: 10_000, minimumChangedSamples: 100)
+        try assertDimensions(rendered.pngData, width: 2_400, height: 1_600)
+        try persistAndAttach(rendered.pngData, name: name)
     }
 
     private func renderLovelaceArtifact<Content: View>(
@@ -1298,9 +1524,13 @@ private struct HistoryVisualLabelOracle {
         } else {
             y = (bitmap.pixelsHigh - topY.upperBound)..<(bitmap.pixelsHigh - topY.lowerBound)
         }
+        let xLower = min(bitmap.pixelsWide, max(0, x.lowerBound))
+        let xUpper = max(xLower, min(bitmap.pixelsWide, x.upperBound))
+        let yLower = min(bitmap.pixelsHigh, max(0, y.lowerBound))
+        let yUpper = max(yLower, min(bitmap.pixelsHigh, y.upperBound))
         return HistoryPixelRect(
-            x: max(0, x.lowerBound)..<min(bitmap.pixelsWide, x.upperBound),
-            y: max(0, y.lowerBound)..<min(bitmap.pixelsHigh, y.upperBound)
+            x: xLower..<xUpper,
+            y: yLower..<yUpper
         )
     }
 }
@@ -1535,7 +1765,20 @@ enum MacViewPNGRenderer {
         }
 
         let makeBitmap: () throws -> NSBitmapImageRep = {
-            guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+            let pixelsWide = max(1, Int((size.width * displayScale).rounded()))
+            let pixelsHigh = max(1, Int((size.height * displayScale).rounded()))
+            guard let bitmap = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: pixelsWide,
+                pixelsHigh: pixelsHigh,
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+            ) else {
                 throw MacViewPNGRendererError.bitmapCreationFailed
             }
             bitmap.size = size
@@ -1862,4 +2105,22 @@ private func sidebarAccessibilityButtons(in root: NSView) -> [SidebarAccessibili
         } ?? rhs.frame.midY
         return lhsY > rhsY
     }
+}
+
+@MainActor
+private func module05ShellAccessibilityButtons(
+    in root: NSView
+) -> [Module05ShellAccessibilityNSButton] {
+    func collect(_ view: NSView, into result: inout [Module05ShellAccessibilityNSButton]) {
+        if let button = view as? Module05ShellAccessibilityNSButton {
+            result.append(button)
+        }
+        for subview in view.subviews {
+            collect(subview, into: &result)
+        }
+    }
+
+    var buttons: [Module05ShellAccessibilityNSButton] = []
+    collect(root, into: &buttons)
+    return buttons
 }

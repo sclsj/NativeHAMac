@@ -7,10 +7,10 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: a4dcd1c8d8fe171a9753b109ae9b241aa6f44cef
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: f9462562d7a09d8b37fea24ac7d8d9eebc7767fca7579bcedd489597a8a2ae18
-last_validated: 2026-08-25
+graph_fingerprint: da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d
+last_validated: 2026-08-31
 ---
 
 # Module 02 evidence packet
@@ -1190,16 +1190,51 @@ edges, zero unresolved edges, no truncation, and fingerprint
 The resolver self-test passes at the same 31-node / 61-edge fingerprint. No
 Swift or test file was edited by this maintenance.
 
+## Bounded post-Module 05 anchor maintenance — 2026-08-31
+
+The pre-refresh checker was yellow for exactly six shared Module 05 anchors:
+`HomeAssistantWebSocketClient.swift`,
+`HomeAssistantWebSocketConnection.swift`, `Models.swift`,
+`DashboardViewModel.swift`, `HomeAssistantWebSocketConnectionTests.swift`, and
+`DashboardBootstrapLifecycleTests.swift`. The exact accepted Module 05 diff and
+its final independent verification evidence were inspected against C02
+revision 2. The pinned frontend/npm transport sources and every other Module 02
+anchor are unchanged; no broad reference audit was repeated.
+
+Module 05 adds the typed entity-stream consumer and explicit dashboard
+lifecycle around the existing connection, while the eighth bounded correction
+strengthens the connection itself with stable attempt tokens, synchronous old-
+generation revocation before suspended disconnect cleanup, and authentication-
+boundary validation. Those changes preserve the one receiver, monotonic wire
+ID/FIFO send owner, bounded callback dispatcher, direct typed delivery,
+owner-local cancellation, and exact required-bootstrap cleanup established by
+C02. The client/model additions introduce no second receive path. Dashboard
+bootstrap still installs only the exact winning generation/client and retires
+failed or obsolete candidates. The two changed test classes add deterministic
+cancellation-insensitive connection races and stronger bootstrap/lifecycle
+ownership oracles without weakening earlier assertions.
+
+No manifest path moved for Module 02. Regeneration from the unchanged reviewed
+manifest is green at 31 nodes / 61 edges, zero unresolved edges, no truncation,
+and fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The resolver self-test passes at the same 31-node / 61-edge fingerprint. The
+fresh final Module 05 verifier passed 360/360 race processes, the 237-test full
+suite with three authorized skips and zero failures, release, GUI, and
+authorized read-only live smoke with no state-changing call. No C02 observable
+contract changed, so status remains `complete` and contract revision remains 2.
+No Swift or test file was edited by this maintenance.
+
 ## Handoff
 
-Module 02 is complete and its post-Module 12 evidence graph is green. Preserve
+Module 02 is complete and its post-Module 05 evidence graph is green. Preserve
 the per-generation outbound FIFO, single receiver, bounded callback
 coordinator, direct typed owner-local decode, production receive cleanup,
 history opt-out, exact bootstrap generation/client guards, required-bootstrap
-failure cleanup, and 32 MiB large-frame policy through Module 05 and later
-modules. Module 12 is independently complete. The exact next staged action is
-fresh Module 05 orchestration-decomposition research under the approved fixed-
-server/no-profile assumption, not further Module 02 redesign.
+failure cleanup, and 32 MiB large-frame policy in later modules. Module 05 is
+independently complete on the reviewed worktree. After the supervisor commits
+that exact tree, the next staged action is Module 06 research under the approved
+fixed-server/no-profile assumption, not further Module 02 redesign.
 
 ## Change log
 
@@ -1298,3 +1333,6 @@ server/no-profile assumption, not further Module 02 redesign.
   2/2 bootstrap lifecycle rerun confirmed all C02 contracts and the WebSocket
   policy unchanged. The graph is green at 31 nodes / 61 edges and contract
   revision remains 2.
+- 2026-08-31: inspected the six shared Module 05 anchor changes, preserved all
+  C02 revision-2 transport/bootstrap contracts, and regenerated a green
+  31-node / 61-edge graph. Status remains `complete`.

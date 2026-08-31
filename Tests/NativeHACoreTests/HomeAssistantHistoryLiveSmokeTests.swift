@@ -71,6 +71,17 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         )
         XCTAssertFalse(co2VOCEntities.isEmpty)
 
+        let initialEntityLog = LiveEntityPayloadLog()
+        let initialEntityOwner = try await client.subscribeEntities { payload in
+            await initialEntityLog.append(payload)
+        }
+        try await liveWait { await initialEntityLog.count > 0 }
+        let initialEntityValue = await initialEntityLog.first
+        let initialEntityPayload = try XCTUnwrap(initialEntityValue)
+        XCTAssertFalse(initialEntityPayload.additions?.isEmpty ?? true)
+        await initialEntityOwner.cancel()
+        try await requireZeroHistoryOwnership(client.connection)
+
         let oneHour = LiveHistoryLog()
         let oneHourStart = ProcessInfo.processInfo.systemUptime
         let oneHourOwner = try await client.subscribeHistoryStatesTimeWindow(
@@ -106,6 +117,15 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
         let reconnectSnapshot = await reconnect.snapshot()
         XCTAssertGreaterThanOrEqual(reconnectSnapshot.loadingCount, 2)
         XCTAssertTrue(Set(reconnectSnapshot.history.keys).isSubset(of: Set(requested)))
+        let reconnectEntityLog = LiveEntityPayloadLog()
+        let reconnectEntityOwner = try await client.subscribeEntities { payload in
+            await reconnectEntityLog.append(payload)
+        }
+        try await liveWait { await reconnectEntityLog.count > 0 }
+        let reconnectEntityValue = await reconnectEntityLog.first
+        let reconnectEntityPayload = try XCTUnwrap(reconnectEntityValue)
+        XCTAssertFalse(reconnectEntityPayload.additions?.isEmpty ?? true)
+        await reconnectEntityOwner.cancel()
         await reconnectOwner.cancel()
         try await requireZeroHistoryOwnership(client.connection)
 
@@ -175,6 +195,10 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
             "language=\(frontendLocale?.language ?? "system")"
         )
         print("LIVE_CURRENT_USER id_present=\(!currentUser.id.isEmpty)")
+        print(
+            "LIVE_ENTITIES initial=\(initialEntityPayload.additions?.count ?? 0) " +
+            "reconnect=\(reconnectEntityPayload.additions?.count ?? 0) resubscribe=false"
+        )
         print("LIVE_HISTORY no_attributes=\(HAHistoryAttributePolicy.noAttributes(entityIDs: requested, currentStates: stateMap))")
         print("LIVE_HISTORY 1h callbacks=\(oneHourSnapshot.callbackCount) points=\(oneHourSnapshot.pointCount) attributes=\(oneHourSnapshot.attributePointCount) fractional=\(oneHourSnapshot.fractionalTimestampCount) elapsed=\(String(format: "%.3f", oneHourElapsed))s")
         print("LIVE_HISTORY reconnect callbacks=\(reconnectSnapshot.callbackCount) loading=\(reconnectSnapshot.loadingCount) points=\(reconnectSnapshot.pointCount)")
@@ -312,6 +336,13 @@ final class HomeAssistantHistoryLiveSmokeTests: XCTestCase {
                 snapshot.activeDeliveryTaskCount == 0
         }
     }
+}
+
+private actor LiveEntityPayloadLog {
+    private var payloads: [HAEntitySubscriptionPayload] = []
+    var count: Int { payloads.count }
+    var first: HAEntitySubscriptionPayload? { payloads.first }
+    func append(_ payload: HAEntitySubscriptionPayload) { payloads.append(payload) }
 }
 
 private actor LiveHistoryLog {

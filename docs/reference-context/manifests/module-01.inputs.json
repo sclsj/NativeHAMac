@@ -52,6 +52,10 @@
       "symbols": ["DashboardViewModel", "HistoryRequest"]
     },
     {
+      "path": "Sources/NativeHAMac/DashboardHistoryCoordinator.swift",
+      "symbols": ["DashboardHistoryCoordinator", "HistoryStartupTask", "DetailHistoryStartupTask"]
+    },
+    {
       "path": "Sources/NativeHAMac/LovelacePresentation.swift",
       "symbols": ["LovelacePresentationCard", "LovelacePresentationDashboard", "LovelacePresentationTransformer"]
     },

@@ -7,10 +7,10 @@ status: bounded-async-repair-verified-open-stale-viewport-fallback-broader-modul
 contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: acf385133e2c875cc0d0d96c9a85125a87c11bcf
+nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: 5e59d9f50ca2c34250a8924745a692cfa3ed2eed6c3cf2e59ae6b39449dde840
-last_validated: 2026-08-22
+graph_fingerprint: da934dc5939cea850cf2c1eb9567350ce240c8f59e71a3d6a378fa9982259c8a
+last_validated: 2026-08-31
 ---
 
 # Module 09 bounded async-repair evidence
@@ -188,6 +188,43 @@ hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
 - Visual step/hover/axis/legend parity and the rest of Module 09 were not part
   of this repair or verification and remain unresearched.
 
+## Bounded post-Module 05 anchor maintenance — 2026-08-31
+
+The pre-refresh checker was yellow for exactly seven shared or previously
+advanced native anchors: `Models.swift`, `AppConfig.swift`, `CardViews.swift`,
+`DashboardViewModel.swift`, `GraphRenderScheduling.swift`,
+`GraphRenderingTests.swift`, and `HistoryStreamIntegrationTests.swift`. The
+exact accepted Module 05 diff, the intervening already-green Module 04/12
+changes, and the final Module 05 independent evidence were inspected against
+this bounded contract revision 3. The pinned frontend history/chart sources
+are unchanged; broader Module 09 was not researched.
+
+Module 05 moves graph revision-feed dictionary storage into the synchronous
+MainActor `DashboardHistoryCoordinator` façade. The manifest now pins that
+owner and replaces the obsolete `startHistory` symbol with the current
+`beginHistoryStartup`/`runHistoryStartup` publication boundary in
+`DashboardViewModel`. Accepted projections still publish to the feed before
+`@Published` history, mounted data revisions remain FIFO, visual requests
+remain latest-only, and disappearance/stop invalidates feeds, mounts,
+coordinator generations, and render work before late results can install.
+Core Graphics remains primary. The changed configuration/render/test anchors
+preserve the approved coordinator/cache policies and their existing exact
+lineage/fallback oracles.
+
+Regeneration is green at 41 nodes / 241 edges, one cycle, zero unresolved
+edges, no truncation, and fingerprint
+`da934dc5939cea850cf2c1eb9567350ce240c8f59e71a3d6a378fa9982259c8a`.
+The resolver self-test passes at 31 nodes / 61 edges with fingerprint
+`da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+The fresh final Module 05 verifier passed the complete graph/history/lifecycle
+regressions within its 237-test full suite, with three authorized skips and
+zero failures, plus release, GUI, and authorized read-only live smoke. This is
+anchor maintenance only: the bounded asynchronous repair remains verified,
+the stale-viewport correctness-safe but expensive fallback remains open, and
+broader Module 09 remains unresearched. No hash, `contentRevision`, endpoint
+timestamp, or first/last timestamp may infer freshness. No Swift or test file
+was edited by this maintenance.
+
 ## Remaining risks and boundaries
 
 - A chart that is not mounted does not retain every intermediate publication;
@@ -216,13 +253,14 @@ hass-frontend at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`:
 
 ## Handoff
 
-The bounded async rolling-revision repair is implemented and independently
-verified, with the stale-viewport fallback above still open. This issue does
-not block Module 04 research, but it should be fixed before calling the daily
-PoC graph path performance-stable. Keep broader Module 09
-unresearched/incomplete and return to the user's staged sequence. A later
-explicitly scoped Module 09 task may address coordinator provenance,
-chunked/ring rolling storage, or visual parity.
+The bounded async rolling-revision repair is implemented, independently
+verified, and green after Module 05 anchor refresh, with the stale-viewport
+fallback above still open. It should be fixed before calling the daily PoC
+graph path performance-stable. Keep broader Module 09 unresearched/incomplete
+and return to the user's staged sequence: after the supervisor commits the
+accepted Module 05 tree, Module 06 research is next. A later explicitly scoped
+Module 09 task may address coordinator provenance, chunked/ring rolling
+storage, or visual parity.
 
 ## Change log
 
@@ -240,3 +278,7 @@ chunked/ring rolling storage, or visual parity.
   fallbacks, rejected and reverted content-hash/timestamp ordering shortcuts,
   and narrowed the sound follow-up to coordinator-owned accepted-input
   provenance. Broader Module 09 remains unresearched.
+- 2026-08-31: pinned the extracted history/feed storage owner and current
+  history-startup symbols, inspected seven advanced anchors, and regenerated a
+  green 41-node / 241-edge graph. The bounded repair remains verified; the
+  stale-viewport fallback and broader Module 09 remain open.

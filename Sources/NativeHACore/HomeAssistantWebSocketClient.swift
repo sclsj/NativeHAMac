@@ -33,11 +33,27 @@ public final class HomeAssistantWebSocketClient {
         await connection.disconnect()
     }
 
-    public func fetchLovelaceConfig() async throws -> LovelaceConfig {
+    public func fetchLovelaceConfig(force: Bool = false) async throws -> LovelaceConfig {
         try await connection.call(
-            ["type": .string("lovelace/config")],
+            [
+                "type": .string("lovelace/config"),
+                "url_path": .null,
+                "force": .bool(force),
+            ],
             as: LovelaceConfig.self
         )
+    }
+
+    public func subscribeLovelaceUpdates(
+        _ onUpdate: @escaping @Sendable () async -> Void
+    ) async throws -> HAWebSocketSubscription {
+        try await connection.subscribeEvents(
+            eventType: "lovelace_updated",
+            as: HALovelaceUpdatedEvent.self
+        ) { event in
+            guard event.data.urlPath == nil else { return }
+            await onUpdate()
+        }
     }
 
     public func fetchCurrentUser() async throws -> HACurrentUser {
@@ -76,6 +92,22 @@ public final class HomeAssistantWebSocketClient {
                 await onState(state)
             }
         }
+    }
+
+    /// Starts the modern compressed entity stream. This consumer deliberately
+    /// opts out of transport-level resubscription: its coordinator must require
+    /// a new authoritative first snapshot after every ready generation.
+    public func subscribeEntities(
+        onTermination: (@Sendable (Error) async -> Void)? = nil,
+        _ onPayload: @escaping @Sendable (HAEntitySubscriptionPayload) async -> Void
+    ) async throws -> HAWebSocketSubscription {
+        try await connection.subscribeMessage(
+            ["type": .string("subscribe_entities")],
+            as: HAEntitySubscriptionPayload.self,
+            resubscribe: false,
+            onTermination: onTermination,
+            onMessage: onPayload
+        )
     }
 
     public func subscribeHistoryStatesTimeWindow(
@@ -129,5 +161,14 @@ private struct HAStateChangedEvent: Decodable {
         private enum CodingKeys: String, CodingKey {
             case newState = "new_state"
         }
+    }
+}
+
+private struct HALovelaceUpdatedEvent: Decodable {
+    let data: DataPayload
+
+    struct DataPayload: Decodable {
+        let urlPath: String?
+        private enum CodingKeys: String, CodingKey { case urlPath = "url_path" }
     }
 }
