@@ -3,15 +3,17 @@ schema: nativeha-evidence/v1
 module: "06"
 title: Entities cards, entity rows, state display, icons, and supported actions
 plan: ../../rescue-plan/module-06-entities-state-display.md
-status: research-ready
-contract_revision: 1
+status: complete
+contract_revision: 2
 depends_on: ["04", "05"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 6e860b0bc4e256e834357858ae4c21dd7ec16e84
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-06.dependencies.json
-graph_fingerprint: 56047398f2b83803a1e665f2af353faf62e045936c4c598f24d0637b99e2494e
+graph_fingerprint: 83b2f31867444282f31c97da1da732e5b401a9222792212102a9b514b4eac4ed
 last_researched: 2026-08-31
-last_validated: 2026-08-31
+last_implemented: 2026-09-01
+last_verified: 2026-09-01
+last_validated: 2026-09-01
 ---
 
 # Module 06 evidence packet
@@ -25,20 +27,23 @@ turns entities cards into a bounded native presentation layer; it does not
 start a card subscription, create an owner/feed/task, add a server fetch,
 change a service transport, or implement Modules 07/10/11.
 
-The current app renders every usable row as a `Button` with a crude
-`DomainIcon`, collapses duplicate default-view rows in the presentation layer,
-formats state/name in `DashboardViewModel`, and shows a header switch solely
-when more than one current row is toggleable. Those are implementation gaps,
-not approved product deviations.
+Before this implementation, the app rendered every usable row as a `Button` with a crude
+`DomainIcon`, collapsed duplicate default-view rows in the presentation layer,
+formatted state/name in `DashboardViewModel`, and showed a header switch solely
+when more than one current row is toggleable. The verified Module 06 diff
+closes those implementation gaps without making them approved product
+deviations or adding a new owner, fetch, cache, persistence key, or typed
+configuration surface.
 
 Live read-only evidence on 2026-08-31: the fixed deployment supplied 280
 authoritative states, 276 display-registry entries (74 `dp` precision entries),
 frontend language `en`, three views, 22 top-level/31 recursive cards, and 66
 rows. This is deployment evidence only: contracts retain the existing
 locale/timezone metadata path and must not hard-code English as policy. The
-current Swift decoder discarded compact registry `ic`, so this audit cannot
-claim that the other 202 entries lack icons; Module 06 carries `ic` from the
-already-fetched response without adding a command.
+pre-Module 06 Swift decoder discarded compact registry `ic`, so the research
+audit could not claim that the other 202 entries lacked icons. The verified
+implementation now carries `ic` from the already-fetched response without
+adding a command.
 
 ## Behavior contracts
 
@@ -89,18 +94,20 @@ values are in the generated graph.
 | HF-23 | `handle-action.ts`, `handleAction`; `has-action.ts`, `hasAction`, `hasAnyAction` | `f0276cbaa278333684e31cfb56a27b37fe578ace18bebf576d7cab938c82fdfc`; `fdae56ecfe56a485528bbc75882f002b4afe3a455bb13eeef19423f9bc211466` | Default more-info, configured action universe, pointer/focus rules. |
 | HF-24 | `src/data/entity/entity_registry.ts`, `EntityRegistryDisplayEntryResponse`, `EntityRegistryDisplayEntry` | `8ca09217f83a34fc78662e858393f90d269666ba9c3019be969817a77e73c6a2` | Already-fetched compact `ic` icon field and expanded registry shape. |
 
-NativeHA at `6e860b0bc4e256e834357858ae4c21dd7ec16e84`:
+Verified NativeHA worktree on research commit
+`9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e`:
 
 - `LovelaceModels.swift` (`02bed5b336729a496c7f2a48ecdcf17956af998624076ed0835164c188a9436e`): lossless row source/config/identity;
-- `LovelacePresentation.swift` (`074c6d454d3f9b44135448b3f0444e3d19913eb59c63ca8a0029c603a44f9844`): hidden/synthetic rows and current duplicate-collapse defect;
-- `CardViews.swift` (`3c9eef75cf59a3b0c548db35a12f98b3523424cd526ae5550d4de43119083a9b`): current card/row/icon and visual call sites;
-- `DashboardViewModel.swift` (`e13fcb1bfba8555a3268a707b90452783844acec520449870c4a7db572f43096`): current display/details/power facade;
+- `LovelacePresentation.swift` (`a79e4b7f8ac7b52ba408f8063c2b4b95b734069d5134cba39857624e562d9ca1`): hidden/synthetic rows with source duplicates preserved;
+- `CardViews.swift` (`a2cafc5d1ab8cd35deb271393e9816e1a252d0dd4cf044a49b70ad69f7b83ac8`): verified card/row/icon, native accessibility, and sibling focus targets;
+- `EntityRowPresentation.swift` (`a9f4ea8a7959bb44e6acc19187556c547702e2ba4476344f7997331bcffb0916`): pure row/name/state/icon/color/action/secondary/power presentation;
+- `DashboardViewModel.swift` (`804607628fed769f13a601546ee1ec55fcbaa1e1db0bcefdcbb88fde958a6973`): verified presentation delegation, accepted-generation registry metadata, and inherited service facade;
 - `DashboardServiceController.swift` (`4c6dc0c32c346a1075239914f706c560ee85ec4de538afa6701b2b234a12af42`): caller, availability, generation and task ownership;
-- `Models.swift` (`7780295fc9b630547b9905c0a02dfd6382e41b6d4646904e2b4dc2329196ab53`), `HAEntityStore.swift` (`4ae8b132f662d51926fe5b2ccbc5b749435cedb81d5292ea6db1fb519e964387`), `DashboardLifecycle.swift` (`306aa9f9c9cd8bb555a5c1f430443fa6e62eea3f54086ca4bd02d03d954370dd`), `DashboardView.swift` (`58dc1ba15d5831625c85e9d80db6d588794b3515a6c306d29b8b3c5c60c92395`), `LovelaceViewNavigation.swift` (`20cde182e49d1d9ff0a04c8c2f563bdfd3425c6cc500a721d1a6111b54e0f2ba`), and `GraphTooltipFormatting.swift` (`12e1d9bc92b425bd3ee3419577f2b9d496f094c7e52363ff738263df2690fde4`): state metadata, lifecycle/navigation, and locale/timezone seams.
+- `Models.swift` (`a4ebefa46477ad6caf9bf67cca14d6ed2b16ac4227d6d5b898de5cfc3f7dcd21`), `HAEntityStore.swift` (`4ae8b132f662d51926fe5b2ccbc5b749435cedb81d5292ea6db1fb519e964387`), `DashboardLifecycle.swift` (`306aa9f9c9cd8bb555a5c1f430443fa6e62eea3f54086ca4bd02d03d954370dd`), `DashboardView.swift` (`58dc1ba15d5831625c85e9d80db6d588794b3515a6c306d29b8b3c5c60c92395`), `LovelaceViewNavigation.swift` (`20cde182e49d1d9ff0a04c8c2f563bdfd3425c6cc500a721d1a6111b54e0f2ba`), and `GraphTooltipFormatting.swift` (`12e1d9bc92b425bd3ee3419577f2b9d496f094c7e52363ff738263df2690fde4`): compact registry icon decode, state metadata, lifecycle/navigation, and locale/timezone seams.
 
 ## Dependency traces and boundaries
 
-The generated graph is [module-06.dependencies.md](../generated/module-06.dependencies.md): 138 nodes, 935 edges, three cycles, zero unresolved edges, no truncation, fingerprint `56047398f2b83803a1e665f2af353faf62e045936c4c598f24d0637b99e2494e`.
+The generated graph is [module-06.dependencies.md](../generated/module-06.dependencies.md): 138 nodes, 935 edges, three cycles, zero unresolved edges, no truncation, fingerprint `83b2f31867444282f31c97da1da732e5b401a9222792212102a9b514b4eac4ed`.
 
 - Card/row trace: `hui-entities-card` -> `process-config-entities`/
   `create-row-element` -> generic/simple/toggle row. It ends before lazy
@@ -124,18 +131,21 @@ The generated graph is [module-06.dependencies.md](../generated/module-06.depend
 
 ### Row selection and specialized-row boundary
 
-Explicit `type` wins; otherwise use the reference domain mapping. Module 06
-must classify every source row exactly once:
+Explicit `type` wins; otherwise the pinned reference
+`DOMAIN_TO_ELEMENT_TYPE` mapping classifies every source row exactly once. The
+grouped rows below are exhaustive for that mapping:
 
-| Input | Reference row | Module 06 result |
+| Implicit domain input | Exact reference element type | Module 06 result |
 |---|---|---|
-| No type; `alert`, `automation`, `fan`, `group`, `input_boolean`, `light`, `remote`, `siren`, `switch`, `vacuum` | toggle | Generic shell plus C06-07 power control. |
-| No type; `sensor` | sensor | Generic shell plus C06-04 formatted read-only state. |
-| No type; any unmapped domain, including current `binary_sensor` and `device_tracker` | simple fallback | Generic shell plus formatted read-only state. |
-| No type; current `climate` or `weather` | specialized climate/weather | Read-only generic shell, internally marked `deferredSpecialized`; no specialized controls. Module 10/07 owns parity. |
+| `_domain_not_found` and any unmapped domain, including current `binary_sensor` and `device_tracker` | `simple` | Generic shell plus formatted read-only state. |
+| `alert`, `automation`, `fan`, `input_boolean`, `light`, `remote`, `siren`, `switch`, `vacuum` | `toggle` | Generic shell plus C06-07 power control. These are the only nine implicit toggle domains. |
+| `sensor` | `sensor` | Generic shell plus C06-04 formatted read-only state. |
+| `climate`, `weather` | `climate`, `weather` | Read-only generic shell internally marked `deferredSpecialized`; no specialized controls. Modules 10 and 07 own parity. |
+| `button` | `button` | Visible unsupported-row diagnostic preserving raw identity. |
+| `cover`, `date`, `datetime`, `event`, `group`, `humidifier`, `input_button`, `input_datetime`, `input_number`, `input_select`, `input_text`, `lock`, `media_player`, `number`, `scene`, `script`, `select`, `text`, `time`, `timer`, `update`, `valve`, `water_heater` | respectively `cover`, `date`, `datetime`, `event`, `group`, `humidifier`, `input-button`, `input-datetime`, `input-number`, `input-select`, `input-text`, `lock`, `media-player`, `number`, `scene`, `script`, `select`, `text`, `time`, `timer`, `update`, `valve`, `climate` | Visible unsupported-row diagnostic preserving raw identity; never reinterpret as generic or actionable. In particular, implicit `group` is a specialized `group-entity` row, not a toggle row. |
 | Explicit `simple-entity` or `sensor-entity` | named row | Generic read-only shell. |
 | Explicit `toggle-entity` with a domain in the static row-route table | named row | Generic shell plus safe power control. |
-| Any other explicit built-in type, any custom type, missing entity/type, malformed row, or a specialized domain other than the two current read-only cases | specialized/structural/custom/error | One visible unsupported-row diagnostic preserving raw identity; never reinterpret it as a generic actionable row. |
+| Any other explicit built-in type, any custom type, missing entity/type, or malformed row | specialized/structural/custom/error | One visible unsupported-row diagnostic preserving raw identity; never reinterpret it as a generic actionable row. |
 
 `button`, `call-service`/`perform-action`, `buttons`, `conditional`, `divider`,
 `section`, `weblink`, `cast`, `attribute`, and `text` therefore remain preserved
@@ -314,6 +324,73 @@ Implementation sequence:
 4. Add integration, hosted GUI/accessibility, performance, and lifecycle
    coverage; run inherited 02/04/05/12/09 gates and a fresh verifier.
 
+## Implemented diff and independent-verification evidence
+
+The accepted implementation is exactly eleven files on top of research commit
+`9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e`:
+
+- production: `Sources/NativeHACore/Models.swift`,
+  `Sources/NativeHAMac/EntityRowPresentation.swift` (new),
+  `Sources/NativeHAMac/CardViews.swift`,
+  `Sources/NativeHAMac/DashboardViewModel.swift`, and
+  `Sources/NativeHAMac/LovelacePresentation.swift`;
+- tests: `Tests/NativeHACoreTests/LovelaceModelTests.swift`,
+  `Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift`,
+  `Tests/NativeHAMacTests/EntityRowPresentationTests.swift` (new),
+  `Tests/NativeHAMacTests/EntitiesCardIntegrationTests.swift` (new),
+  `Tests/NativeHAMacTests/EntitiesCardRenderingTests.swift` (new), and
+  `Tests/NativeHAMacTests/EntitiesCardPerformanceTests.swift` (new).
+
+Exact diff inspection found no WebSocket, REST client, service-controller,
+`AppConfig`, history, graph, navigation-persistence, package, reference-source,
+or durable-decision edit. The new presentation layer is pure and synchronous;
+the only bootstrap delta carries `ic` beside `dp` from the already-issued
+registry-display response at the existing accepted-generation install point.
+
+The fresh independent verifier returned **GO** for C06-01 through C06-11 after
+two P1 corrections: every implicit reference-specialized domain is now visible
+unsupported except the literal climate/weather deferred shells, and same-entity
+row-domain versus header-`homeassistant` equivalent power routes exclude one
+another in both directions before optimism/invocation while unrelated entity
+concurrency remains available. Evidence on 2026-09-01:
+
+- focused Module 06 suites: 27 executed, 27 passed, zero failure;
+- full debug suite: 260 executed plus three intentional opt-in skips, zero
+  failure, 84.98 seconds;
+- release compatibility: PASS on macOS 12.6.7 with Swift 5.6.1 and Xcode
+  13.4.1;
+- macOS-12 symbol probe: every preferred symbol resolved except `sensor`; that
+  request took the verified nonblank neutral `circle.grid.2x2` fallback;
+- GUI/accessibility: hosted dark-Aqua 2x captures passed at 496 and 320 points.
+  The 992x1040 PNG is 96,231 bytes and the 640x1040 PNG is 83,188 bytes.
+  Manual inspection confirmed nonblank semantic icons, long-name truncation,
+  distinct unknown/unavailable/missing rows, disabled and enabled switches,
+  preserved duplicate rows, and the visible unsupported-icon warning. Native
+  sibling targets, key-view order, Return/Space activation, values, help, and
+  disabled-control exclusion passed deterministic AppKit assertions;
+- performance: 500 mixed-row cold/warm presentation and 100-of-500 update
+  measurements consumed clock/CPU/memory results with `cache=none`; Module 06
+  adds no cache. There is no stored machine baseline yet, a recorded
+  non-blocking release limitation;
+- lifecycle: accepted-bootstrap precision/icon install, rejected/late
+  bootstrap exclusion, stop/reset, state-burst recomputation, source identity,
+  stopped/no-caller/unavailable gates, exact action-token ownership, and
+  same-entity power-family mutual exclusion passed without a formatter owner,
+  task, observer, timer, subscription, or aggregate header owner;
+- authorized read-only live smoke: 31 recursive cards and 66 rows matched the
+  fixed deployment; no service call, state-changing call, or persistent
+  navigation mutation was made;
+- migration/release scope: migration remains N/A because no persistence,
+  configuration, bootstrap-command, or raw-Lovelace schema changed.
+
+The two current PNGs were manually inspected against the packet's semantic
+matrix. A repeated browser side-by-side capture and an approved stored
+OS-labelled pixel baseline were not produced; this is non-blocking because the
+bounded native SF-symbol presentation is an approved staged deviation and the
+deterministic visual/accessibility assertions passed. It remains a limitation
+for later broader visual-parity work, not an unresolved Module 06 behavior or
+migration question.
+
 ## Decisions and native deviations
 
 | ID | Decision | Allowed reason / preserved semantics | Status |
@@ -330,7 +407,7 @@ No typed configuration, token/bootstrap, profile/settings, persistence, icon
 fetch policy, service safety policy, graph/range/history, or navigation product
 question remains unresolved.
 
-## Validation required for implementation/verification
+## Validation matrix satisfied by implementation and verification
 
 ### Offline deterministic
 
@@ -411,23 +488,36 @@ Lovelace; any discovered need for migration is a stop-and-research result.
 
 ## Handoff
 
-Verdict: **research-ready**, contract revision 1. The graph is green only after
-adding the audit's icon, registry-schema, unit-spacing, action, name,
-row-factory, header-batch, and badge runtime anchors. No material product,
-bootstrap, migration, or behavior question
-remains. The next action is one
-bounded Module 06 implementation writer using C06-01 through C06-11 in the
-listed order, followed by an entirely fresh independent verifier. Re-run the
-Module 06 checker and resolver first; do not repeat the broad reference audit
-while green. The verifier must specifically audit duplicate source identity,
-SF/MDI/macOS-12 fallback boundary, registry `ic` generation carry,
-locale/timezone/precision/unit spacing, exact header intent/candidate/checked/
-safe-dispatch split, inherited optimism/late ownership, structured names,
-secondary accessibility, action non-expansion, focus, and
-the absence of any new owner/feed/task/config/bootstrap change.
+Verdict: **complete / independently verified**, contract revision 2. C06-01
+through C06-11 are green, no material product/bootstrap/migration/behavior
+question remains, and the implementation contains no new owner, fetch,
+subscription, cache, persistence key, or `AppConfig` surface. The regenerated
+Module 06 graph is green at 138 nodes / 935 edges / three cycles / zero
+unresolved / not truncated, fingerprint
+`83b2f31867444282f31c97da1da732e5b401a9222792212102a9b514b4eac4ed`.
+The resolver self-test passes at 31 nodes / 61 edges, fingerprint
+`10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506`.
+
+The exact next staged action is **Module 07 research only**. Preserve the fixed
+single-server bootstrap, Module 04 raw/resolved identity, Module 05 lifecycle
+and service tail, Module 06 row presentation and deferred-specialized boundary,
+Module 12 navigation ownership, Core Graphics primary rendering, and the open
+Module 09 stale-viewport fallback. Do not begin Module 07 implementation,
+Module 08, broader Module 09, or Modules 10/11 until a bounded green Module 07
+evidence packet has been researched and independently audited.
 
 ## Change log
 
 - 2026-08-31: Initial revision 1 research packet, manifest, and green graph.
 - 2026-08-31: Independent-audit correction added exact row/icon/color/power/action/focus matrices, full hashes, bootstrap/specialized boundaries, and regenerated graph anchors; no user decision remained under the existing staged Module 06 plan.
 - 2026-08-31: Fresh-verifier correction added already-fetched registry `ic`, inherited optimistic-service ownership, self-contained structured names, exact literal/state/unit/secondary/header rules, and the macOS 12 SF-symbol availability gate.
+- 2026-09-01, contract revision 2: corrected the pinned implicit row-factory
+  matrix so `group`, `humidifier`, `valve`, and every other reference-specialized
+  implicit domain are visible unsupported; only nine toggle domains plus
+  `sensor`/unmapped simple remain generic, while literal climate/weather remain
+  deferred. Fresh independent re-verification also proved bidirectional
+  same-entity exclusion across row-domain and header-`homeassistant` power
+  routes. Focused 27/27, full 260 plus three skips, macOS-12 release/symbol,
+  GUI/accessibility, performance, lifecycle, read-only live, context, and
+  resolver gates passed. Status advanced to `complete`; Module 07 research only
+  is next.

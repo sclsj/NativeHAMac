@@ -100,16 +100,23 @@ enum LovelacePresentationTransformer {
         if sourceRows == nil, extraRows.isEmpty {
             effectiveRows = nil
         } else {
-            var seenEntities = Set<String>()
-            effectiveRows = (extraRows + (sourceRows ?? [])).filter { row in
+            let keptSourceRows = (sourceRows ?? []).filter { row in
+                guard appliesDefaultDashboardPolicy,
+                      let entityID = row.source.entity
+                else { return true }
+                return !AppConfig.hiddenEntityIDs.contains(entityID)
+            }
+            var representedEntities = Set(keptSourceRows.compactMap { $0.source.entity })
+            let keptExtraRows = extraRows.filter { row in
                 guard let entityID = row.source.entity else { return true }
                 if appliesDefaultDashboardPolicy,
                    AppConfig.hiddenEntityIDs.contains(entityID)
                 {
                     return false
                 }
-                return seenEntities.insert(entityID).inserted
+                return representedEntities.insert(entityID).inserted
             }
+            effectiveRows = keptExtraRows + keptSourceRows
         }
 
         let nested = resolved.cards.map {

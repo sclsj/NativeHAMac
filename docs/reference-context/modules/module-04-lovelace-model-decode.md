@@ -6,13 +6,13 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-04.dependencies.json
-graph_fingerprint: beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e
+graph_fingerprint: 33195ac9ea7aefa988fb0c70238ff53d2814a81607b6465e9a0eff4ae1bf7a5e
 last_researched: 2026-08-23
 last_implemented: 2026-08-23
 last_verified: 2026-08-25
-last_validated: 2026-08-31
+last_validated: 2026-09-01
 ---
 
 # Module 04 evidence packet
@@ -694,10 +694,10 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
 ## Research validation and handoff
 
 - Graph: green, 206 nodes / 2,724 edges, three cycles, zero unresolved edges,
-  no truncation, post-Module 05 fingerprint
-  `beb23e32ff5abc4c08ae9b58118e173986df4e48e8d2dfa28e0f11ce9605c63e`.
+  no truncation, post-Module 06 fingerprint
+  `33195ac9ea7aefa988fb0c70238ff53d2814a81607b6465e9a0eff4ae1bf7a5e`.
 - Resolver self-test: pass, 31 nodes / 61 edges, fingerprint
-  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+  `10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506`.
 - A fresh researcher reviewed the complete relevant current Swift and
   hass-frontend config/model/runtime sources and performed the read-only live
   shape smoke.
@@ -705,10 +705,12 @@ correctness and may not compare `contentRevision`, `firstTimestamp`, or
   returned GO with no material product question unresolved and supplied the
   exact C04-04 through C04-08 rules above.
 
-Verdict: **complete / independently verified**, with a green post-Module 05
+Verdict: **complete / independently verified**, with a green post-Module 06
 anchor handoff. Preserve these contracts in later work. Module 03 is
 intentionally skipped under the approved fixed-personal-deployment deviation;
-Module 05 is independently complete on the reviewed worktree. After the
-supervisor commits that exact tree, the next staged action is Module 06
-research under the fixed-server/no-profile assumption. Do not reopen Module 04
-or fold the separate Module 09 stale-viewport repair into this handoff.
+Modules 05 and 06 are independently complete on the reviewed worktree. Source
+duplicates now remain distinct while redundant synthetic insertions alone are
+suppressed, preserving C04 identity. After the supervisor commits that exact
+tree, the next staged action is Module 07 research only under the fixed-server/
+no-profile assumption. Do not reopen Module 04 or fold the separate Module 09
+stale-viewport repair into this handoff.

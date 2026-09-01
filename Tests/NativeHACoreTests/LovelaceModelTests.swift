@@ -3,6 +3,20 @@ import XCTest
 @testable import NativeHACore
 
 final class LovelaceModelTests: XCTestCase {
+    func testEntityRegistryDisplayDecodesCompactPrecisionAndIconWithoutExpandingSchema() throws {
+        let data = Data(#"{"entities":[{"ei":"sensor.room","dp":3,"ic":"mdi:thermometer","ai":"ignored"},{"ei":"switch.plug"}]}"#.utf8)
+        let response = try JSONDecoder().decode(HAEntityRegistryDisplayResponse.self, from: data)
+
+        XCTAssertEqual(response.entities, [
+            HAEntityRegistryDisplayEntry(
+                entityID: "sensor.room",
+                displayPrecision: 3,
+                icon: "mdi:thermometer"
+            ),
+            HAEntityRegistryDisplayEntry(entityID: "switch.plug"),
+        ])
+    }
+
     func testRepresentativeFixturePreservesRawAndTypedSurface() throws {
         let data = try fixture("representative-dashboard")
         let raw = try JSONDecoder().decode(JSONValue.self, from: data)

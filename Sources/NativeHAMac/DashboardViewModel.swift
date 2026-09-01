@@ -17,6 +17,7 @@ final class DashboardViewModel: ObservableObject {
     private(set) var homeAssistantConfig: HAConfig?
     private(set) var frontendLocalePreferences: HAFrontendLocalePreferences?
     private(set) var entityDisplayPrecisions: [String: Int] = [:]
+    private(set) var entityRegistryIcons: [String: String] = [:]
 
     private nonisolated let lifetimeAuthority: DashboardLifetimeAuthority
     private let emergencyOwnershipBag: DashboardEmergencyOwnershipBag
@@ -129,6 +130,7 @@ final class DashboardViewModel: ObservableObject {
         homeAssistantConfig: HAConfig? = nil,
         frontendLocalePreferences: HAFrontendLocalePreferences? = nil,
         entityDisplayPrecisions: [String: Int] = [:],
+        entityRegistryIcons: [String: String] = [:],
         currentUserID: String? = nil,
         navigationPreferenceStore: LovelaceNavigationPreferenceStore = UserDefaultsLovelaceNavigationPreferenceStore(),
         historyNow: @escaping @Sendable () -> Date = { Date() },
@@ -194,6 +196,7 @@ final class DashboardViewModel: ObservableObject {
         self.homeAssistantConfig = homeAssistantConfig
         self.frontendLocalePreferences = frontendLocalePreferences
         self.entityDisplayPrecisions = entityDisplayPrecisions
+        self.entityRegistryIcons = entityRegistryIcons
         self.historyNow = historyNow
         self.graphAxisTimeFormattingOverride = graphAxisTimeFormattingOverride
         self.historyProcessingHook = historyProcessingHook
@@ -543,35 +546,37 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func displayName(for entityID: String) -> String {
-        if
-            let nameValue = states[entityID]?.attributes["friendly_name"],
-            case let .string(name) = nameValue
-        {
-            return name
-        }
-
-        return entityID
-            .split(separator: ".")
-            .last
-            .map { String($0).replacingOccurrences(of: "_", with: " ").capitalized }
-            ?? entityID
+        EntityRowPresentationResolver.displayName(
+            entityID: entityID,
+            state: states[entityID]
+        )
     }
 
     func displayState(for entityID: String) -> String {
-        guard let state = states[entityID] else {
-            return "Unavailable"
-        }
+        EntityStateFormatter.display(
+            state: states[entityID],
+            entityID: entityID,
+            registryDisplayPrecision: entityDisplayPrecisions[entityID],
+            preferences: frontendLocalePreferences,
+            serverTimeZone: homeAssistantConfig?.timeZone,
+            now: historyNow()
+        ).text
+    }
 
-        var value = state.state
-        if let numeric = Double(value) {
-            value = formatNumber(numeric)
-        }
-
-        if let unit = unit(for: entityID), !unit.isEmpty {
-            return "\(value) \(unit)"
-        }
-
-        return value.replacingOccurrences(of: "_", with: " ")
+    func entityRowPresentation(
+        _ row: LovelacePresentationRow,
+        cardStateColor: Bool?
+    ) -> EntityRowPresentation {
+        EntityRowPresentationResolver.resolve(
+            row: row,
+            cardStateColor: cardStateColor,
+            states: states,
+            registryDisplayPrecisions: entityDisplayPrecisions,
+            registryIcons: entityRegistryIcons,
+            preferences: frontendLocalePreferences,
+            serverTimeZone: homeAssistantConfig?.timeZone,
+            now: historyNow()
+        )
     }
 
     func unit(for entityID: String) -> String? {
@@ -601,23 +606,30 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func canToggle(entityID: String) -> Bool {
-        switch domain(for: entityID) {
-        case "switch", "fan", "input_boolean", "automation":
-            return true
-        default:
-            return false
-        }
+        EntityRowPresentationResolver.rowPowerDomains.contains(domain(for: entityID))
     }
 
     func canControlPower(entityID: String) -> Bool {
-        guard canToggle(entityID: entityID) else { return false }
-        let service = isOn(entityID: entityID) ? "turn_off" : "turn_on"
-        return serviceController.canInvoke(
+        canSetRowPower(entityID: entityID, isOn: !isOn(entityID: entityID))
+    }
+
+    func canSetRowPower(entityID: String, isOn: Bool) -> Bool {
+        guard let route = EntityRowPresentationResolver.rowPowerRoute(
             entityID: entityID,
-            state: states[entityID],
-            domain: domain(for: entityID),
-            service: service
-        )
+            isOn: isOn
+        ) else { return false }
+        return canInvokePower(entityID: entityID, requestedRoute: route)
+    }
+
+    func canSetHeaderPower(entityIDs: [String], isOn: Bool) -> Bool {
+        let route = EntityRowPresentationResolver.headerPowerRoute(isOn: isOn)
+        return EntityRowPresentationResolver.headerTransitionTargets(
+            candidates: entityIDs,
+            states: states,
+            isOn: isOn
+        ).contains { entityID in
+            canInvokePower(entityID: entityID, requestedRoute: route)
+        }
     }
 
     func canInvokeService(entityID: String, domain: String, service: String) -> Bool {
@@ -630,45 +642,44 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func canSetFanPercentage(entityID: String, percentage: Int) -> Bool {
-        canInvokeService(
+        if percentage <= 0 {
+            return canSetRowPower(entityID: entityID, isOn: false)
+        }
+        return canInvokeService(
             entityID: entityID,
             domain: "fan",
-            service: percentage <= 0 ? "turn_off" : "set_percentage"
+            service: "set_percentage"
         )
     }
 
     func setPower(entityID: String, isOn: Bool) {
-        let domain = domain(for: entityID)
-        let service = isOn ? "turn_on" : "turn_off"
-        guard canToggle(entityID: entityID),
-              serviceController.canInvoke(
-                entityID: entityID,
-                state: states[entityID],
-                domain: domain,
-                service: service
-              )
+        guard let route = EntityRowPresentationResolver.rowPowerRoute(
+            entityID: entityID,
+            isOn: isOn
+        ),
+              canInvokePower(entityID: entityID, requestedRoute: route)
         else {
             return
         }
 
-        performPowerCall(entityID: entityID, isOn: isOn)
+        performPowerCall(entityID: entityID, isOn: isOn, route: route)
     }
 
     func setPower(entityIDs: [String], isOn: Bool) {
-        for entityID in entityIDs where canControlPower(entityID: entityID) {
-            performPowerCall(entityID: entityID, isOn: isOn)
+        let route = EntityRowPresentationResolver.headerPowerRoute(isOn: isOn)
+        let targets = EntityRowPresentationResolver.headerTransitionTargets(
+            candidates: entityIDs,
+            states: states,
+            isOn: isOn
+        )
+        for entityID in targets where canInvokePower(entityID: entityID, requestedRoute: route) {
+            performPowerCall(entityID: entityID, isOn: isOn, route: route)
         }
     }
 
     func setFanPercentage(entityID: String, percentage: Int) {
-        let service = percentage <= 0 ? "turn_off" : "set_percentage"
-        guard serviceController.canInvoke(
-            entityID: entityID,
-            state: states[entityID],
-            domain: "fan",
-            service: service
-        ) else { return }
         if percentage <= 0 {
+            guard canSetRowPower(entityID: entityID, isOn: false) else { return }
             performPowerCall(entityID: entityID, isOn: false)
             applyOptimisticAttributes(
                 entityID: entityID,
@@ -677,6 +688,13 @@ final class DashboardViewModel: ObservableObject {
             )
             return
         }
+        let service = "set_percentage"
+        guard serviceController.canInvoke(
+            entityID: entityID,
+            state: states[entityID],
+            domain: "fan",
+            service: service
+        ) else { return }
 
         applyOptimisticAttributes(
             entityID: entityID,
@@ -1193,10 +1211,10 @@ final class DashboardViewModel: ObservableObject {
                 localeResponse,
                 currentUserResponse
             )
+            let registryMetadata = entityRegistryPresentationMetadata(registry ?? nil)
             guard let candidate = weakModel.value?.prepareOwnedBootstrapCandidate(
                 sequence: start.sequence,
                 client: webSocket,
-                registry: registry ?? nil,
                 locale: locale ?? nil,
                 currentUserResult: currentUserResult,
                 weakModel: weakModel
@@ -1268,7 +1286,9 @@ final class DashboardViewModel: ObservableObject {
                 client: webSocket,
                 entityCoordinator: candidate,
                 lovelaceUpdateSubscription: updateSubscription,
-                entityProof: proof
+                entityProof: proof,
+                registryDisplayPrecisions: registryMetadata.precisions,
+                registryIcons: registryMetadata.icons
             ) == true else {
                 await updateSubscription.cancel()
                 await candidate.stop()
@@ -1336,17 +1356,11 @@ final class DashboardViewModel: ObservableObject {
     private func prepareOwnedBootstrapCandidate(
         sequence: UInt64,
         client: HomeAssistantWebSocketClient,
-        registry: HAEntityRegistryDisplayResponse?,
         locale: HAFrontendLocalePreferences?,
         currentUserResult: Result<HACurrentUser, Error>,
         weakModel: WeakDashboardViewModelBox
     ) -> HAEntitySubscriptionCoordinator? {
         guard isCurrentBootstrap(sequence, client: client) else { return nil }
-        entityDisplayPrecisions = Dictionary(uniqueKeysWithValues:
-            (registry?.entities ?? []).compactMap { entry in
-                entry.displayPrecision.map { (entry.entityID, $0) }
-            }
-        )
         frontendLocalePreferences = locale
         switch currentUserResult {
         case let .success(user): currentUserID = user.id
@@ -1402,6 +1416,8 @@ final class DashboardViewModel: ObservableObject {
         webSocketClient = nil
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
+        entityDisplayPrecisions = [:]
+        entityRegistryIcons = [:]
         retirement.statusTask?.cancel()
         return retirement
     }
@@ -1411,13 +1427,17 @@ final class DashboardViewModel: ObservableObject {
         client: HomeAssistantWebSocketClient,
         entityCoordinator candidate: HAEntitySubscriptionCoordinator,
         lovelaceUpdateSubscription: HAWebSocketSubscription,
-        entityProof: HAEntitySubscriptionInstallationProof
+        entityProof: HAEntitySubscriptionInstallationProof,
+        registryDisplayPrecisions: [String: Int],
+        registryIcons: [String: String]
     ) -> Bool {
         guard isCurrentBootstrap(sequence, client: client) else { return false }
         entityCoordinator = candidate
         latestBootstrapEntityCoordinator = nil
         self.lovelaceUpdateSubscription = lovelaceUpdateSubscription
         states = entityProof.snapshot
+        entityDisplayPrecisions = registryDisplayPrecisions
+        entityRegistryIcons = registryIcons
         webSocketClient = client
         installedBootstrapClient = client
         installedBootstrapSequence = sequence
@@ -1453,6 +1473,8 @@ final class DashboardViewModel: ObservableObject {
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
         latestBootstrapClient = nil
+        entityDisplayPrecisions = [:]
+        entityRegistryIcons = [:]
         failure.statusTask?.cancel()
         lifecycle.failBootstrap(error.localizedDescription)
         return failure
@@ -1521,11 +1543,7 @@ final class DashboardViewModel: ObservableObject {
                 await disconnectIfUnownedByCurrentBootstrap(webSocket)
                 return
             }
-            entityDisplayPrecisions = Dictionary(uniqueKeysWithValues:
-                (registry?.entities ?? []).compactMap { entry in
-                    entry.displayPrecision.map { (entry.entityID, $0) }
-                }
-            )
+            let registryMetadata = Self.entityRegistryPresentationMetadata(registry ?? nil)
             frontendLocalePreferences = locale ?? nil
             switch currentUserResult {
             case let .success(user):
@@ -1602,7 +1620,9 @@ final class DashboardViewModel: ObservableObject {
                 sequence: bootstrapSequence,
                 client: webSocket,
                 entityCoordinator: candidateEntityCoordinator,
-                lovelaceUpdateSubscription: candidateLovelaceSubscription
+                lovelaceUpdateSubscription: candidateLovelaceSubscription,
+                registryDisplayPrecisions: registryMetadata.precisions,
+                registryIcons: registryMetadata.icons
             )
             guard installed else { return }
 
@@ -1683,6 +1703,8 @@ final class DashboardViewModel: ObservableObject {
         webSocketClient = nil
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
+        entityDisplayPrecisions = [:]
+        entityRegistryIcons = [:]
         statusTask?.cancel()
         // stopSynchronously already advanced the action generation, removed
         // the caller/task registry, and cancelled these captured tasks before
@@ -1709,7 +1731,9 @@ final class DashboardViewModel: ObservableObject {
         sequence: UInt64,
         client: HomeAssistantWebSocketClient,
         entityCoordinator candidateEntityCoordinator: HAEntitySubscriptionCoordinator,
-        lovelaceUpdateSubscription candidateLovelaceSubscription: HAWebSocketSubscription
+        lovelaceUpdateSubscription candidateLovelaceSubscription: HAWebSocketSubscription,
+        registryDisplayPrecisions: [String: Int],
+        registryIcons: [String: String]
     ) async throws -> Bool {
         guard isCurrentBootstrap(sequence, client: client) else {
             await candidateEntityCoordinator.stop()
@@ -1728,6 +1752,8 @@ final class DashboardViewModel: ObservableObject {
         webSocketClient = nil
         installedBootstrapClient = nil
         installedBootstrapSequence = nil
+        entityDisplayPrecisions = [:]
+        entityRegistryIcons = [:]
         oldStatusTask?.cancel()
         await oldEntityCoordinator?.stop()
         await oldLovelaceSubscription?.cancel()
@@ -1759,6 +1785,8 @@ final class DashboardViewModel: ObservableObject {
         latestBootstrapEntityCoordinator = nil
         lovelaceUpdateSubscription = candidateLovelaceSubscription
         states = entityProof.snapshot
+        entityDisplayPrecisions = registryDisplayPrecisions
+        entityRegistryIcons = registryIcons
         webSocketClient = client
         installedBootstrapClient = client
         installedBootstrapSequence = sequence
@@ -2207,6 +2235,8 @@ final class DashboardViewModel: ObservableObject {
         installedBootstrapSequence = nil
         latestBootstrapClient = nil
         restClient = nil
+        entityDisplayPrecisions = [:]
+        entityRegistryIcons = [:]
 
         bootstrapTask?.cancel()
         statusTask?.cancel()
@@ -3058,22 +3088,53 @@ final class DashboardViewModel: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func performPowerCall(entityID: String, isOn: Bool) {
-        let service = isOn ? "turn_on" : "turn_off"
-        let domain = domain(for: entityID)
-        guard serviceController.canInvoke(
+    private static func entityRegistryPresentationMetadata(
+        _ registry: HAEntityRegistryDisplayResponse?
+    ) -> (precisions: [String: Int], icons: [String: String]) {
+        let entries = registry?.entities ?? []
+        return (
+            Dictionary(uniqueKeysWithValues: entries.compactMap { entry in
+                entry.displayPrecision.map { (entry.entityID, $0) }
+            }),
+            Dictionary(uniqueKeysWithValues: entries.compactMap { entry in
+                entry.icon.map { (entry.entityID, $0) }
+            })
+        )
+    }
+
+    private func performPowerCall(
+        entityID: String,
+        isOn: Bool,
+        route: EntityPowerRoute? = nil
+    ) {
+        guard let route = route ?? EntityRowPresentationResolver.rowPowerRoute(
             entityID: entityID,
-            state: states[entityID],
-            domain: domain,
-            service: service
+            isOn: isOn
         ) else { return }
+        guard canInvokePower(entityID: entityID, requestedRoute: route) else { return }
         applyOptimisticState(entityID: entityID, state: isOn ? "on" : "off")
         callService(
-            domain: domain,
-            service: service,
+            domain: route.domain,
+            service: route.service,
             data: ["entity_id": .string(entityID)],
             errorContext: "Service call failed for \(entityID)"
         )
+    }
+
+    private func canInvokePower(
+        entityID: String,
+        requestedRoute: EntityPowerRoute
+    ) -> Bool {
+        let routes = EntityRowPresentationResolver.equivalentPowerRoutes(entityID: entityID)
+        guard routes.contains(requestedRoute) else { return false }
+        return routes.allSatisfy { route in
+            serviceController.canInvoke(
+                entityID: entityID,
+                state: states[entityID],
+                domain: route.domain,
+                service: route.service
+            )
+        }
     }
 
     private func callService(

@@ -56,15 +56,18 @@ public struct HAEntityRegistryDisplayResponse: Decodable, Equatable {
 public struct HAEntityRegistryDisplayEntry: Decodable, Equatable {
     public let entityID: String
     public let displayPrecision: Int?
+    public let icon: String?
 
     private enum CodingKeys: String, CodingKey {
         case entityID = "ei"
         case displayPrecision = "dp"
+        case icon = "ic"
     }
 
-    public init(entityID: String, displayPrecision: Int? = nil) {
+    public init(entityID: String, displayPrecision: Int? = nil, icon: String? = nil) {
         self.entityID = entityID
         self.displayPrecision = displayPrecision
+        self.icon = icon
     }
 }
 

@@ -161,6 +161,63 @@ final class DashboardBootstrapLifecycleTests: XCTestCase {
         await latestClient.disconnect()
     }
 
+    func testRegistryPrecisionAndIconInstallOnlyWithAcceptedBootstrapAndResetTogether() async throws {
+        let obsoleteTransport = DashboardBootstrapTransport(
+            mode: .holdCurrentUser,
+            registryEntities: [
+                .object(["ei": .string("sensor.obsolete"), "dp": .int(9), "ic": .string("mdi:home")]),
+            ]
+        )
+        let acceptedTransport = DashboardBootstrapTransport(
+            mode: .success,
+            registryEntities: [
+                .object(["ei": .string("sensor.accepted"), "dp": .int(3), "ic": .string("mdi:thermometer")]),
+                .object(["ei": .string("switch.icon_only"), "ic": .string("mdi:toggle-switch")]),
+            ]
+        )
+        let obsoleteConnection = HomeAssistantWebSocketConnection(
+            accessToken: "obsolete-registry-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            transportFactory: { obsoleteTransport }
+        )
+        let acceptedConnection = HomeAssistantWebSocketConnection(
+            accessToken: "accepted-registry-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            transportFactory: { acceptedTransport }
+        )
+        let obsoleteClient = HomeAssistantWebSocketClient(connection: obsoleteConnection)
+        let acceptedClient = HomeAssistantWebSocketClient(connection: acceptedConnection)
+        let model = DashboardViewModel(
+            entityDisplayPrecisions: ["sensor.retained": 1],
+            entityRegistryIcons: ["sensor.retained": "mdi:battery"],
+            navigationPreferenceStore: BootstrapMemoryNavigationPreferenceStore()
+        )
+
+        let obsoleteTask = Task { try await model.bootstrapDashboard(using: obsoleteClient) }
+        try await waitForBootstrapCondition {
+            await obsoleteTransport.currentUserCommandCount() == 1
+        }
+        XCTAssertEqual(model.entityDisplayPrecisions, ["sensor.retained": 1])
+        XCTAssertEqual(model.entityRegistryIcons, ["sensor.retained": "mdi:battery"])
+
+        try await model.bootstrapDashboard(using: acceptedClient)
+        XCTAssertEqual(model.entityDisplayPrecisions, ["sensor.accepted": 3])
+        XCTAssertEqual(model.entityRegistryIcons, [
+            "sensor.accepted": "mdi:thermometer",
+            "switch.icon_only": "mdi:toggle-switch",
+        ])
+
+        try await obsoleteTransport.resolveHeldCurrentUser(id: "obsolete-user")
+        try await obsoleteTask.value
+        XCTAssertEqual(model.entityDisplayPrecisions, ["sensor.accepted": 3])
+        XCTAssertEqual(model.entityRegistryIcons["sensor.accepted"], "mdi:thermometer")
+        XCTAssertNil(model.entityRegistryIcons["sensor.obsolete"])
+
+        await model.stop()
+        XCTAssertTrue(model.entityDisplayPrecisions.isEmpty)
+        XCTAssertTrue(model.entityRegistryIcons.isEmpty)
+    }
+
     func testCurrentUserTimeoutIsNonfatalToPublicDashboardBootstrap() async throws {
         let transport = DashboardBootstrapTransport(mode: .holdCurrentUser)
         let connection = HomeAssistantWebSocketConnection(
@@ -2080,6 +2137,7 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
     private let dashboardTitle: String?
     private let successfulUserID: String
     private let dashboardCards: [JSONValue]
+    private let registryEntities: [JSONValue]
     private var connected = false
     private var inbound: [Result<HAWebSocketFrame, Error>] = []
     private var receiver: CheckedContinuation<HAWebSocketFrame, Error>?
@@ -2094,12 +2152,14 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
         dashboardTitle: String? = nil,
         successfulUserID: String = "user-1",
         dashboardCards: [JSONValue] = [],
+        registryEntities: [JSONValue] = [],
         holdHistoryAcknowledgements: Bool = false
     ) {
         self.mode = mode
         self.dashboardTitle = dashboardTitle
         self.successfulUserID = successfulUserID
         self.dashboardCards = dashboardCards
+        self.registryEntities = registryEntities
         self.historyAcknowledgementsHeld = holdHistoryAcknowledgements
     }
 
@@ -2197,7 +2257,7 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
                 try deliverSuccess(id: id, result: .object(["id": .string(successfulUserID)]))
             }
         case "config/entity_registry/list_for_display":
-            try deliverSuccess(id: id, result: .object(["entities": .array([])]))
+            try deliverSuccess(id: id, result: .object(["entities": .array(registryEntities)]))
         case "frontend/get_user_data":
             try deliverSuccess(id: id, result: .object(["value": .null]))
         case "subscribe_entities":

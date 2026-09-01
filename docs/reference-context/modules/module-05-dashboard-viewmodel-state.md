@@ -7,12 +7,13 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02", "04", "12"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-05.dependencies.json
-graph_fingerprint: 00efdbb8b3aad955689b9a4083320dc1c0151b6e60a5d6f8dc8f7c074f91402b
+graph_fingerprint: 8e8c877463d347ff5d664d537e12bd4662740907613542e6cf88c3dc767a8b52
 last_researched: 2026-08-25
 last_implemented: 2026-08-30
 last_verified: 2026-08-31
+last_validated: 2026-09-01
 ---
 
 # Module 05 evidence packet
@@ -2218,6 +2219,26 @@ complete accepted tree and confirm the worktree is clean. Only then may Module
 06 research begin under the fixed-server/no-profile assumption. Module 06
 implementation remains locked until its own research-ready handoff exists.
 
+## Bounded post-Module 06 anchor maintenance — 2026-09-01
+
+The accepted Module 06 diff changed five Module 05 native anchors: compact
+registry display metadata, dashboard presentation/service facade, entities-card
+rendering, source-row duplicate handling, and bootstrap lifecycle coverage.
+Exact diff inspection plus the fresh Module 06 lifecycle/service verification
+confirmed that C05-01 through C05-14 remain unchanged: `ic` installs and resets
+beside `dp` only at the accepted bootstrap generation, presentation adds no
+owner/task/subscription, and same-entity row/header service families are gated
+before optimism while unrelated entity concurrency remains.
+
+The regenerated Module 05 graph is GREEN at 130 nodes / 811 edges / one cycle /
+zero unresolved / not truncated, fingerprint
+`8e8c877463d347ff5d664d537e12bd4662740907613542e6cf88c3dc767a8b52`.
+The resolver passes at 31 nodes / 61 edges, fingerprint
+`10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506`.
+Status remains `complete` at contract revision 1. Module 06 is independently
+complete; after the supervisor commits the exact accepted tree, Module 07
+research only is next.
+
 ## Change log
 
 - 2026-08-25: Research revision 1 pins fixed-server scope, modern typed entity
@@ -2340,3 +2361,8 @@ implementation remains locked until its own research-ready handoff exists.
   finalized graphs. The Module 09 stale-viewport fallback remains open. The
   only remaining gate before Module 06 research is the exact-tree commit and
   clean-worktree confirmation.
+- 2026-09-01, contract revision 1 unchanged: inspected the five shared Module
+  06 anchors and regenerated a green 130-node / 811-edge graph. Verified
+  accepted-generation registry icon carry and power-family exclusion preserve
+  C05 lifecycle/service ownership. Status remains `complete`; Module 07
+  research only is next.

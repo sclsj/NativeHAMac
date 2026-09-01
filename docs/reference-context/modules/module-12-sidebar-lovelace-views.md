@@ -7,12 +7,12 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02", "04"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-12.dependencies.json
-graph_fingerprint: 7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4
+graph_fingerprint: 455c381fe0663a04a54adaad3a2786342f2eb6adaca86925d94cfc89fdfc2f64
 last_researched: 2026-08-25
 last_verified: 2026-08-25
-last_validated: 2026-08-31
+last_validated: 2026-09-01
 ---
 
 # Module 12 evidence packet
@@ -879,11 +879,11 @@ The implementation test/documentation surface is:
 - `docs/configurability.md` plus this Module 12 packet/index/generated graph if
   implementation changes their recorded anchors/status/evidence.
 
-Do not edit Module 03 or add settings/profile/token migration. Module 12 and
-Module 05 are independently complete on the reviewed worktree. After the
-supervisor commits that exact tree, the next staged action is Module 06
-research under the fixed-server/no-profile assumption; do not begin Module 06
-implementation until its own packet is `research-ready`.
+Do not edit Module 03 or add settings/profile/token migration. Modules 12, 05,
+and 06 are independently complete on the reviewed worktree. Module 06 preserves
+source-row identities and adds no navigation owner. After the supervisor
+commits that exact tree, the next staged action is Module 07 research only under
+the fixed-server/no-profile assumption.
 
 ## Research validation
 
@@ -900,11 +900,11 @@ implementation until its own packet is `research-ready`.
   current-user runtime tracing, fail-closed user-list eligibility, one-tail
   ordering, global-versus-view ownership, exact-revert, persistence, and cache
   rules now recorded above.
-- Post-Module 05 anchor graph: GREEN, 121 nodes / 901 edges, two cycles,
+- Post-Module 06 anchor graph: GREEN, 121 nodes / 901 edges, two cycles,
   zero unresolved, not truncated, fingerprint
-  `7da15bb1b6167de2da299a4c7201fcbef6a452e6e0504e23f09aed7da4c83dd4`;
+  `455c381fe0663a04a54adaad3a2786342f2eb6adaca86925d94cfc89fdfc2f64`;
   resolver PASS at
-  `da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d`.
+  `10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506`.
 
 ## Change log
 
@@ -929,3 +929,7 @@ implementation until its own packet is `research-ready`.
 - 2026-08-31, contract revision 1 unchanged: pinned the extracted Lovelace and
   history storage owners, inspected all nine shared Module 05 anchors, and
   regenerated a green 121-node / 901-edge graph. Status remains `complete`.
+- 2026-09-01, contract revision 1 unchanged: inspected the six shared Module
+  06 anchors, confirmed distinct source-row identity and unchanged view/card
+  ownership, and regenerated a green 121-node / 901-edge graph. Status remains
+  `complete`; Module 07 research only is next.

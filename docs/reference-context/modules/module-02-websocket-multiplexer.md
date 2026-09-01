@@ -7,10 +7,10 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: da06a3bfa032082ad19743e076372c8a73181f37d75f4f468b60395000afa13d
-last_validated: 2026-08-31
+graph_fingerprint: 10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506
+last_validated: 2026-09-01
 ---
 
 # Module 02 evidence packet
@@ -1227,14 +1227,14 @@ No Swift or test file was edited by this maintenance.
 
 ## Handoff
 
-Module 02 is complete and its post-Module 05 evidence graph is green. Preserve
+Module 02 is complete and its post-Module 06 evidence graph is green. Preserve
 the per-generation outbound FIFO, single receiver, bounded callback
 coordinator, direct typed owner-local decode, production receive cleanup,
 history opt-out, exact bootstrap generation/client guards, required-bootstrap
-failure cleanup, and 32 MiB large-frame policy in later modules. Module 05 is
-independently complete on the reviewed worktree. After the supervisor commits
-that exact tree, the next staged action is Module 06 research under the approved
-fixed-server/no-profile assumption, not further Module 02 redesign.
+failure cleanup, and 32 MiB large-frame policy in later modules. Modules 05 and
+06 are independently complete on the reviewed worktree. After the supervisor
+commits that exact tree, the next staged action is Module 07 research only under
+the approved fixed-server/no-profile assumption, not further Module 02 redesign.
 
 ## Change log
 
@@ -1336,3 +1336,8 @@ fixed-server/no-profile assumption, not further Module 02 redesign.
 - 2026-08-31: inspected the six shared Module 05 anchor changes, preserved all
   C02 revision-2 transport/bootstrap contracts, and regenerated a green
   31-node / 61-edge graph. Status remains `complete`.
+- 2026-09-01: inspected the three shared Module 06 anchors, including
+  accepted-generation registry metadata install/reset, and regenerated a green
+  31-node / 61-edge graph with fingerprint
+  `10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506`.
+  C02 revision 2 and transport/bootstrap ownership remain unchanged.

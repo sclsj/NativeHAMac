@@ -7,10 +7,10 @@ status: complete
 contract_revision: 3
 depends_on: ["02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-01.dependencies.json
-graph_fingerprint: 75ba7d234b0d5af43ac039dbd4776508dcf55e0315594ff81e0f35fa94c8116d
-last_validated: 2026-08-31
+graph_fingerprint: ee28b70f56a8bd2fccfe661db121866379622e4ce185aa5643f3c861a4c79140
+last_validated: 2026-09-01
 ---
 
 # Module 01 evidence packet
@@ -1840,15 +1840,15 @@ file was edited by this maintenance.
 ## Handoff
 
 Module 01 is independently `complete` at contract revision 3 and its
-post-Module 05 graph is green. Preserve exact resolved active-view history
+post-Module 06 graph is green. Preserve exact resolved active-view history
 identity, the unified dashboard-owner operation tail, post-await config/
 navigation/range/generation guards, direct typed transport, exact projection
 lineage, feed-before-`@Published`, reconnectable mounted chart lifecycles, Core
 Graphics, tooltip metadata, and the separate Module 09 fallback. Never infer
-freshness from hashes or endpoint timestamps. Module 05 is independently
-complete on the reviewed worktree. After the supervisor commits that exact
-tree, the next staged action is Module 06 research under the fixed-server/no-
-profile assumption.
+freshness from hashes or endpoint timestamps. Modules 05 and 06 are
+independently complete on the reviewed worktree. After the supervisor commits
+that exact tree, the next staged action is Module 07 research only under the
+fixed-server/no-profile assumption.
 
 ## Change log
 
@@ -1986,3 +1986,8 @@ profile assumption.
   inspected all ten shared Module 05 anchors, and regenerated a green
   21-node / 143-edge graph without changing C01 revision 3 or the open Module
   09 stale-viewport boundary. Status remains `complete`.
+- 2026-09-01: inspected the six shared Module 06 anchors and regenerated a
+  green 21-node / 143-edge graph with fingerprint
+  `ee28b70f56a8bd2fccfe661db121866379622e4ce185aa5643f3c861a4c79140`.
+  C01 revision 3 remains complete; Core Graphics and the separate Module 09
+  stale-viewport fallback are unchanged.

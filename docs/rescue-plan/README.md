@@ -16,10 +16,11 @@ reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
 - Module 12 is complete and independently re-verified at contract revision 1.
   Preserve its exact view/card identity, fixed-server navigation persistence,
   one-tail owner reconciliation, and accessibility contracts in later work.
-- Module 05 is complete and independently verified under the fixed-server
-  assumption. Module 06 research is now ready; preserve its bounded row
-  presentation contract, carry already-fetched registry `ic` without a new
-  command, and do not bypass the existing lifecycle/service tail.
+- Modules 05 and 06 are complete and independently verified under the fixed-
+  server assumption. Module 06 preserves source-row identity, implements the
+  bounded row presentation/action/power matrix, carries already-fetched
+  registry `ic` without a new command, and adds no owner, fetch, cache,
+  persistence key, or typed configuration surface.
 - The bounded Module 09 async repair remains correct, green, and separate from
   broader Module 09. A known stale-viewport request can still cause repeated
   safe off-main alignment/full-preparation fallback. Do not suppress it using
@@ -35,8 +36,10 @@ Implement in this order unless a future audit finds a blocker:
 3. Module 12: complete and independently re-verified.
 4. Module 05: complete and independently verified under the fixed-server
    assumption.
-5. Implement and independently verify Module 06 from its green evidence
-   packet, then continue card/detail modules `07`, `08`, `09`, `10`, `11`.
+5. Module 06: complete and independently verified at contract revision 2.
+6. Research Module 07 only. Do not implement it until its bounded packet and
+   independent audit are green; then continue card/detail modules `08`, `09`,
+   `10`, `11` in staged gates.
 
 Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 

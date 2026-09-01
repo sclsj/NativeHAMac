@@ -44,18 +44,15 @@ struct EntitiesCard: View {
         self.card = .standalone(card)
     }
 
-    private var entityIDs: [String] {
-        (card.rows ?? []).compactMap { row in
-            guard row.source.diagnostic == nil,
-                  let entityID = row.source.entity,
-                  !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            else { return nil }
-            return entityID
-        }
+    private var headerCandidates: [String] {
+        EntityRowPresentationResolver.headerCandidates(card: card, states: model.states)
     }
 
-    private var toggleableEntityIDs: [String] {
-        entityIDs.filter { model.canToggle(entityID: $0) }
+    private var headerIsOn: Bool {
+        EntityRowPresentationResolver.headerChecked(
+            candidates: headerCandidates,
+            states: model.states
+        )
     }
 
     var body: some View {
@@ -65,30 +62,32 @@ struct EntitiesCard: View {
                     CardTitle(title)
                 }
                 Spacer()
-                if toggleableEntityIDs.count > 1 {
-                    Toggle("", isOn: Binding(
-                        get: { model.allOn(entityIDs: toggleableEntityIDs) },
-                        set: { model.setPower(entityIDs: toggleableEntityIDs, isOn: $0) }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .disabled(toggleableEntityIDs.contains { !model.canControlPower(entityID: $0) })
+                if EntityRowPresentationResolver.headerConfiguredIntent(card: card),
+                   !headerCandidates.isEmpty
+                {
+                    EntityPowerSwitch(
+                        focusScope: card.nativeID,
+                        isOn: headerIsOn,
+                        isEnabled: model.canSetHeaderPower(
+                            entityIDs: headerCandidates,
+                            isOn: !headerIsOn
+                        ),
+                        accessibilityLabel: "Entities power",
+                        onChange: { model.setPower(entityIDs: headerCandidates, isOn: $0) }
+                    )
                 }
             }
             .padding(.bottom, 14)
 
             ForEach(card.rows ?? []) { row in
-                if let entityID = row.source.entity,
-                   row.source.diagnostic == nil,
-                   !entityID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                {
-                    EntityRow(
-                        entityID: entityID,
-                        name: row.source.name ?? model.displayName(for: entityID)
+                EntityRow(
+                    row: row,
+                    focusScope: card.nativeID,
+                    presentation: model.entityRowPresentation(
+                        row,
+                        cardStateColor: card.source.stateColor
                     )
-                } else {
-                    UnsupportedEntityRow(row: row)
-                }
+                )
 
                 if row.id != card.rows?.last?.id {
                     Divider()
@@ -97,59 +96,327 @@ struct EntitiesCard: View {
             }
         }
         .cardStyle()
+        .background(EntityFocusOrderCoordinator(focusScope: card.nativeID))
     }
 }
 
 struct EntityRow: View {
     @EnvironmentObject private var model: DashboardViewModel
-    let entityID: String
-    let name: String
+    let row: LovelacePresentationRow
+    let focusScope: String
+    let presentation: EntityRowPresentation
 
     var body: some View {
-        Button(action: {
+        HStack(spacing: 10) {
+            primaryTarget
+
+            if presentation.showsPowerControl, let entityID = presentation.entityID {
+                EntityPowerSwitch(
+                    focusScope: focusScope,
+                    isOn: presentation.powerIsOn,
+                    isEnabled: model.canSetRowPower(
+                        entityID: entityID,
+                        isOn: !presentation.powerIsOn
+                    ),
+                    accessibilityLabel: "\(presentation.name) power",
+                    onChange: { model.setPower(entityID: entityID, isOn: $0) }
+                )
+            }
+
+            if let warning = presentation.warningText {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.yellow)
+                    .help(warning)
+                    .accessibilityLabel(Text(warning))
+            }
+        }
+        .padding(.vertical, 11)
+    }
+
+    @ViewBuilder
+    private var primaryTarget: some View {
+        switch presentation.primaryAction {
+        case .details, .toggle:
+            rowContents
+                .overlay(
+                    EntityPrimaryActionTarget(
+                        focusScope: focusScope,
+                        accessibilityLabel: presentation.name,
+                        accessibilityValue: presentation.stateText,
+                        isEnabled: primaryIsEnabled,
+                        action: activatePrimary
+                    )
+                )
+        case .none, .unsupported:
+            rowContents
+        }
+    }
+
+    private var primaryIsEnabled: Bool {
+        switch presentation.primaryAction {
+        case .details:
+            return true
+        case let .toggle(isOn):
+            guard let entityID = presentation.entityID else { return false }
+            return model.canSetRowPower(entityID: entityID, isOn: isOn)
+        case .none, .unsupported:
+            return false
+        }
+    }
+
+    private func activatePrimary() {
+        switch presentation.primaryAction {
+        case let .details(entityID):
             model.openDetails(entityID: entityID)
-        }) {
-            HStack(spacing: 16) {
-                DomainIcon(entityID: entityID)
-                    .frame(width: 30, height: 30)
+        case let .toggle(isOn):
+            guard let entityID = presentation.entityID else { return }
+            model.setPower(entityID: entityID, isOn: isOn)
+        case .none, .unsupported:
+            break
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(name)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.86))
+    private var rowContents: some View {
+        HStack(spacing: 16) {
+            EntityPresentationIcon(icon: presentation.icon, colorRole: presentation.colorRole)
+                .frame(width: 30, height: 30)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(presentation.name)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.86))
+                    .lineLimit(1)
+                if let secondary = presentation.secondary {
+                    Text(secondary.visibleText)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.52))
                         .lineLimit(1)
-                    if model.showEntityIDs {
-                        Text(entityID)
-                            .font(.system(size: 11))
-                            .foregroundColor(.white.opacity(0.42))
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer()
-
-                if model.canToggle(entityID: entityID) {
-                    Toggle("", isOn: Binding(
-                        get: { model.isOn(entityID: entityID) },
-                        set: { model.setPower(entityID: entityID, isOn: $0) }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .disabled(!model.canControlPower(entityID: entityID))
-                    .onTapGesture {}
-                } else {
-                    Text(model.displayState(for: entityID))
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.78))
-                        .multilineTextAlignment(.trailing)
+                        .accessibilityLabel(Text(secondary.accessibilityLabel))
+                        .accessibilityValue(Text(secondary.accessibilityValue))
+                } else if model.showEntityIDs, let entityID = presentation.entityID {
+                    Text(entityID)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.42))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
                 }
             }
-            .contentShape(Rectangle())
-            .padding(.vertical, 11)
+
+            Spacer()
+
+            if !presentation.showsPowerControl {
+                Text(presentation.stateText)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(entityPresentationColor(presentation.colorRole))
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .accessibilityLabel(Text("State"))
+                    .accessibilityValue(Text(presentation.stateText))
+            }
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct EntityPowerSwitch: NSViewRepresentable {
+    let focusScope: String
+    let isOn: Bool
+    let isEnabled: Bool
+    let accessibilityLabel: String
+    let onChange: (Bool) -> Void
+
+    func makeNSView(context: Context) -> EntityPowerNSSwitch {
+        EntityPowerNSSwitch(frame: .zero)
+    }
+
+    func updateNSView(_ control: EntityPowerNSSwitch, context: Context) {
+        control.state = isOn ? .on : .off
+        control.focusScope = focusScope
+        control.isEnabled = isEnabled
+        control.actionHandler = onChange
+        control.setAccessibilityLabel(accessibilityLabel)
+        control.setAccessibilityValue(isOn ? "On" : "Off")
+        control.setAccessibilityHelp(isEnabled ? "Press Space to change power" : "Power control unavailable")
+    }
+}
+
+final class EntityPowerNSSwitch: NSSwitch {
+    var focusScope = ""
+    var actionHandler: ((Bool) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        target = self
+        action = #selector(changed)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        target = self
+        action = #selector(changed)
+    }
+
+    @objc private func changed() {
+        actionHandler?(state == .on)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        guard isEnabled, event.charactersIgnoringModifiers == " " else {
+            super.keyDown(with: event)
+            return
+        }
+        state = state == .on ? .off : .on
+        changed()
+    }
+}
+
+struct EntityPrimaryActionTarget: NSViewRepresentable {
+    let focusScope: String
+    let accessibilityLabel: String
+    let accessibilityValue: String
+    let isEnabled: Bool
+    let action: () -> Void
+
+    func makeNSView(context: Context) -> EntityPrimaryActionNSButton {
+        EntityPrimaryActionNSButton(frame: .zero)
+    }
+
+    func updateNSView(_ button: EntityPrimaryActionNSButton, context: Context) {
+        button.isEnabled = isEnabled
+        button.focusScope = focusScope
+        button.actionHandler = action
+        button.setAccessibilityLabel(accessibilityLabel)
+        button.setAccessibilityValue(accessibilityValue)
+        button.setAccessibilityHelp("Press Return or Space to activate")
+    }
+}
+
+final class EntityPrimaryActionNSButton: NSButton {
+    var focusScope = ""
+    var actionHandler: (() -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        title = ""
+        isBordered = false
+        isTransparent = true
+        setButtonType(.momentaryPushIn)
+        target = self
+        action = #selector(activate)
+    }
+
+    @objc private func activate() {
+        actionHandler?()
+    }
+
+    override func keyDown(with event: NSEvent) {
+        guard isEnabled,
+              event.charactersIgnoringModifiers == " " || event.charactersIgnoringModifiers == "\r"
+        else {
+            super.keyDown(with: event)
+            return
+        }
+        activate()
+    }
+}
+
+struct EntityFocusOrderCoordinator: NSViewRepresentable {
+    let focusScope: String
+
+    func makeNSView(context: Context) -> EntityFocusOrderNSView {
+        EntityFocusOrderNSView(frame: .zero)
+    }
+
+    func updateNSView(_ view: EntityFocusOrderNSView, context: Context) {
+        view.focusScope = focusScope
+        view.configureKeyViewOrder()
+    }
+}
+
+final class EntityFocusOrderNSView: NSView {
+    var focusScope = ""
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        configureKeyViewOrder()
+    }
+
+    override func layout() {
+        super.layout()
+        configureKeyViewOrder()
+    }
+
+    func configureKeyViewOrder() {
+        guard !focusScope.isEmpty, let root = window?.contentView else { return }
+        var controls: [NSView] = []
+        func collect(_ view: NSView) {
+            if let control = view as? EntityPowerNSSwitch,
+               control.focusScope == focusScope, control.isEnabled
+            {
+                controls.append(control)
+            } else if let control = view as? EntityPrimaryActionNSButton,
+                      control.focusScope == focusScope, control.isEnabled
+            {
+                controls.append(control)
+            }
+            for subview in view.subviews { collect(subview) }
+        }
+        collect(root)
+        controls.sort { lhs, rhs in
+            let left = lhs.convert(lhs.bounds, to: root)
+            let right = rhs.convert(rhs.bounds, to: root)
+            if abs(left.midY - right.midY) > 2 {
+                return root.isFlipped ? left.midY < right.midY : left.midY > right.midY
+            }
+            return left.minX < right.minX
+        }
+        for (current, next) in zip(controls, controls.dropFirst()) {
+            current.nextKeyView = next
+        }
+    }
+}
+
+struct EntityPresentationIcon: View {
+    let icon: EntityIconPresentation
+    let colorRole: EntityStateColorRole
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(entityPresentationColor(colorRole).opacity(0.13))
+            if let symbolName = icon.symbolName {
+                Image(systemName: symbolName)
+                    .font(.system(size: 16, weight: .semibold))
+            } else {
+                Text(icon.fallbackText ?? "?")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+        }
+        .foregroundColor(entityPresentationColor(colorRole))
+        .accessibilityLabel(Text(icon.semanticLabel))
+    }
+}
+
+func entityPresentationColor(_ role: EntityStateColorRole) -> Color {
+    switch role {
+    case .normal: return Color.white.opacity(0.78)
+    case .unavailable: return Color.gray
+    case .inactive: return Color.white.opacity(0.45)
+    case .active: return Color(red: 0.24, green: 0.68, blue: 0.95)
+    case .batteryHigh: return Color(red: 0.2, green: 0.72, blue: 0.38)
+    case .batteryMedium: return Color.yellow
+    case .batteryLow: return Color.red
     }
 }
 

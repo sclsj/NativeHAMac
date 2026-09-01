@@ -6,7 +6,8 @@
     { "path": "Sources/NativeHACore/Models.swift", "symbols": ["HAState", "HAEntityRegistryDisplayResponse", "HAEntityRegistryDisplayEntry", "HAFrontendLocalePreferences", "HAConfig"] },
     { "path": "Sources/NativeHACore/LovelaceModels.swift", "symbols": ["LovelaceCard", "LovelaceEntityRef", "LovelaceResolvedIdentity", "LovelaceResolvedRow"] },
     { "path": "Sources/NativeHAMac/AppConfig.swift", "symbols": ["AppConfig"] },
-    { "path": "Sources/NativeHAMac/CardViews.swift", "symbols": ["CardRenderer", "EntitiesCard", "EntityRow", "DomainIcon", "UnsupportedEntityRow", "EntityDetailSheet"] },
+    { "path": "Sources/NativeHAMac/CardViews.swift", "symbols": ["CardRenderer", "EntitiesCard", "EntityRow", "EntityPowerSwitch", "EntityPrimaryActionTarget", "EntityFocusOrderCoordinator", "EntityPresentationIcon", "EntityDetailSheet"] },
+    { "path": "Sources/NativeHAMac/EntityRowPresentation.swift", "symbols": ["EntityRowPresentation", "EntityRowPresentationResolver", "EntityStateFormatter", "EntityPowerRoute"] },
     { "path": "Sources/NativeHAMac/DashboardViewModel.swift", "symbols": ["DashboardViewModel"] },
     { "path": "Sources/NativeHAMac/DashboardServiceController.swift", "symbols": ["DashboardServiceController", "DashboardServiceAction"] },
     { "path": "Sources/NativeHAMac/HAEntityStore.swift", "symbols": ["HAEntityStore"] },
@@ -21,7 +22,11 @@
     { "path": "Tests/NativeHAMacTests/DashboardServiceControllerTests.swift", "symbols": ["DashboardServiceControllerTests"] },
     { "path": "Tests/NativeHAMacTests/GUIRenderingAndPerformanceTests.swift", "symbols": ["GUIRenderingAndPerformanceTests"] },
     { "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift", "symbols": ["LovelacePresentationTests"] },
-    { "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift", "symbols": ["DashboardBootstrapLifecycleTests"] }
+    { "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift", "symbols": ["DashboardBootstrapLifecycleTests"] },
+    { "path": "Tests/NativeHAMacTests/EntityRowPresentationTests.swift", "symbols": ["EntityRowPresentationTests"] },
+    { "path": "Tests/NativeHAMacTests/EntitiesCardIntegrationTests.swift", "symbols": ["EntitiesCardIntegrationTests"] },
+    { "path": "Tests/NativeHAMacTests/EntitiesCardRenderingTests.swift", "symbols": ["EntitiesCardRenderingTests"] },
+    { "path": "Tests/NativeHAMacTests/EntitiesCardPerformanceTests.swift", "symbols": ["EntitiesCardPerformanceTests"] }
   ],
   "entries": [
     { "path": "src/panels/lovelace/cards/hui-entities-card.ts", "symbols": ["HuiEntitiesCard", "computeShowHeaderToggle", "migrateEntitiesCardConfig"] },

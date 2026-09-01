@@ -7,10 +7,10 @@ status: bounded-async-repair-verified-open-stale-viewport-fallback-broader-modul
 contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 8b82688689af2e7284dd5d7c00308b4937c7cc96
+nativeha_revision: 9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: da934dc5939cea850cf2c1eb9567350ce240c8f59e71a3d6a378fa9982259c8a
-last_validated: 2026-08-31
+graph_fingerprint: cb7d9ccb260785fef2e01d2209b707e0595264b46c2fcc439d7344b241b1e0e5
+last_validated: 2026-09-01
 ---
 
 # Module 09 bounded async-repair evidence
@@ -254,13 +254,14 @@ was edited by this maintenance.
 ## Handoff
 
 The bounded async rolling-revision repair is implemented, independently
-verified, and green after Module 05 anchor refresh, with the stale-viewport
+verified, and green after Module 06 anchor refresh, with the stale-viewport
 fallback above still open. It should be fixed before calling the daily PoC
 graph path performance-stable. Keep broader Module 09 unresearched/incomplete
 and return to the user's staged sequence: after the supervisor commits the
-accepted Module 05 tree, Module 06 research is next. A later explicitly scoped
-Module 09 task may address coordinator provenance, chunked/ring rolling
-storage, or visual parity.
+accepted Module 06 tree, Module 07 research only is next. A later explicitly
+scoped Module 09 task may address coordinator provenance, chunked/ring rolling
+storage, or visual parity. Never infer viewport freshness or ancestry from a
+content hash, `contentRevision`, or endpoint timestamp.
 
 ## Change log
 
@@ -282,3 +283,8 @@ storage, or visual parity.
   history-startup symbols, inspected seven advanced anchors, and regenerated a
   green 41-node / 241-edge graph. The bounded repair remains verified; the
   stale-viewport fallback and broader Module 09 remain open.
+- 2026-09-01: inspected the three shared Module 06 anchors and regenerated a
+  green 41-node / 241-edge graph with fingerprint
+  `cb7d9ccb260785fef2e01d2209b707e0595264b46c2fcc439d7344b241b1e0e5`.
+  Core Graphics remains primary; the stale-viewport fallback and broader
+  Module 09 remain explicitly open.
