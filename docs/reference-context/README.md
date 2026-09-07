@@ -1,13 +1,8 @@
 # NativeHA reference-context index
 
-This directory is the durable handoff between read-heavy reference research and
-Swift implementation. The rescue plans define scope and intended architecture;
-the files here record revision-pinned evidence, current contract status, and the
-exact next action.
+This directory is the durable handoff between read-heavy reference research and Swift implementation. The rescue plans define scope and intended architecture; the files here record revision-pinned evidence, current contract status, and the exact next action.
 
-Do not copy generated dependency graphs into prompts or evidence packets. Run
-the staleness check, then read only the packet and the graph nodes named by the
-packet.
+Do not copy generated dependency graphs into prompts or evidence packets. Run the staleness check, then read only the packet and the graph nodes named by the packet.
 
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
 |---|---|---|---|---|---|
@@ -18,7 +13,7 @@ packet.
 | 12 | [Sidebar and views](../rescue-plan/module-12-sidebar-lovelace-views.md) | [Module 12 evidence](modules/module-12-sidebar-lovelace-views.md) | complete; post-Module 06 anchor refresh green | 1 / Requires 04; preserves 01 and 02 | Preserve exact view/card identity and unified ownership in later modules |
 | 05 | [Dashboard state](../rescue-plan/module-05-dashboard-viewmodel-state.md) | [Module 05 evidence](modules/module-05-dashboard-viewmodel-state.md) | complete; independent verification and post-Module 06 graph green | 1 / Complete 01, 02, 04, and independently verified 12 | Preserve lifecycle/entity/service ownership in later modules |
 | 06 | [Entity display](../rescue-plan/module-06-entities-state-display.md) | [Module 06 evidence](modules/module-06-entities-state-display.md) | complete; independently verified; inherited graphs green | 2 / Complete 04 and 05 | Preserve exact row presentation, duplicate identity, static safe power routing, and accepted-generation `ic` carry |
-| 07 | [Weather](../rescue-plan/module-07-weather-card.md) | not created | unresearched; next gate | Requires 02, 04, 05, and preserves 06 row boundary | Research only; do not implement until its packet is green |
+| 07 | [Weather](../rescue-plan/module-07-weather-card.md) | [Module 07 evidence](modules/module-07-weather-card.md) | research-ready; current-conditions milestone only | 1 / Complete 02, 04, 05, 06, and 12 | Implement C07-01–08 and C07-11 with reference-parity sentinel actions; forecast C07-09/10 remains designed but deferred |
 | 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | not created | unresearched | Requires 02 and 04 | Card/detail phase |
 | 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | [Module 09 bounded async-repair evidence](modules/module-09-graph-rendering.md) | bounded async repair verified; post-Module 06 graph green; stale-viewport fallback open; broader module unresearched | 3 / Module 01 implementation complete | Keep the correctness-safe fallback; later repair stale visual inputs with coordinator-owned provenance, not hash/timestamp ordering |
 | 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 05 and 06; fixed-server assumption replaces 03 | Card/detail phase |
@@ -26,16 +21,11 @@ packet.
 
 ## Files
 
-- [`module-workflow.md`](module-workflow.md): researcher, implementer, and
-  verifier responsibilities plus copyable prompts.
-- [`evidence-packet-template.md`](evidence-packet-template.md): canonical human
-  packet structure for later modules.
-- [`manifests/`](manifests/): reviewed TypeScript/runtime seeds and traversal
-  boundaries.
-- [`generated/`](generated/): deterministic dependency graphs. These are
-  rebuildable candidate-discovery artifacts, not behavioral conclusions.
-- Root `AGENTS.md`: concise phase routing and maintenance rules for this richer
-  workflow. Keep operational detail here rather than expanding root context.
+- [`module-workflow.md`](module-workflow.md): researcher, implementer, and verifier responsibilities plus copyable prompts.
+- [`evidence-packet-template.md`](evidence-packet-template.md): canonical human packet structure for later modules.
+- [`manifests/`](manifests/): reviewed TypeScript/runtime seeds and traversal boundaries.
+- [`generated/`](generated/): deterministic dependency graphs. These are rebuildable candidate-discovery artifacts, not behavioral conclusions.
+- Root `AGENTS.md`: concise phase routing and maintenance rules for this richer workflow. Keep operational detail here rather than expanding root context.
 
 ## Module 02 commands
 
@@ -51,6 +41,4 @@ node tools/reference-context/trace-ts-deps.mjs \
 node tools/reference-context/test-resolver.mjs
 ```
 
-Run the checker first. Rebuild only on yellow/red or after deliberately changing
-the manifest/resolver. A moved reference `HEAD` alone does not invalidate the
-packet; anchored content hashes decide whether targeted research is required.
+Run the checker first. Rebuild only on yellow/red or after deliberately changing the manifest/resolver. A moved reference `HEAD` alone does not invalidate the packet; anchored content hashes decide whether targeted research is required.
