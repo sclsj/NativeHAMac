@@ -1,31 +1,15 @@
 # NativeHA Rescue Plan Index
 
-This directory contains implementation plans. NativeHA is a WIP Swift-native
-Home Assistant frontend; the current readiness audit follows the verified
-reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is
-`/Users/jin/Documents/HA/hass-frontend`.
+This directory contains implementation plans. NativeHA is a WIP Swift-native Home Assistant frontend; the current readiness audit follows the verified reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is `/Users/jin/Documents/HA/hass-frontend`.
 
 ## Current Readiness
 
-- Modules 02, 01, and 04 are complete and independently green. Their evidence
-  packets are the implementation authority for transport, history/feed/render
-  ownership, and exact Lovelace view/card identity.
-- Module 03 is intentionally skipped, not complete. NativeHA targets one fixed
-  personal deployment and keeps the existing token/bootstrap path without a
-  profile store, switching, migration, or settings UI.
-- Module 12 is complete and independently re-verified at contract revision 1.
-  Preserve its exact view/card identity, fixed-server navigation persistence,
-  one-tail owner reconciliation, and accessibility contracts in later work.
-- Modules 05 and 06 are complete and independently verified under the fixed-
-  server assumption. Module 06 preserves source-row identity, implements the
-  bounded row presentation/action/power matrix, carries already-fetched
-  registry `ic` without a new command, and adds no owner, fetch, cache,
-  persistence key, or typed configuration surface.
-- The bounded Module 09 async repair remains correct, green, and separate from
-  broader Module 09. A known stale-viewport request can still cause repeated
-  safe off-main alignment/full-preparation fallback. Do not suppress it using
-  numeric ordering of content hashes or endpoint timestamps; a future bounded
-  repair needs coordinator-owned revision provenance.
+- Modules 02, 01, and 04 are complete and independently green. Their evidence packets are the implementation authority for transport, history/feed/render ownership, and exact Lovelace view/card identity.
+- Module 03 is intentionally skipped, not complete. NativeHA targets one fixed personal deployment and keeps the existing token/bootstrap path without a profile store, switching, migration, or settings UI.
+- Module 12 is complete and independently re-verified at contract revision 1. Preserve its exact view/card identity, fixed-server navigation persistence, one-tail owner reconciliation, and accessibility contracts in later work.
+- Modules 05 and 06 are complete and independently verified under the fixed- server assumption. Module 06 preserves source-row identity, implements the bounded row presentation/action/power matrix, carries already-fetched registry `ic` without a new command, and adds no owner, fetch, cache, persistence key, or typed configuration surface.
+- Module 07 current conditions are complete and independently verified at contract revision 1. C07-01 through C07-08 and C07-11 are delivered; forecast contracts C07-09/10 remain explicitly deferred at zero command, task, owner, UI, and storage surfaces.
+- The bounded Module 09 async repair remains correct, green, and separate from broader Module 09. A known stale-viewport request can still cause repeated safe off-main alignment/full-preparation fallback. Do not suppress it using numeric ordering of content hashes or endpoint timestamps; a future bounded repair needs coordinator-owned revision provenance.
 
 ## Module Order
 
@@ -34,12 +18,10 @@ Implement in this order unless a future audit finds a blocker:
 1. Modules 02, 01, and 04: complete and green.
 2. Module 03: intentionally skipped under the fixed-deployment deviation.
 3. Module 12: complete and independently re-verified.
-4. Module 05: complete and independently verified under the fixed-server
-   assumption.
+4. Module 05: complete and independently verified under the fixed-server assumption.
 5. Module 06: complete and independently verified at contract revision 2.
-6. Research Module 07 only. Do not implement it until its bounded packet and
-   independent audit are green; then continue card/detail modules `08`, `09`,
-   `10`, `11` in staged gates.
+6. Module 07 current conditions: complete and independently verified; forecast remains deferred and must not be described as delivered.
+7. Research Module 08 only. Do not implement it until its bounded packet and independent audit are green; then continue remaining modules in staged gates.
 
 Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 

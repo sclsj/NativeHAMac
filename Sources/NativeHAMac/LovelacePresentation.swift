@@ -21,7 +21,17 @@ struct LovelacePresentationCard: Equatable, Identifiable {
     var title: String? { source.title }
     var entity: String? { source.entity }
     var hoursToShow: Int? { source.hoursToShow }
+    var showCurrent: Bool? { source.showCurrent }
     var showForecast: Bool? { source.showForecast }
+    var forecastType: String? { source.forecastType }
+    var forecastSlots: Int? { source.forecastSlots }
+    var secondaryInfoAttribute: String? { source.secondaryInfoAttribute }
+    var roundTemperature: Bool? { source.roundTemperature }
+    var name: String? { source.name }
+    var nameValue: JSONValue? { source.nameValue }
+    var tapAction: JSONValue? { source.tapAction }
+    var holdAction: JSONValue? { source.holdAction }
+    var doubleTapAction: JSONValue? { source.doubleTapAction }
     var content: String? { source.content }
     var entities: [LovelaceEntityRef]? { rows?.map(\.source) }
 

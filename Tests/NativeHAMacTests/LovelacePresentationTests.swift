@@ -93,6 +93,50 @@ final class LovelacePresentationTests: XCTestCase {
         XCTAssertNil(LovelaceCard(type: "weather-forecast").showForecast)
     }
 
+    func testWeatherProjectionExposesExactConfigurationWithoutChangingIdentity() throws {
+        let raw: JSONValue = .object([
+            "views": .array([.object([
+                "title": .string("Weather"),
+                "cards": .array([.object([
+                    "type": .string("weather-forecast"),
+                    "entity": .string("weather.home"),
+                    "name": .string(""),
+                    "show_current": .bool(false),
+                    "show_forecast": .bool(true),
+                    "forecast_type": .string("twice_daily"),
+                    "forecast_slots": .int(-2),
+                    "secondary_info_attribute": .string("pressure"),
+                    "round_temperature": .bool(true),
+                    "tap_action": .object(["action": .string("more-info")]),
+                    "hold_action": .object(["action": .string("none")]),
+                    "double_tap_action": .object(["action": .string("none")]),
+                ])]),
+            ])]),
+        ])
+        let config = try JSONDecoder().decode(
+            LovelaceConfig.self,
+            from: JSONEncoder().encode(raw)
+        )
+        let resolved = LovelaceResolvedDashboard(source: config).views[0].cards[0]
+        let card = LovelacePresentationDashboard(
+            resolved: LovelaceResolvedDashboard(source: config)
+        ).views[0].cards[0]
+
+        XCTAssertEqual(card.identity, resolved.identity)
+        XCTAssertEqual(card.entity, "weather.home")
+        XCTAssertEqual(card.name, "")
+        XCTAssertEqual(card.nameValue, .string(""))
+        XCTAssertEqual(card.showCurrent, false)
+        XCTAssertEqual(card.showForecast, true)
+        XCTAssertEqual(card.forecastType, "twice_daily")
+        XCTAssertEqual(card.forecastSlots, -2)
+        XCTAssertEqual(card.secondaryInfoAttribute, "pressure")
+        XCTAssertEqual(card.roundTemperature, true)
+        XCTAssertNotNil(card.tapAction)
+        XCTAssertNotNil(card.holdAction)
+        XCTAssertNotNil(card.doubleTapAction)
+    }
+
     func testMalformedPresentationKeepsLocalPlaceholdersAndValidSiblings() throws {
         let config = try fixtureConfig("malformed-configurations")
         let presentation = LovelacePresentationDashboard(

@@ -3,15 +3,17 @@ schema: nativeha-evidence/v1
 module: "07"
 title: Weather card current conditions and forecast ownership
 plan: ../../rescue-plan/module-07-weather-card.md
-status: research-ready
+status: complete
 contract_revision: 1
 depends_on: ["02", "04", "05", "06", "12"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 2e9888267d06a92c1a832f6fdabc666fb5d0235f
+nativeha_revision: fdb6264ce42faf974f7748a399f614d16f1615a5
 graph_file: ../generated/module-07.dependencies.json
-graph_fingerprint: 329380ee9ac2439d2d70e9396be9d996ab3f4863030ed799edadb5b57deb0774
+graph_fingerprint: 37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28
 last_researched: 2026-09-07
-last_validated: 2026-09-07
+last_implemented: 2026-09-07
+last_verified: 2026-09-08
+last_validated: 2026-09-08
 ---
 
 # Module 07 evidence packet
@@ -76,7 +78,7 @@ Reference checkout is clean at `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`. Conte
 | `src/panels/lovelace/common/has-action.ts`: `hasAction` | `fdae56ecfe56a485528bbc75882f002b4afe3a455bb13eeef19423f9bc211466` | An explicit action other than `none`, including malformed/unsupported action kinds, remains an action and therefore does not become default more-info. |
 | npm `home-assistant-js-websocket@9.6.0`, `dist/connection.js`: `Connection.subscribeMessage` | `884929a38078cc51cb47b0d7d8a821ef99bc784bcd50792bf9b044f936db69e8` | Generic reconnect/resubscribe and unsubscribe ownership behind the imported interface. |
 
-The complete reviewed dependency graph is [`module-07.dependencies.json`](../generated/module-07.dependencies.json): 127 nodes, 814 edges, five recorded cycles, zero unresolved entries, zero missing symbols, no truncation, fingerprint `329380ee9ac2439d2d70e9396be9d996ab3f4863030ed799edadb5b57deb0774`. The explicit npm runtime seed is required because `weather.ts` calls through an imported `Connection` interface; a static source-only trace would not prove the resubscription behavior. Traversal stops after the weather card's direct render/format/action dependencies and the connection runtime; editor form internals in recorded cycles do not decide runtime card behavior.
+The complete reviewed dependency graph is [`module-07.dependencies.json`](../generated/module-07.dependencies.json): 127 nodes, 814 edges, five recorded cycles, zero unresolved entries, zero missing symbols, no truncation, fingerprint `37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28`. The explicit npm runtime seed is required because `weather.ts` calls through an imported `Connection` interface; a static source-only trace would not prove the resubscription behavior. Traversal stops after the weather card's direct render/format/action dependencies and the connection runtime; editor form internals in recorded cycles do not decide runtime card behavior.
 
 ## Native mapping and implementation order
 
@@ -132,10 +134,46 @@ Stop and ask before changing observable action semantics beyond C07-06/07, addin
 
 ## Exact handoff
 
-The next action is a fresh Module 07 current-conditions implementer. Run the Module 07 checker and resolver, read this packet and cited anchors, implement C07-01 through C07-08 and C07-11 in the listed order and permitted files, then set this packet to `verification-ready` with the exact diff/tests/artifacts. Do not implement C07-09/10; their only current test is zero forecast ownership. A separate read-only verifier must return GO before the module becomes complete or Module 08 begins.
+Module 07 current conditions are **complete and independently verified** at contract revision 1. C07-01 through C07-08 and C07-11 are delivered. C07-09/10 remain explicitly deferred, with zero forecast commands, tasks, owners, UI, or storage; do not describe forecast support as delivered.
+
+The exact next staged action is **Module 08 research only**. Create and independently audit its bounded packet before any Markdown-card implementation. Preserve the fixed-server bootstrap, exact Module 04/12 identity, Module 05 lifecycle/service tail, Module 06 generic-row boundary, Module 07 current- condition behavior and zero forecast ownership, Core Graphics as primary renderer, and the separate open Module 09 stale-viewport fallback. Do not begin Module 08 implementation, broader Module 09, or Modules 10/11 until that research gate is green.
+
+## Implementation and independent verification evidence
+
+The implementation is based on research commit `fdb6264ce42faf974f7748a399f614d16f1615a5`. The fresh verifier inspected the exact 17-file pre-finalization candidate:
+
+- production: `Sources/NativeHACore/LovelaceModels.swift`, `Sources/NativeHACore/Models.swift`, `Sources/NativeHAMac/CardViews.swift`, `Sources/NativeHAMac/LovelacePresentation.swift`, `Sources/NativeHAMac/WeatherIconResolver.swift`, and `Sources/NativeHAMac/WeatherPresentation.swift`;
+- tests: `Tests/NativeHACoreTests/LovelaceModelTests.swift`, `Tests/NativeHAMacTests/LovelacePresentationTests.swift`, `Tests/NativeHAMacTests/WeatherCardIntegrationTests.swift`, `Tests/NativeHAMacTests/WeatherCardPerformanceTests.swift`, `Tests/NativeHAMacTests/WeatherCardRenderingTests.swift`, `Tests/NativeHAMacTests/WeatherIconResolverTests.swift`, and `Tests/NativeHAMacTests/WeatherPresentationTests.swift`;
+- evidence: `docs/reference-context/README.md`, `docs/reference-context/generated/module-07.dependencies.json`, `docs/reference-context/generated/module-07.dependencies.md`, and `docs/reference-context/modules/module-07-weather-card.md`.
+
+The subsequent inherited graph/packet and rescue-index refresh is documentation only. No lifecycle, WebSocket, history, graph renderer, coordinator, `AppConfig`, bootstrap, settings, persistence, credential, or tool source changed.
+
+Implemented contract evidence:
+
+- C07-01 projects every raw/typed weather field and retains exact Module 04 identity. Structured names remain raw and render through the established friendly-name/object-ID fallback with one nonfatal scoped advisory.
+- C07-02 through C07-06 use one pure current-condition presenter for the finite condition table, entity/server unit precedence, locale-aware formatting, one secondary value, all show-flag combinations, missing state, and distinct actionable `unknown`/`unavailable` sentinels.
+- C07-07 implements only default/explicit more-info routing. Explicit target override, `none`, unsupported/malformed no-fallthrough, native Return/Space, focus, and accessibility semantics are covered without a service call.
+- C07-08 replaces the static card with a bounded responsive SwiftUI layout and runtime-gated SF Symbols. It creates no timer, task, subscription, cache, or animation and keeps `card.nativeID` as focus/SwiftUI scope.
+- C07-09/10 remain wholly unimplemented. A production-source guard and repeated view-switch owner snapshots prove zero `weather/subscribe_forecast` command, forecast store, task, history/detail subscription, graph mount, service task, or persistence surface.
+- The verifier-requested wind corrections preserve independent compass bearing for missing/null or raw scalar speed, distinguish malformed structured/ nonfinite speed as `Unknown`, and retain the exact `/h` fallback when the server length unit is missing or empty. Focused regressions cover each case.
+
+Fresh independent verification returned **GO** on macOS 12.6.7, Swift 5.6.1, arm64:
+
+- focused Module 07 suites: PASS, 31 executed, one authorized opt-in live skip, zero failures;
+- complete suite: PASS, 290 executed, four authorized opt-in skips, zero failures; this includes Modules 02, 01, 04, 12, 05, 06, and the bounded Module 09 behavioral regressions;
+- `swift build -c release --product NativeHAMac`: PASS with package deployment target macOS 12;
+- presenter metrics: 500 mixed cold and 500 warm presentations each measured about 0.019 seconds per iteration, with clock, CPU, and memory metrics recorded. No stored performance threshold exists, so these are measurements, not a claimed baseline gate;
+- GUI/manual: PASS for 18 dark-Aqua, `en_US_POSIX`, scale-2 artifacts covering the required nine states/unit cases at `496x150` and `320x190`; signature, dimensions, nonblank content, semantic fields, rainy color, action target, sentinel focus, and accessibility assertions pass. The verifier manually inspected all artifacts; no golden baseline was available or promoted;
+- carried read-only live evidence remains applicable: three cards share one weather entity, all specify `show_forecast: false`, configuration was unchanged, and no forecast command or state-changing service call occurred;
+- migration/configuration: explicit no-op; no preference, cache, credential, token, profile, bootstrap, settings, or `AppConfig` change;
+- `git diff --check`: PASS. Module 07 graph: GREEN, 127 nodes / 814 edges, fingerprint `37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28`. Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint `26a89dfc1a88704dcb44a2fc97d2c5c41f20bacf0eb79f5816f20ecfb26e9372`. The resolver fingerprint changed only because shared native anchor `Models.swift` changed; `trace-ts-deps.mjs`, `check-context.mjs`, and `test-resolver.mjs` are unchanged.
+
+The only known design limitations remain those already researched: SF Symbols are an approximation, full structured-name metadata is deferred, and forecast support is not delivered. None blocks this bounded current-conditions milestone.
 
 ## Change log
 
+- 2026-09-08: fresh independent verification inspected the exact 17-file candidate, required and accepted the bounded wind fallback/bearing repairs, and returned GO after 31 focused and 290 full-suite executions, release, GUI/manual, performance, migration/no-owner, policy, context, and carried read-only live gates. C07-01 through C07-08 and C07-11 are complete; C07-09/10 remain deferred at zero ownership. Module 08 research only is next.
+- 2026-09-07: implementation candidate completed C07-01 through C07-08 and C07-11, kept C07-09/10 at zero ownership, passed focused/full/release/live/ GUI/performance gates, and advanced to `verification-ready` pending fresh independent diff and matched-reference visual review.
 - 2026-09-07: user selected hass-frontend parity for C07-06. Both `unknown` and `unavailable` preserve the normal action matrix; missing remains non-actionable. Packet returned to `research-ready` with no material question unresolved.
 - 2026-09-06: fresh audit corrected current/secondary number formatting, unit spacing, explicit missing/null and wind fallbacks, action-target/no-fallthrough semantics, and identified the sentinel action decision for user resolution.
 - 2026-09-05: contract revision 1 drafted the bounded current-condition milestone, deferred forecast behavior/ownership, and added read-only live evidence and validation planning.

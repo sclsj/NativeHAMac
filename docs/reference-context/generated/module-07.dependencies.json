@@ -20656,7 +20656,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "329380ee9ac2439d2d70e9396be9d996ab3f4863030ed799edadb5b57deb0774",
+  "graphFingerprint": "37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28",
   "manifest": {
     "module": "07",
     "path": "docs/reference-context/manifests/module-07.inputs.json",
@@ -20688,30 +20688,30 @@
         "worktreeBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
-        "sha256": "02bed5b336729a496c7f2a48ecdcf17956af998624076ed0835164c188a9436e",
+        "sha256": "c53ffb866854c9b6206cbc184687ad92116a175b621b444de2f95a2b6453d3e9",
         "symbols": [
           "LovelaceCard",
           "LovelaceResolvedCard",
           "LovelaceResolvedIdentity"
         ],
-        "worktreeBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4"
+        "worktreeBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "07c4463564218fc9746191277f9d78ea1bdc778c",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "a4ebefa46477ad6caf9bf67cca14d6ed2b16ac4227d6d5b898de5cfc3f7dcd21",
+        "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
         "symbols": [
           "HAConfig",
           "HAState",
           "JSONValue"
         ],
-        "worktreeBlob": "07c4463564218fc9746191277f9d78ea1bdc778c"
+        "worktreeBlob": "859600ada92127650b45f15287a2af92980617bc"
       },
       {
         "dirty": false,
@@ -20725,17 +20725,17 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "68bbd1fcbb3de2627f935b8a08de6142b2b3b8be",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "a2cafc5d1ab8cd35deb271393e9816e1a252d0dd4cf044a49b70ad69f7b83ac8",
+        "sha256": "150e65a7473eeddfcff744c5b611b44aa1330d5fd8863591fd2bce8c498885e7",
         "symbols": [
           "CardRenderer",
           "EntityDetailSheet",
           "WeatherCard"
         ],
-        "worktreeBlob": "68bbd1fcbb3de2627f935b8a08de6142b2b3b8be"
+        "worktreeBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb"
       },
       {
         "dirty": false,
@@ -20785,16 +20785,16 @@
         "worktreeBlob": "9856f5ef41f5d33ce20a49cda95671ca42228b47"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "3354f2b1ad94eeb5b9b50a2abd473e7ecfb42aeb",
         "missing": false,
         "path": "Sources/NativeHAMac/LovelacePresentation.swift",
-        "sha256": "a79e4b7f8ac7b52ba408f8063c2b4b95b734069d5134cba39857624e562d9ca1",
+        "sha256": "bd4570f3dcccf6511e0f365ba6a9222c121e3b356574996ca82b28da1779c400",
         "symbols": [
           "LovelacePresentationCard",
           "LovelacePresentationTransformer"
         ],
-        "worktreeBlob": "3354f2b1ad94eeb5b9b50a2abd473e7ecfb42aeb"
+        "worktreeBlob": "c4f392e6f09b04e8b3a3a4d499f3abf7a45ea270"
       },
       {
         "dirty": false,
@@ -20819,15 +20819,15 @@
         "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "33c42fb80e1af725caebe6e7db5a25ca18d1a506",
         "missing": false,
         "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
-        "sha256": "b3aa464cd7cbaa1b18d669ae9e8736b5dc46bebea6a2f8fee1993d3b37c1c3ea",
+        "sha256": "22999f070f37ac02952d092da7f89aa7baffde5a22be6dde6feeb93f752a1dac",
         "symbols": [
           "LovelaceModelTests"
         ],
-        "worktreeBlob": "33c42fb80e1af725caebe6e7db5a25ca18d1a506"
+        "worktreeBlob": "c9721a2f372a8ea585e3b0cb7817c47b4bf74992"
       },
       {
         "dirty": false,
@@ -20863,20 +20863,20 @@
         "worktreeBlob": "2d52640d318396938e1565158419ce302b362935"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "d560242e2017079352e8896b1fd1d688ad4ddb90",
         "missing": false,
         "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
-        "sha256": "1c408c6efa08971871aaeb357dc2f74ddcfcd8f0592ca9f6cc3fc7b06c0e62fe",
+        "sha256": "993b88103e4ab872d33f85323f515a0c66f675deb92368ad6cf22cf20d49bd07",
         "symbols": [
           "LovelacePresentationTests"
         ],
-        "worktreeBlob": "d560242e2017079352e8896b1fd1d688ad4ddb90"
+        "worktreeBlob": "b08c637741073d2fba41a52d2ce808b16270dedb"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "2e9888267d06a92c1a832f6fdabc666fb5d0235f"
+    "gitHead": "fdb6264ce42faf974f7748a399f614d16f1615a5"
   },
   "nodes": [
     {

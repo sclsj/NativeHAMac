@@ -1611,7 +1611,7 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "10d915249a1671df8fa185f4972b614324ec544331f54fcc5c2d20623b8ba506",
+  "graphFingerprint": "26a89dfc1a88704dcb44a2fc97d2c5c41f20bacf0eb79f5816f20ecfb26e9372",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
@@ -1686,17 +1686,17 @@
       },
       {
         "dirty": true,
-        "headBlob": "f95b39cefa19fcb07f4cc540371147c56182c3f1",
+        "headBlob": "07c4463564218fc9746191277f9d78ea1bdc778c",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "a4ebefa46477ad6caf9bf67cca14d6ed2b16ac4227d6d5b898de5cfc3f7dcd21",
+        "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
         "symbols": [
           "HAEntityRegistryDisplayEntry",
           "HAEntityRegistryDisplayResponse",
           "HAFrontendLocalePreferences",
           "HAFrontendUserDataResponse"
         ],
-        "worktreeBlob": "07c4463564218fc9746191277f9d78ea1bdc778c"
+        "worktreeBlob": "859600ada92127650b45f15287a2af92980617bc"
       },
       {
         "dirty": false,
@@ -1710,8 +1710,8 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": true,
-        "headBlob": "71e40445cd3fa5aa309b6928a2f1fd7c5b013872",
+        "dirty": false,
+        "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "804607628fed769f13a601546ee1ec55fcbaa1e1db0bcefdcbb88fde958a6973",
@@ -1734,8 +1734,8 @@
         "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
       },
       {
-        "dirty": true,
-        "headBlob": "9062b1e245050d418ecabe21405849c9d38e801e",
+        "dirty": false,
+        "headBlob": "8b917b5db790356bdf58315e6e79c1256691f532",
         "missing": false,
         "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
         "sha256": "6953c49b052ddcb12ac38ca3b679c4c946778be82f3e3b5b88c8ae163af6ce78",
@@ -1749,7 +1749,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "9435dadbea7e55bc8a84ea63b9b3f67a2c978d1e"
+    "gitHead": "fdb6264ce42faf974f7748a399f614d16f1615a5"
   },
   "nodes": [
     {

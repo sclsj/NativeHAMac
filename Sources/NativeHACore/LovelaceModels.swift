@@ -166,6 +166,9 @@ public struct LovelaceView: Equatable {
 public struct LovelaceCard: Equatable {
     public let rawValue: JSONValue
     public let diagnostic: LovelaceDiagnostic?
+    /// Recoverable configuration findings that must remain visible without
+    /// turning an otherwise renderable card into an invalid placeholder.
+    public let advisories: [LovelaceDiagnostic]
     public let type: String
     public let title: String?
     public let entity: String?
@@ -199,6 +202,10 @@ public struct LovelaceCard: Equatable {
     public let secondaryInfoAttribute: String?
     public let roundTemperature: Bool?
     public let name: String?
+    /// The exact configured name value. Weather cards use this to preserve
+    /// structured entity-name metadata while the shared metadata resolver is
+    /// deliberately deferred.
+    public let nameValue: JSONValue?
     public let textOnly: Bool?
     public let cardSize: Int?
     public let entityIDs: [String]?
@@ -304,7 +311,25 @@ public struct LovelaceCard: Equatable {
         let parsedForecastSlots = int("forecast_slots")
         let parsedSecondaryInfoAttribute = string("secondary_info_attribute")
         let parsedRoundTemperature = bool("round_temperature")
-        let parsedName = string("name")
+        let parsedName: String?
+        var advisories: [LovelaceDiagnostic] = []
+        if let rawName = object["name"] {
+            switch rawName {
+            case let .string(value):
+                parsedName = value
+            case .object where type == "weather-forecast",
+                 .array where type == "weather-forecast":
+                parsedName = nil
+                advisories.append(LovelaceDiagnostic(
+                    path: "\(diagnosticPath).name",
+                    message: "unsupported structured weather name"
+                ))
+            default:
+                parsedName = string("name")
+            }
+        } else {
+            parsedName = nil
+        }
         let parsedTextOnly = bool("text_only")
         let parsedCardSize = int("card_size")
         let parsedEntityIDs: [String]?
@@ -355,6 +380,7 @@ public struct LovelaceCard: Equatable {
             path: diagnosticPath,
             message: diagnostics.joined(separator: "; ")
         )
+        self.advisories = advisories
         self.type = type ?? "invalid"
         title = parsedTitle
         entity = parsedEntity
@@ -388,6 +414,7 @@ public struct LovelaceCard: Equatable {
         secondaryInfoAttribute = parsedSecondaryInfoAttribute
         roundTemperature = parsedRoundTemperature
         name = parsedName
+        nameValue = object["name"]
         textOnly = parsedTextOnly
         cardSize = parsedCardSize
         entityIDs = parsedEntityIDs

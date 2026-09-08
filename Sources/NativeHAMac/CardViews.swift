@@ -425,80 +425,133 @@ struct WeatherCard: View {
     let card: LovelacePresentationCard
 
     var body: some View {
-        Button(action: {
-            if let entityID = card.entity {
-                model.openDetails(entityID: entityID)
-            }
-        }) {
-            HStack(spacing: 16) {
-                Image(systemName: "cloud.sun.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundColor(.yellow)
-                    .frame(width: 48)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    if let entityID = card.entity, let state = model.states[entityID] {
-                        Text(model.weatherSummary(state.state))
-                            .font(.system(size: 22, weight: .semibold))
-                        Text(model.displayName(for: entityID))
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.5))
-                    } else {
-                        Text("Weather unavailable")
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                }
-
-                Spacer()
-
-                if let entityID = card.entity, let state = model.states[entityID] {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(weatherTemperature(from: state))
-                            .font(.system(size: 28, weight: .medium))
-                        if let humidity = humidity(from: state) {
-                            Text(humidity)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.white.opacity(0.55))
-                        }
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        actionTarget
         .cardStyle()
+        .background(EntityFocusOrderCoordinator(focusScope: card.nativeID))
     }
 
-    private func weatherTemperature(from state: HAState) -> String {
-        guard
-            let temperature = state.attributes["temperature"],
-            case let .double(value) = temperature
-        else {
-            return model.displayState(for: state.entityId)
-        }
+    private var presentation: WeatherCardPresentation {
+        let entityID = card.entity ?? ""
+        return WeatherPresentationResolver.resolve(
+            card: card,
+            state: model.states[entityID],
+            serverUnitSystem: model.homeAssistantConfig?.unitSystem,
+            preferences: model.frontendLocalePreferences
+        )
+    }
 
-        let unit: String
-        if
-            let unitValue = state.attributes["temperature_unit"],
-            case let .string(rawUnit) = unitValue
-        {
-            unit = rawUnit
+    @ViewBuilder
+    private var actionTarget: some View {
+        let current = presentation
+        switch current.primaryAction {
+        case .details where current.stateKind != .missing:
+            contents(current)
+                .overlay(
+                    EntityPrimaryActionTarget(
+                        focusScope: card.nativeID,
+                        accessibilityLabel: current.name,
+                        accessibilityValue: accessibilityValue(current),
+                        isEnabled: true,
+                        action: activatePrimary
+                    )
+                )
+        case .details, .none, .unsupported:
+            contents(current)
+        }
+    }
+
+    private func contents(_ current: WeatherCardPresentation) -> some View {
+        HStack(spacing: 16) {
+            weatherIcon(current.icon)
+                .frame(width: 48, height: 48)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(current.condition)
+                    .font(.system(size: current.stateKind == .missing ? 15 : 22, weight: .semibold))
+                    .foregroundColor(current.stateKind == .unavailable ? .gray : .white.opacity(0.9))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                Text(current.name)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.5))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 5) {
+                if let temperature = current.temperature {
+                    Text(temperature)
+                        .font(.system(size: 28, weight: .medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+                        .accessibilityLabel(Text("Temperature"))
+                        .accessibilityValue(Text(temperature))
+                }
+                if let secondary = current.secondary {
+                    Text(secondary.visibleText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityLabel(Text(secondary.label))
+                        .accessibilityValue(Text(secondary.value))
+                }
+                if let warning = current.warningText {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 11))
+                        .foregroundColor(.yellow)
+                        .help(warning)
+                        .accessibilityLabel(Text(warning))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 74)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private func weatherIcon(_ icon: WeatherIconPresentation) -> some View {
+        if let symbol = icon.symbolName {
+            Image(systemName: symbol)
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundColor(weatherIconColor(icon.colorRole))
+                .accessibilityLabel(Text(icon.semanticLabel))
         } else {
-            unit = ""
+            Text(icon.fallbackText ?? "?")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundColor(weatherIconColor(icon.colorRole))
+                .accessibilityLabel(Text(icon.semanticLabel))
         }
-
-        return "\(String(format: "%.1f", value)) \(unit)"
     }
 
-    private func humidity(from state: HAState) -> String? {
-        guard
-            let humidity = state.attributes["humidity"],
-            case let .double(value) = humidity
-        else {
-            return nil
+    private func activatePrimary() {
+        if case let .details(entityID) = presentation.primaryAction,
+           presentation.stateKind != .missing
+        {
+            model.openDetails(entityID: entityID)
         }
+    }
 
-        return "\(String(format: "%.0f", value))%"
+    private func accessibilityValue(_ current: WeatherCardPresentation) -> String {
+        [current.condition, current.temperature, current.secondary?.accessibilityValue]
+            .compactMap { $0 }
+            .joined(separator: ", ")
+    }
+}
+
+private func weatherIconColor(_ role: WeatherIconColorRole) -> Color {
+    switch role {
+    case .sun: return .yellow
+    case .moon: return Color(red: 0.75, green: 0.78, blue: 0.95)
+    case .cloud: return Color.white.opacity(0.76)
+    case .rain: return Color(red: 0.24, green: 0.68, blue: 0.95)
+    case .snow: return Color(red: 0.72, green: 0.86, blue: 0.98)
+    case .wind: return Color(red: 0.52, green: 0.78, blue: 0.86)
+    case .warning: return .yellow
+    case .unavailable: return .gray
     }
 }
 

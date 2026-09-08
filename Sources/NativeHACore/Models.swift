@@ -7,6 +7,7 @@ public struct HAConfig: Decodable, Equatable {
     public let locationName: String?
     public let timeZone: String?
     public let components: [String]
+    public let unitSystem: HAUnitSystem?
 
     private enum CodingKeys: String, CodingKey {
         case latitude
@@ -15,6 +16,7 @@ public struct HAConfig: Decodable, Equatable {
         case locationName = "location_name"
         case timeZone = "time_zone"
         case components
+        case unitSystem = "unit_system"
     }
 
     public init(
@@ -23,7 +25,8 @@ public struct HAConfig: Decodable, Equatable {
         elevation: Double? = nil,
         locationName: String? = nil,
         timeZone: String? = nil,
-        components: [String] = []
+        components: [String] = [],
+        unitSystem: HAUnitSystem? = nil
     ) {
         self.latitude = latitude
         self.longitude = longitude
@@ -31,6 +34,19 @@ public struct HAConfig: Decodable, Equatable {
         self.locationName = locationName
         self.timeZone = timeZone
         self.components = components
+        self.unitSystem = unitSystem
+    }
+}
+
+/// The server-provided measurement defaults needed by weather presentation.
+/// These values are bootstrap data, not user-configurable NativeHA policy.
+public struct HAUnitSystem: Decodable, Equatable {
+    public let temperature: String?
+    public let length: String?
+
+    public init(temperature: String? = nil, length: String? = nil) {
+        self.temperature = temperature
+        self.length = length
     }
 }
 

@@ -223,9 +223,99 @@ final class LovelaceModelTests: XCTestCase {
         XCTAssertNotEqual(checksum(firstCards), 0)
     }
 
+    func testWeatherCardPreservesCompleteTypedSurfaceAndFalsyValues() throws {
+        let rawName: JSONValue = .string("")
+        let raw: JSONValue = .object([
+            "views": .array([.object([
+                "title": .string("Weather"),
+                "cards": .array([.object([
+                    "type": .string("weather-forecast"),
+                    "entity": .string("weather.home"),
+                    "name": rawName,
+                    "show_current": .bool(false),
+                    "show_forecast": .bool(false),
+                    "forecast_type": .string("hourly"),
+                    "forecast_slots": .int(0),
+                    "secondary_info_attribute": .string("humidity"),
+                    "round_temperature": .bool(false),
+                    "tap_action": .object(["action": .string("none")]),
+                    "hold_action": .object(["action": .string("more-info")]),
+                    "double_tap_action": .object(["action": .string("navigate")]),
+                    "future_weather_option": .bool(true),
+                ])]),
+            ])]),
+        ])
+        let data = try JSONEncoder().encode(raw)
+        let card = try XCTUnwrap(JSONDecoder().decode(LovelaceConfig.self, from: data).views.first?.cards.first)
+
+        XCTAssertNil(card.diagnostic)
+        XCTAssertEqual(card.rawValue.objectValue?["future_weather_option"], .bool(true))
+        XCTAssertEqual(card.entity, "weather.home")
+        XCTAssertEqual(card.name, "")
+        XCTAssertEqual(card.nameValue, rawName)
+        XCTAssertEqual(card.showCurrent, false)
+        XCTAssertEqual(card.showForecast, false)
+        XCTAssertEqual(card.forecastType, "hourly")
+        XCTAssertEqual(card.forecastSlots, 0)
+        XCTAssertEqual(card.secondaryInfoAttribute, "humidity")
+        XCTAssertEqual(card.roundTemperature, false)
+        XCTAssertNotNil(card.tapAction)
+        XCTAssertNotNil(card.holdAction)
+        XCTAssertNotNil(card.doubleTapAction)
+    }
+
+    func testStructuredWeatherNameIsRecoverableAndInvalidScalarNameIsNot() throws {
+        func card(name: JSONValue) throws -> LovelaceCard {
+            let raw: JSONValue = .object([
+                "views": .array([.object([
+                    "title": .string("Weather"),
+                    "cards": .array([.object([
+                        "type": .string("weather-forecast"),
+                        "entity": .string("weather.home"),
+                        "name": name,
+                    ])]),
+                ])]),
+            ])
+            return try XCTUnwrap(
+                JSONDecoder().decode(LovelaceConfig.self, from: JSONEncoder().encode(raw))
+                    .views.first?.cards.first
+            )
+        }
+
+        let structured: JSONValue = .object(["type": .string("entity")])
+        let recovered = try card(name: structured)
+        XCTAssertNil(recovered.diagnostic)
+        XCTAssertEqual(recovered.nameValue, structured)
+        XCTAssertNil(recovered.name)
+        XCTAssertEqual(recovered.advisories.map(\.message), ["unsupported structured weather name"])
+
+        let malformed = try card(name: .int(7))
+        XCTAssertNotNil(malformed.diagnostic)
+        XCTAssertTrue(malformed.diagnostic?.message.contains("name must be a string") == true)
+        XCTAssertEqual(malformed.nameValue, .int(7))
+    }
+
+    func testServerWeatherUnitsDecodeWithoutChangingMissingUnitCompatibility() throws {
+        let metric = try JSONDecoder().decode(
+            HAConfig.self,
+            from: Data(#"{"components":["weather"],"unit_system":{"temperature":"°C","length":"km"}}"#.utf8)
+        )
+        XCTAssertEqual(metric.unitSystem, HAUnitSystem(temperature: "°C", length: "km"))
+
+        let legacy = try JSONDecoder().decode(HAConfig.self, from: Data(#"{"components":[]}"#.utf8))
+        XCTAssertNil(legacy.unitSystem)
+    }
+
     private func fixture(_ name: String) throws -> Data {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         return try Data(contentsOf: testsDirectory
             .appendingPathComponent("Fixtures/Lovelace/\(name).json"))
+    }
+}
+
+private extension JSONValue {
+    var objectValue: [String: JSONValue]? {
+        guard case let .object(value) = self else { return nil }
+        return value
     }
 }
