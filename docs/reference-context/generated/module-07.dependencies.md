@@ -1,9 +1,9 @@
 # Dependency graph: module 07
 
-- Fingerprint: `37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28`
+- Fingerprint: `913b5d8f3f41eef5b35628ab386c4d194b374fe8f4b3bfaad620598cc5fc1ca7`
 - Reference revision: `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` (clean)
 - TypeScript: `6.0.3`
-- Nodes: 127; edges: 814; cycles: 5
+- Nodes: 128; edges: 817; cycles: 5
 - Unresolved: 0; truncated: no
 
 ## Explicit seeds
@@ -21,6 +21,7 @@
 - `repo:src/common/number/format_number.ts` — `formatNumber`, `formatNumberToParts`, `numberFormatToLocale`, `getNumberFormatter`, `getDefaultFormatOptions`, `numberFormatCache`
 - `repo:src/common/number/round.ts` — `round`
 - `repo:src/common/translations/blank_before_unit.ts` — `blankBeforeUnit`
+- `repo:src/components/ha-relative-time.ts` — `HaRelativeTime`
 - `repo:src/data/entity/entity.ts` — `UNAVAILABLE`, `UNKNOWN`
 - `repo:src/data/lovelace/config/card.ts` — `LovelaceCardConfig`
 - `repo:src/data/weather.ts` — `ForecastAttribute`, `ForecastEvent`, `WeatherEntityFeature`, `getDefaultForecastType`, `getForecast`, `getSecondaryWeatherAttribute`, `getSupportedForecastTypes`, `getWeatherStateIcon`, `getWeatherUnit`, `getWind`, `subscribeForecast`, `weatherAttrIcons`, `weatherIcons`, `WeatherEntityAttributes`, `ForecastType`, `getLegacyForecast`, `WeatherEntity`, `getWeatherExtrema`, `ModernForecastType`, `weatherSVGs`, `getWeatherStateSVG`, `getWindBearing`, `isForecastHourly`, `isForecastTwiceDaily`, `cloudyStates`, `rainStates`, `windyStates`, `snowyStates`, `lightningStates`, `getWindBearingText`, `EIGHT_HOURS`, `DAY_IN_MILLISECONDS`, `cardinalDirections`
@@ -40,8 +41,8 @@
 ## Boundaries
 
 - max-depth: 315
-- package-not-allowlisted: 68
-- type-only-not-followed: 256
+- package-not-allowlisted: 69
+- type-only-not-followed: 257
 
 ## Unresolved or nonliteral edges
 

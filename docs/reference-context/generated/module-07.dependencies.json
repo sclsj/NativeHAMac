@@ -1251,7 +1251,7 @@
           "phase": "runtime"
         }
       ],
-      "boundary": "max-depth",
+      "boundary": "package-not-allowlisted",
       "column": 24,
       "externalLibraryImport": true,
       "from": "repo:src/common/datetime/relative_time.ts",
@@ -1278,7 +1278,7 @@
           "phase": "runtime"
         }
       ],
-      "boundary": "max-depth",
+      "boundary": null,
       "column": 28,
       "externalLibraryImport": false,
       "from": "repo:src/common/datetime/relative_time.ts",
@@ -4089,6 +4089,89 @@
       "length": 24,
       "line": 1,
       "offset": 40,
+      "packageId": null,
+      "phase": "type",
+      "runtimeResolved": null,
+      "specifier": "../../data/translation",
+      "to": "repo:src/data/translation.ts",
+      "typeResolved": "src/data/translation.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "differenceInDays",
+          "local": "differenceInDays",
+          "phase": "runtime"
+        },
+        {
+          "imported": "differenceInWeeks",
+          "local": "differenceInWeeks",
+          "phase": "runtime"
+        },
+        {
+          "imported": "startOfWeek",
+          "local": "startOfWeek",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 66,
+      "externalLibraryImport": true,
+      "from": "repo:src/common/util/select-unit.ts",
+      "kind": "static-import",
+      "length": 10,
+      "line": 1,
+      "offset": 65,
+      "packageId": {
+        "name": "date-fns",
+        "subModuleName": "index.d.ts",
+        "version": "4.4.0"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/date-fns/index.js",
+      "specifier": "date-fns",
+      "to": "npm:date-fns@4.4.0:index.js",
+      "typeResolved": "node_modules/date-fns/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "firstWeekdayIndex",
+          "local": "firstWeekdayIndex",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "max-depth",
+      "column": 35,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/util/select-unit.ts",
+      "kind": "static-import",
+      "length": 27,
+      "line": 3,
+      "offset": 177,
+      "packageId": null,
+      "phase": "runtime",
+      "runtimeResolved": "src/common/datetime/first_weekday.ts",
+      "specifier": "../datetime/first_weekday",
+      "to": "repo:src/common/datetime/first_weekday.ts",
+      "typeResolved": "src/common/datetime/first_weekday.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "FrontendLocaleData",
+          "local": "FrontendLocaleData",
+          "phase": "type"
+        }
+      ],
+      "boundary": "type-only-not-followed",
+      "column": 41,
+      "externalLibraryImport": false,
+      "from": "repo:src/common/util/select-unit.ts",
+      "kind": "static-import",
+      "length": 24,
+      "line": 2,
+      "offset": 117,
       "packageId": null,
       "phase": "type",
       "runtimeResolved": null,
@@ -20656,11 +20739,11 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "37051861f6893b9736ff55e0439a1215c89bbd5bda9f027aba89af3142f10c28",
+  "graphFingerprint": "913b5d8f3f41eef5b35628ab386c4d194b374fe8f4b3bfaad620598cc5fc1ca7",
   "manifest": {
     "module": "07",
     "path": "docs/reference-context/manifests/module-07.inputs.json",
-    "sha256": "e23a15e8fcbe626cd915f2008fc14d96cc593d0e42fbfe84cef99d0521dd602c"
+    "sha256": "bc05d95a4ca68284f83e976dde1c8505222341396d161391543bb8985a13765a"
   },
   "nativeha": {
     "anchors": [
@@ -20682,14 +20765,14 @@
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
         "sha256": "5e678804c1612efbd9810c00df31223c8799fc1e6d0d8d2d3edaab35fe40db9c",
         "symbols": [
-          "HomeAssistantWebSocketConnection",
-          "HomeAssistantWebSocketSubscription"
+          "HAWebSocketSubscription",
+          "HomeAssistantWebSocketConnection"
         ],
         "worktreeBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6"
       },
       {
-        "dirty": true,
-        "headBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4",
+        "dirty": false,
+        "headBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
         "sha256": "c53ffb866854c9b6206cbc184687ad92116a175b621b444de2f95a2b6453d3e9",
@@ -20701,8 +20784,8 @@
         "worktreeBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6"
       },
       {
-        "dirty": true,
-        "headBlob": "07c4463564218fc9746191277f9d78ea1bdc778c",
+        "dirty": false,
+        "headBlob": "859600ada92127650b45f15287a2af92980617bc",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
         "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
@@ -20725,8 +20808,8 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": true,
-        "headBlob": "68bbd1fcbb3de2627f935b8a08de6142b2b3b8be",
+        "dirty": false,
+        "headBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
         "sha256": "150e65a7473eeddfcff744c5b611b44aa1330d5fd8863591fd2bce8c498885e7",
@@ -20762,6 +20845,17 @@
       },
       {
         "dirty": false,
+        "headBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb",
+        "missing": false,
+        "path": "Sources/NativeHAMac/DashboardView.swift",
+        "sha256": "58dc1ba15d5831625c85e9d80db6d588794b3515a6c306d29b8b3c5c60c92395",
+        "symbols": [
+          "DashboardView"
+        ],
+        "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
+      },
+      {
+        "dirty": false,
         "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
@@ -20785,8 +20879,8 @@
         "worktreeBlob": "9856f5ef41f5d33ce20a49cda95671ca42228b47"
       },
       {
-        "dirty": true,
-        "headBlob": "3354f2b1ad94eeb5b9b50a2abd473e7ecfb42aeb",
+        "dirty": false,
+        "headBlob": "c4f392e6f09b04e8b3a3a4d499f3abf7a45ea270",
         "missing": false,
         "path": "Sources/NativeHAMac/LovelacePresentation.swift",
         "sha256": "bd4570f3dcccf6511e0f365ba6a9222c121e3b356574996ca82b28da1779c400",
@@ -20819,8 +20913,8 @@
         "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
       },
       {
-        "dirty": true,
-        "headBlob": "33c42fb80e1af725caebe6e7db5a25ca18d1a506",
+        "dirty": false,
+        "headBlob": "c9721a2f372a8ea585e3b0cb7817c47b4bf74992",
         "missing": false,
         "path": "Tests/NativeHACoreTests/LovelaceModelTests.swift",
         "sha256": "22999f070f37ac02952d092da7f89aa7baffde5a22be6dde6feeb93f752a1dac",
@@ -20863,8 +20957,8 @@
         "worktreeBlob": "2d52640d318396938e1565158419ce302b362935"
       },
       {
-        "dirty": true,
-        "headBlob": "d560242e2017079352e8896b1fd1d688ad4ddb90",
+        "dirty": false,
+        "headBlob": "b08c637741073d2fba41a52d2ce808b16270dedb",
         "missing": false,
         "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
         "sha256": "993b88103e4ab872d33f85323f515a0c66f675deb92368ad6cf22cf20d49bd07",
@@ -20876,7 +20970,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "fdb6264ce42faf974f7748a399f614d16f1615a5"
+    "gitHead": "30c981b4a9b7562c48d2a15fb4a757bfa99fea74"
   },
   "nodes": [
     {
@@ -21305,7 +21399,7 @@
       "worktreeBlob": "5a124c15400855ab8b4f96a4b78f4101a97ae4cd"
     },
     {
-      "depth": 2,
+      "depth": 1,
       "dirty": false,
       "explicitSeed": false,
       "headBlob": "b68a396636173987ca17bc630b44713e1f2c69d8",
@@ -21999,7 +22093,7 @@
       "worktreeBlob": "d0da48ca0ee44e36b7edf4b31e07a8cd4ede4dd8"
     },
     {
-      "depth": 2,
+      "depth": 1,
       "dirty": false,
       "explicitSeed": false,
       "headBlob": "794b5b740e471433d8628efa8b0459382831f1e7",
@@ -22114,6 +22208,21 @@
       "selectedSymbols": [],
       "sha256": "ebe061124268366ccf08901cddb4b2a0d2b7c023fd37b5a62b5bd373b8bc7971",
       "worktreeBlob": "9a1a0b526ef1100b85d4ceb63c60f8be1cf34144"
+    },
+    {
+      "depth": 2,
+      "dirty": false,
+      "explicitSeed": false,
+      "headBlob": "fe10fa49c6158d12f6f8d966d0cd77e7e5a00e54",
+      "id": "repo:src/common/util/select-unit.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "path": "src/common/util/select-unit.ts",
+      "selectedSymbols": [],
+      "sha256": "a719c95c49c78a7a9c4d17b300f535d1410dc4fd54f40098365b15ade38c3ad3",
+      "worktreeBlob": "fe10fa49c6158d12f6f8d966d0cd77e7e5a00e54"
     },
     {
       "depth": 1,
@@ -22401,17 +22510,29 @@
       "worktreeBlob": "82c5bfa39c4d67b92b160ab2540e10350a417a93"
     },
     {
-      "depth": 1,
+      "depth": 0,
       "dirty": false,
-      "explicitSeed": false,
+      "explicitSeed": true,
       "headBlob": "36129895994eef59d5f8fbc57d7d9393624ba066",
       "id": "repo:src/components/ha-relative-time.ts",
       "kind": "repo",
       "language": "ts",
-      "localSymbolClosure": [],
+      "localSymbolClosure": [
+        "HaRelativeTime"
+      ],
       "missingSymbols": [],
       "path": "src/components/ha-relative-time.ts",
-      "selectedSymbols": [],
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 94,
+          "length": 1939,
+          "line": 11,
+          "name": "HaRelativeTime",
+          "offset": 502
+        }
+      ],
       "sha256": "b685ca2db3a18d7e9a0f0f1bdb53fd601f080d079c0ff6d688d78f8920663655",
       "worktreeBlob": "36129895994eef59d5f8fbc57d7d9393624ba066"
     },
@@ -23986,6 +24107,12 @@
         "path": "src/common/translations/blank_before_unit.ts",
         "symbols": [
           "blankBeforeUnit"
+        ]
+      },
+      {
+        "path": "src/components/ha-relative-time.ts",
+        "symbols": [
+          "HaRelativeTime"
         ]
       },
       {
