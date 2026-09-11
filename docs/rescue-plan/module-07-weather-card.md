@@ -4,11 +4,13 @@
 
 Make `weather-forecast` cards and their opened weather detail align with Home Assistant semantics for current weather display, icon mapping, units, card options, and correctly scoped forecast subscriptions.
 
-The live dashboard currently has three weather cards and all use `show_forecast: false`, so current-conditions correctness is the first milestone. Forecast subscription support can follow once WebSocket subscriptions are reliable.
+The recorded live dashboard has three weather cards using `show_forecast: false`. Current cards and weather detail are implemented; detail forecasts use the verified WebSocket subscription API.
 
-Current staged status: revision 1 current-card conditions are complete and independently verified. Revision 2, defined precisely by the Module 07 evidence packet, is also complete and independently verified for the specialized weather more-info body and its one modal-scoped forecast subscription. Dashboard-card forecast rows/owners under C07-09/10 remain deferred. The exact next gate is Module 08 research only, including correction of its stale marker-only template- subscription assumption before implementation.
+The [Module 07 evidence packet](../reference-context/modules/module-07-weather-card.md) is the authority for current contracts and validation. The original findings, architecture sketches, tasks, and acceptance checklist below are historical planning, not a remaining-work checklist.
 
-## Current-Code Findings
+Current staged status: revision 1 current-card conditions are complete and independently verified. Revision 2, defined precisely by the Module 07 evidence packet, is also complete and independently verified for the specialized weather more-info body and its one modal-scoped forecast subscription. Dashboard-card forecast rows/owners under C07-09/10 remain deferred. Next work follows the rescue index and current user priorities; Module 08 still needs a researched packet and independent research review.
+
+## Historical Findings Before Rescue
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
 
@@ -71,7 +73,7 @@ Use a small weather-specific model layer:
    - Resolve display name with row/card override.
    - Display weather state using HA-like state display cleanup.
    - Display current temperature from `attributes.temperature`.
-   - Use `attributes.temperature_unit` if present, otherwise server unit system, otherwise configured fallback.
+   - Use `attributes.temperature_unit`, then server unit system per C07-04; do not introduce a configured fallback unit.
    - Display humidity, pressure, wind speed, precipitation, and visibility only when present.
 
 3. Implement icon mapping.
@@ -94,22 +96,22 @@ Use a small weather-specific model layer:
    - Use SF Symbols initially, but isolate mapping so Material Design Icons can replace it later.
 
 4. Honor `show_current`.
-   - If `show_current == false`, suppress the current condition block.
-   - If both current and forecast are hidden, render a compact card title or empty state consistent with HA behavior.
+   - Preserve C07-05: without usable forecast data, render the current block for every flag combination, including both false (`!forecast || show_current !== false`).
+   - Dashboard forecast demand/rendering remains deferred under C07-09/10; decoded flags alone must not start a card owner.
 
 5. Add missing/unavailable states.
    - Missing entity: show a clear missing entity state.
-   - `unavailable` or `unknown`: show the state and disable action affordances.
+   - `unavailable` or `unknown`: show the state and preserve the normal supported details action/focus matrix (C07-06/07); only a missing entity disables it.
    - Do not crash on malformed attributes.
 
-6. Add forecast subscription after Module 02.
+6. Historical dashboard forecast proposal (deferred C07-09/10).
    - Use WebSocket command `weather/subscribe_forecast`.
    - Include `entity_id` and requested `type`.
    - Retain unsubscribe handle.
    - Cancel subscription when card/view disappears.
    - Recreate subscription after reconnect.
 
-7. Implement forecast presentation.
+7. Historical dashboard forecast presentation proposal (deferred C07-09/10).
    - Daily and hourly forecast rows should display datetime, icon, temperature, templow when present, precipitation probability/amount when present, and condition.
    - Respect `show_forecast`.
    - Keep forecast layout simple but dense for macOS.
@@ -160,7 +162,7 @@ At display scale 2, render current-condition fixtures at the production 496-poin
 
 Name artifacts by condition/unit and width, such as `weather-sunny-c-496.png`, `weather-clear-night-f-320.png`, and `weather-missing-attributes-496.png`. If forecast UI is implemented, use `496x360` for the normal daily/hourly fixtures and `320x520` for the narrow fixtures, adjusting only if the implemented forecast count is explicitly fixed and the chosen size is documented in the test name.
 
-The live cards use `show_forecast: false`, and forecast UI is not currently implemented. Therefore require a reviewed forecast-off artifact now; add forecast-on daily/hourly/twice-daily artifacts only when forecast tasks 6-7 are implemented and in scope for that implementation session. Compare every candidate manually with the same fixture/state in `/Users/jin/Documents/HA/hass-frontend` or the live reference frontend. Never approve current output mechanically. Put only reviewed PNGs in `Tests/NativeHAMacTests/ReferenceImages/`, document the baseline macOS version, and use tolerant pixel comparison. `NATIVEHA_REQUIRE_VISUAL_REFERENCES=1` may be enabled later when references are complete; an intentional change requires actual, expected, and preferably diff review before baseline replacement.
+The live cards use `show_forecast: false`; dashboard forecast UI remains deferred. Current-card artifacts and the implemented modal forecast artifacts have separate scope in the evidence packet. Add dashboard forecast-on artifacts only when C07-09/10 enter scope. Compare every candidate manually with the same fixture/state in `/Users/jin/Documents/HA/hass-frontend` or the live reference frontend. Never approve current output mechanically. Put only reviewed PNGs in `Tests/NativeHAMacTests/ReferenceImages/`, document the baseline macOS version, and use tolerant pixel comparison. `NATIVEHA_REQUIRE_VISUAL_REFERENCES=1` may be enabled later when references are complete; an intentional change requires actual, expected, and preferably diff review before baseline replacement.
 
 ### Animation and interaction
 
@@ -204,7 +206,7 @@ Measure presenter/forecast preparation separately from bitmap capture. Prefer st
 
 - Live weather cards show correct current condition, temperature, and units.
 - Weather icons are state-aware.
-- `show_current` and `show_forecast` are honored.
+- Current-card flag behavior follows C07-05, including current display without usable forecast; dashboard forecast remains deferred. Modal forecast ignores card flags and follows C07-12 through C07-18.
 - Missing, unknown, and unavailable states render intentionally.
 - Forecast subscription support is designed around HA's WebSocket API and can coexist with other WebSocket subscriptions.
 - Presenter and integration tests cover all required conditions, unit variants, missing/malformed data, per-card update isolation, and action targeting without network access or credentials.

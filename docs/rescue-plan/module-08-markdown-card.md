@@ -6,7 +6,7 @@ Research is still required before implementation. The 2026-09-11 readiness audit
 
 Render Lovelace `markdown` cards as actual Markdown and prepare for Home Assistant template rendering through WebSocket subscriptions.
 
-The live dashboard has two markdown cards, so static Markdown rendering has immediate value. Template rendering should be implemented only after WebSocket multiplexing is reliable.
+The recorded live dashboard has two markdown cards. Module 02 multiplexing is complete; Module 08 research and review, including server-rendering lifecycle and native rendering fidelity, remain prerequisites.
 
 ## Current-Code Findings
 
@@ -15,11 +15,13 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardVie
 - `MarkdownCard` currently renders `card.content` using plain `Text`.
 - Markdown syntax, links, lists, emphasis, headings, and code blocks are not rendered.
 - HA template rendering is not supported.
-- `show_empty`, `text_only`, and action options are not modeled robustly.
+- Rendering does not yet implement the preserved `show_empty`, `text_only`, and action options.
 
-Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models.swift`:
+Current decoder evidence is in `Sources/NativeHACore/LovelaceModels.swift`:
 
-- `LovelaceCard` includes `content` but does not preserve all markdown-card-specific options.
+- Module 04 already preserves raw Markdown options and exposes `content`, `textOnly`, `cardSize`, `showEmpty`, and action fields. Do not redo that decoder.
+- Research must resolve the real remaining shape mismatch: the reference card accepts `entity_id` as a string or array and sends it as wire `entity_ids`; the current typed `entityID` accessor accepts only a string. Raw array input is preserved but diagnosed.
+- Empty source content currently decodes; reference `setConfig` rejects it. Correct this in Module 08 alongside the separate rendered-empty behavior.
 
 ## Reference Implementation Paths
 
@@ -48,8 +50,8 @@ Split the card into three concerns:
 
 ## Implementation Tasks
 
-1. Expand markdown card decoding.
-   - Add or preserve:
+1. Preserve Module 04 decoding and correct only researched remaining gaps.
+   - Already preserved:
      - `content`
      - `title`
      - `show_empty`
@@ -58,7 +60,7 @@ Split the card into three concerns:
      - `tap_action`
      - `hold_action`
      - `double_tap_action`
-   - Preserve unknown keys.
+   - Preserve unknown keys and exact identity. Resolve the `entity_id` string/array and empty-source validation gaps above.
 
 2. Implement static Markdown rendering.
    - Use `AttributedString(markdown:)` if platform deployment allows.
@@ -67,9 +69,9 @@ Split the card into three concerns:
 
 3. Add safe fallback behavior.
    - If Markdown parsing fails, show plain text rather than an empty card.
-   - If `content` is nil or empty:
-     - Hide the card when `show_empty == false`.
-     - Show an empty placeholder only when consistent with HA behavior and useful for debugging.
+   - Reference `setConfig` rejects absent/empty source `content` as a configuration error.
+   - `show_empty == false` hides the card only after a template result exists and its rendered string is empty; neither missing config nor pending first result is that state.
+   - Pin subscription rejection fallback separately: `_tryConnect` uses source content as the result and shows the rejection message only in preview mode. Stream error/warning events retain their distinct reference handling.
 
 4. Research template demand from the reference lifecycle.
    - `HuiMarkdownCard._tryConnect` calls `subscribeRenderTemplate` whenever
@@ -88,15 +90,15 @@ Split the card into three concerns:
 
 6. Render server output as Markdown.
    - HA renders the template to a string; NativeHA should then pass that string through the Markdown renderer.
-   - Keep an error state if template rendering fails.
+   - Preserve the researched distinction between subscription rejection fallback and streamed error/warning events; do not invent one generic error presentation.
 
 7. Honor `text_only`.
-   - When `text_only` is true, render content without extra card chrome if the surrounding UI supports it.
-   - If full HA parity is hard in current layout, document the difference and keep the config preserved.
+   - Match the reference suppression of the title header, background, shadow, border, and its compact content padding.
+   - Native layout choices must preserve observable semantics; an intentional product difference needs user approval, not merely a note.
 
 8. Add link behavior.
    - External links should open in the system browser.
-   - Internal HA navigation links should be decoded but can be deferred to Module 12 or a shared action-routing module.
+   - Module 12 navigation is complete. Research how internal links can use its existing routing boundary; explicitly bound any unsupported link behavior in the reviewed packet.
 
 ## File Ownership and Scope
 

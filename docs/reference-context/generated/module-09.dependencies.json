@@ -6390,7 +6390,7 @@
       "typeResolved": "src/resources/echarts/ha-ec-option.ts"
     }
   ],
-  "graphFingerprint": "436599735092cd4dfd5528dd0d3ead3733fc105c6f9a9443393c9daf4ca73f77",
+  "graphFingerprint": "bfed63f5ecd603efa351c70db310fd53da260adc6532abd4a97f2ff5deec4e58",
   "manifest": {
     "module": "09",
     "path": "docs/reference-context/manifests/module-09.inputs.json",
@@ -6457,8 +6457,8 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": true,
-        "headBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb",
+        "dirty": false,
+        "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
         "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
@@ -6481,16 +6481,16 @@
       },
       {
         "dirty": true,
-        "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
+        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
+        "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
         "symbols": [
           "DashboardViewModel",
           "beginHistoryStartup",
           "runHistoryStartup"
         ],
-        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
+        "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
         "dirty": false,
@@ -6555,7 +6555,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
+    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
   },
   "nodes": [
     {

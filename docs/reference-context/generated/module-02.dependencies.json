@@ -1611,7 +1611,7 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "5ae0f7d53f3eaa0df512b58c4b8a26a4fa96c7a5febfc9f4fcba38300949fc05",
+  "graphFingerprint": "0d5d18dbc77d36c1f5ee5a16023c0a658788fa96c9394ecc188217280864d4c1",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
@@ -1632,8 +1632,8 @@
         "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
       },
       {
-        "dirty": true,
-        "headBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e",
+        "dirty": false,
+        "headBlob": "d5005844c926642a091995d2f0fef8d5d98db105",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
         "sha256": "569ede21042664d0d1a4566f7058569097a89d7703041a674589e7a45db69300",
@@ -1711,15 +1711,15 @@
       },
       {
         "dirty": true,
-        "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
+        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
+        "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
         "symbols": [
           "DashboardViewModel.load",
           "bootstrapDashboard"
         ],
-        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
+        "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
         "dirty": false,
@@ -1734,22 +1734,22 @@
         "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "8b917b5db790356bdf58315e6e79c1256691f532",
         "missing": false,
         "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
-        "sha256": "6953c49b052ddcb12ac38ca3b679c4c946778be82f3e3b5b88c8ae163af6ce78",
+        "sha256": "b821b718dd5a5e43673495ba8c9a0557b82d61c25ed04e2a7a6b0efb6738a477",
         "symbols": [
           "DashboardBootstrapLifecycleTests",
           "testMalformedLovelaceBootstrapDisconnectsAuthenticatedClient",
           "testRejectedStateSubscriptionDisconnectsAuthenticatedClient"
         ],
-        "worktreeBlob": "8b917b5db790356bdf58315e6e79c1256691f532"
+        "worktreeBlob": "eb21088f8579a700817a92feb2f2ff004bdd0a00"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
+    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
   },
   "nodes": [
     {

@@ -4,7 +4,13 @@ This directory contains staged implementation plans. Their original findings are
 
 ## Current Readiness
 
-The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md), against `adc2c03`, finds substantial rescue progress but recommends a stabilization gate before the next feature implementation: climate missing-temperature crash, unbounded numeric-axis generation, graph semantics/false-positive step test, and duplicate bootstrap implementations. The suite passes with one expected hover failure; passing tests do not close these findings. This audit does not revoke the narrower previously verified transport/history/weather contracts.
+The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md), against `adc2c03`, found substantial rescue progress plus four bounded findings. The user's follow-up changes their priority:
+
+- **A4 bootstrap duplication:** repaired and validated. Production and fixture bootstrap entry points now use the same `runOwnedBootstrap` lifecycle; the follow-up validation is recorded in the audit.
+- **A1 climate fallback crash and A2 numeric-axis nontermination:** deferred. Both were reproduced with synthetic inputs; reachability from the deployed Home Assistant server was not established. Deferral does not close them or assert that HA cannot supply the triggering data.
+- **A3 graph step/hover/viewport semantics and false-positive step test:** deferred to a dedicated graphing module alongside further user-requested changes. Re-scope that module before implementing it.
+
+The deferred findings are no longer a gate on the next feature. Preserve the narrower verified transport/history/weather contracts; green tests or source hashes alone do not establish whole-app parity.
 
 - Modules 02, 01, and 04 are complete and independently green. Their evidence packets are the implementation authority for transport, history/feed/render ownership, and exact Lovelace view/card identity.
 - Module 03 is intentionally skipped, not complete. NativeHA targets one fixed personal deployment and keeps the existing token/bootstrap path without a profile store, switching, migration, or settings UI.
@@ -24,9 +30,10 @@ Implement in this order unless a future audit finds a blocker:
 5. Module 06: complete and independently verified at contract revision 2.
 6. Module 07 revision 1 current conditions: complete and independently verified.
 7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
-8. Address the bounded stabilization findings in the readiness audit before the next feature implementation. Module 08 research can proceed separately; its marker-only subscription assumption has been corrected in the plan, but it still needs a complete researched and independently reviewed packet.
+8. A4 bootstrap consolidation and lifecycle validation are complete. Keep A1/A2 deferred and collect A3 into the future dedicated graphing module; do not repair or redesign graphs as part of this cleanup.
+9. Module 08 is the next research gate. Its plan now corrects marker-free server rendering, source-versus-rendered empty content, and existing decoder status, but it still needs a complete researched and independently reviewed packet. Module 08 implementation follows that review, not the deferred audit fixes.
 
-Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
+Later subscription consumers reuse completed Module 02. Preserve the coordinated Module 01/12 graph-range and active-owner contracts.
 
 ## Dependency Map
 
@@ -39,7 +46,7 @@ Module 1 and later subscription-heavy modules depend on module 2. Module 12 and 
 | 05 | DashboardViewModel orchestration | 01, 02, 04, 12 | Card behavior consistency |
 | 06 | Entities/entity rows | 04, 05 | Current dashboard row correctness |
 | 07 | Weather card | 02, 04, 05 | Forecast subscription later |
-| 08 | Markdown card | 02, 04 | Template rendering later |
+| 08 | Markdown card | 02, 04, 05, 12 routing | Template/render lifecycle parity |
 | 09 | Graph rendering | 01, 05 | History visual parity |
 | 10 | Climate detail | 05, 06 | More-info climate correctness |
 | 11 | Fan detail | 05, 06 | More-info fan correctness |
@@ -47,7 +54,7 @@ Module 1 and later subscription-heavy modules depend on module 2. Module 12 and 
 
 ## Live Dashboard Scope
 
-The live server surface from the parent audit should drive prioritization before broad Home Assistant coverage:
+The recorded live server surface informs prioritization before broad Home Assistant coverage; these counts and states are historical observations, not a fresh live check:
 
 - Three Lovelace views exist: `Home` (`default_view`), `3h` (`home_3h`), `12h` (`home_12h`). The latter two are maintenance workarounds, not intended separate dashboards.
 - Flattened card types currently in use: `entities`, `history-graph`, `vertical-stack`, `weather-forecast`, `markdown`.
@@ -62,8 +69,8 @@ The live server surface from the parent audit should drive prioritization before
 - Module 01 required Module 02's single receive loop and ID-based dispatch; both are now implemented and must be preserved.
 - Keep one configurable graph-range selector on the intended Home dashboard instead of exposing the duplicate `3h` and `12h` maintenance views as separate dashboards.
 - Keep approved product, layout, interaction, scheduling, sampling, and cache choices as typed policies in `AppConfig.swift`; the fixed server/token bootstrap remains the explicitly approved personal-deployment exception.
-- Weather forecast support is lower priority for the current live dashboard because `show_forecast` is false, but weather icon/current-state/units should be corrected now and forecast subscription should be designed against module 2.
-- Graph rendering is not a failed subsystem. It already has useful bitmap rendering, timeline colors, parsing caches, and min/max downsampling. The remaining work is reference-aligned semantics and interaction polish, not a rewrite.
+- Weather current-card display and modal forecasts are complete. Keep dashboard-card forecasts deferred under C07-09/10; preserve the one selected-detail forecast owner.
+- Preserve the bounded graph async-repair contracts. The broader graph scope and architecture will be revisited in the dedicated user-requested module; this index does not preselect that design.
 
 ## Reference Anchors
 

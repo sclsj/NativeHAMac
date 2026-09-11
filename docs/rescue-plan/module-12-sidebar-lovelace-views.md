@@ -1,5 +1,12 @@
 # Module 12 - Sidebar and Routing Driven by Lovelace Views
 
+> **Status: complete within the verified packet scope.** The
+> [Module 12 evidence packet](../reference-context/modules/module-12-sidebar-lovelace-views.md)
+> records implemented contracts, validation, and deferred work. The original
+> findings, architecture sketches, task lists, and acceptance checklist below
+> are historical planning, not a fresh code audit or remaining-work checklist.
+> Preserve the packet contracts; verify current code before reopening work.
+
 ## Purpose
 
 Replace hardcoded sidebar navigation with navigation derived from genuine Lovelace views while keeping the approved configurable graph-range selector.
@@ -12,7 +19,7 @@ The live configuration has three views:
 
 The `3h` and `12h` views are maintenance workarounds for graph ranges, not intended separate dashboards. Present Home once and use the typed `AppConfig` range policy; continue to support genuine additional Lovelace views.
 
-## Current-Code Findings
+## Historical Findings Before Rescue
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardView.swift`:
 
@@ -33,16 +40,9 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models
 
 ## Post-Module-01/09 Ownership Constraints
 
-Active-view routing now intersects implemented per-card history revision feeds
-and graph render coordinators. A view switch must preserve stable owners for
-cards that remain visible, while canceling and re-keying removed cards before
-late publications or render completions can install. Hidden views must retain
-no `GraphHistoryRevisionFeed` observer and no queued coordinator work.
+Active-view routing now intersects implemented per-card history revision feeds and graph render coordinators. A view switch must preserve stable owners for cards that remain visible, while canceling and re-keying removed cards before late publications or render completions can install. Hidden views must retain no `GraphHistoryRevisionFeed` observer and no queued coordinator work.
 
-Do not use history content hashes or endpoint timestamps to infer whether a
-hidden/visible view's snapshot is newer. Selection and late-update rejection
-must use decoded stable view/card identity plus explicit subscription and
-coordinator generations.
+Do not use history content hashes or endpoint timestamps to infer whether a hidden/visible view's snapshot is newer. Selection and late-update rejection must use decoded stable view/card identity plus explicit subscription and coordinator generations.
 
 ## Reference Implementation Paths
 
@@ -76,9 +76,7 @@ Drive navigation from decoded Lovelace config:
 
 - Keep one selector or equivalent control that changes the intended Home dashboard's graph range; configure its ranges, default, and scope in `AppConfig.swift`.
 - Do not expose the live `3h` and `12h` maintenance duplicates as intended separate navigation/content.
-- Do not hardcode the user's profile name or personal labels in the sidebar.
-  Module 03 is intentionally skipped, so remove the nonfunctional profile row
-  rather than moving it behind a profile/settings surface.
+- Do not hardcode the user's profile name or personal labels in the sidebar. Module 03 is intentionally skipped, so remove the nonfunctional profile row rather than moving it behind a profile/settings surface.
 
 ## Implementation Tasks
 
@@ -176,15 +174,9 @@ Use the shared offscreen and performance method in [`../visual-testing.md`](../v
 
 ### Integration tests
 
-Use a fixture containing `default_view`, the `home_3h`/`home_12h` maintenance
-duplicates, and one genuine unrelated view, plus fake Module 01 history and
-graph render owners. Assert the maintenance duplicates are not primary
-navigation items.
+Use a fixture containing `default_view`, the `home_3h`/`home_12h` maintenance duplicates, and one genuine unrelated view, plus fake Module 01 history and graph render owners. Assert the maintenance duplicates are not primary navigation items.
 
-- Initial routing starts history subscriptions only for the selected view.
-  Each view switch cancels obsolete history/feed/render owners before or
-  atomically with starting the new set; switching back creates one subscription
-  per visible card, not duplicates.
+- Initial routing starts history subscriptions only for the selected view. Each view switch cancels obsolete history/feed/render owners before or atomically with starting the new set; switching back creates one subscription per visible card, not duplicates.
 - Deliver a late update from a canceled hidden view and assert it does not mutate visible view state or restart rendering. Hidden views must not schedule graph bitmap work.
 - Restore persisted selection, handle removed/hidden restored paths, route into/out of a subview, and verify back-path fallback.
 - Repeated resize/layout recalculation must preserve selected view/card identity and must not recreate subscriptions solely because the window width changed.
@@ -208,25 +200,20 @@ Render navigation states this module owns: selected, unselected, hover, keyboard
 - Build a generated `500`-card dashboard fixture outside measured blocks, with nested stacks and a controlled mix of supported/unsupported cards. Measure cold route/layout preparation separately from a warmed render of the selected view.
 - Measure `100` repeated graph-range changes plus genuine view switches with fake coordinators, and repeated narrow/normal layout changes, using `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`. Consume selected card/subscription/render counts and prefer stored XCTest baselines over tight wall-time assertions.
 - Warm card/graph caches before measuring warm switching. Track subscription registries, render-task counts, and weak owners so each cycle returns to the expected active-view set and memory does not trend upward.
-- Measure cleanup/cancellation separately from initial load. A hidden view must
-  have zero active history subscriptions and no continuing graph render or
-  animation work after bounded settlement.
+- Measure cleanup/cancellation separately from initial load. A hidden view must have zero active history subscriptions and no continuing graph render or animation work after bounded settlement.
 - Use signpost metrics only around intentionally instrumented route-to-visible or subscription-reconciliation intervals. Do not require unavailable `XCTHitchMetric`.
 
 ### Manual QA
 
 - Against the live server, confirm Home appears once, `3h`/`12h` maintenance duplicates are not primary navigation, and the configured selector reproduces those graph ranges without changing unrelated Home content.
-- Switch views rapidly, enter/leave any implemented subview, resize from wide
-  to narrow and back, and relaunch for persisted-route recovery. Confirm hidden
-  graphs stop rendering and old history streams stop processing.
+- Switch views rapidly, enter/leave any implemented subview, resize from wide to narrow and back, and relaunch for persisted-route recovery. Confirm hidden graphs stop rendering and old history streams stop processing.
 - Verify keyboard navigation, visible focus, logical focus order, activation, resize behavior, scroll/overflow behavior, long-title truncation, card/sidebar clipping, and empty/loading states manually. Offscreen snapshots cannot establish accessibility or real focus behavior.
 
 ## Dependencies
 
 - Complete Module 04 for robust Lovelace view decoding and exact identity.
 - Complete Modules 01 and 02 for history and WebSocket ownership.
-- Module 12 owns active-view state and current history/render reconciliation;
-  Module 05 follows only after Module 12 is independently verified.
+- Module 12 owns active-view state and current history/render reconciliation; Module 05 follows only after Module 12 is independently verified.
 - Module 03 is intentionally skipped under the fixed-deployment deviation.
 
 ## Risks

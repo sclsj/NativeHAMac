@@ -1,12 +1,21 @@
 # Module 09 - Graph Rendering Alignment and Interaction Polish
 
+> **Status: broader graph work deferred by the user on 2026-09-11.** The
+> [bounded async-repair packet](../reference-context/modules/module-09-graph-rendering.md)
+> remains verified within its scope. A dedicated graphing module will address
+> the recorded step/hover/viewport defects and false-positive step test (A3)
+> alongside the user's further requested changes. Research and re-scope it then;
+> this historical proposal does not select that future design. The synthetic
+> numeric-axis nontermination finding (A2) is also deferred; live HA reachability
+> was not established, and the issue is not declared impossible or fixed.
+
 ## Purpose
 
 Keep the existing native graph rendering pipeline, but align the remaining behavior with Home Assistant history charts except where the approved native interaction and smooth y-axis deviations apply.
 
-This is not a rewrite module. The current CoreGraphics bitmap path, timeline builder, prepared series cache, and min/max downsampling cache are strong foundations.
+The existing native renderer/cache pipeline is the starting point for future research. Preserve the verified bounded lifecycle contracts; choose any broader architecture only within the dedicated graphing task.
 
-## Current-Code Findings
+## Findings and Historical Assumptions to Revalidate
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/GraphRendering.swift`:
 
@@ -17,14 +26,14 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/GraphRe
 - X-axis ticks use simple linear time ticks rather than HA-like time tick selection.
 - Numeric line drawing is currently continuous between samples. HA frontend line history uses step-end behavior for state history charts.
 - Tooltip/sample lookup behavior should be reviewed against HA's "last point before hovered time" behavior.
-- Date formatting is centralized/cached, but time-zone and locale behavior should be verified against the server/app profile.
+- Date formatting is centralized/cached, but time-zone and locale behavior should be verified against the fixed server and frontend locale preferences.
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
 
-- `HistoryGraphCard` labels use the current bare global selected hours. The intended global selector remains, but its ranges/default/scope must come from the typed `AppConfig` policy without rewriting decoded cards.
-- Card options such as names, legend behavior, `show_names`, `min_y_axis`, `max_y_axis`, and logarithmic scale are not fully modeled.
+- `HistoryGraphCard` already uses the effective typed `GraphTimeRangePolicy`; raw card hours are preserved. Keep that completed contract.
+- Module 04 already decodes/preserves graph options; broader renderer support for those options still needs research.
 
-Confirmed in `/Users/jin/Documents/Computer/NativeHA/Tests/NativeHAMacTests/HistoryGraphSupportTests.swift`:
+Confirmed in `/Users/jin/Documents/Computer/NativeHA/Tests/NativeHACoreTests/HistoryGraphSupportTests.swift`:
 
 - There is already coverage that `unknown` and `unavailable` remain renderable for timelines. Preserve this.
 
@@ -93,7 +102,7 @@ Add or refine these types:
 
 5. Improve time tick selection.
    - Choose tick intervals based on total duration: minutes, hours, half-days, days as appropriate.
-   - Use server/profile timezone, with the live server currently in `Asia/Shanghai`.
+   - Use the accepted server/frontend locale policy; the recorded deployment uses `Asia/Shanghai`.
    - Avoid overlapping x-axis labels.
 
 6. Align hover/sample behavior.
@@ -146,11 +155,11 @@ Extend the proven experiments in `Tests/NativeHAMacTests/GraphRenderingTests.swi
 
 ### Unit and semantic-conformance tests
 
-- Build exact step-end geometry: horizontal from the previous sample to the next timestamp, then the vertical transition. Cover a two-point series, repeated values/timestamps, clipped window edges, nonnumeric gaps, and multi-series input. The semantic source is `/Users/jin/Documents/HA/hass-frontend/src/components/chart/state-history-chart-line-data.ts` (`step: "end"`). Remove the existing scoped `XCTExpectFailure` when fixed.
+- Build exact step-end geometry: horizontal from the previous sample to the next timestamp, then the vertical transition. Cover a two-point series, repeated values/timestamps, clipped window edges, nonnumeric gaps, and multi-series input. The semantic source is `/Users/jin/Documents/HA/hass-frontend/src/components/chart/state-history-chart-line-data.ts` (`step: "end"`). The current step pixel test falsely passes because its fixture compresses the transition; fix its oracle together with the renderer (audit A3). It has no `XCTExpectFailure` to remove.
 - Hover at exact samples, between samples, before the first sample, after the last sample, and across a gap. The line lookup must use the last sample at or before hover time, matching `/Users/jin/Documents/HA/hass-frontend/src/components/chart/state-history-chart-line.ts`; timeline lookup must return the active segment. Remove the current hover `XCTExpectFailure` when fixed.
 - Assert timeline segment boundaries and stable, distinct colors for `off`, `on`, `unknown`, `unavailable`, and `none`; preserve the original stored history while numeric preparation skips only nonnumeric samples.
 - Cover axis bounds for explicit min/max, `fit_y_data`, flat/empty/single-point series, NaN/infinity, and logarithmic fallback with nonpositive values. Assert time ticks and nonoverlap decisions for `1h`, `3h`, `12h`, and `24h` at `320` and `496` point widths with fixed `en_US_POSIX` locale and `Asia/Shanghai` timezone where the production API permits injection.
-- Assert stable series colors across redraw/reorder rules, legend names/options, clipping to plot rect, raw `hours_to_show` preservation, and effective `1h`/`3h`/`12h` selector ranges. Replace the current per-card-hours `XCTExpectFailure` with the approved range-policy contract.
+- Assert stable series colors across redraw/reorder rules, legend names/options, clipping to plot rect, raw `hours_to_show` preservation, and effective `1h`/`3h`/`12h` selector ranges. Preserve the already-passing raw-hours/effective-range policy tests; the obsolete per-card-hours expectation is already removed.
 - Keep pure tests for pointer-anchored vertical-scroll zoom, horizontal-scroll pan sensitivity/inertia, zoom limits, viewport selection, loaded-coverage pan clamping, and gesture-delta-to-model conversion. The selected/default range is an initial viewport, not a zoom-out ceiling; test configured expansion beyond it. These tests—not screenshots—prove interaction math.
 - Add deterministic downsampling tests with narrow positive and negative spikes between quiet samples. Assert both extrema survive and that downsampled time ordering and endpoints remain valid.
 
@@ -158,7 +167,7 @@ Any temporary conformance `XCTExpectFailure` must name one known gap and its has
 
 ### Integration tests
 
-- Feed fixed Module 01 numeric and timeline series through classification, preparation, caching, render scheduling, and `BitmapLineChart`. Assert the card's own window reaches the renderer and stale/superseded render results cannot replace a newer viewport.
+- Feed fixed Module 01 numeric and timeline series through classification, preparation, caching, render scheduling, and `BitmapLineChart`. Assert the effective selected window reaches the renderer and stale/superseded render results cannot replace a newer viewport.
 - Exercise empty -> loading -> rendered, changed history, zoom, pan, and hover-tooltip models without network access. Use bounded expectations/polling for asynchronous render completion rather than long sleeps.
 - Queue multiple render requests, cancel or supersede all but the newest, and assert only the newest result is published. On disappearance, no render task may publish afterward.
 

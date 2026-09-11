@@ -1,5 +1,10 @@
 # Module 11 - FanDetailContent Speed, Preset, Direction, and Oscillation Support
 
+> **Status: unresearched future module.** Research the complete more-info
+> control path before implementation; card-feature references below do not by
+> themselves establish detail-dialog control or service semantics. Proposed
+> helpers and tests remain subject to that researched contract.
+
 ## Purpose
 
 Make fan detail controls reflect HA fan capabilities instead of fixed Off/Low/Medium/High speed buttons.
@@ -70,7 +75,7 @@ Add fan-specific helpers:
    - Treat missing feature flags conservatively.
 
 3. Derive speed controls from `percentage_step`.
-   - Compute speed count as HA does: roughly `100 / percentage_step`.
+   - Pin the exact reference count/conversion for the selected control; the card-feature path uses `round(100 / percentage_step) + 1`, including off.
    - If the count is small enough, show discrete buttons.
    - If the count is larger, show a percentage slider/stepper.
    - Always include off behavior separately from nonzero percentage when appropriate.
@@ -79,7 +84,7 @@ Add fan-specific helpers:
    - `fan.set_percentage` with `percentage`.
    - Clamp to `0...100`.
    - Snap to valid step increments.
-   - Use `fan.turn_off` for off if that matches existing service semantics better than setting 0.
+   - Trace the relevant reference control to determine whether off calls `fan.turn_off` or sets percentage 0; do not choose by implementation convenience.
 
 5. Add preset mode support.
    - Show presets from `preset_modes`.
@@ -137,7 +142,7 @@ Test:
 
 - typed parsing of percentage, step, preset, direction, oscillation, and supported features, including missing and wrong-type values;
 - decoding each `FanEntityFeature` bit and capability combinations;
-- the hass-frontend speed-count contract `round(100 / percentage_step) + 1`, including the typed `AppConfig` button/control threshold (reference default: four speeds) and slider behavior above it;
+- the hass-frontend speed-count contract `round(100 / percentage_step) + 1`, including the reference four-speed button threshold and slider behavior above it; no separate typed threshold has been approved;
 - percentage-to-discrete-speed and discrete-speed-to-percentage mapping where buttons apply;
 - percentage clamping, step snapping, rounding ties, missing/zero/invalid steps, and off behavior;
 - exact payloads for set percentage, preset, direction, oscillation, turn on, and turn off, including preservation of raw preset/direction strings;
@@ -224,7 +229,7 @@ Offscreen PNGs cannot prove percentage correctness, accessibility, payload seman
 - Setting percentage to 0 versus calling `turn_off` can differ by integration. Prefer HA frontend semantics and test against live fan behavior carefully.
 - Feature constants must stay aligned with HA.
 - A missing percentage while state is `on` must not silently look like off; semantic state tests and a dedicated visual fixture are required.
-- Step rounding can drift from hass-frontend if implemented independently. Keep the local reference functions under conformance tests, and verify that the configurable button threshold defaults to the reference value.
+- Step rounding can drift from hass-frontend if implemented independently. Keep the local reference functions under conformance tests, and preserve the researched reference threshold unless a configuration surface is explicitly approved.
 - Service-call coalescing, optimistic confirmation, and out-of-order state updates can cause flicker or call storms even when static snapshots look correct.
 - Any repeating fan animation can retain a task or consume CPU after the detail disappears unless its lifetime is explicit and tested.
 - Baselines vary with macOS font/control rendering. Fixed scale, appearance, timestamp, locale/timezone, and a documented OS baseline reduce noise but do not validate control semantics.
@@ -237,7 +242,7 @@ Offscreen PNGs cannot prove percentage correctness, accessibility, payload seman
 - Unavailable/missing fans have intentional disabled UI.
 - The live fan remains controllable without personal hardcoded assumptions.
 - Complete, sparse, unavailable, missing-percentage, small-step, large-step, and full-capability fixtures pass parsing, feature, value mapping, rounding, payload, and optimistic-reconciliation tests offline.
-- Semantic tests match hass-frontend's speed-count and percentage conversion behavior, the typed button-threshold policy defaults to the reference value, and service spy tests prove the exact action count and payload for speed, preset, direction, oscillation, on, and off.
+- Semantic tests match hass-frontend's speed-count and percentage conversion behavior, the button threshold preserves the researched reference value, and service spy tests prove the exact action count and payload for speed, preset, direction, oscillation, on, and off.
 - Valid, nonblank `520x620` and narrow `360x620` PNG artifacts cover off, several on percentages, unavailable, missing percentage, discrete controls, slider controls, and supported preset/direction/oscillation combinations; checked-in references are manually approved against hass-frontend on a documented macOS version and pass tolerant comparison.
 - If animation or a gesture-driven progress control is implemented, deterministic keyframes and pure gesture/value tests pass, reduced motion is covered where supported, and hidden detail performs no animation work. No animation-only test is required for an intentionally static implementation.
 - Stored performance measurements cover cold preparation/rendering, warm 10,000-update mapping, repeated realtime reconciliation, and 100 open/close cycles without retained subscriptions, callbacks, render tasks, controllers, or animation resources.

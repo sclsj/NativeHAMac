@@ -161,6 +161,51 @@ final class DashboardBootstrapLifecycleTests: XCTestCase {
         await latestClient.disconnect()
     }
 
+    func testLateRequiredFailureFromSupersededBootstrapCannotFailInstalledDashboard() async throws {
+        let oldTransport = DashboardBootstrapTransport(mode: .holdLovelace)
+        let latestTransport = DashboardBootstrapTransport(mode: .success, dashboardTitle: "Latest")
+        let oldConnection = HomeAssistantWebSocketConnection(
+            accessToken: "old-bootstrap-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            transportFactory: { oldTransport }
+        )
+        let latestConnection = HomeAssistantWebSocketConnection(
+            accessToken: "latest-bootstrap-token",
+            commandTimeoutNanoseconds: 5_000_000_000,
+            transportFactory: { latestTransport }
+        )
+        let oldClient = HomeAssistantWebSocketClient(connection: oldConnection)
+        let latestClient = HomeAssistantWebSocketClient(connection: latestConnection)
+        let model = DashboardViewModel(
+            navigationPreferenceStore: BootstrapMemoryNavigationPreferenceStore()
+        )
+
+        let oldTask = Task { try await model.bootstrapDashboard(using: oldClient) }
+        try await waitForBootstrapCondition { await oldTransport.lovelaceForces().count == 1 }
+        try await model.bootstrapDashboard(using: latestClient)
+        XCTAssertEqual(model.lifecycle.phase, .ready)
+
+        try await oldTransport.rejectHeldLovelace()
+        try await oldTask.value
+        XCTAssertEqual(model.lifecycle.phase, .ready)
+        XCTAssertEqual(model.views.first?.title, "Latest")
+        let oldSocket = await oldConnection.debugSnapshot()
+        XCTAssertEqual(oldSocket.state, .disconnected)
+        XCTAssertEqual(oldSocket.pendingCommandCount, 0)
+        XCTAssertEqual(oldSocket.subscriptionCount, 0)
+        let latestSocket = await latestConnection.debugSnapshot()
+        XCTAssertEqual(latestSocket.state, .ready)
+        XCTAssertEqual(latestSocket.subscriptionCount, 2)
+        try await latestTransport.pushState(entityID: "sensor.latest", state: "accepted")
+        try await waitForBootstrapCondition {
+            await MainActor.run { model.states["sensor.latest"]?.state == "accepted" }
+        }
+        await model.stop()
+        let stoppedSocket = await latestConnection.debugSnapshot()
+        XCTAssertEqual(stoppedSocket.subscriptionCount, 0)
+        XCTAssertEqual(stoppedSocket.receiveLoopCount, 0)
+    }
+
     func testRegistryPrecisionAndIconInstallOnlyWithAcceptedBootstrapAndResetTogether() async throws {
         let obsoleteTransport = DashboardBootstrapTransport(
             mode: .holdCurrentUser,
@@ -1920,8 +1965,8 @@ final class DashboardBootstrapLifecycleTests: XCTestCase {
             )
         case .rejectCurrentUser:
             XCTFail("Current-user rejection is expected to be nonfatal")
-        case .holdCurrentUser:
-            XCTFail("Held current-user mode is not a bootstrap failure fixture")
+        case .holdCurrentUser, .holdLovelace:
+            XCTFail("Held-response mode is not an immediate bootstrap failure fixture")
         case .holdFirstCurrentUser, .holdSecondAuthentication, .success:
             XCTFail("Successful bootstrap mode is not a failure fixture")
         }
@@ -2128,6 +2173,7 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
         case rejectStateSubscription
         case rejectCurrentUser
         case holdCurrentUser
+        case holdLovelace
         case holdFirstCurrentUser
         case holdSecondAuthentication
         case success
@@ -2194,6 +2240,8 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
         case "lovelace/config":
             let result: JSONValue
             switch mode {
+            case .holdLovelace:
+                return
             case .malformedLovelace:
                 result = .string("not-a-lovelace-config")
             case .rejectStateSubscription:
@@ -2433,6 +2481,21 @@ private actor DashboardBootstrapTransport: HomeAssistantWebSocketTransport {
             "id": .int(id),
             "type": .string("event"),
             "event": event,
+        ])
+    }
+
+    func rejectHeldLovelace() throws {
+        guard let command = sent.last(where: { $0["type"] == .string("lovelace/config") }),
+              let id = command["id"]?.dashboardTestInt
+        else { throw HomeAssistantWebSocketError.invalidMessage }
+        try deliver([
+            "id": .int(id),
+            "type": .string("result"),
+            "success": .bool(false),
+            "error": .object([
+                "code": .string("injected_failure"),
+                "message": .string("obsolete Lovelace request failed"),
+            ]),
         ])
     }
 

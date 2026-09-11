@@ -2,13 +2,38 @@
 
 Audited NativeHA `adc2c036156b705b3fc778be43bb4404b231e978` on a clean `main`, against local hass-frontend `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd`. Environment: macOS 12.6.7, Apple Swift 5.6.1 / Xcode 13.4.1, arm64.
 
-## Verdict
+## Current disposition — user follow-up, 2026-09-11
+
+The user deferred A1 and A2: both are confirmed synthetic-input failures, but reachability from this HA deployment has not been established. They remain open; this is neither a claim that HA can produce these inputs nor that it cannot. A3 is deferred to the dedicated graphing module, whose broader product scope will be specified later. No climate or graph implementation changes are part of this follow-up.
+
+A4 is addressed by consolidating the injected-client test entry point onto the same weak-owner bootstrap runner used by production startup, removing the unused load path and duplicate installation/failure helpers. The shared path awaits retired status ownership, cancels an uninstalled Lovelace subscription if the final entity-generation proof fails, and ignores errors from superseded bootstrap candidates. Production lifetime ownership remains weak.
+
+The original findings and validation below describe the audited revision. Their “repair next” recommendations are superseded by this disposition. Module 08 research may proceed; deferred A1–A3 are no longer a prerequisite stabilization gate. Preserve verified ownership contracts in subsequent work.
+
+### Follow-up validation and plan corrections
+
+On base `9291da336d2f068c39c4924fed3add4c52c27f85` with this follow-up diff:
+
+| Check | Result |
+|---|---|
+| `swift test --filter DashboardBootstrapLifecycleTests` | 26 tests, 0 failures; 6.6 seconds, including 100 full reconnect/retry/stop cycles and actual production-bootstrap weak-release coverage |
+| `swift test` | 320 executed, 5 opt-in skips, 0 unexpected failures; existing expected hover failure retained; 89.5 seconds |
+| `swift build -c release --product NativeHAMac` | Pass; 22.5 seconds on macOS 12 / Swift 5.6.1 |
+| Refreshed graphs and strict context checks for 01, 02, 04, 05, 06, 07, 09, 12 | All green; TypeScript nodes/edges unchanged, NativeHA anchors refreshed |
+| `node tools/reference-context/test-resolver.mjs` | Pass; 31 nodes / 61 edges |
+| Independent Swift/test diff review | No medium-or-higher finding; reviewer inspected source and consumed the focused test result, without separately rerunning tests |
+
+The new required-response fixture holds an old Lovelace request, installs a new dashboard, then rejects the old request. It asserts old socket cleanup, continued readiness and entity delivery from the winning client, and final stop cleanup. Existing dead-candidate and deinitialization tests now protect the same runner as production. No live HA, matched-reference visual, or manual interaction checks were performed for this ownership-only source change.
+
+The rescue index and all twelve module plans now distinguish historical proposals from current scoped evidence. Targeted corrections cover completed transport/entity/identity work, skipped profile prerequisites, exact weather flag/action and entity-row contracts, Markdown's already-preserved options, source-content validation versus rendered-empty behavior, `entity_id` array handling, graph test status, and the unapproved fan-control threshold proposal. The Module 05 packet also corrects its address-fallback overstatement: fallback covers REST config discovery, not required WebSocket bootstrap failure. Further Module 08 implementation still requires complete researched evidence and independent research review.
+
+## Original audit verdict
 
 The rescue is making substantial progress. Keep the native architecture and the repaired transport, history, identity, navigation, entity, and weather contracts. The project does not need another rewrite. However, insert a bounded stabilization gate before the next feature implementation: two reproduced high-impact safety failures, graph correctness/test gaps, and a duplicated bootstrap path deserve attention now.
 
 “Module complete” means its scoped contracts passed the recorded verification; it does not mean the whole app or original module plan is complete. Module 03 is intentionally skipped. Weather-card forecast and broad graph/climate/fan parity remain explicit deferrals. Those are not new regressions.
 
-## Findings and recommended order
+## Original findings and recommendations
 
 ### A1 — High: missing climate temperatures crash detail rendering
 
@@ -79,7 +104,7 @@ Consolidated the root, four routes, and module workflow from **372 to 229 lines*
 - Delegation is bounded and useful rather than a requirement to keep the main agent permanently dispatch-only. Algorithm comparisons focus on plausible candidates when measurements can change the implementation decision.
 - Marked legacy instruction proposals/scaffold research as historical and corrected the visual-testing guide's obsolete three-expected-failures claim.
 
-## Validation and limits
+## Original audit validation and limits
 
 Fresh checks on the audited source:
 
@@ -105,4 +130,4 @@ python3 docs/audits/2026-09-11-readiness-probe.py
 
 The adjacent Swift probe links existing debug production objects, excludes the app entrypoint, disables selected diagnostic logging, and contacts no server. The Python runner isolates each failure in a subprocess, disables core dumps, kills timed-out children, and saves logs in a new temporary directory. This is an audit reproducer with known failures, not a green regression suite or a portable performance benchmark.
 
-Next implementation: repair A1/A2 with focused regression tests; repair A3 with a geometry-sensitive oracle; consolidate A4 with production-entry lifecycle coverage. Keep each change bounded and independently verified, then resume Module 08 after its research gate. Refresh only affected evidence anchors/contracts. Do not weaken the existing cancellation, identity, or history-lineage guarantees to make the new tests pass.
+Current next step: research Module 08 and independently review its evidence before implementation. Revisit A1/A2 when live reachability evidence or the relevant module scope warrants it; carry A3 and its weak oracle into the later dedicated graphing module. Keep the existing cancellation, identity, and history-lineage guarantees.

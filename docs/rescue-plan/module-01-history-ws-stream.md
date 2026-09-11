@@ -1,8 +1,15 @@
 # Module 01: History API - Switch To WebSocket `history/stream`
 
+> **Status: complete within the verified packet scope.** The
+> [Module 01 evidence packet](../reference-context/modules/module-01-history-ws-stream.md)
+> records implemented contracts, validation, and deferred work. The original
+> findings, architecture sketches, task lists, and acceptance checklist below
+> are historical planning, not a fresh code audit or remaining-work checklist.
+> Preserve the packet contracts; verify current code before reopening work.
+
 Original Claude module: `1. History API: Switch to WebSocket history/stream`.
 
-Priority: critical. Depends on module 02. Coordinate with module 12 because the intended Home dashboard uses one configurable graph-range selector rather than separate `3h` and `12h` maintenance views.
+Original priority: critical. Depends on module 02. Coordinate with module 12 because the intended Home dashboard uses one configurable graph-range selector rather than separate `3h` and `12h` maintenance views.
 
 ## Goal
 
@@ -10,7 +17,7 @@ Replace NativeHA's app-facing history pipeline with Home Assistant's WebSocket `
 
 Do not remove the REST history client from command-line tools until those tools are migrated or explicitly retired. The immediate app target is `NativeHAMac`.
 
-## Confirmed Current-Code Findings
+## Historical Findings Before Rescue
 
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/HomeAssistantRESTClient.swift:29` fetches REST `/api/history/period/<start>` with `filter_entity_id`, `minimal_response` set as a nil query value, and `significant_changes_only=0`.
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models.swift:81` defines `HAHistoryPoint` in REST shape: `state`, `attributes`, `last_changed`, `last_updated`, `entity_id`.
@@ -36,11 +43,11 @@ Do not remove the REST history client from command-line tools until those tools 
 
 ## Corrected Semantics
 
-Confirmed issue: NativeHA's history source and cache shape do not match hass-frontend. The app should move to `history/stream`.
+The original source/cache mismatch is repaired: app history uses `history/stream`; REST history is retained for tools.
 
 Corrected Claude finding: do not drop `unknown`, `unavailable`, or `none` at ingestion. Hass-frontend timelines preserve state transitions. Only line graph preparation should ignore samples that cannot produce numeric chart values.
 
-Hypothesis to verify during implementation: Home Assistant's raw subscription callback may deliver history payload under an `event` envelope, depending on how the Swift client normalizes subscription messages. Module 02 should expose subscription callbacks with the payload already normalized, but module 01 tests should include both raw shapes if the lower layer supports them.
+The Module 02 typed subscription API now normalizes the wire event envelope. Preserve its tested payload contract; do not add alternate feature-level envelope guessing.
 
 ## Target Architecture
 
@@ -58,7 +65,7 @@ Dashboard behavior:
 
 - Each `history-graph` card owns its own history subscription keyed by stable card identity, entity IDs, and the effective range from the typed `AppConfig` time-range policy.
 - Detail sheets use the configured detail range, or reuse a shared history subscription manager keyed by `(entityID, range)`.
-- `state_changed` subscriptions keep the entity cache fresh. They should not also append duplicate history points for streams that are already subscribed.
+- The Module 05 `subscribe_entities` owner keeps the entity cache fresh. It must not also append duplicate history points to `history/stream` owners.
 - `history/stream` subscriptions should be canceled when their card/view/detail owner disappears or its key changes.
 
 ## Implementation Tasks
@@ -76,7 +83,7 @@ Dashboard behavior:
    - Merge existing and incoming entity histories.
    - Sort if incoming data is older than the last combined point.
    - For `hoursToShow`, purge old history while preserving the last expired state at the cutoff boundary with `lc` cleared, matching hass-frontend lines `197-223`.
-   - Keep that trimming local to the foreground subscription accumulator; it must not evict broader coverage retained by the configured shared history/prepared-series cache.
+   - Keep that trimming local to the foreground subscription accumulator; it must not evict broader coverage if the future shared history/prepared-series cache is implemented.
 
 3. Implement attribute policy equivalent to `entityIdHistoryNeedsAttributes`.
    - Needs attributes if the entity is not in current states.
@@ -91,10 +98,10 @@ Dashboard behavior:
    - If reconnect is implemented in module 02, rebuild fresh accumulator state and recompute `start_time` on resubscribe.
 
 5. Replace app-facing REST history loading in `DashboardViewModel`.
-   - Remove `loadHistories()` from the normal card path or make it a fallback only.
+   - Keep REST history outside the normal app path; do not add an unapproved REST fallback.
    - Replace bare `selectedGraphHours` handling with the typed `AppConfig` time-range policy.
    - `historyKey(for:)` must include the effective selected range, stable card identity, and ordered entity IDs.
-   - `historyEntityIDs(for:)` should use the decoded Lovelace card config after module 04 and apply any local hidden-entity choice only through the typed Module 03 `AppConfig` presentation policy.
+   - `historyEntityIDs(for:)` should use the decoded Lovelace card config after module 04 and apply any local hidden-entity choice only through the approved typed `AppConfig` presentation policy.
 
 6. Preserve decoded `hours_to_show` without using it to override the approved selector policy.
    - Stop rewriting `LovelaceCard.hoursToShow` in `cleanCards`.
@@ -124,7 +131,7 @@ Out of scope:
 
 - Full recorder statistics merge. Hass-frontend fetches statistics for long windows; NativeHA can defer this until history stream parity is stable.
 - Broad Lovelace card support beyond current dashboard card types.
-- Source-code changes during this documentation task.
+- Shared byte-budgeted cache, range reuse, and idle prefetch implementation; these remain approved future work, not delivered Module 01 scope.
 
 ## Tests And Verification
 
@@ -138,7 +145,7 @@ Follow the shared harness and reference-approval rules in [`../visual-testing.md
 - Drive foreground-accumulator trimming with an injected fixed clock. Preserve the last expired state at the cutoff, move its `lu` to the cutoff, clear `lc`, avoid duplicating an existing cutoff state, and leave broader shared-cache coverage intact.
 - Preserve `unknown`, `unavailable`, and `none` in timeline input; skip only nonnumeric samples in numeric line preparation without mutating stored history.
 - Assert attribute-request policy for present/missing entities and every `NEED_ATTRIBUTE_DOMAINS` domain named above.
-- Assert that stable card keys distinguish ordered entity sets and effective `1`, `3`, and `12` hour selector values while decoded `hours_to_show` remains unchanged in the raw model. Replace the existing per-card-hours `XCTExpectFailure` in `GraphRenderingTests.swift` with the approved effective-range policy contract.
+- Assert that stable card keys distinguish ordered entity sets and effective `1`, `3`, and `12` hour selector values while decoded `hours_to_show` remains unchanged in the raw model. Preserve the already-passing effective-range policy tests in `GraphRenderingTests.swift`; the old per-card-hours expectation is removed.
 
 Use small hand-written JSON fixtures for edge cases and generated, fixed-timestamp compact messages for scale. Do not read the live server or a token file.
 
@@ -150,7 +157,7 @@ Use the Module 02 fake dispatcher/transport, a controllable clock, and a `@MainA
 - Start a history card in its loading state, deliver a finite initial replay, wait with a bounded expectation/poll until the graph render model is ready, then deliver an incremental chunk and assert that the visible model changes.
 - Subscribe two cards with overlapping entities. An update for one subscription must not mutate the other card's cache or render model.
 - Apply `1h`, `3h`, and `12h` selector values in turn and assert matching cutoffs, keys, requests, and rendered windows across the visible graphs.
-- Cancel on card/view disappearance, profile change, and explicit unsubscribe. A late callback after cancellation must not publish UI state or recreate the card cache.
+- Cancel on card/view disappearance, fixed-deployment restart, and explicit unsubscribe. A late callback after cancellation must not publish UI state or recreate the card cache.
 - Reconnect after replay and verify one fresh subscription, no duplicate samples, and no stale pre-disconnect accumulator merge.
 
 ### GUI rendering and visual regression

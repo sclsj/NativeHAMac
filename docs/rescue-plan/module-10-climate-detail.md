@@ -1,5 +1,11 @@
 # Module 10 - ClimateDetailContent Capabilities and Service Semantics
 
+> **Status: unresearched future module.** On 2026-09-11 the user deferred
+> audit A1 (recursive fallback when both temperature attributes are absent).
+> Its synthetic-input crash is confirmed; reachability from the deployed HA
+> server has not been established. Retain it for later climate work without
+> treating it as impossible, repaired, or a current stabilization gate.
+
 ## Purpose
 
 Make climate detail controls driven by the entity's actual HA attributes and supported features, instead of prototype defaults and personal configuration.
@@ -94,7 +100,7 @@ Add climate-specific helpers:
    - If modes are missing, show current state and disable mode switching.
 
 4. Remove direct personal-preset lookup from generic HA-derived climate controls.
-   - If retained as user shortcuts, move them behind a typed `AppConfig` entity UI policy from Module 03.
+   - If retained as user shortcuts, move them behind an approved typed `AppConfig` entity UI policy; Module 03 remains skipped.
    - Clearly label shortcuts as local shortcuts, not HA state.
 
 5. Implement service payload builders.
@@ -235,7 +241,7 @@ Offscreen PNGs cannot establish data correctness, accessibility, service semanti
 
 ## Dependencies
 
-- Module 03 for removing personal climate preset config from core UI.
+- Approved `AppConfig`/user-deviation policy for personal climate hints; skipped Module 03 is not a prerequisite.
 - Module 05 for service controller extraction and error handling.
 - Module 06 for shared display formatting.
 

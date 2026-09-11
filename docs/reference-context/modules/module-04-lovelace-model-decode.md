@@ -6,16 +6,18 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 25c73ec76347c442e8b550e42734173ac37710a6
+nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
 graph_file: ../generated/module-04.dependencies.json
-graph_fingerprint: 3e6766d6cfc4953f7ba6bc16ae9a0e4b06285ee5efda65be9037728452a4641c
+graph_fingerprint: 46cc82de64786e77cf64f9ef8d89ae35ba765fea586db9c29e01e5c1072e52b9
 last_researched: 2026-08-23
 last_implemented: 2026-08-23
 last_verified: 2026-08-25
-last_validated: 2026-09-10
+last_validated: 2026-09-11
 ---
 
 # Module 04 evidence packet
+
+2026-09-11 anchor refresh: the shared dashboard bootstrap and its tests changed; see [Module 05 consolidation](module-05-dashboard-viewmodel-state.md#2026-09-11-bootstrap-consolidation) for validation and limits. This module's contract revision is unchanged; older verification entries below retain their original revision-specific evidence.
 
 ## Gate and scope
 

@@ -25,7 +25,7 @@ swift test
 
 One Home Assistant parity contract currently uses `XCTExpectFailure`: numeric history hover should use the previous sample rather than a future sample. Remove the expectation when corrected. The approved global graph-range policy has an ordinary passing test; per-card `hours_to_show` is not the intended default-dashboard behavior.
 
-The step-end pixel test also passes, but the [2026-09-11 audit](audits/2026-09-11-readiness.md) demonstrates that its narrow fixture produces a false positive against the current diagonal renderer. Replace it with a geometry-sensitive oracle during the bounded graph repair; do not interpret its current result as step-end conformance.
+The step-end pixel test also passes, but the [2026-09-11 audit](audits/2026-09-11-readiness.md) demonstrates that its narrow fixture produces a false positive against the current diagonal renderer. Replace it with a geometry-sensitive oracle during the deferred dedicated graphing module; do not interpret its current result as step-end conformance.
 
 ## Approve visual baselines
 

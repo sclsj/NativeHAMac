@@ -1338,7 +1338,15 @@ final class DashboardViewModel: ObservableObject {
                 return
             }
 
-            let proof = try candidate.proveLiveGenerationForInstallation()
+            // Prove and install without suspending: a dead entity generation
+            // must never publish its retained snapshot as a live dashboard.
+            let proof: HAEntitySubscriptionInstallationProof
+            do {
+                proof = try candidate.proveLiveGenerationForInstallation()
+            } catch {
+                await updateSubscription.cancel()
+                throw error
+            }
             guard weakModel.value?.finishOwnedBootstrapInstallation(
                 sequence: start.sequence,
                 client: webSocket,
@@ -1364,7 +1372,7 @@ final class DashboardViewModel: ObservableObject {
                 error: error
             ) else {
                 await disconnectOwnedClientIfNeeded(webSocket, model: weakModel)
-                throw error
+                return
             }
             for task in failure.serviceTasks { await task.value }
             await failure.entity?.stop()
@@ -1542,172 +1550,11 @@ final class DashboardViewModel: ObservableObject {
         latestBootstrapClient === client || installedBootstrapClient === client || webSocketClient === client
     }
 
-    private func load() async {
-        do {
-            lifecycle.set(.bootstrap, phase: .loading)
-            let token = try loadToken()
-
-            lifecycle.begin()
-            let connection = try await Self.firstWorkingConnection(token: token)
-            activeBaseURL = connection.baseURL
-            restClient = connection.restClient
-            homeAssistantConfig = connection.homeAssistantConfig
-
-            lifecycle.loading()
-            let webSocket = HomeAssistantWebSocketClient(
-                configuration: connection.configuration,
-                commandTimeout: AppConfig.webSocketPolicy.commandTimeout,
-                receivePolicy: AppConfig.webSocketPolicy.receivePolicy,
-                subscriptionDeliveryCapacity: AppConfig.webSocketPolicy.subscriptionDeliveryCapacity,
-                maximumConcurrentCallbackTasks: AppConfig.webSocketPolicy.maximumConcurrentCallbackTasks
-            )
-            try await bootstrapDashboard(using: webSocket)
-        } catch {
-            guard lifecycle.phase != .stopped else { return }
-            lifecycle.failBootstrap(error.localizedDescription)
-        }
-    }
-
+    // Keep the injected-client entry point on the production bootstrap path.
+    // The static runner holds only a weak model across suspension points so
+    // app-owned bootstrap work cannot prolong the dashboard's lifetime.
     func bootstrapDashboard(using webSocket: HomeAssistantWebSocketClient) async throws {
-        latestBootstrapSequence &+= 1
-        let bootstrapSequence = latestBootstrapSequence
-        let obsoleteCandidateEntityCoordinator = latestBootstrapEntityCoordinator
-        latestBootstrapEntityCoordinator = nil
-        latestBootstrapClient = webSocket
-        lifecycle.begin()
-        await obsoleteCandidateEntityCoordinator?.stop()
-        guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-            await disconnectIfUnownedByCurrentBootstrap(webSocket)
-            return
-        }
-
-        do {
-            try await webSocket.connect()
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-
-            async let registryResponse = try? await webSocket.fetchEntityRegistryDisplay()
-            async let localeResponse = try? await webSocket.fetchFrontendLocalePreferences()
-            async let currentUserResponse = Self.fetchCurrentUserResult(using: webSocket)
-            let config = try await webSocket.fetchLovelaceConfig()
-            let (registry, locale, currentUserResult) = await (
-                registryResponse,
-                localeResponse,
-                currentUserResponse
-            )
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-            let registryMetadata = Self.entityRegistryPresentationMetadata(registry ?? nil)
-            frontendLocalePreferences = locale ?? nil
-            switch currentUserResult {
-            case let .success(user):
-                currentUserID = user.id
-            case .failure:
-                currentUserID = nil
-                AppLog(
-                    "Current user metadata unavailable; user-restricted navigation is hidden",
-                    severity: .warning,
-                    category: .lifecycle
-                )
-            }
-
-            let weakModel = WeakDashboardViewModelBox(self)
-            let weakEntityOwner = WeakInstalledEntityCoordinatorBox()
-            let entityTaskOwnerID = UUID()
-            let emergencyBag = emergencyOwnershipBag
-            let candidateEntityCoordinator = HAEntitySubscriptionCoordinator(
-                initialStates: states,
-                lifetimeAuthority: lifetimeAuthority,
-                taskObserver: { tasks in
-                    emergencyBag.setEntityCoordinatorTasks(tasks, ownerID: entityTaskOwnerID)
-                },
-                onSnapshot: { snapshot in
-                    guard let owner = weakEntityOwner.value,
-                          weakModel.value?.entityCoordinator === owner
-                    else { return }
-                    weakModel.value?.states = snapshot
-                },
-                onPhase: { phase in
-                    guard let owner = weakEntityOwner.value,
-                          weakModel.value?.entityCoordinator === owner
-                    else { return }
-                    weakModel.value?.lifecycle.set(.entities, phase: phase)
-                }
-            )
-            weakEntityOwner.value = candidateEntityCoordinator
-            latestBootstrapEntityCoordinator = candidateEntityCoordinator
-            _ = try await candidateEntityCoordinator.start(using: webSocket)
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await candidateEntityCoordinator.stop()
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-            await applyLovelaceConfig(
-                config,
-                startHistoryOwners: false,
-                bootstrapSequence: bootstrapSequence
-            )
-
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await candidateEntityCoordinator.stop()
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-
-            let candidateLovelaceSubscription = try await webSocket.subscribeLovelaceUpdates {
-                await MainActor.run {
-                    guard weakModel.value?.isCurrentInstalledBootstrap(
-                        bootstrapSequence,
-                        client: webSocket
-                    ) == true else { return }
-                    weakModel.value?.fetchLovelace(force: false)
-                }
-            }
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await candidateLovelaceSubscription.cancel()
-                await candidateEntityCoordinator.stop()
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-
-            let installed = try await installBootstrapOwnership(
-                sequence: bootstrapSequence,
-                client: webSocket,
-                entityCoordinator: candidateEntityCoordinator,
-                lovelaceUpdateSubscription: candidateLovelaceSubscription,
-                registryDisplayPrecisions: registryMetadata.precisions,
-                registryIcons: registryMetadata.icons
-            )
-            guard installed else { return }
-
-            enqueueCurrentDashboardOwnerCandidate(
-                startHistoryOwners: true,
-                runsCandidateHook: false
-            )
-        } catch {
-            guard isCurrentBootstrap(bootstrapSequence, client: webSocket) else {
-                await disconnectIfUnownedByCurrentBootstrap(webSocket)
-                return
-            }
-            // A fatal replacement invalidates every installed app-generation
-            // authority before publishing failure or awaiting transport
-            // teardown. In particular, retained cards must not keep using the
-            // previous REST caller while the old and failed socket owners are
-            // being retired.
-            let serviceTasks = serviceController.stopSynchronously()
-            restClient = nil
-            lifecycle.failBootstrap(error.localizedDescription)
-            await failCurrentBootstrap(
-                sequence: bootstrapSequence,
-                client: webSocket,
-                serviceTasks: serviceTasks
-            )
-            throw error
-        }
+        try await Self.runOwnedBootstrap(using: webSocket, model: WeakDashboardViewModelBox(self))
     }
 
     private func isCurrentBootstrap(
@@ -1727,135 +1574,6 @@ final class DashboardViewModel: ObservableObject {
             installedBootstrapSequence == sequence &&
             installedBootstrapClient === client &&
             webSocketClient === client
-    }
-
-    private func disconnectIfUnownedByCurrentBootstrap(
-        _ client: HomeAssistantWebSocketClient
-    ) async {
-        guard latestBootstrapClient !== client, installedBootstrapClient !== client else {
-            return
-        }
-        await client.disconnect()
-    }
-
-    private func failCurrentBootstrap(
-        sequence: UInt64,
-        client: HomeAssistantWebSocketClient,
-        serviceTasks: [Task<Void, Never>]
-    ) async {
-        guard isCurrentBootstrap(sequence, client: client) else {
-            for task in serviceTasks { await task.value }
-            await disconnectIfUnownedByCurrentBootstrap(client)
-            return
-        }
-
-        let installedClient = installedBootstrapClient
-        let candidateEntityCoordinator = latestBootstrapEntityCoordinator
-        let entityCoordinator = entityCoordinator
-        let lovelaceSubscription = lovelaceUpdateSubscription
-        let statusTask = connectionStatusTask
-        self.entityCoordinator = nil
-        latestBootstrapEntityCoordinator = nil
-        lovelaceUpdateSubscription = nil
-        connectionStatusTask = nil
-        webSocketClient = nil
-        installedBootstrapClient = nil
-        installedBootstrapSequence = nil
-        entityDisplayPrecisions = [:]
-        entityRegistryIcons = [:]
-        statusTask?.cancel()
-        // stopSynchronously already advanced the action generation, removed
-        // the caller/task registry, and cancelled these captured tasks before
-        // lifecycle failure was published. Settle them before either the old
-        // or failed transport completes its disconnect boundary.
-        for task in serviceTasks { await task.value }
-        await entityCoordinator?.stop()
-        if candidateEntityCoordinator !== entityCoordinator {
-            await candidateEntityCoordinator?.stop()
-        }
-        await lovelaceSubscription?.cancel()
-        if let installedClient = installedClient, installedClient !== client {
-            await disconnectIfUnownedByCurrentBootstrap(installedClient)
-        }
-        if isCurrentBootstrap(sequence, client: client) {
-            latestBootstrapClient = nil
-            await client.disconnect()
-        } else {
-            await disconnectIfUnownedByCurrentBootstrap(client)
-        }
-    }
-
-    private func installBootstrapOwnership(
-        sequence: UInt64,
-        client: HomeAssistantWebSocketClient,
-        entityCoordinator candidateEntityCoordinator: HAEntitySubscriptionCoordinator,
-        lovelaceUpdateSubscription candidateLovelaceSubscription: HAWebSocketSubscription,
-        registryDisplayPrecisions: [String: Int],
-        registryIcons: [String: String]
-    ) async throws -> Bool {
-        guard isCurrentBootstrap(sequence, client: client) else {
-            await candidateEntityCoordinator.stop()
-            await candidateLovelaceSubscription.cancel()
-            await disconnectIfUnownedByCurrentBootstrap(client)
-            return false
-        }
-
-        let oldEntityCoordinator = entityCoordinator
-        let oldLovelaceSubscription = lovelaceUpdateSubscription
-        let oldStatusTask = connectionStatusTask
-        let oldClient = installedBootstrapClient
-        entityCoordinator = nil
-        lovelaceUpdateSubscription = nil
-        connectionStatusTask = nil
-        webSocketClient = nil
-        installedBootstrapClient = nil
-        installedBootstrapSequence = nil
-        entityDisplayPrecisions = [:]
-        entityRegistryIcons = [:]
-        oldStatusTask?.cancel()
-        await oldEntityCoordinator?.stop()
-        await oldLovelaceSubscription?.cancel()
-
-        if let oldClient = oldClient, oldClient !== client {
-            await disconnectIfUnownedByCurrentBootstrap(oldClient)
-        }
-
-        guard isCurrentBootstrap(sequence, client: client) else {
-            await candidateEntityCoordinator.stop()
-            await candidateLovelaceSubscription.cancel()
-            await disconnectIfUnownedByCurrentBootstrap(client)
-            return false
-        }
-
-        // This is the final candidate check. No suspension may occur between
-        // proving the accepted live entity generation, copying its retained
-        // store, assigning publication authority, and publishing lifecycle
-        // readiness. A candidate invalidated while bootstrap work was held can
-        // therefore never be installed from its stale retained snapshot.
-        let entityProof: HAEntitySubscriptionInstallationProof
-        do {
-            entityProof = try candidateEntityCoordinator.proveLiveGenerationForInstallation()
-        } catch {
-            await candidateLovelaceSubscription.cancel()
-            throw error
-        }
-        entityCoordinator = candidateEntityCoordinator
-        latestBootstrapEntityCoordinator = nil
-        lovelaceUpdateSubscription = candidateLovelaceSubscription
-        states = entityProof.snapshot
-        entityDisplayPrecisions = registryDisplayPrecisions
-        entityRegistryIcons = registryIcons
-        webSocketClient = client
-        installedBootstrapClient = client
-        installedBootstrapSequence = sequence
-        lifecycle.installed()
-        serviceController.install { [weak restClient] domain, service, data in
-            guard let restClient = restClient else { throw URLError(.cancelled) }
-            _ = try await restClient.callService(domain: domain, service: service, data: data)
-        }
-        AppLog("Dashboard successfully connected and became Live", category: .lifecycle)
-        connectionStatusTask = makeConnectionStatusTask(sequence: sequence, client: client)
-        return true
     }
 
     private func makeConnectionStatusTask(

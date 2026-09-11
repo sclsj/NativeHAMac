@@ -9,13 +9,13 @@
 
 Original Claude module: `3. AppConfig.swift: Remove All Hardcoded Personal Data`.
 
-Priority: high, but not a prerequisite for module 02. This should land before broadening NativeHA beyond the current prototype machine.
+Historical priority: high before broader deployment. There is no active implementation gate for this skipped module.
 
 ## Goal
 
 Separate server-profile state from typed product and presentation policies in `AppConfig.swift`. Keep prototype bootstrapping possible, but stop scattering entity IDs, base URLs, card placement rules, hidden entities, and climate preset guesses through rendering and view-model logic. Keep [`../configurability.md`](../configurability.md) synchronized when an approved configuration surface changes.
 
-## Confirmed Current-Code Findings
+## Historical Findings Before the Fixed-Deployment Decision
 
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/AppConfig.swift:6` hardcodes token file path `/Users/jin/Documents/Computer/ha_apikey.txt`.
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/AppConfig.swift:8` hardcodes three Home Assistant base URLs, including the active live URL from the parent audit.
@@ -30,18 +30,9 @@ Confirmed nuance: hardcoded config is acceptable for the prototype, but it must 
 
 ## Post-Module-01/02/09 Configuration Constraints
 
-The original line hints predate several approved typed policies now present in
-`AppConfig.swift`. Module 03 research must inventory and preserve—not collapse
-into server-profile storage—the graph time-range, render scheduling,
-interaction, tooltip formatting, WebSocket safety, and diagnostic logging
-policies recorded in `docs/configurability.md`. Core Graphics is the user's
-current primary renderer; Metal remains WIP and profile migration must not
-silently change that selection.
+The original line hints predate several approved typed policies now present in `AppConfig.swift`. Module 03 research must inventory and preserve—not collapse into server-profile storage—the graph time-range, render scheduling, interaction, tooltip formatting, WebSocket safety, and diagnostic logging policies recorded in `docs/configurability.md`. Core Graphics is the user's current primary renderer; Metal remains WIP and profile migration must not silently change that selection.
 
-Switching profiles is also a generation boundary for the implemented
-WebSocket/history/graph owners. A profile change must cancel the old connection,
-history feeds, and render coordinators before a late callback can publish or
-seed a cache owned by the new profile.
+Switching profiles is also a generation boundary for the implemented WebSocket/history/graph owners. A profile change must cancel the old connection, history feeds, and render coordinators before a late callback can publish or seed a cache owned by the new profile.
 
 ## Reference Findings
 

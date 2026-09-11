@@ -1,14 +1,21 @@
 # Module 04: LovelaceCard Model - Missing Fields And Decode Robustness
 
+> **Status: complete within the verified packet scope.** The
+> [Module 04 evidence packet](../reference-context/modules/module-04-lovelace-model-decode.md)
+> records implemented contracts, validation, and deferred work. The original
+> findings, architecture sketches, task lists, and acceptance checklist below
+> are historical planning, not a fresh code audit or remaining-work checklist.
+> Preserve the packet contracts; verify current code before reopening work.
+
 Original Claude module: `4. LovelaceCard Model: Missing Fields & Decode Robustness`.
 
-Priority: high. This enables modules 01, 05, 06, 07, 08, and 12 to work from real Lovelace config instead of ad hoc card rewriting.
+Original priority: high. This enables modules 01, 05, 06, 07, 08, and 12 to work from real Lovelace config instead of ad hoc card rewriting.
 
 ## Goal
 
 Make NativeHA's Lovelace models lossless enough for supported native cards, robust to unsupported/unknown config keys, and stable across refreshes. Avoid trying to fully type the entire Home Assistant Lovelace schema in one pass.
 
-## Confirmed Current-Code Findings
+## Historical Findings Before Rescue
 
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models.swift:111` models `LovelaceConfig` only as `views`.
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models.swift:115` models `LovelaceView` only as `title`, `path`, and `cards`.
@@ -18,35 +25,25 @@ Make NativeHA's Lovelace models lossless enough for supported native cards, robu
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift:30` adds `nativeID` as an ad hoc workaround built from supported fields only.
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/DashboardViewModel.swift:802` constructs new `LovelaceCard` values while cleaning cards, dropping any unknown fields.
 
-Confirmed issue: current models discard Lovelace config needed by supported card renderers and make stable view/card identity harder than necessary.
+This original defect is repaired by `LovelaceModels.swift`, which preserves raw values and resolves exact identities.
 
 ## Post-Module-01/09 Ownership Constraints
 
-Intervening history and graph repairs added a deterministic `nativeOwnerID`,
-per-card `GraphHistoryRevisionFeed`, and generation-scoped
-`GraphChartRenderCoordinator` cache ownership. Module 04 should still replace
-the UUID/ad-hoc model identity with stable traversal identity, but it must port
-these owners deliberately rather than deleting the workaround first:
+Intervening history and graph repairs added a deterministic `nativeOwnerID`, per-card `GraphHistoryRevisionFeed`, and generation-scoped `GraphChartRenderCoordinator` cache ownership. The completed Module 04 replacement uses exact source path plus canonical raw semantic value. Preserve these ownership contracts in later work:
 
-- identical config refreshes must preserve the history subscription key,
-  revision-feed owner, SwiftUI chart lifetime, and prepared-cache scope;
-- a genuinely replaced/removed/reordered card must cancel or re-key its old
-  history/feed/render generation before late work can publish;
-- presentation filtering must wrap the decoded card without reconstructing it
-  and losing raw fields, graph tooltip metadata inputs, or owner identity; and
-- integration coverage must assert active history/feed/coordinator counts, not
-  only stable `ForEach` IDs or pixel equality.
+- identical config refreshes must preserve the history subscription key, revision-feed owner, SwiftUI chart lifetime, and prepared-cache scope;
+- a genuinely replaced/removed/reordered card must cancel or re-key its old history/feed/render generation before late work can publish;
+- presentation filtering must wrap the decoded card without reconstructing it and losing raw fields, graph tooltip metadata inputs, or owner identity; and
+- integration coverage must assert active history/feed/coordinator counts, not only stable `ForEach` IDs or pixel equality.
 
-The stale-viewport fallback recorded in the bounded Module 09 packet is not a
-reason to add revision ordering to Lovelace identity. `contentRevision` is a
-content digest, and endpoint timestamps do not prove history ancestry.
+The stale-viewport fallback recorded in the bounded Module 09 packet is not a reason to add revision ordering to Lovelace identity. `contentRevision` is a content digest, and endpoint timestamps do not prove history ancestry.
 
 ## Reference Findings
 
 - `/Users/jin/Documents/HA/hass-frontend/src/data/lovelace/config/card.ts:7` defines base `LovelaceCardConfig` as open-ended with `[key: string]: any`, plus common metadata like `grid_options`, `visibility`, and `disabled`.
 - `/Users/jin/Documents/HA/hass-frontend/src/data/lovelace/config/view.ts:55` includes many view fields NativeHA lacks: `icon`, `theme`, `panel`, `background`, `visible`, `subview`, `back_path`, `sections`, `header`, `footer`, and more.
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:120` defines entities-card fields such as `show_header_toggle`, `icon`, `header`, `footer`, and row-level fields.
-- `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:424` defines markdown card fields `text_only`, `card_size`, `entity_ids`, `show_empty`, and actions.
+- `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:424` defines markdown card fields `text_only`, `card_size`, `entity_id`, `show_empty`, and actions.
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:466` defines history graph fields such as `show_names`, `logarithmic_scale`, `min_y_axis`, `max_y_axis`, `fit_y_data`, `split_device_classes`, and `expand_legend`.
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:635` defines weather card fields such as `show_current`, `forecast_type`, `forecast_slots`, `secondary_info_attribute`, and `round_temperature`.
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/types.ts:617` defines stack cards generically as `cards: LovelaceCardConfig[]`; grid adds `columns` and `square`.
@@ -59,10 +56,7 @@ Use typed convenience fields plus raw config preservation:
 - `LovelaceView`: typed fields for title/path/icon/visible/subview/theme/background/panel/cards/sections/header/footer, plus raw object.
 - `LovelaceCard`: typed fields for currently supported renderer needs, plus `raw: [String: JSONValue]`.
 - `LovelaceEntityRef`: robust row model for either string rows or object rows, preserving raw row config.
-- Stable identity should be path-based, not UUID-based:
-  - View identity: `path ?? index`.
-  - Card identity: `[viewIndex, cardIndex, nestedIndex...]` plus type/entity/title fingerprint only as a fallback.
-  - Entity row identity: row index plus entity/ref type.
+- Resolved view/card/row identity is exact source path plus the complete canonical raw semantic value (`LovelaceResolvedIdentity`). Route paths are navigation locators, not owner identity. Partial type/entity/title fingerprints and source indices alone must not substitute for this contract.
 
 Do not make `LovelaceCard` itself randomly `Identifiable`. Either make identity explicit during traversal, or add a stable decoded/path-assigned identity in the view model.
 
@@ -99,7 +93,7 @@ Markdown:
 
 - `text_only`
 - `card_size`
-- `entity_ids` or `entity_id` depending on actual server shape
+- `entity_id` (string or string array in the reference card); preserve raw shape and do not confuse it with the `entity_ids` wire parameter. The current typed accessor accepts only a string; Module 08 must research/correct array handling.
 - `show_empty`
 - action fields
 
@@ -145,7 +139,7 @@ View routing:
    - Keep camelCase Swift names mapped to snake_case Lovelace keys.
 
 5. Stop destructive card cleaning.
-   - Module 03 `AppConfig` presentation policies may hide or augment presentation, but `cleanCards` should not rebuild cards and discard fields.
+   - Approved `AppConfig` presentation policies may hide or augment presentation, but `cleanCards` should not rebuild cards and discard fields.
    - Use a separate presentation filter that wraps/resolves cards without changing the decoded model.
 
 6. Add model tests using representative live dashboard snippets.
@@ -187,13 +181,13 @@ Use at least these fixtures:
 
 Cover typed accessors and snake_case mapping for every field in **Fields To Add For Current Surface**. Add explicit tests that raw `hours_to_show` survives nested traversal even when the approved `AppConfig` selector policy supplies the effective displayed range, `show_forecast: false` is distinguishable from absence, unknown keys survive, and decoded models never introduce UUID/random fallback values.
 
-Replace the existing per-card `hours_to_show` `XCTExpectFailure` in `Tests/NativeHAMacTests/GraphRenderingTests.swift` with separate assertions for raw-value preservation and the approved effective-range policy.
+Preserve the passing raw-value/effective-range assertions in `Tests/NativeHAMacTests/GraphRenderingTests.swift`; the old per-card-hours expectation is removed.
 
-Decode identical bytes twice and assert resolved view/card/row paths match. Then insert, remove, and reorder siblings and assert the documented path-identity behavior without accidental reuse. Because pure index paths intentionally change after reorder, also verify any fallback fingerprint is deterministic and does not contain Swift's process-randomized `hashValue`.
+Decode identical bytes twice and assert resolved view/card/row paths match. Then insert, remove, and reorder siblings and assert the documented path-identity behavior without accidental reuse. Verify exact source path plus canonical semantic value, including unknown-field changes. Do not replace that equality with an index, partial fingerprint, or Swift's process-randomized `hashValue`.
 
 ### Integration tests
 
-Add `Tests/NativeHAMacTests/LovelaceRenderingIntegrationTests.swift` to pass the representative and malformed fixtures through decode -> stable traversal -> module-03 presentation policy -> `CardRenderer`. Assert supported card counts/order, unsupported placeholders, preserved original models/raw history hours, the effective selected range, and stable SwiftUI IDs across identical refreshes. A late config refresh must update only the node whose semantic input changed.
+Add `Tests/NativeHAMacTests/LovelaceRenderingIntegrationTests.swift` to pass the representative and malformed fixtures through decode -> stable traversal -> approved presentation policy -> `CardRenderer`. Assert supported card counts/order, unsupported placeholders, preserved original models/raw history hours, the effective selected range, and stable SwiftUI IDs across identical refreshes. A late config refresh must update only the node whose semantic input changed.
 
 If a malformed card is intentionally rejected at the top-level decoder rather than represented, test the surrounding dashboard's explicit error/fallback state instead. This choice is an implementation-time hypothesis to resolve; whichever policy is selected must be consistent and covered rather than inferred from a screenshot.
 
@@ -221,7 +215,7 @@ Add `Tests/NativeHACoreTests/LovelaceModelPerformanceTests.swift` using a determ
 
 - Measure cold JSON decode and typed/raw model construction separately from warm traversal/presentation transformation.
 - Measure repeated refresh decoding plus stable-node resolution, consuming a deterministic count/fingerprint so work cannot be optimized away.
-- Measure transformation with module-03 preferences separately from decoding and verify the source model remains unchanged.
+- Measure transformation with approved presentation preferences separately from decoding and verify the source model remains unchanged.
 - Exercise repeated decode/discard and config replacement cycles; assert no unbounded retained decoded models, resolved traversal nodes, or random-ID cache entries remain after replacement.
 
 Use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric`, warm caches before warm-path measurement, and store XCTest baselines rather than tight machine-dependent millisecond limits. Xcode 13.4.1 has no `XCTHitchMetric`; true scroll/flicker/event-to-frame measurements must wait for an XCUITest app target under newer Xcode. Signposts are optional only around an instrumented decode/transform interval.

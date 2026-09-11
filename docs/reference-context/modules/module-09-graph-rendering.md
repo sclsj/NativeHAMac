@@ -7,17 +7,17 @@ status: bounded-async-repair-verified-open-stale-viewport-fallback-broader-modul
 contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 25c73ec76347c442e8b550e42734173ac37710a6
+nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: 436599735092cd4dfd5528dd0d3ead3733fc105c6f9a9443393c9daf4ca73f77
-last_validated: 2026-09-10
+graph_fingerprint: bfed63f5ecd603efa351c70db310fd53da260adc6532abd4a97f2ff5deec4e58
+last_validated: 2026-09-11
 ---
 
 # Module 09 bounded async-repair evidence
 
-## 2026-09-11 readiness follow-up
+## 2026-09-11 readiness follow-up and deferral
 
-The [readiness audit](../../audits/2026-09-11-readiness.md) reproduces unbounded axis generation, diagonal numeric lines despite a passing step test, future hover values, and empty rendering when a viewport lies between numeric samples. These findings require bounded graph safety/correctness work before further feature implementation. They are outside this packet's verified off-main scheduling repair; preserve that repair and its safe lineage fallback. The full suite and all source graphs remain green with the documented expected hover failure. No graph implementation or contract was changed by this audit.
+The [readiness audit](../../audits/2026-09-11-readiness.md) reproduces unbounded axis generation on synthetic input, diagonal numeric lines despite a passing step test, future hover values, and empty rendering when a viewport lies between numeric samples. The user deferred the axis finding pending later work; live HA reachability is unestablished. Graph semantics and the weak conformance oracle will be addressed in a dedicated graphing module with further product scope to come. These are open findings, not prerequisites for Module 08. Preserve this packet's verified off-main scheduling and safe lineage fallback. No graph implementation, contract, or expected-failure test is changed by the bootstrap consolidation.
 
 ## Scope delta
 

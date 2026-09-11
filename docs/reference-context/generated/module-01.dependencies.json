@@ -3685,7 +3685,7 @@
       "typeResolved": "node_modules/lit/development/index.d.ts"
     }
   ],
-  "graphFingerprint": "757540ae220a4ec60b0fc1dce0cc66f8b35243d32686f5a14597bd8faf0c1391",
+  "graphFingerprint": "68bdd54b74dc20b0f67d42eb55f5f24ecccc6a2f078d634c7fc0feabc6dbf6b1",
   "manifest": {
     "module": "01",
     "path": "docs/reference-context/manifests/module-01.inputs.json",
@@ -3758,8 +3758,8 @@
         "worktreeBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332"
       },
       {
-        "dirty": true,
-        "headBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e",
+        "dirty": false,
+        "headBlob": "d5005844c926642a091995d2f0fef8d5d98db105",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
         "sha256": "569ede21042664d0d1a4566f7058569097a89d7703041a674589e7a45db69300",
@@ -3858,8 +3858,8 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": true,
-        "headBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb",
+        "dirty": false,
+        "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
         "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
@@ -3895,15 +3895,15 @@
       },
       {
         "dirty": true,
-        "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
+        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
+        "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
         "symbols": [
           "DashboardViewModel",
           "HistoryRequest"
         ],
-        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
+        "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
         "dirty": false,
@@ -4104,7 +4104,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
+    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
   },
   "nodes": [
     {

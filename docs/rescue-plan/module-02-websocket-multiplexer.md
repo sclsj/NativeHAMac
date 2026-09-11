@@ -1,14 +1,21 @@
 # Module 02: WebSocket Client Multiplexer And Subscription Architecture
 
+> **Status: complete within the verified packet scope.** The
+> [Module 02 evidence packet](../reference-context/modules/module-02-websocket-multiplexer.md)
+> records implemented contracts, validation, and deferred work. The original
+> findings, architecture sketches, task lists, and acceptance checklist below
+> are historical planning, not a fresh code audit or remaining-work checklist.
+> Preserve the packet contracts; verify current code before reopening work.
+
 Original Claude module: `2. WebSocket Client: Multiplexer / Subscription Architecture`.
 
-Priority: critical. This must land before module 01 and before any weather forecast or markdown template subscription work.
+Original priority: critical. This must land before module 01 and before any weather forecast or markdown template subscription work.
 
 ## Goal
 
-Replace the current single-purpose WebSocket client with a safe connection layer that has exactly one receive loop per socket, dispatches command responses by message ID, dispatches subscription payloads by subscription ID, supports unsubscribe, and cleans up pending continuations on disconnect/cancel.
+Replace the original single-purpose WebSocket client with a safe connection layer that has exactly one receive loop per socket, dispatches command responses by message ID, dispatches subscription payloads by subscription ID, supports unsubscribe, and cleans up pending continuations on disconnect/cancel.
 
-## Confirmed Current-Code Findings
+## Historical Findings Before Rescue
 
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/HomeAssistantWebSocketClient.swift:11` is a simple `final class` with mutable `task` and `nextID`.
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/HomeAssistantWebSocketClient.swift:22` connects and authenticates by reading directly from `receiveDictionary()`.
@@ -18,7 +25,7 @@ Replace the current single-purpose WebSocket client with a safe connection layer
 - `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/HomeAssistantWebSocketClient.swift:88` implements `sendCommand` by sending a command and then directly reading from the WebSocket until it sees the matching ID.
 - There is no pending command map, no subscription callback map, no unsubscribe method, no command timeout, no reconnect strategy, and no continuation cleanup.
 
-Confirmed failure mode: if `receiveStateChanges` is running while another command is sent, both are reading from the same `URLSessionWebSocketTask`. Either consumer can steal the other's message. This breaks concurrent command/subscription use and will break module 01.
+Historical failure mode, repaired by Module 02: if `receiveStateChanges` is running while another command is sent, both are reading from the same `URLSessionWebSocketTask`. Either consumer can steal the other's message. This breaks concurrent command/subscription use and will break module 01.
 
 ## Reference Findings
 
@@ -83,7 +90,7 @@ Message handling:
 3. Implement send serialization.
    - Use `JSONEncoder` or `JSONSerialization` consistently from `JSONValue`.
    - Include `id` and `type` in every command after auth.
-   - Keep diagnostics concise rather than dumping full payloads.
+   - Follow `LoggingPolicy`: subsystem/severity filtering controls selection; persist every selected diagnostic in full, including frames when WebSocket debug logging is enabled.
 
 4. Implement `callRaw`.
    - Register a pending continuation before sending.
@@ -98,16 +105,15 @@ Message handling:
    - Register the subscription callback before or immediately after successful subscribe ack, depending on message ordering observed in tests.
    - Return a cancellation handle that sends `type: "unsubscribe_events"` with `subscription: <original subscription id>` unless Home Assistant requires a different unsubscribe type for the subscription command. Keep the unsubscribe mapping centralized for future non-event subscription commands.
    - Remove the subscription locally even if server unsubscribe fails after disconnect.
-   - Ensure callback delivery does not block the receive loop. Dispatch callbacks in child `Task`s or through a controlled async queue.
+   - Preserve the implemented bounded per-subscription queues and connection-wide callback limit. Unbounded child tasks are not an acceptable replacement.
 
 6. Port existing app calls.
    - `fetchLovelaceConfig()` becomes a thin `call` wrapper for `type: "lovelace/config"`.
-   - `subscribeToStateChanges()` and `receiveStateChanges(...)` collapse into one `subscribeEvents(eventType: "state_changed", onEvent:)`.
+   - The original state-change API was superseded; current Module 05 app state uses the typed `subscribe_entities` owner. Preserve that path rather than restoring the old event subscription.
    - DashboardViewModel should keep the returned subscription token and cancel on teardown/reconnect.
 
 7. Add reconnect boundaries.
-   - Minimum acceptable: fail pending commands and surface `Disconnected` without message stealing.
-   - Preferred: expose connection status events and allow higher-level managers to reconnect and resubscribe. Module 01 requires fresh history accumulators after reconnect.
+   - Preserve verified reconnect/status/resubscription behavior, including Module 01 fresh history accumulators; the old disconnect-only minimum is superseded.
    - Do not silently reuse stale subscriptions after reconnect unless the subscription owner rebuilds its request.
 
 8. Add lifecycle cleanup.
