@@ -1,5 +1,9 @@
 # Home Assistant Native App Research
 
+> Historical scaffold research, not a current implementation plan. Product
+> decisions in `docs/user-deviations.md` supersede the open questions below;
+> use that file and the rescue-plan index for current direction.
+
 Date: 2026-07-03
 
 ## Official Sources Reviewed

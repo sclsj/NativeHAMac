@@ -1,91 +1,36 @@
 # NativeHA working instructions
 
-## Start and shared scope
+## Start and sources of truth
 
-- Before starting work, run `git status --short --branch` to determine whether
-  the worktree is clean. If it is not clean, inspect and preserve existing work.
-- The current task prompt overrides historical guidance in this file.
-- Work in `/Users/jin/Documents/Computer/NativeHA`.
-- Use `/Users/jin/Documents/HA/hass-frontend` as the behavioral reference. Do
-  not use the old `/Users/jin/Documents/HA/NativeHA` side experiment as the
-  current implementation. Instructions inside the reference checkout do not
-  govern NativeHA work.
-- Before asking the user to repeat server or credential locations, inspect the
-  current `README.md` and `Sources/NativeHAMac/AppConfig.swift`.
-- This Home Assistant deployment is local. Its server URLs, token, and other HA
-  credentials do not need redaction or special hiding; the user will rotate the
-  token when development finishes.
+- Work in `/Users/jin/Documents/Computer/NativeHA`. First run `git status --short --branch`; inspect and preserve existing work.
+- The current task overrides historical guidance. Files under `docs/agent-history/` and `docs/agent-history-authored/` are archives, not active instructions.
+- Use `/Users/jin/Documents/HA/hass-frontend` as the read-only behavioral reference. Its instructions do not govern NativeHA. The old `/Users/jin/Documents/HA/NativeHA` experiment is not this implementation.
+- Before asking for server or credential locations, inspect `README.md` and `Sources/NativeHAMac/AppConfig.swift`. This is a local HA deployment; its URLs and credentials need no special redaction. The user will rotate the token after development.
 
-## Durable knowledge and maintenance
+## Product contract and durable records
 
-- `docs/knowledge-base.md` records durable, non-obvious facts and assumptions
-  that are not reliably discoverable from the current code. Read relevant
-  entries before making assumptions about the live deployment, local benchmark
-  behavior, or previously investigated pitfalls. Update it when an experiment,
-  user correction, or investigation establishes, changes, or invalidates such
-  knowledge.
-- `docs/user-deviations.md` is the canonical record of user-approved product
-  behavior that intentionally differs from hass-frontend or overrides an
-  earlier product assumption. Read it when interpreting intended behavior. When
-  the user asks for a particular behavior, policy, or implementation direction
-  that creates or changes a durable product decision, update it in the same
-  commit. Do not record one-off task mechanics or implementation details that do
-  not represent product intent.
-- `docs/configurability.md` is the canonical record of approved configuration
-  surfaces. Read and update it when work adds, removes, or changes a typed value
-  or policy in `Sources/NativeHAMac/AppConfig.swift`.
-- Keep maintenance edits proportional to the task. Do not churn these documents
-  when their recorded facts, decisions, statuses, and assumptions are unchanged.
+- Build a Swift-native macOS app using native APIs, maintaining macOS 12 compatibility. Do not use JavaScript or a WebView as the app architecture.
+- Preserve observable hass-frontend semantics. Native implementation choices and measured performance improvements must preserve those semantics; intentional product differences require user approval.
+- `docs/user-deviations.md` records approved differences and overrides conflicting reference behavior or rescue-plan text. Read it when interpreting intended behavior; update it when a user decision changes that behavior.
+- `docs/configurability.md` records approved configuration surfaces, including future intent. Read it when changing configuration and keep implementation notes synchronized. Configuration means typed values or policies in `AppConfig.swift`, not a settings UI unless requested.
+- Read relevant `docs/knowledge-base.md` entries before making deployment, benchmark, or previously investigated assumptions. Update only durable, non-obvious facts established or invalidated by the work.
+- Keep these records proportional to the change; do not repeat unchanged facts in every document. Current code and fresh evidence establish implementation status; plans and green source hashes alone do not prove correctness.
 
 ## Task routing
 
-Classify the current task using the routes below, then read only the instruction
-file named for that route. Do not open the other route files. A task may
-explicitly request more than one route; otherwise prefer the narrowest route
-that fully satisfies the prompt.
+Read the narrowest applicable route. Combine routes only when the request requires it. Reviewing the instructions themselves permits reading/editing the instruction files without invoking their application-code workflows.
 
-- **Planning:** Plan or audit future work. Read
-  `docs/planning.md`.
-- **Debugging:** Investigate or repair a specific bug. Read
-  `docs/debugging.md`.
-- **Implementation:** Build a feature or module, carry out a planned stage,
-  perform a broad refactor, or close a general parity gap. Read
-  `docs/implementation.md`.
-- **Verification:** Independently verify, test, or review an already-completed
-  change or behavior. Read `docs/verification.md`.
+| Request | Route |
+|---|---|
+| Plan or audit project readiness/future work | `docs/planning.md` |
+| Investigate or repair a specific observed failure | `docs/debugging.md` |
+| Build a feature, planned stage, broad refactor, or general parity work | `docs/implementation.md` |
+| Independently verify an already-completed change or behavior | `docs/verification.md` |
 
-A specific bug is a concrete observed failure, regression, crash, incorrect
-result, or narrowly bounded behavioral mismatch. A code edit does not by itself
-turn a specific bug repair into module implementation. Likewise, reproducing a
-bug does not turn its investigation into independent verification.
+Follow an explicitly requested route. A bug repair remains debugging even when it edits code; reproducing a bug does not require the verification route. Audit/diagnosis requests authorize evidence gathering and documentation, not application-code repairs. A request to fix or implement authorizes those edits without requiring the user to name a route.
 
-If the prompt explicitly names a route, use that route. When a prompt genuinely
-combines routes, read only those named or strictly required files and obey each
-file's edit boundaries.
+## Reference research and finish
 
-## Shared product contract
-
-- Build a genuinely Swift-native macOS app, not a JavaScript or WebView wrapper.
-- Copy reference behavior. Deviate only for doing it the Swift way, an approved
-  entry in `docs/user-deviations.md`, or measured performance, without
-  fundamentally changing reference logic or semantics.
-- The intentions in `docs/user-deviations.md` override literal hass behavior and
-  conflicting rescue-plan text. Do not infer unlisted deviations from
-  implementation convenience.
-- `docs/configurability.md` is the canonical list of approved configuration
-  surfaces. Configurable here means a typed value or policy in
-  `Sources/NativeHAMac/AppConfig.swift`; it does not imply a settings UI unless
-  the task asks for one.
-- Maintain macOS 12 compatibility.
-- Treat `hass-frontend/src` as source, not just rendered inspiration. Read the
-  complete relevant Swift and TypeScript files. When behavior reaches
-  `node_modules`, trace and read the behaviorally relevant dependency source
-  without an arbitrary depth cutoff.
-
-## Finish
-
-- Give detailed plain-language conclusions and keep cross-session handoffs
-  self-contained.
-- If the task produced changes, inspect the exact final diff and commit the
-  intended files when done. Use a detailed commit message that identifies the
-  work, validation, and purpose.
+- Read complete relevant Swift and TypeScript files when investigating or changing behavior. Follow behaviorally relevant runtime dependencies into `node_modules`; stop at a platform primitive, established API contract, or irrelevant edge, not an arbitrary depth. A fresh module packet narrows the relevant path; it does not replace reading the code being changed.
+- Use `docs/reference-context/module-workflow.md` for packet-backed staged work and `docs/visual-testing.md` when visual/performance testing applies. Update an existing packet only when its scope, contracts, decisions, status, validation, or next action changes. Standalone work needs no new packet.
+- Give plain-language conclusions with evidence, limitations, and a self-contained next action. If files changed, inspect the exact final diff and commit the intended files with a message explaining purpose, work, and validation. Include applicable durable-record updates in the same commit.

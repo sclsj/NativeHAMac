@@ -1,8 +1,10 @@
 # NativeHA Rescue Plan Index
 
-This directory contains implementation plans. NativeHA is a WIP Swift-native Home Assistant frontend; the current readiness audit follows the verified reverts `ff934b1` and `15fe9d2` on `main`. The reference implementation is `/Users/jin/Documents/HA/hass-frontend`.
+This directory contains staged implementation plans. Their original findings are historical; current scope/status comes from the evidence packets, approved product decisions, and fresh audits. The reference implementation is `/Users/jin/Documents/HA/hass-frontend`.
 
 ## Current Readiness
+
+The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md), against `adc2c03`, finds substantial rescue progress but recommends a stabilization gate before the next feature implementation: climate missing-temperature crash, unbounded numeric-axis generation, graph semantics/false-positive step test, and duplicate bootstrap implementations. The suite passes with one expected hover failure; passing tests do not close these findings. This audit does not revoke the narrower previously verified transport/history/weather contracts.
 
 - Modules 02, 01, and 04 are complete and independently green. Their evidence packets are the implementation authority for transport, history/feed/render ownership, and exact Lovelace view/card identity.
 - Module 03 is intentionally skipped, not complete. NativeHA targets one fixed personal deployment and keeps the existing token/bootstrap path without a profile store, switching, migration, or settings UI.
@@ -22,7 +24,7 @@ Implement in this order unless a future audit finds a blocker:
 5. Module 06: complete and independently verified at contract revision 2.
 6. Module 07 revision 1 current conditions: complete and independently verified.
 7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
-8. Research Module 08 only. Correct its stale marker-only template-subscription assumption during bounded research and independent audit; do not implement it until both are green, then continue remaining modules in staged gates.
+8. Address the bounded stabilization findings in the readiness audit before the next feature implementation. Module 08 research can proceed separately; its marker-only subscription assumption has been corrected in the plan, but it still needs a complete researched and independently reviewed packet.
 
 Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 
@@ -54,10 +56,10 @@ The live server surface from the parent audit should drive prioritization before
 - Weather cards currently use `show_forecast: false`. Current-state weather display matters before forecast rows.
 - Entity surface is mostly sensors, switches, automations, device trackers, binary sensors, weather, `climate.room_ac`, and `fan.ac_unit_controller_ac_fan`.
 
-## High-Confidence Corrections To Claude's Findings
+## Historical corrections retained by the rescue
 
 - Do not generally remove `unknown`, `unavailable`, or `none` from history ingestion. The hass-frontend timeline path keeps these as timeline states with distinct colors. Numeric line graph preparation can skip nonnumeric samples in the line-only path.
-- Module 1 cannot be implemented correctly on top of the current WebSocket client. Module 2 must provide a single receive loop and ID-based dispatch first.
+- Module 01 required Module 02's single receive loop and ID-based dispatch; both are now implemented and must be preserved.
 - Keep one configurable graph-range selector on the intended Home dashboard instead of exposing the duplicate `3h` and `12h` maintenance views as separate dashboards.
 - Keep approved product, layout, interaction, scheduling, sampling, and cache choices as typed policies in `AppConfig.swift`; the fixed server/token bootstrap remains the explicitly approved personal-deployment exception.
 - Weather forecast support is lower priority for the current live dashboard because `show_forecast` is false, but weather icon/current-state/units should be corrected now and forecast subscription should be designed against module 2.

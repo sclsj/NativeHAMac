@@ -2,6 +2,8 @@
 
 This directory is the durable handoff between read-heavy reference research and Swift implementation. The rescue plans define scope and intended architecture; the files here record revision-pinned evidence, current contract status, and the exact next action.
 
+The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md) adds a stabilization gate before further feature implementation. The table's `complete` entries describe their scoped contracts, not whole-app readiness; see the audit for reproduced crash/axis/graph issues and bootstrap/test debt.
+
 Do not copy generated dependency graphs into prompts or evidence packets. Run the staleness check, then read only the packet and the graph nodes named by the packet.
 
 | Module | Rescue plan | Evidence packet | Status | Contract revision / prerequisite | Next action |
@@ -14,7 +16,7 @@ Do not copy generated dependency graphs into prompts or evidence packets. Run th
 | 05 | [Dashboard state](../rescue-plan/module-05-dashboard-viewmodel-state.md) | [Module 05 evidence](modules/module-05-dashboard-viewmodel-state.md) | complete; independent verification and post-Module 07 graph green | 1 / Complete 01, 02, 04, and independently verified 12 | Preserve lifecycle/entity/service ownership in later modules |
 | 06 | [Entity display](../rescue-plan/module-06-entities-state-display.md) | [Module 06 evidence](modules/module-06-entities-state-display.md) | complete; independently verified; post-Module 07 graph green | 2 / Complete 04 and 05 | Preserve exact row presentation, duplicate identity, static safe power routing, and accepted-generation `ic` carry |
 | 07 | [Weather](../rescue-plan/module-07-weather-card.md) | [Module 07 evidence](modules/module-07-weather-card.md) | complete; revisions 1 and 2 independently verified | 2 / Complete 02, 04, 05, 06, and 12 | Preserve current-card and modal weather-detail contracts; keep C07-09/10 dashboard forecast deferred |
-| 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | not created | unresearched; next research gate | Requires 02 and 04; Module 07 revision 2 complete | Research Module 08 only and correct the stale assumption that template-subscription demand can be inferred solely from content markers; do not implement until research and audit are green |
+| 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | not created | unresearched; next research gate | Requires 02 and 04; Module 07 revision 2 complete | Research reference lifecycle, including marker-free content; implementation follows independent research review and the readiness-audit stabilization gate |
 | 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | [Module 09 bounded async-repair evidence](modules/module-09-graph-rendering.md) | bounded async repair verified; post-Module 07 graph green; stale-viewport fallback open; broader module unresearched | 3 / Module 01 implementation complete | Keep the correctness-safe fallback; later repair stale visual inputs with coordinator-owned provenance, not hash/timestamp ordering |
 | 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 05 and 06; fixed-server assumption replaces 03 | Card/detail phase |
 | 11 | [Fan detail](../rescue-plan/module-11-fan-detail.md) | not created | unresearched | Requires 05 and 06 | Card/detail phase |

@@ -15,6 +15,10 @@ last_validated: 2026-09-10
 
 # Module 09 bounded async-repair evidence
 
+## 2026-09-11 readiness follow-up
+
+The [readiness audit](../../audits/2026-09-11-readiness.md) reproduces unbounded axis generation, diagonal numeric lines despite a passing step test, future hover values, and empty rendering when a viewport lies between numeric samples. These findings require bounded graph safety/correctness work before further feature implementation. They are outside this packet's verified off-main scheduling repair; preserve that repair and its safe lineage fallback. The full suite and all source graphs remain green with the documented expected hover failure. No graph implementation or contract was changed by this audit.
+
 ## Scope delta
 
 This packet validates only the SPS30 rolling-window repair: move expensive prepared-series and bitmap work off the main thread without losing cache lineage when visual frames are coalesced. Broader Module 09 visual parity is still unresearched.

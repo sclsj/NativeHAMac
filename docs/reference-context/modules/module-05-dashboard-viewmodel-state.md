@@ -18,6 +18,10 @@ last_validated: 2026-09-10
 
 # Module 05 evidence packet
 
+## 2026-09-11 readiness follow-up
+
+The [readiness audit](../../audits/2026-09-11-readiness.md) identifies duplicate bootstrap implementations used by production startup and many fixtures. C05's prior scoped verification remains recorded below; it does not establish that the decomposition is finished. Before adding another subscription consumer, consolidate the bootstrap execution path while preserving weak lifetime ownership and run both lifecycle and bootstrap fixture suites against that path. No Swift code or contract was changed by this audit.
+
 ## Gate and scope delta
 
 This packet is the implementation authority for Module 05. Modules 02, 01, 04, and 12 are complete and green. Module 05 decomposes the current mixed `DashboardViewModel`, makes dashboard lifecycle and retry state explicit, and adopts the modern typed entity stream. It consumes the verified transport, history, Lovelace identity, and navigation contracts; it does not redesign them.
