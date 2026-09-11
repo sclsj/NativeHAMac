@@ -8,7 +8,9 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var navigationItems: [LovelaceNavigationItem] = []
     @Published private(set) var selectedViewIdentity: LovelaceResolvedIdentity?
     @Published private(set) var hasLoadedDashboard: Bool
-    @Published var states: [String: HAState] = [:]
+    @Published var states: [String: HAState] = [:] {
+        didSet { reconcileWeatherDetailAfterStateChange() }
+    }
     @Published private var historyPublicationRevision: UInt64 = 0
     @Published private(set) var lifecycle = DashboardLifecycle()
     @Published var activeBaseURL: URL?
@@ -58,6 +60,7 @@ final class DashboardViewModel: ObservableObject {
     private var trackedStartTransitionSequence: UInt64?
     private var trackedRetryTransitionSequence: UInt64?
     private let historyCoordinator = DashboardHistoryCoordinator()
+    let weatherDetailCoordinator: DashboardWeatherDetailCoordinator
     private var latestConfigRequestSequence: UInt64 = 0
     private var latestNavigationRequestSequence: UInt64 = 0
     private var latestBootstrapSequence: UInt64 = 0
@@ -137,11 +140,16 @@ final class DashboardViewModel: ObservableObject {
         graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
         historyProcessingHook: @escaping @Sendable () async -> Void = {},
         dashboardOwnerCandidateHook: @escaping @Sendable () async -> Void = {},
+        weatherDetailSubscriptionInstallHook: @escaping @Sendable () async -> Void = {},
         lifecycleBootstrapClientOverride: HomeAssistantWebSocketClient? = nil
     ) {
         let lifetimeAuthority = DashboardLifetimeAuthority()
         let dashboardOwnerOperationRegistry = DashboardOwnerOperationRegistry()
         self.lifetimeAuthority = lifetimeAuthority
+        self.weatherDetailCoordinator = DashboardWeatherDetailCoordinator(
+            lifetimeAuthority: lifetimeAuthority,
+            subscriptionInstallHook: weatherDetailSubscriptionInstallHook
+        )
         self.dashboardOwnerOperationRegistry = dashboardOwnerOperationRegistry
         self.emergencyOwnershipBag = DashboardEmergencyOwnershipBag(
             lifetimeAuthority: lifetimeAuthority,
@@ -203,10 +211,14 @@ final class DashboardViewModel: ObservableObject {
         self.dashboardOwnerCandidateHook = dashboardOwnerCandidateHook
         self.lifecycleBootstrapClientOverride = lifecycleBootstrapClientOverride
         self.emergencyDetachAction = nil
+        self.weatherDetailCoordinator.setTerminationOwnershipHandler { [weak self] ownership in
+            self?.enqueueWeatherDetailTermination(ownership)
+        }
         let emergencyBag = emergencyOwnershipBag
         let emergencyHistory = historyCoordinator
         let emergencyService = serviceController
         let emergencyMounts = graphChartMountRegistry
+        let emergencyWeather = weatherDetailCoordinator
         emergencyService.setTaskObserver { tasks in
             emergencyBag.setServiceTasks(tasks)
         }
@@ -218,7 +230,8 @@ final class DashboardViewModel: ObservableObject {
                 ownership: emergencyBag.detachSynchronously(),
                 historyCoordinator: emergencyHistory,
                 serviceController: emergencyService,
-                mountRegistry: emergencyMounts
+                mountRegistry: emergencyMounts,
+                weatherCoordinator: emergencyWeather
             )
         }
     }
@@ -976,6 +989,7 @@ final class DashboardViewModel: ObservableObject {
             dashboardOwnerTailActive: dashboardOwnerOperationTail != nil,
             dashboardOwnerNodeCount: dashboardOwnerOperationRegistry.count,
             serviceTaskCount: serviceController.inFlightCount,
+            weatherDetail: weatherDetailCoordinator.debugSnapshot(),
             webSocketClientActive: webSocketClient != nil,
             installedClientActive: installedBootstrapClient != nil
         )
@@ -1108,6 +1122,21 @@ final class DashboardViewModel: ObservableObject {
             )
         }
         selectedEntityID = entityID
+        let transition: WeatherDetailTransition
+        if domain(for: entityID) == "weather", let state = states[entityID] {
+            transition = weatherDetailCoordinator.open(
+                entityID: entityID,
+                state: state,
+                appGeneration: appGeneration,
+                configGeneration: latestConfigRequestSequence
+            )
+        } else {
+            transition = WeatherDetailTransition(
+                detached: weatherDetailCoordinator.close(),
+                candidate: nil
+            )
+        }
+        enqueueWeatherDetailTransition(transition)
     }
 
     func closeDetails() {
@@ -1117,7 +1146,36 @@ final class DashboardViewModel: ObservableObject {
                 hours: AppConfig.graphTimeRangePolicy.detailDefault.hours
             )
         }
+        let detachedWeather = weatherDetailCoordinator.close()
         selectedEntityID = nil
+        enqueueWeatherDetailTransition(
+            WeatherDetailTransition(detached: detachedWeather, candidate: nil)
+        )
+    }
+
+    func selectWeatherForecastType(_ type: HAWeatherForecastType) {
+        guard let transition = weatherDetailCoordinator.select(
+            type,
+            appGeneration: appGeneration,
+            configGeneration: latestConfigRequestSequence
+        ) else { return }
+        enqueueWeatherDetailTransition(transition)
+    }
+
+    func weatherDetailPresentation(now: Date = Date()) -> WeatherDetailPresentation? {
+        guard let entityID = selectedEntityID,
+              domain(for: entityID) == "weather",
+              let state = states[entityID]
+        else { return nil }
+        return WeatherDetailPresentationResolver.resolve(
+            state: state,
+            selectedType: weatherDetailCoordinator.selectedType,
+            modernEvent: weatherDetailCoordinator.modernEvent,
+            serverUnitSystem: homeAssistantConfig?.unitSystem,
+            serverTimeZone: homeAssistantConfig?.timeZone,
+            preferences: frontendLocalePreferences,
+            now: now
+        )
     }
 
     func domain(for entityID: String) -> String {
@@ -1826,14 +1884,18 @@ final class DashboardViewModel: ObservableObject {
                                 client: client
                             )
                         }
+                        self?.weatherDetailCoordinator.connectionChanged(.ready)
+                        self?.enqueueWeatherDetailReadyReconciliation()
                     case .disconnected:
                         nextStatus = "Disconnected"
                         self?.connectionWasNonReady = true
                         self?.lifecycle.connectionChanged(.disconnected)
+                        self?.weatherDetailCoordinator.connectionChanged(.disconnected)
                     case .reconnecting:
                         nextStatus = "Reconnecting"
                         self?.connectionWasNonReady = true
                         self?.lifecycle.connectionChanged(.reconnecting)
+                        self?.weatherDetailCoordinator.connectionChanged(connectionState)
                     case let .authenticationFailed(message):
                         nextStatus = "Error"
                         self?.lifecycle.set(
@@ -1844,6 +1906,7 @@ final class DashboardViewModel: ObservableObject {
                         nextStatus = "Connecting"
                         self?.connectionWasNonReady = true
                         self?.lifecycle.set(.realtime, phase: .loading)
+                        self?.weatherDetailCoordinator.connectionChanged(.connecting)
                     }
                     _ = nextStatus
                 }
@@ -2211,10 +2274,12 @@ final class DashboardViewModel: ObservableObject {
         // disconnect the socket. Ordinary reconciliation deliberately keeps
         // its acknowledgement-before-cancel ordering unchanged.
         detachedHistory.startups.forEach { $0.cancel() }
+        detachedHistory.weatherStartups.forEach { $0.cancel() }
         for operation in ownerOperations {
             operation.task.cancel()
             operation.detachedOwnership?.startups.forEach { $0.cancel() }
             operation.detachedOwnership?.detailStartups.forEach { $0.cancel() }
+            operation.detachedOwnership?.weatherStartups.forEach { $0.cancel() }
         }
         graphChartMountRegistry.invalidateOwners(notIn: [])
         graphHistoryRevisionFeeds.removeAll()
@@ -2325,6 +2390,17 @@ final class DashboardViewModel: ObservableObject {
     func installDashboardOwnerTailForTesting(_ task: Task<Void, Never>) {
         latestDashboardOwnerOperationSequence &+= 1
         dashboardOwnerOperationTail = task
+    }
+
+    func awaitDashboardOwnerOperationsForTesting() async {
+        await awaitStableDashboardOwnerOperationTail(
+            startingAt: latestDashboardOwnerOperationSequence
+        )
+    }
+
+    func reconcileWeatherDetailReadyForTesting() {
+        weatherDetailCoordinator.connectionChanged(.ready)
+        enqueueWeatherDetailReadyReconciliation()
     }
 
     func awaitLifecycleTransitionsForTesting() async {
@@ -2568,6 +2644,123 @@ final class DashboardViewModel: ObservableObject {
         )
     }
 
+    private func reconcileWeatherDetailAfterStateChange() {
+        guard lifetimeAuthority.acceptsWork,
+              let entityID = selectedEntityID,
+              domain(for: entityID) == "weather"
+        else { return }
+        guard let state = states[entityID] else {
+            let detached = weatherDetailCoordinator.close()
+            enqueueWeatherDetailTransition(
+                WeatherDetailTransition(detached: detached, candidate: nil)
+            )
+            return
+        }
+        if let transition = weatherDetailCoordinator.updateState(
+            state,
+            appGeneration: appGeneration,
+            configGeneration: latestConfigRequestSequence
+        ) {
+            enqueueWeatherDetailTransition(transition)
+        }
+    }
+
+    private func enqueueWeatherDetailTransition(_ transition: WeatherDetailTransition) {
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let weakModel = WeakDashboardViewModelBox(self)
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [weakModel, operationRegistry] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
+            await previousTail?.value
+            await transition.detached.finish()
+            guard !Task.isCancelled,
+                  let candidate = transition.candidate,
+                  let model = weakModel.value,
+                  model.isCurrentWeatherDetailCandidate(candidate),
+                  let client = model.webSocketClient
+            else { return }
+            _ = model.weatherDetailCoordinator.start(candidate, using: client)
+        }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(
+                task: task,
+                detachedOwnership: DetachedDashboardOwnership(
+                    weatherStartups: [transition.detached.startup].compactMap { $0 },
+                    weatherSubscriptions: [transition.detached.subscription].compactMap { $0 }
+                )
+            ),
+            sequence: operationSequence
+        )
+        dashboardOwnerOperationTail = task
+    }
+
+    private func enqueueWeatherDetailTermination(_ ownership: WeatherDetailDetachedOwnership) {
+        // Terminal callbacks run inside Module 02's delivery owner. Start
+        // retirement on a separate task immediately: cancellation can revoke
+        // logical/wire ownership as soon as the callback returns, independent
+        // of an unrelated predecessor in the dashboard-owner chain.
+        let retirement = Task { @MainActor in
+            await ownership.finish()
+        }
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [operationRegistry, retirement] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
+            await retirement.value
+            await previousTail?.value
+        }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(
+                task: task,
+                detachedOwnership: DetachedDashboardOwnership(
+                    weatherStartups: [ownership.startup, retirement].compactMap { $0 },
+                    weatherSubscriptions: [ownership.subscription].compactMap { $0 }
+                )
+            ),
+            sequence: operationSequence
+        )
+        dashboardOwnerOperationTail = task
+    }
+
+    private func enqueueWeatherDetailReadyReconciliation() {
+        guard weatherDetailCoordinator.selectedEntityID != nil else { return }
+        latestDashboardOwnerOperationSequence &+= 1
+        let operationSequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let startup = weatherDetailCoordinator.startupForReadyBoundary()
+        let weakModel = WeakDashboardViewModelBox(self)
+        let operationRegistry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor [weakModel, operationRegistry] in
+            defer { operationRegistry.finish(sequence: operationSequence) }
+            await previousTail?.value
+            await startup?.value
+            guard !Task.isCancelled,
+                  let model = weakModel.value,
+                  let candidate = model.weatherDetailCoordinator.reconnectCandidateIfNeeded(),
+                  model.isCurrentWeatherDetailCandidate(candidate),
+                  let client = model.webSocketClient
+            else { return }
+            _ = model.weatherDetailCoordinator.start(candidate, using: client)
+        }
+        operationRegistry.register(
+            DashboardOwnerOperationNode(task: task, detachedOwnership: nil),
+            sequence: operationSequence
+        )
+        dashboardOwnerOperationTail = task
+    }
+
+    private func isCurrentWeatherDetailCandidate(_ candidate: WeatherDetailOwnerCandidate) -> Bool {
+        lifetimeAuthority.acceptsWork &&
+            appGeneration == candidate.appGeneration &&
+            latestConfigRequestSequence == candidate.configGeneration &&
+            selectedEntityID == candidate.entityID &&
+            weatherDetailCoordinator.isCurrent(candidate)
+    }
+
     private func detachOwnershipSynchronously(notIn desiredKeys: Set<String>) -> DetachedDashboardOwnership {
         if desiredHistoryKeys != desiredKeys {
             historyReconciliationEpoch &+= 1
@@ -2601,12 +2794,15 @@ final class DashboardViewModel: ObservableObject {
         desiredDetailHistoryKeys.removeAll()
         detailHistoryStatuses.removeAll()
         detailHistories.removeAll()
+        let weatherOwnership = weatherDetailCoordinator.close()
         selectedEntityID = nil
         return DetachedDashboardOwnership(
             startups: startups,
             subscriptions: subscriptions,
             detailStartups: detailStartups,
-            detailSubscriptions: detailSubscriptions
+            detailSubscriptions: detailSubscriptions,
+            weatherStartups: [weatherOwnership.startup].compactMap { $0 },
+            weatherSubscriptions: [weatherOwnership.subscription].compactMap { $0 }
         )
     }
 
@@ -2621,6 +2817,12 @@ final class DashboardViewModel: ObservableObject {
             await startup.value
         }
         for subscription in detached.detailSubscriptions {
+            await subscription.cancel()
+        }
+        for startup in detached.weatherStartups {
+            await startup.value
+        }
+        for subscription in detached.weatherSubscriptions {
             await subscription.cancel()
         }
     }
@@ -3205,6 +3407,7 @@ final class DashboardViewModel: ObservableObject {
     deinit {
         guard let cleanup = emergencyDetachAction?() else { return }
         Task { @MainActor in
+            let weatherOwnership = cleanup.weatherCoordinator.close()
             cleanup.mountRegistry.invalidateOwners(notIn: [])
             cleanup.historyCoordinator.reconciliationEpoch &+= 1
             cleanup.historyCoordinator.desiredKeys.removeAll()
@@ -3239,6 +3442,10 @@ final class DashboardViewModel: ObservableObject {
             for subscription in cleanup.ownership.detailHistorySubscriptions {
                 await subscription.cancel()
             }
+            for subscription in cleanup.ownership.weatherSubscriptions {
+                await subscription.cancel()
+            }
+            await weatherOwnership.finish()
             for client in cleanup.ownership.clients { await client.disconnect() }
             for task in cleanup.ownership.tasks { await task.value }
             for task in serviceTasks { await task.value }
@@ -3302,6 +3509,7 @@ struct DashboardOwnerDebugSnapshot: Equatable {
     let dashboardOwnerTailActive: Bool
     let dashboardOwnerNodeCount: Int
     let serviceTaskCount: Int
+    let weatherDetail: WeatherDetailOwnerDebugSnapshot
     let webSocketClientActive: Bool
     let installedClientActive: Bool
 }
@@ -3311,6 +3519,24 @@ private struct DetachedDashboardOwnership {
     let subscriptions: [HAHistoryStreamSubscription]
     let detailStartups: [Task<Void, Never>]
     let detailSubscriptions: [HAHistoryStreamSubscription]
+    let weatherStartups: [Task<Void, Never>]
+    let weatherSubscriptions: [HAWebSocketSubscription]
+
+    init(
+        startups: [Task<Void, Never>] = [],
+        subscriptions: [HAHistoryStreamSubscription] = [],
+        detailStartups: [Task<Void, Never>] = [],
+        detailSubscriptions: [HAHistoryStreamSubscription] = [],
+        weatherStartups: [Task<Void, Never>] = [],
+        weatherSubscriptions: [HAWebSocketSubscription] = []
+    ) {
+        self.startups = startups
+        self.subscriptions = subscriptions
+        self.detailStartups = detailStartups
+        self.detailSubscriptions = detailSubscriptions
+        self.weatherStartups = weatherStartups
+        self.weatherSubscriptions = weatherSubscriptions
+    }
 }
 
 private struct DashboardOwnerOperationNode {
@@ -3375,9 +3601,11 @@ private final class DashboardOwnerOperationRegistry: @unchecked Sendable {
     private func cancel(_ ownership: DetachedDashboardOwnership) {
         ownership.startups.forEach { $0.cancel() }
         ownership.detailStartups.forEach { $0.cancel() }
+        ownership.weatherStartups.forEach { $0.cancel() }
         Task {
             for subscription in ownership.subscriptions { await subscription.cancel() }
             for subscription in ownership.detailSubscriptions { await subscription.cancel() }
+            for subscription in ownership.weatherSubscriptions { await subscription.cancel() }
         }
     }
 }
@@ -3427,6 +3655,7 @@ private struct DashboardEmergencyDeinitCleanup {
     let historyCoordinator: DashboardHistoryCoordinator
     let serviceController: DashboardServiceController
     let mountRegistry: DashboardGraphChartMountRegistry
+    let weatherCoordinator: DashboardWeatherDetailCoordinator
 }
 
 private enum DashboardEmergencyTaskKey: Hashable {
@@ -3447,6 +3676,7 @@ private struct DashboardEmergencyBagOwnership {
     let lovelaceSubscription: HAWebSocketSubscription?
     let historySubscriptions: [HAHistoryStreamSubscription]
     let detailHistorySubscriptions: [HAHistoryStreamSubscription]
+    let weatherSubscriptions: [HAWebSocketSubscription]
     let clients: [HomeAssistantWebSocketClient]
 }
 
@@ -3604,15 +3834,18 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
         for operation in ownerOperations {
             detachedTasks.append(contentsOf: operation.detachedOwnership?.startups ?? [])
             detachedTasks.append(contentsOf: operation.detachedOwnership?.detailStartups ?? [])
+            detachedTasks.append(contentsOf: operation.detachedOwnership?.weatherStartups ?? [])
         }
         let detachedEntity = entityCoordinator
         let detachedCandidate = candidateEntityCoordinator
         let detachedLovelace = lovelaceSubscription
         var detachedHistory = historySubscriptions
         var detachedDetail = detailHistorySubscriptions
+        var detachedWeather: [HAWebSocketSubscription] = []
         for operation in ownerOperations {
             detachedHistory.append(contentsOf: operation.detachedOwnership?.subscriptions ?? [])
             detachedDetail.append(contentsOf: operation.detachedOwnership?.detailSubscriptions ?? [])
+            detachedWeather.append(contentsOf: operation.detachedOwnership?.weatherSubscriptions ?? [])
         }
         var clients: [HomeAssistantWebSocketClient] = []
         for client in [webSocketClient, latestBootstrapClient, installedBootstrapClient].compactMap({ $0 })
@@ -3643,6 +3876,7 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
             lovelaceSubscription: detachedLovelace,
             historySubscriptions: detachedHistory,
             detailHistorySubscriptions: detachedDetail,
+            weatherSubscriptions: detachedWeather,
             clients: clients
         )
     }

@@ -19905,7 +19905,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "e2a398482f58d90ef641f10d2ee319f8c197f92aa1523f38ba9f5b26709a887f",
+  "graphFingerprint": "935ae7027af5257c07e56f709845239f6e690edc6ce7c62bf08f6d8e1c1d599b",
   "manifest": {
     "module": "05",
     "path": "docs/reference-context/manifests/module-05.inputs.json",
@@ -19941,11 +19941,11 @@
         "worktreeBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "73c208ee249584a8e124463ba52bc69e386a4d2b84277388b31bbbe6d9c02039",
+        "sha256": "569ede21042664d0d1a4566f7058569097a89d7703041a674589e7a45db69300",
         "symbols": [
           "HomeAssistantWebSocketClient",
           "fetchCurrentUser",
@@ -19953,7 +19953,7 @@
           "subscribeHistoryStatesTimeWindow",
           "subscribeToStateChanges"
         ],
-        "worktreeBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e"
+        "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
         "dirty": false,
@@ -19974,8 +19974,8 @@
         "worktreeBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6"
       },
       {
-        "dirty": true,
-        "headBlob": "c5ed0810659a9d73309acdcb939f83ef09c15fb4",
+        "dirty": false,
+        "headBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
         "sha256": "c53ffb866854c9b6206cbc184687ad92116a175b621b444de2f95a2b6453d3e9",
@@ -19987,8 +19987,8 @@
         "worktreeBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6"
       },
       {
-        "dirty": true,
-        "headBlob": "07c4463564218fc9746191277f9d78ea1bdc778c",
+        "dirty": false,
+        "headBlob": "859600ada92127650b45f15287a2af92980617bc",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
         "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
@@ -20017,10 +20017,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "68bbd1fcbb3de2627f935b8a08de6142b2b3b8be",
+        "headBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "150e65a7473eeddfcff744c5b611b44aa1330d5fd8863591fd2bce8c498885e7",
+        "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -20030,7 +20030,7 @@
           "EntityRow",
           "HistoryGraphCard"
         ],
-        "worktreeBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb"
+        "worktreeBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc"
       },
       {
         "dirty": false,
@@ -20083,11 +20083,11 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "804607628fed769f13a601546ee1ec55fcbaa1e1db0bcefdcbb88fde958a6973",
+        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
         "symbols": [
           "DashboardOwnerCandidate",
           "DashboardOwnerDebugSnapshot",
@@ -20096,7 +20096,7 @@
           "DetachedDashboardOwnership",
           "HistoryRequest"
         ],
-        "worktreeBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7"
+        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
       },
       {
         "dirty": false,
@@ -20163,8 +20163,8 @@
         "worktreeBlob": "bb9cce5bf55d408999a7ae179c8ff8a222056b30"
       },
       {
-        "dirty": true,
-        "headBlob": "3354f2b1ad94eeb5b9b50a2abd473e7ecfb42aeb",
+        "dirty": false,
+        "headBlob": "c4f392e6f09b04e8b3a3a4d499f3abf7a45ea270",
         "missing": false,
         "path": "Sources/NativeHAMac/LovelacePresentation.swift",
         "sha256": "bd4570f3dcccf6511e0f365ba6a9222c121e3b356574996ca82b28da1779c400",
@@ -20318,8 +20318,8 @@
         "worktreeBlob": "2d52640d318396938e1565158419ce302b362935"
       },
       {
-        "dirty": true,
-        "headBlob": "d560242e2017079352e8896b1fd1d688ad4ddb90",
+        "dirty": false,
+        "headBlob": "b08c637741073d2fba41a52d2ce808b16270dedb",
         "missing": false,
         "path": "Tests/NativeHAMacTests/LovelacePresentationTests.swift",
         "sha256": "993b88103e4ab872d33f85323f515a0c66f675deb92368ad6cf22cf20d49bd07",
@@ -20342,7 +20342,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "fdb6264ce42faf974f7748a399f614d16f1615a5"
+    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
   },
   "nodes": [
     {

@@ -542,7 +542,7 @@ struct WeatherCard: View {
     }
 }
 
-private func weatherIconColor(_ role: WeatherIconColorRole) -> Color {
+func weatherIconColor(_ role: WeatherIconColorRole) -> Color {
     switch role {
     case .sun: return .yellow
     case .moon: return Color(red: 0.75, green: 0.78, blue: 0.95)
@@ -1569,6 +1569,11 @@ struct EntityDetailSheet: View {
     @ViewBuilder
     private func detailContent(state: HAState) -> some View {
         switch model.domain(for: entityID) {
+        case "weather":
+            WeatherDetailView(
+                state: state,
+                coordinator: model.weatherDetailCoordinator
+            )
         case "climate":
             ClimateDetailContent(entityID: entityID, state: state)
         case "fan":

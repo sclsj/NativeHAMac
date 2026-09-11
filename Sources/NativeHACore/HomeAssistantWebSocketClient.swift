@@ -94,6 +94,27 @@ public final class HomeAssistantWebSocketClient {
         }
     }
 
+    /// Owns one logical modern weather forecast subscription. Physical
+    /// reconnect and wire-ID replacement remain entirely inside Module 02.
+    public func subscribeWeatherForecast(
+        entityID: String,
+        type: HAWeatherForecastType,
+        onTermination: (@Sendable (Error) async -> Void)? = nil,
+        onForecast: @escaping @Sendable (HAWeatherForecastEvent) async -> Void
+    ) async throws -> HAWebSocketSubscription {
+        try await connection.subscribeMessage(
+            [
+                "type": .string("weather/subscribe_forecast"),
+                "entity_id": .string(entityID),
+                "forecast_type": .string(type.rawValue),
+            ],
+            as: HAWeatherForecastEvent.self,
+            resubscribe: true,
+            onTermination: onTermination,
+            onMessage: onForecast
+        )
+    }
+
     /// Starts the modern compressed entity stream. This consumer deliberately
     /// opts out of transport-level resubscription: its coordinator must require
     /// a new authoritative first snapshot after every ready generation.

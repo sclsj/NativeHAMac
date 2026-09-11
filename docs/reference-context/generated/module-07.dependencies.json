@@ -20739,24 +20739,38 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "913b5d8f3f41eef5b35628ab386c4d194b374fe8f4b3bfaad620598cc5fc1ca7",
+  "graphFingerprint": "bbd7b725c9fbde34ea4e407f280ae0d79e0da8b178fcc23018696478d09104f5",
   "manifest": {
     "module": "07",
     "path": "docs/reference-context/manifests/module-07.inputs.json",
-    "sha256": "bc05d95a4ca68284f83e976dde1c8505222341396d161391543bb8985a13765a"
+    "sha256": "dd1ca028beba732658e836b216b8839219badd283a86a8647ef907c07e08d49d"
   },
   "nativeha": {
     "anchors": [
       {
         "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHACore/HomeAssistantWeather.swift",
+        "sha256": "9771ebc6c3a90b57329ec517b5ef029fd2b8c59408e0ef7399670c4453d61230",
+        "symbols": [
+          "HAWeatherForecast",
+          "HAWeatherForecastEvent",
+          "HAWeatherForecastFeatures",
+          "HAWeatherForecastType"
+        ],
+        "worktreeBlob": "95448e7f89cdd06597746406da54d4b4367324b0"
+      },
+      {
+        "dirty": true,
         "headBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "73c208ee249584a8e124463ba52bc69e386a4d2b84277388b31bbbe6d9c02039",
+        "sha256": "569ede21042664d0d1a4566f7058569097a89d7703041a674589e7a45db69300",
         "symbols": [
           "HomeAssistantWebSocketClient"
         ],
-        "worktreeBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e"
+        "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
         "dirty": false,
@@ -20808,17 +20822,17 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "150e65a7473eeddfcff744c5b611b44aa1330d5fd8863591fd2bce8c498885e7",
+        "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
         "symbols": [
           "CardRenderer",
           "EntityDetailSheet",
           "WeatherCard"
         ],
-        "worktreeBlob": "aaf186055620776d306b4d97e2e9c7b5a10f12eb"
+        "worktreeBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc"
       },
       {
         "dirty": false,
@@ -20855,16 +20869,28 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "804607628fed769f13a601546ee1ec55fcbaa1e1db0bcefdcbb88fde958a6973",
+        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
         "symbols": [
           "DashboardOwnerCandidate",
           "DashboardViewModel"
         ],
-        "worktreeBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7"
+        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/DashboardWeatherDetailCoordinator.swift",
+        "sha256": "fc3454ed1fc5d8eadff706e79a93177c0618e9e47cde2460b2c0392df93965c7",
+        "symbols": [
+          "DashboardWeatherDetailCoordinator",
+          "WeatherDetailOwnerCandidate"
+        ],
+        "worktreeBlob": "1d33e87b62e6a5a20c00c7af1868472e3fdde467"
       },
       {
         "dirty": false,
@@ -20900,6 +20926,62 @@
           "LovelaceViewNavigation"
         ],
         "worktreeBlob": "f26c07375ea8b48ec520976b7751db3634d8c054"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/WeatherDetailPresentation.swift",
+        "sha256": "77658188243357cb2388a98077ea7658991bf1ea9ee0d73fc2ce56d1e22e4abe",
+        "symbols": [
+          "WeatherDetailPresentationResolver",
+          "WeatherRelativeTimeFormatter"
+        ],
+        "worktreeBlob": "d2fb56dd7b2ce49a7005e1fe0a54b34cc41f66dc"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/WeatherDetailView.swift",
+        "sha256": "7cf3819d4f74fa9f791c7482e90af30b18bec6e8fc63a6e0e5065ecc63dc5be0",
+        "symbols": [
+          "WeatherDetailView"
+        ],
+        "worktreeBlob": "32b7f2021fcac36115140777077443479a479fc2"
+      },
+      {
+        "dirty": true,
+        "headBlob": "b1d5b036e5be39ba6f6d718a036bd7d7aa465dc8",
+        "missing": false,
+        "path": "Sources/NativeHAMac/WeatherIconResolver.swift",
+        "sha256": "d561ab9f8b5d04af73937ae473f62f90acd5657b1641fef53c6f3dc4fb6dd755",
+        "symbols": [
+          "WeatherIconResolver"
+        ],
+        "worktreeBlob": "0f92f895ef0d4f488414d0f456a27751af1b5d05"
+      },
+      {
+        "dirty": true,
+        "headBlob": "e40ed01aeddea372a8082f0b35db1d8889f4c1cc",
+        "missing": false,
+        "path": "Sources/NativeHAMac/WeatherPresentation.swift",
+        "sha256": "3cc1a8413cc9b2ae5e2956e3bc2b4c06352f8723e7729d719c33d84b3d57a7a4",
+        "symbols": [
+          "WeatherPresentationResolver"
+        ],
+        "worktreeBlob": "3200b7d9026f2d851f44fa530c1f9166d1d47c5a"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHACoreTests/HomeAssistantWeatherTests.swift",
+        "sha256": "fed912364a7ecf868c61528e5dfe0eb0ebd99883687bcc334085d0c44baa296f",
+        "symbols": [
+          "HomeAssistantWeatherTests"
+        ],
+        "worktreeBlob": "98ccfc654cc0d66abad0297fb177ace3f1ebcbee"
       },
       {
         "dirty": false,
@@ -20966,11 +21048,55 @@
           "LovelacePresentationTests"
         ],
         "worktreeBlob": "b08c637741073d2fba41a52d2ce808b16270dedb"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/WeatherDetailIntegrationTests.swift",
+        "sha256": "5f362340614616433db81ae15f92967c969cfaa46697b18b9fbbc21de0a4d2d1",
+        "symbols": [
+          "WeatherDetailIntegrationTests"
+        ],
+        "worktreeBlob": "80afe31077c794d763376432520f663a3b2af751"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/WeatherDetailPerformanceTests.swift",
+        "sha256": "a9e08a481aeb0322e03a0fba3bcf20c7fc7389aeae812ac1b297a9f85186f245",
+        "symbols": [
+          "WeatherDetailPerformanceTests"
+        ],
+        "worktreeBlob": "2311c07c9ee4f959e12b0a1adaca0a55a4c9479f"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/WeatherDetailPresentationTests.swift",
+        "sha256": "59316a19f0b28d3ffcb01c46e042693ef92756c7d18d7a2701a65f6e0d659966",
+        "symbols": [
+          "WeatherDetailPresentationTests"
+        ],
+        "worktreeBlob": "57c6420ec773e1d8850c172da8ccfca2d12d85ab"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/WeatherDetailRenderingTests.swift",
+        "sha256": "59910542b842d519eb4bd2b5f81c1ff12348aa8b3de5b82ff5b811cf316397ca",
+        "symbols": [
+          "WeatherDetailRenderingTests"
+        ],
+        "worktreeBlob": "3764c4bce8e0547ae21ee67628379b374012fde5"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "30c981b4a9b7562c48d2a15fb4a757bfa99fea74"
+    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
   },
   "nodes": [
     {

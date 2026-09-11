@@ -1611,7 +1611,7 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "26a89dfc1a88704dcb44a2fc97d2c5c41f20bacf0eb79f5816f20ecfb26e9372",
+  "graphFingerprint": "5ae0f7d53f3eaa0df512b58c4b8a26a4fa96c7a5febfc9f4fcba38300949fc05",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
@@ -1632,17 +1632,17 @@
         "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
-        "sha256": "73c208ee249584a8e124463ba52bc69e386a4d2b84277388b31bbbe6d9c02039",
+        "sha256": "569ede21042664d0d1a4566f7058569097a89d7703041a674589e7a45db69300",
         "symbols": [
           "HomeAssistantWebSocketClient",
           "fetchEntityRegistryDisplay",
           "fetchFrontendLocalePreferences"
         ],
-        "worktreeBlob": "1b5f261f7c42c78fb7047fa9508f067e78f94c3e"
+        "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
         "dirty": false,
@@ -1685,8 +1685,8 @@
         "worktreeBlob": "dea3b1bc4d8e0e0a50051f8f769c1d01f3e25ab5"
       },
       {
-        "dirty": true,
-        "headBlob": "07c4463564218fc9746191277f9d78ea1bdc778c",
+        "dirty": false,
+        "headBlob": "859600ada92127650b45f15287a2af92980617bc",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
         "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
@@ -1710,16 +1710,16 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "804607628fed769f13a601546ee1ec55fcbaa1e1db0bcefdcbb88fde958a6973",
+        "sha256": "3b01ffb592db531230f5965576614b63b89b59ac510c42292fb11a8cd3382a85",
         "symbols": [
           "DashboardViewModel.load",
           "bootstrapDashboard"
         ],
-        "worktreeBlob": "4aa0ffb440ec893878ff8509b5c3b3a15b4ba7d7"
+        "worktreeBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0"
       },
       {
         "dirty": false,
@@ -1749,7 +1749,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "fdb6264ce42faf974f7748a399f614d16f1615a5"
+    "gitHead": "25c73ec76347c442e8b550e42734173ac37710a6"
   },
   "nodes": [
     {

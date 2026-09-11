@@ -90,6 +90,28 @@ enum WeatherIconResolver {
         )
     }
 
+    static func resolveForecast(
+        condition: String,
+        isNight: Bool,
+        symbolAvailability: SymbolAvailability = defaultSymbolAvailability
+    ) -> WeatherIconPresentation {
+        guard isNight else {
+            return resolve(condition: condition, symbolAvailability: symbolAvailability)
+        }
+        let requested: (String, String, WeatherIconColorRole)
+        switch condition {
+        case "sunny", "clear-night": requested = ("moon.stars.fill", "Clear night", .moon)
+        case "partlycloudy": requested = ("cloud.moon.fill", "Partly cloudy night", .moon)
+        default: return resolve(condition: condition, symbolAvailability: symbolAvailability)
+        }
+        return availablePresentation(
+            preferred: requested.0,
+            semanticLabel: requested.1,
+            colorRole: requested.2,
+            symbolAvailability: symbolAvailability
+        )
+    }
+
     private static func availablePresentation(
         preferred: String,
         semanticLabel: String,

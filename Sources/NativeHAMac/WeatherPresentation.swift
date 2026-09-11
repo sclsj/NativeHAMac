@@ -325,7 +325,7 @@ enum WeatherPresentationResolver {
         return WeatherSecondaryPresentation(attribute: "humidity", label: "Humidity", value: value)
     }
 
-    private static func formattedAttribute(
+    static func formattedAttribute(
         _ attribute: String,
         state: HAState,
         serverUnitSystem: HAUnitSystem?,
@@ -349,7 +349,7 @@ enum WeatherPresentationResolver {
         return valueText + unitSuffix(unit, preferences: preferences)
     }
 
-    private static func numericValue(_ value: JSONValue) -> Double? {
+    static func numericValue(_ value: JSONValue) -> Double? {
         switch value {
         case let .int(value): return Double(value)
         case let .double(value): return value
@@ -358,7 +358,7 @@ enum WeatherPresentationResolver {
         }
     }
 
-    private static func weatherUnit(
+    static func weatherUnit(
         _ attribute: String,
         state: HAState,
         serverUnitSystem: HAUnitSystem?
@@ -383,7 +383,7 @@ enum WeatherPresentationResolver {
         return value
     }
 
-    private static func formatNumber(
+    static func formatNumber(
         _ value: Double,
         preferences: HAFrontendLocalePreferences?,
         maximumFractionDigits: Int
@@ -408,7 +408,7 @@ enum WeatherPresentationResolver {
         }
     }
 
-    private static func unitSuffix(
+    static func unitSuffix(
         _ unit: String,
         preferences: HAFrontendLocalePreferences?
     ) -> String {
@@ -422,7 +422,7 @@ enum WeatherPresentationResolver {
         return " " + unit
     }
 
-    private static func windBearing(_ value: JSONValue?) -> String? {
+    static func windBearing(_ value: JSONValue?) -> String? {
         guard let value = value, value != .null else { return nil }
         let degrees: Double?
         switch value {

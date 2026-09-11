@@ -6,7 +6,7 @@ Make `weather-forecast` cards and their opened weather detail align with Home As
 
 The live dashboard currently has three weather cards and all use `show_forecast: false`, so current-conditions correctness is the first milestone. Forecast subscription support can follow once WebSocket subscriptions are reliable.
 
-Current staged status: revision 1 current-card conditions are complete and independently verified. Revision 2, defined precisely by the Module 07 evidence packet, adds the specialized weather more-info body and its one modal-scoped forecast subscription. Dashboard-card forecast rows/owners remain deferred.
+Current staged status: revision 1 current-card conditions are complete and independently verified. Revision 2, defined precisely by the Module 07 evidence packet, is also complete and independently verified for the specialized weather more-info body and its one modal-scoped forecast subscription. Dashboard-card forecast rows/owners under C07-09/10 remain deferred. The exact next gate is Module 08 research only, including correction of its stale marker-only template- subscription assumption before implementation.
 
 ## Current-Code Findings
 

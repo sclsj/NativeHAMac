@@ -7,10 +7,10 @@ status: bounded-async-repair-verified-open-stale-viewport-fallback-broader-modul
 contract_revision: 3
 depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: fdb6264ce42faf974f7748a399f614d16f1615a5
+nativeha_revision: 25c73ec76347c442e8b550e42734173ac37710a6
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: 04558a72c823b10a561fdd2ddbedc038be0f323c071655596d6f714589ba2658
-last_validated: 2026-09-08
+graph_fingerprint: 436599735092cd4dfd5528dd0d3ead3733fc105c6f9a9443393c9daf4ca73f77
+last_validated: 2026-09-10
 ---
 
 # Module 09 bounded async-repair evidence

@@ -3,26 +3,26 @@ schema: nativeha-evidence/v1
 module: "07"
 title: Weather card current conditions and weather more-info ownership
 plan: ../../rescue-plan/module-07-weather-card.md
-status: research-ready
+status: complete
 contract_revision: 2
 depends_on: ["02", "04", "05", "06", "12"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 30c981b4a9b7562c48d2a15fb4a757bfa99fea74
+nativeha_revision: 25c73ec76347c442e8b550e42734173ac37710a6
 graph_file: ../generated/module-07.dependencies.json
-graph_fingerprint: 913b5d8f3f41eef5b35628ab386c4d194b374fe8f4b3bfaad620598cc5fc1ca7
+graph_fingerprint: bbd7b725c9fbde34ea4e407f280ae0d79e0da8b178fcc23018696478d09104f5
 last_researched: 2026-09-09
-last_implemented: 2026-09-07
-last_verified: 2026-09-08
-last_validated: 2026-09-09
+last_implemented: 2026-09-10
+last_verified: 2026-09-10
+last_validated: 2026-09-10
 ---
 
 # Module 07 evidence packet
 
 ## Gate and bounded scope
 
-Contract revision 1 completed and independently verified the existing `weather-forecast` card's **current conditions** under C07-01 through C07-08 and C07-11. Those contracts remain green and unchanged. The user's next observed gap is what happens after activating that card: `EntityDetailSheet` has no weather route and currently falls through to generic state plus raw attributes, whereas hass-frontend routes weather to `more-info-weather`.
+Contract revision 1 completed and independently verified the existing `weather-forecast` card's **current conditions** under C07-01 through C07-08 and C07-11. Those contracts remain green and unchanged. At the revision-2 research base, activating that card exposed the user's next observed gap: `EntityDetailSheet` had no weather route and fell through to generic state plus raw attributes, whereas hass-frontend routes weather to `more-info-weather`.
 
-Contract revision 2 authorizes one additional implementation milestone: a native weather more-info surface for the selected detail entity, including the single modal-scoped forecast subscription needed for parity. It covers the current condition header, relative-time presentation, formatted pressure, humidity, wind, and visibility rows, supported forecast-type selection and tabs, forecast presentation, attribution, error/sentinel behavior, accessibility, and exact open/switch/close/reconnect cancellation ownership.
+Contract revision 2 records the completed additional milestone: a native weather more-info surface for the selected detail entity, including the single modal-scoped forecast subscription needed for parity. It covers the current condition header, relative-time presentation, formatted pressure, humidity, wind, and visibility rows, supported forecast-type selection and tabs, forecast presentation, attribution, error/sentinel behavior, accessibility, and exact open/switch/close/reconnect cancellation ownership.
 
 This revision does **not** activate the Lovelace card forecast contracts C07-09/10. All three dashboard cards continue to honor raw `show_forecast:false`; they start zero forecast owners and render no forecast row. Detail forecast identity is selected entity + forecast type + opaque detail generation, never card identity. No cache, persistence key, setting, profile, service call, or typed `AppConfig` surface is added. Core Graphics stays the primary graph renderer and every approved graph-range, history, graph-feed, render-coordinator, tooltip, logging, Module 04/12 identity, and fixed-bootstrap policy remains unchanged.
 
@@ -201,11 +201,37 @@ Remaining risks are non-blocking: SF Symbols approximate HA's MDI/SVG artwork; h
 
 Stop and ask before changing card action semantics beyond C07-06/07, activating C07-09/10 dashboard-card forecast ownership/UI, adding a second receive or reconnect loop, changing Module 02 connection semantics, moving modal ownership off the one Module 05 tail, retaining old results across entity/type/detail generations, using hashes/revisions/timestamps/datetimes for freshness, adding a cache/persistence/`AppConfig`/settings surface, changing fixed-server token bootstrap, adding a service call, expanding generic localization, supporting a non-`en` deployment, or editing files outside the permitted handoff.
 
+## Revision-2 implementation and independent verification evidence
+
+The completed implementation is based on research commit `25c73ec76347c442e8b550e42734173ac37710a6` and changes only the permitted weather detail, shared presenter extraction, WebSocket facade, Module 05 owner integration, tests, and evidence anchors. No connection dispatch internals, history/graph/persistence code, `AppConfig`, Lovelace model/identity code, bootstrap credential path, or service route changed.
+
+Implemented behavior by contract:
+
+- C07-12 routes a selected `weather` entity to a native detail body. Its pure presenter keeps current conditions usable for normal and sentinel states, emits only present pressure/humidity/wind/visibility rows, applies the extrema/precipitation/humidity secondary priority, and places optional attribution after forecast content.
+- C07-13 adds strict daily/twice-daily/hourly feature and event models plus one typed `weather/subscribe_forecast` facade. Detail opening selects the first supported reference-order type, modern matching events win, usable null/short-event legacy data remains the fallback, all accepted entries retain payload order, and card-only forecast/slot/round flags remain irrelevant.
+- C07-14 and C07-15 add one modal coordinator with separate opaque presentation and attempt generations. Open, type switch, close/reopen, dashboard/config replacement, reconnect, stop, and deinit synchronously revoke old authority, serialize detached cleanup on the existing dashboard owner tail, and reject retired callbacks. Pre-ack reconnect loss permits exactly one fresh attempt; an acknowledged logical owner relies only on Module 02 resubscription. A typed post-ack decode termination synchronously invalidates its attempt and detaches the actual logical owner, then starts a separately tracked retirement task as soon as the callback returns, avoiding callback-owner self-await and bypassing any unrelated predecessor already held on the dashboard tail. The newly enqueued tail node awaits that already-running retirement before any replacement. A returned owner is installed atomically before the first post-subscribe suspension, so a concurrent termination can always detach and retire it. One current-attempt failure flag replaces unbounded failed-attempt bookkeeping.
+- C07-16 keeps current conditions visible and reference-like loading when a usable forecast is absent or a terminal subscription/decode failure occurs. Diagnostics are scoped and credential-free; no busy retry or invented inline error was added.
+- C07-17 delivers the native 64-point current icon, 32-point measurement rows, native selected-type buttons, horizontally scrollable 40-point forecast icons, attribution wrapping, injected relative time, and a visible-only 60-second cadence. Threshold tests cover 59 seconds, 59 minutes, 22 hours, 5 calendar days, 4 locale-start weeks, and 11 calendar months.
+- C07-18 preserves the revision-1 card behavior and keeps C07-09/10 deferred: mounted dashboard weather cards still create no forecast owner. No settings, cache, persistence, profile, token migration, service call, or renderer/policy change exists.
+
+Fresh implementation validation and independent verification on 2026-09-10:
+
+- revision-2 deterministic suites pass at 29 executed, one authorized opt-in live skip, zero failures. Held-boundary integration coverage asserts exact connection/delivery ownership after malformed typed events, rejection of a later valid old callback, one-owner tab recovery, termination at the first held post-install boundary, prompt wire/delivery retirement while an unrelated predecessor stays held, true held A-B-A and same-key reopen, view/config/stop cancellation for held and active owners, deinit for held and active owners, and weak release while replacement remains queued. Atomic registration before the first post-subscribe suspension eliminates an awaitable pre-install seam;
+- the independent verifier reran each of the two previously blocking terminal- callback races 30 consecutive times. Prompt retirement behind a held unrelated predecessor and termination at the held post-install boundary passed all 30 repetitions independently, with zero old-owner mutation or duplicate recovery;
+- complete `swift test`: PASS, 319 executed, five authorized opt-in skips, zero failures in 95.268 seconds under independent verification, retaining Modules 02/01/04/12/05/06 and bounded Module 09 regressions;
+- `swift build -c release --product NativeHAMac`: independently PASS on macOS 12.6.7 with Swift 5.6.1 and the package's macOS 12 deployment target;
+- performance measurements record clock, CPU, and memory metrics with fixtures built outside measured blocks: deterministic 1,000-item daily/hourly/ twice-daily preparation averaged 1.150 seconds for all 3,000 items; twenty warm 48-item replacements averaged 0.500 seconds; 500 open/type/reconnect/close cycles averaged 0.011 seconds and ended with zero owners. These are measured evidence, not a new arbitrary threshold or stored baseline claim;
+- fourteen scale-2 dark fixtures at `520x620` and `360x620` cover Daily, Hourly, loading, terminal-error-still-loading, sparse, `unknown`, and `unavailable`. PNG signature/dimensions/nonblank semantics passed; independent visual review plus semantic keyboard/accessibility inspection returned GO with no clipping, blank state, or attribution-wrap defect;
+- the independent authorized read-only live detail smoke passed against `weather.forecast_wo_de_jia`: Daily delivered six entries, switching to Hourly delivered 48, close left zero logical/socket owners, server config was unchanged, and no state-changing service call was made;
+- migration/configuration is an explicit no-op. No settings, preference, cache, credential, token, profile, bootstrap, persistence, or `AppConfig` change;
+- `git diff --check`: PASS. Modules 02/01/04/12/05/06/07 and bounded Module 09 context checkers are GREEN after deterministic shared-anchor refresh. Module 07 graph: 128 nodes / 817 edges, fingerprint `bbd7b725c9fbde34ea4e407f280ae0d79e0da8b178fcc23018696478d09104f5`. Resolver self-test: PASS, 31 nodes / 61 edges, fingerprint `5ae0f7d53f3eaa0df512b58c4b8a26a4fa96c7a5febfc9f4fcba38300949fc05`;
+- exact independent diff inspection found no prohibited change: connection dispatch internals, history/graph/persistence ownership, `AppConfig`, fixed- server credential bootstrap, Lovelace model/identity, service routes, Core Graphics primacy, and C07-09/10 dashboard forecast ownership remain unchanged.
+
 ## Exact handoff
 
-Module 07 revision 2 is **research-ready**. C07-01 through C07-08 and C07-11 remain complete and independently verified historical behavior. C07-12 through C07-18 are fully decided and ready for one bounded implementation plus fresh independent verification. C07-09/10 remain explicitly deferred: do not describe dashboard-card forecast as delivered. The scoped weather-detail subscription is the only authorized forecast owner.
+Module 07 revision 2 is **complete and independently verified**. C07-01 through C07-08 and C07-11 remain independently verified revision-1 behavior; C07-12 through C07-18 are now independently green. C07-09/10 remain explicitly deferred: do not describe dashboard-card forecast as delivered. The scoped weather-detail subscription is the only authorized forecast owner.
 
-The exact next action is to implement C07-12 through C07-18 in the order and files above, then run an independent exact-diff/lifecycle/GUI verification and mark revision 2 complete only on GO. Preserve the fixed-server bootstrap, exact Module 04/12 identity, Module 05 lifecycle/service tail, Module 06 generic-row boundary, revision-1 card presentation, Core Graphics primary renderer, and the separate Module 09 stale-viewport fallback. Only after revision 2 is implemented and independently verified should Module 08 research resume. Do not begin Module 08, broader Module 09, or Modules 10/11 in this gate.
+The exact next action is Module 08 research only. Its bounded research and audit must correct the stale plan assumption that template-subscription demand can be inferred solely from literal content markers before any implementation is authorized. Preserve the fixed-server bootstrap, exact Module 04/12 identity, Module 05 lifecycle/service tail, Module 06 generic-row boundary, both completed Module 07 revisions, Core Graphics primary renderer, and the separate Module 09 stale-viewport fallback. Do not implement Module 08 or begin broader Module 09 or Modules 10/11 in the next gate.
 
 ## Historical revision-1 implementation and independent verification evidence
 
@@ -241,6 +267,9 @@ The only known design limitations remain those already researched: SF Symbols ar
 
 ## Change log
 
+- 2026-09-10: fresh independent verification returned GO for revision 2 after exact diff review, 30 consecutive passes for each prior terminal-callback NO-GO, 29 focused executions plus one authorized skip, 319 full-suite executions plus five authorized skips and zero failures, release on macOS 12.6.7/Swift 5.6.1, 14 visual/accessibility fixtures, and the authorized Daily-6 to Hourly-48 read-only live transition ending at zero owners with unchanged config and no service call. All context graphs and resolver are green, no prohibited surface changed, and revision 2 is complete. Module 08 research only is next; C07-09/10 remain deferred.
+- 2026-09-10: repaired the independent-verifier NO-GO for typed post-ack forecast decode termination and its follow-up audit finding. Old attempt authority is now revoked before the callback returns; captured logical ownership retires in a separately tracked task without waiting for an unrelated dashboard-tail predecessor; the replacement barrier awaits that running retirement; and returned-owner registration is atomic before any post-subscribe suspension. Termination at the first held post-install boundary cannot reinstall or publish, and a bounded current-attempt flag replaces the failed UUID set. Six additional held/lifecycle/weak-release tests bring the focused gate to 29 and the complete suite to 319; revision 2 remains `verification-ready` pending fresh independent GO.
+- 2026-09-10: revision-2 implementation completed C07-12 through C07-18 as a verification-ready candidate. Focused/full/release, lifecycle, performance, 14-fixture GUI inspection, authorized live Daily/Hourly subscription, context, resolver, migration/no-op, and diff checks are green. C07-09/10 dashboard-card forecast remains deferred; fresh independent exact-diff and matched-reference verification is the next gate.
 - 2026-09-09: user-visible scope diagnosis confirmed that activating weather still opens `DefaultEntityDetailContent`, while hass-frontend routes the same entity to `more-info-weather`. Contract revision 2 added C07-12 through C07-18 for the native weather detail, its one modal-scoped forecast owner, exact lifecycle/generation/reconnect rules, and visual/accessibility/live gates. Audit corrected the connection seed to the actual native symbol `HAWebSocketSubscription`. The regenerated graph is green at 128 nodes / 817 edges with fingerprint `913b5d8f3f41eef5b35628ab386c4d194b374fe8f4b3bfaad620598cc5fc1ca7`; no material question remains unresolved. Revision-1 card contracts stay complete, and C07-09/10 dashboard forecast remains deferred.
 - 2026-09-08: fresh independent verification inspected the exact 17-file candidate, required and accepted the bounded wind fallback/bearing repairs, and returned GO after 31 focused and 290 full-suite executions, release, GUI/manual, performance, migration/no-owner, policy, context, and carried read-only live gates. C07-01 through C07-08 and C07-11 are complete; C07-09/10 remain deferred at zero ownership. The then-current Module 08 next step was superseded by the user's 2026-09-09 weather-detail priority.
 - 2026-09-07: implementation candidate completed C07-01 through C07-08 and C07-11, kept C07-09/10 at zero ownership, passed focused/full/release/live/ GUI/performance gates, and advanced to `verification-ready` pending fresh independent diff and matched-reference visual review.

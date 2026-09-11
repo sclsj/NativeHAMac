@@ -7,13 +7,13 @@ status: complete
 contract_revision: 2
 depends_on: ["04", "05"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: fdb6264ce42faf974f7748a399f614d16f1615a5
+nativeha_revision: 25c73ec76347c442e8b550e42734173ac37710a6
 graph_file: ../generated/module-06.dependencies.json
-graph_fingerprint: fdcbec4441919ce38e9783ce10203a69b98c5de5afd2a6f6dd5a19e3cde1fed3
+graph_fingerprint: 1dac8268023a36c2a58f4ed0c1d4e0c2a15b72388b9c9e6b8068882c92891506
 last_researched: 2026-08-31
 last_implemented: 2026-09-01
 last_verified: 2026-09-01
-last_validated: 2026-09-08
+last_validated: 2026-09-10
 ---
 
 # Module 06 evidence packet

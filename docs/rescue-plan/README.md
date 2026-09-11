@@ -8,7 +8,7 @@ This directory contains implementation plans. NativeHA is a WIP Swift-native Hom
 - Module 03 is intentionally skipped, not complete. NativeHA targets one fixed personal deployment and keeps the existing token/bootstrap path without a profile store, switching, migration, or settings UI.
 - Module 12 is complete and independently re-verified at contract revision 1. Preserve its exact view/card identity, fixed-server navigation persistence, one-tail owner reconciliation, and accessibility contracts in later work.
 - Modules 05 and 06 are complete and independently verified under the fixed- server assumption. Module 06 preserves source-row identity, implements the bounded row presentation/action/power matrix, carries already-fetched registry `ic` without a new command, and adds no owner, fetch, cache, persistence key, or typed configuration surface.
-- Module 07 revision 1 current conditions are complete and independently verified. Revision 2 weather more-info research is green and implementation- ready under C07-12 through C07-18: activating weather must open the specialized current/measurement/forecast detail, with exactly one selected- detail forecast owner. C07-09/10 dashboard-card forecast remains deferred; mounted `show_forecast:false` cards still own nothing.
+- Module 07 revisions 1 and 2 are complete and independently verified. Under C07-12 through C07-18, activating weather opens the specialized current/ measurement/forecast detail with exactly one selected-detail forecast owner. C07-09/10 dashboard-card forecast remains deferred; mounted `show_forecast:false` cards still own nothing.
 - The bounded Module 09 async repair remains correct, green, and separate from broader Module 09. A known stale-viewport request can still cause repeated safe off-main alignment/full-preparation fallback. Do not suppress it using numeric ordering of content hashes or endpoint timestamps; a future bounded repair needs coordinator-owned revision provenance.
 
 ## Module Order
@@ -21,8 +21,8 @@ Implement in this order unless a future audit finds a blocker:
 4. Module 05: complete and independently verified under the fixed-server assumption.
 5. Module 06: complete and independently verified at contract revision 2.
 6. Module 07 revision 1 current conditions: complete and independently verified.
-7. Implement and independently verify Module 07 revision 2 weather more-info, including only its modal-scoped forecast owner; keep dashboard forecast deferred.
-8. Research Module 08 only after revision 2 is green. Do not implement it until its bounded packet and independent audit are green; then continue remaining modules in staged gates.
+7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
+8. Research Module 08 only. Correct its stale marker-only template-subscription assumption during bounded research and independent audit; do not implement it until both are green, then continue remaining modules in staged gates.
 
 Module 1 and later subscription-heavy modules depend on module 2. Module 12 and module 1 both touch the configurable graph-range selector, so coordinate those changes.
 
