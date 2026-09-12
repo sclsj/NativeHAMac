@@ -7,18 +7,19 @@ status: complete
 contract_revision: 2
 depends_on: ["04", "05"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
+nativeha_revision: 1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd
 graph_file: ../generated/module-06.dependencies.json
-graph_fingerprint: 82da28fe00be690afdec34ab491962cfbf857c3c2b1a14cfff1f607d0fba171f
+graph_fingerprint: 3d5726f3335f2c48831ab9954c1c6b6710dff4cf5f44cf4a2913577260053e33
 last_researched: 2026-08-31
 last_implemented: 2026-09-01
 last_verified: 2026-09-01
-last_validated: 2026-09-11
+last_validated: 2026-09-12
 ---
 
 # Module 06 evidence packet
 
-2026-09-11 anchor refresh: the shared dashboard bootstrap and its tests changed; see [Module 05 consolidation](module-05-dashboard-viewmodel-state.md#2026-09-11-bootstrap-consolidation) for validation and limits. This module's contract revision is unchanged; older verification entries below retain their original revision-specific evidence.
+2026-09-11 logging refresh: see the [logging review](../../audits/2026-09-11-logging.md) for failure diagnostics, writer repairs, tests, and validation limits. Native anchors are refreshed; protocol/product contract revisions are unchanged. Earlier verification entries retain their original revision-specific scope.
+
 
 ## Scope delta
 

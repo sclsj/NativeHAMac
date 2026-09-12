@@ -3685,7 +3685,7 @@
       "typeResolved": "node_modules/lit/development/index.d.ts"
     }
   ],
-  "graphFingerprint": "68bdd54b74dc20b0f67d42eb55f5f24ecccc6a2f078d634c7fc0feabc6dbf6b1",
+  "graphFingerprint": "e3fe265a48a99eb4e1d7fb27f8cd43348d9cb5405a7d7753c50460a96d982b33",
   "manifest": {
     "module": "01",
     "path": "docs/reference-context/manifests/module-01.inputs.json",
@@ -3747,15 +3747,15 @@
         "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
-        "sha256": "954c494e8eef10a9c15b98342b72f20dc1d982c67bc378c36f6f33b2707380e8",
+        "sha256": "8f9a79422b06cc71de8d7cddd5a2022534a0127014d3277dd954654bf97b2b3a",
         "symbols": [
           "HomeAssistantRESTClient.fetchHistory"
         ],
-        "worktreeBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332"
+        "worktreeBlob": "0b028c44ac2e44fce6cfa94cb779a9650a6d240a"
       },
       {
         "dirty": false,
@@ -3769,11 +3769,11 @@
         "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "5e678804c1612efbd9810c00df31223c8799fc1e6d0d8d2d3edaab35fe40db9c",
+        "sha256": "68e1120ec11b3d47d3b24b30393864212bb3d935304784082ba583099f1e44cf",
         "symbols": [
           "decodeAndDispatchFrame",
           "dispatch",
@@ -3781,7 +3781,7 @@
           "subscribeMessage",
           "subscribeRaw"
         ],
-        "worktreeBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6"
+        "worktreeBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9"
       },
       {
         "dirty": false,
@@ -3894,8 +3894,8 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": true,
-        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
+        "dirty": false,
+        "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
@@ -4104,7 +4104,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
+    "gitHead": "1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd"
   },
   "nodes": [
     {

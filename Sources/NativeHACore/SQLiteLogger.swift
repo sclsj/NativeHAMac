@@ -93,7 +93,7 @@ public struct LoggingPolicy {
     }
 }
 
-public var activeLoggingPolicy = LoggingPolicy(
+private var storedLoggingPolicy = LoggingPolicy(
     minimumSeverity: LogSeverityPolicy(
         webSocket: .debug,
         network: .debug,
@@ -103,6 +103,33 @@ public var activeLoggingPolicy = LoggingPolicy(
         general: .debug
     )
 )
+
+private let loggingPolicyLock = NSLock()
+
+/// Set before starting app work; reads are safe from every logging thread.
+public var activeLoggingPolicy: LoggingPolicy {
+    get {
+        loggingPolicyLock.lock()
+        defer { loggingPolicyLock.unlock() }
+        return storedLoggingPolicy
+    }
+    set {
+        loggingPolicyLock.lock()
+        storedLoggingPolicy = newValue
+        loggingPolicyLock.unlock()
+    }
+}
+
+/// Preserve non-UTF8 diagnostic payloads without silently replacing bytes.
+func diagnosticPayload(_ data: Data) -> String {
+    String(data: data, encoding: .utf8) ?? "base64:\(data.base64EncodedString())"
+}
+
+func isDiagnosticCancellation(_ error: Error) -> Bool {
+    error is CancellationError ||
+        (error as? URLError)?.code == .cancelled ||
+        (error as? HomeAssistantWebSocketError) == .cancelled
+}
 
 public final class AppLogger {
     private struct Entry {
@@ -123,11 +150,12 @@ public final class AppLogger {
     private var db: OpaquePointer?
     private var insertStatement: OpaquePointer?
     let tableName: String
-    private let databaseURL: URL
+    let databaseURL: URL
     private let policy: LoggingPolicy
     private var bufferedEntries: [Entry] = []
     private var scheduledFlushToken: UUID?
     private var immediateFlushScheduled = false
+    private var retryPending = false
     private var completedTransactionCount = 0
     
     private convenience init() {
@@ -143,6 +171,8 @@ public final class AppLogger {
         self.databaseURL = databaseURL
         self.policy = policy
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyyMMdd_HHmmss"
         let dateString = formatter.string(from: Date())
         
@@ -161,7 +191,7 @@ public final class AppLogger {
             return true
         }
         if db == nil, sqlite3_open(databaseURL.path, &db) != SQLITE_OK {
-            print("Failed to open SQLite database at \(databaseURL.path)")
+            reportStorageFailure("open")
             closeDatabase()
             return false
         }
@@ -193,13 +223,13 @@ public final class AppLogger {
             if sqlite3_step(createTableStatement) == SQLITE_DONE {
                 // Table created
             } else {
-                print("Failed to create table")
+                reportStorageFailure("create table")
                 sqlite3_finalize(createTableStatement)
                 closeDatabase()
                 return false
             }
         } else {
-            print("Failed to prepare create table statement")
+            reportStorageFailure("prepare table")
             sqlite3_finalize(createTableStatement)
             closeDatabase()
             return false
@@ -208,8 +238,7 @@ public final class AppLogger {
         
         let insertString = "INSERT INTO \(tableName) (timestamp, severity, category, file, function, line, message) VALUES (?, ?, ?, ?, ?, ?, ?);"
         if sqlite3_prepare_v2(db, insertString, -1, &insertStatement, nil) != SQLITE_OK {
-            let errmsg = String(cString: sqlite3_errmsg(db)!)
-            print("Failed to prepare insert statement: \(errmsg)")
+            reportStorageFailure("prepare insert")
             closeDatabase()
             return false
         }
@@ -217,6 +246,9 @@ public final class AppLogger {
     }
     
     deinit {
+        // Weak scheduled callbacks must not discard an ordinary final batch.
+        // A failed final flush is reported to stderr and cannot survive exit.
+        flushAndWait()
         closeDatabase()
     }
 
@@ -254,7 +286,9 @@ public final class AppLogger {
         var scheduleImmediateFlush = false
         bufferLock.lock()
         bufferedEntries.append(entry)
-        if bufferedEntries.count >= policy.flushEntryThreshold {
+        if retryPending {
+            // New traffic must not bypass the retry interval after a failed write.
+        } else if bufferedEntries.count >= policy.flushEntryThreshold {
             scheduledFlushToken = nil
             if !immediateFlushScheduled {
                 immediateFlushScheduled = true
@@ -308,8 +342,9 @@ public final class AppLogger {
     private func runImmediateFlush() {
         bufferLock.lock()
         immediateFlushScheduled = false
+        let shouldFlush = !retryPending
         bufferLock.unlock()
-        _ = flushBufferedEntries()
+        if shouldFlush { _ = flushBufferedEntries() }
     }
 
     private func runScheduledFlush(token: UUID) {
@@ -319,6 +354,7 @@ public final class AppLogger {
             return
         }
         scheduledFlushToken = nil
+        retryPending = false
         bufferLock.unlock()
         _ = flushBufferedEntries()
     }
@@ -346,20 +382,23 @@ public final class AppLogger {
         }
 
         for entry in entries {
-            sqlite3_bind_double(statement, 1, entry.timestamp)
-            sqlite3_bind_text(statement, 2, (entry.severity as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 3, (entry.category as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 4, (entry.file as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 5, (entry.function as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_int(statement, 6, Int32(entry.line))
-            sqlite3_bind_text(statement, 7, (entry.message as NSString).utf8String, -1, SQLITE_TRANSIENT)
-
-            let stepResult = sqlite3_step(statement)
-            sqlite3_clear_bindings(statement)
-            sqlite3_reset(statement)
-            guard stepResult == SQLITE_DONE else {
-                let errmsg = String(cString: sqlite3_errmsg(db)!)
-                print("Failed to insert log entry: \(errmsg)")
+            let bindings = [
+                sqlite3_bind_double(statement, 1, entry.timestamp),
+                bindText(entry.severity, to: statement, at: 2),
+                bindText(entry.category, to: statement, at: 3),
+                bindText(entry.file, to: statement, at: 4),
+                bindText(entry.function, to: statement, at: 5),
+                sqlite3_bind_int64(statement, 6, Int64(entry.line)),
+                bindText(entry.message, to: statement, at: 7),
+            ]
+            if let failure = bindings.first(where: { $0 != SQLITE_OK }) {
+                reportStorageFailure("bind entry", code: failure)
+                sqlite3_clear_bindings(statement)
+                sqlite3_reset(statement)
+                _ = executeSQL("ROLLBACK;")
+                return false
+            }
+            guard insertEntry(statement) else {
                 _ = executeSQL("ROLLBACK;")
                 return false
             }
@@ -373,31 +412,50 @@ public final class AppLogger {
         return true
     }
 
+    private func bindText(_ value: String, to statement: OpaquePointer, at index: Int32) -> Int32 {
+        value.withCString { bytes in
+            sqlite3_bind_text64(
+                statement, index, bytes, UInt64(value.utf8.count), SQLITE_TRANSIENT, UInt8(SQLITE_UTF8)
+            )
+        }
+    }
+
+    private func insertEntry(_ statement: OpaquePointer) -> Bool {
+        let result = sqlite3_step(statement)
+        if result != SQLITE_DONE { reportStorageFailure("insert entry", code: result) }
+        sqlite3_clear_bindings(statement)
+        sqlite3_reset(statement)
+        return result == SQLITE_DONE
+    }
+
     private func requeueForRetry(_ entries: [Entry]) {
-        var retryToken: UUID?
+        let token = UUID()
         bufferLock.lock()
         bufferedEntries.insert(contentsOf: entries, at: 0)
-        if !immediateFlushScheduled {
-            let token = UUID()
-            scheduledFlushToken = token
-            retryToken = token
-        }
+        retryPending = true
+        scheduledFlushToken = token
         bufferLock.unlock()
 
-        if let retryToken = retryToken {
-            queue.asyncAfter(deadline: .now() + policy.retryIntervalSeconds) { [weak self] in
-                self?.runScheduledFlush(token: retryToken)
-            }
+        queue.asyncAfter(deadline: .now() + policy.retryIntervalSeconds) { [weak self] in
+            self?.runScheduledFlush(token: token)
         }
+    }
+
+    // Never send logger failures back through AppLog: that would recursively
+    // grow the failed batch. Keep SQLite code, path and session visible on stderr.
+    private func reportStorageFailure(_ operation: String, code: Int32? = nil) {
+        let result = code ?? sqlite3_errcode(db)
+        let detail = db.map { String(cString: sqlite3_errmsg($0)) } ?? "database unavailable"
+        let message = "NativeHA logger \(operation) failed (SQLite \(result)): \(detail); " +
+            "database=\(databaseURL.path) session=\(tableName). Entries remain buffered until retry or exit.\n"
+        FileHandle.standardError.write(Data(message.utf8))
     }
 
     private func executeSQL(_ sql: String) -> Bool {
         var errorMessage: UnsafeMutablePointer<Int8>?
         let result = sqlite3_exec(db, sql, nil, nil, &errorMessage)
         guard result == SQLITE_OK else {
-            if result != SQLITE_BUSY, result != SQLITE_LOCKED, let errorMessage = errorMessage {
-                print("SQLite logger error: \(String(cString: errorMessage))")
-            }
+            reportStorageFailure(sql, code: result)
             sqlite3_free(errorMessage)
             return false
         }
@@ -406,7 +464,6 @@ public final class AppLogger {
 }
 
 public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity = .info, category: LogCategory = .general, file: StaticString = #file, function: StaticString = #function, line: UInt = #line) {
-    #if DEBUG
     guard activeLoggingPolicy.shouldLog(severity: severity, category: category) else { return }
     
     let msg = message()
@@ -418,5 +475,4 @@ public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity =
     let t = Date().timeIntervalSince1970
     
     AppLogger.shared.log(timestamp: t, severity: sev, category: cat, file: f, function: fun, line: Int(line), message: msg)
-    #endif
 }

@@ -103,6 +103,8 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
 
     static func typed<T: Decodable>(
         _ type: T.Type,
+        connectionID: UUID,
+        message: [String: JSONValue],
         onDecodingFailure: @escaping @Sendable (Error) async -> Void,
         callback: @escaping @Sendable (T) async -> Void
     ) -> HAWebSocketSubscriptionPayloadHandler {
@@ -117,6 +119,11 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
                         await callback(decoded)
                     } catch {
                         guard !Task.isCancelled else { return }
+                        AppLog(
+                            "WebSocket decode failed; connection=\(connectionID) type=\(type) " +
+                                "request=\(message) error=\(String(reflecting: error)) payload=\(value)",
+                            severity: .warning, category: .webSocket
+                        )
                         await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
                     }
                 })
@@ -129,6 +136,11 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
                         await callback(decoded)
                     } catch {
                         guard !Task.isCancelled else { return }
+                        AppLog(
+                            "WebSocket decode failed; connection=\(connectionID) type=\(type) " +
+                                "request=\(message) error=\(String(reflecting: error)) payload=\(diagnosticPayload(data))",
+                            severity: .warning, category: .webSocket
+                        )
                         await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
                     }
                 })
@@ -163,6 +175,7 @@ public actor HomeAssistantWebSocketConnection {
     public typealias TransportFactory = () throws -> HomeAssistantWebSocketTransport
 
     private struct PendingCommand {
+        let message: [String: JSONValue]
         let logicalID: UUID
         let continuation: CheckedContinuation<JSONValue, Error>
         let timeoutTask: Task<Void, Never>
@@ -180,6 +193,7 @@ public actor HomeAssistantWebSocketConnection {
         var timeoutTask: Task<Void, Never>?
     }
 
+    private let diagnosticID = UUID()
     private let accessToken: String
     private let commandTimeoutNanoseconds: UInt64
     private let deliveryCapacity: Int
@@ -312,7 +326,7 @@ public actor HomeAssistantWebSocketConnection {
                 throw CancellationError()
             }
             AppLog(
-                "WebSocket initial connection failed: \(error)",
+                "WebSocket initial connection failed; connection=\(diagnosticID) generation=\(generation): \(String(reflecting: error))",
                 severity: .warning,
                 category: .webSocket
             )
@@ -464,8 +478,17 @@ public actor HomeAssistantWebSocketConnection {
         as type: T.Type = T.self
     ) async throws -> T {
         let result = try await callRaw(message)
-        let data = try JSONEncoder().encode(result)
-        return try JSONDecoder().decode(type, from: data)
+        do {
+            let data = try JSONEncoder().encode(result)
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            AppLog(
+                "WebSocket result decode failed; connection=\(diagnosticID) type=\(type) " +
+                    "request=\(message) error=\(String(reflecting: error)) payload=\(result)",
+                severity: .warning, category: .webSocket
+            )
+            throw error
+        }
     }
 
     public func subscribeRaw(
@@ -494,6 +517,8 @@ public actor HomeAssistantWebSocketConnection {
             resubscribe: resubscribe,
             payloadHandler: .typed(
                 type,
+                connectionID: diagnosticID,
+                message: message,
                 onDecodingFailure: { error in
                     await onTermination?(error)
                 },
@@ -877,7 +902,9 @@ public actor HomeAssistantWebSocketConnection {
                 if message["success"]?.boolValue == true {
                     pending.continuation.resume(returning: message["result"] ?? .null)
                 } else {
-                    pending.continuation.resume(throwing: commandError(from: message))
+                    let error = commandError(from: message)
+                    logFailure(error, operation: "command id=\(id)", message: pending.message)
+                    pending.continuation.resume(throwing: error)
                 }
                 return
             }
@@ -896,6 +923,7 @@ public actor HomeAssistantWebSocketConnection {
                 subscriptions[logicalID] = record
             } else {
                 let error = commandError(from: message)
+                logFailure(error, operation: "subscription id=\(id)", message: record.message)
                 wireSubscriptions.removeValue(forKey: id)
                 subscriptions.removeValue(forKey: logicalID)
                 if let acknowledgement = record.acknowledgement {
@@ -948,6 +976,7 @@ public actor HomeAssistantWebSocketConnection {
         }
         record.timeoutTask?.cancel()
         let error = HomeAssistantWebSocketError.deliveryOverflow(subscriptionID: record.originalID)
+        logFailure(error, operation: "subscription overflow logical=\(logicalID) wire=\(String(describing: record.wireID)) capacity=\(deliveryCapacity)", message: record.message)
         if let acknowledgement = record.acknowledgement {
             acknowledgement.resume(throwing: error)
         } else {
@@ -999,6 +1028,7 @@ public actor HomeAssistantWebSocketConnection {
             await connection.timeoutPendingCommand(id)
         }
         pendingCommands[id] = PendingCommand(
+            message: command,
             logicalID: logicalID,
             continuation: continuation,
             timeoutTask: timeoutTask
@@ -1150,7 +1180,7 @@ public actor HomeAssistantWebSocketConnection {
             return
         }
         AppLog(
-            "WebSocket connection failed: \(error)",
+            "WebSocket connection failed; connection=\(diagnosticID) generation=\(generation): \(String(reflecting: error))",
             severity: .warning,
             category: .webSocket
         )
@@ -1227,6 +1257,10 @@ public actor HomeAssistantWebSocketConnection {
                       !Task.isCancelled,
                       !disconnectRequested
                 else { break }
+                AppLog(
+                    "WebSocket reconnect failed; connection=\(diagnosticID) generation=\(generation) attempt=\(attempt): \(String(reflecting: error))",
+                    severity: .warning, category: .webSocket
+                )
                 await abandonCurrentTransport()
                 guard reconnectTaskOwner == owner,
                       !Task.isCancelled,
@@ -1242,6 +1276,10 @@ public actor HomeAssistantWebSocketConnection {
                       !Task.isCancelled,
                       !disconnectRequested
                 else { break }
+                AppLog(
+                    "WebSocket reconnect failed; connection=\(diagnosticID) generation=\(generation) attempt=\(attempt): \(String(reflecting: error))",
+                    severity: .warning, category: .webSocket
+                )
                 await abandonCurrentTransport()
                 guard reconnectTaskOwner == owner,
                       !Task.isCancelled,
@@ -1282,6 +1320,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let pending = pendingCommands.removeValue(forKey: id) else {
             return
         }
+        logFailure(error, operation: "command id=\(id)", message: pending.message)
         pending.timeoutTask.cancel()
         pending.continuation.resume(throwing: error)
     }
@@ -1303,6 +1342,7 @@ public actor HomeAssistantWebSocketConnection {
         guard let record = subscriptions.removeValue(forKey: logicalID) else {
             return
         }
+        logFailure(error, operation: "subscription logical=\(logicalID) wire=\(String(describing: record.wireID))", message: record.message)
         if let wireID = record.wireID {
             wireSubscriptions.removeValue(forKey: wireID)
         }
@@ -1313,6 +1353,19 @@ public actor HomeAssistantWebSocketConnection {
             await callbackCoordinator.submitTermination(record.termination, error: error)
         }
         await callbackCoordinator.remove(ownerID: logicalID)
+    }
+
+    private func logFailure(_ error: Error, operation: String, message: [String: JSONValue]) {
+        // Disconnect is recorded once at the connection boundary, not once per
+        // retired owner. Expected cancellation is not a failure diagnostic.
+        guard !isDiagnosticCancellation(error),
+              (error as? HomeAssistantWebSocketError) != .disconnected
+        else { return }
+        AppLog(
+            "WebSocket \(operation) failed; connection=\(diagnosticID) generation=\(generation) " +
+                "request=\(message) error=\(String(reflecting: error))",
+            severity: .warning, category: .webSocket
+        )
     }
 
     private func allocateID() -> Int {

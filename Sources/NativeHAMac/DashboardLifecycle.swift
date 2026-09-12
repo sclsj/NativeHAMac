@@ -1,4 +1,5 @@
 import Foundation
+import NativeHACore
 
 /// Process-local acceptance authority for work owned by one DashboardViewModel
 /// lifetime. Explicit stop/restart continues to use the MainActor app/config
@@ -100,6 +101,9 @@ struct DashboardLifecycle: Equatable {
     }
 
     mutating func set(_ component: DashboardComponent, phase: DashboardComponentPhase) {
+        if case let .failed(message) = phase, components[component] != phase {
+            AppLog("Dashboard \(component.rawValue) failed: \(message)", severity: .error, category: .lifecycle)
+        }
         components[component] = phase
         if self.phase == .reconnecting,
            components[.realtime] == .ready,
@@ -110,7 +114,7 @@ struct DashboardLifecycle: Equatable {
     }
 
     mutating func failBootstrap(_ message: String) {
-        components[.bootstrap] = .failed(message)
+        set(.bootstrap, phase: .failed(message))
         phase = .failed
     }
 

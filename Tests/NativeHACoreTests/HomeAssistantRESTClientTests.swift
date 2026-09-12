@@ -67,6 +67,43 @@ final class HomeAssistantRESTClientTests: XCTestCase {
         XCTAssertEqual(states.first?.state, "on")
     }
 
+    func testFailedServicePersistsRequestStatusAndCompleteResponse() async throws {
+        let marker = "service-rejection-\(UUID())"
+        MockURLProtocol.requestHandler = { request in
+            (HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!, Data(marker.utf8))
+        }
+        do {
+            _ = try await makeClient().callService(domain: "light", service: "turn_on", data: ["entity_id": "light.desk"])
+            XCTFail("Expected HTTP failure")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("400"))
+            XCTAssertEqual(error as? HomeAssistantClientError, .httpStatus(400, marker))
+        }
+        let rows = try persistedDiagnosticMessages(containing: marker)
+        XCTAssertEqual(rows.count, 1)
+        let message = try XCTUnwrap(rows.first)
+        XCTAssertTrue(message.contains("POST http://homeassistant.local:8123/api/services/light/turn_on"))
+        XCTAssertTrue(message.contains("light.desk"))
+        XCTAssertTrue(message.contains("status=400"))
+    }
+
+    func testMalformedSuccessResponsePersistsDecodeCauseAndPayload() async throws {
+        let marker = "decode-regression-\(UUID())"
+        MockURLProtocol.requestHandler = { request in
+            (HTTPURLResponse.ok(for: request), Data("{\"location_name\":123,\"marker\":\"\(marker)\"}".utf8))
+        }
+        do {
+            _ = try await makeClient().fetchConfig()
+            XCTFail("Expected decoding failure")
+        } catch {
+            XCTAssertTrue(error is DecodingError)
+        }
+        let rows = try persistedDiagnosticMessages(containing: marker)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertTrue(rows.first?.contains("typeMismatch") == true)
+        XCTAssertTrue(rows.first?.contains("location_name") == true)
+    }
+
     private func makeClient() -> HomeAssistantRESTClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]

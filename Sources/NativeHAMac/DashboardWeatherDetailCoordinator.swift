@@ -346,27 +346,11 @@ final class DashboardWeatherDetailCoordinator: ObservableObject {
         currentAttemptFailed = true
         phase = .terminalFailure
         AppLog(
-            "Weather detail forecast subscription ended: \(safeDiagnostic(for: error))",
+            "Weather detail forecast ended; entity=\(selectedEntityID ?? "none") " +
+                "type=\(selectedType?.rawValue ?? "none"): \(String(reflecting: error))",
             severity: .warning,
             category: .webSocket
         )
-    }
-
-    private func safeDiagnostic(for error: Error) -> String {
-        switch error {
-        case HomeAssistantWebSocketError.invalidMessage:
-            return "invalid forecast payload"
-        case HomeAssistantWebSocketError.disconnected:
-            return "connection unavailable"
-        case HomeAssistantWebSocketError.timedOut:
-            return "request timed out"
-        case HomeAssistantWebSocketError.cancelled, is CancellationError:
-            return "request cancelled"
-        case let HomeAssistantWebSocketError.commandFailed(code, _):
-            return code.map { "server rejected request (\($0))" } ?? "server rejected request"
-        default:
-            return "request failed"
-        }
     }
 
     private func isReconnectLoss(_ error: Error) -> Bool {

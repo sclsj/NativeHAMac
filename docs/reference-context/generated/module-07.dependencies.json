@@ -20739,7 +20739,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "9d7c3212c3ca65a4ca1481a5d31a7701b8cd88c0978f2cc92e1a282fb086abf5",
+  "graphFingerprint": "cf5e507742d0a9e61fa63a175d72ef88d7574931210f30cd39f243cfe524beb7",
   "manifest": {
     "module": "07",
     "path": "docs/reference-context/manifests/module-07.inputs.json",
@@ -20773,16 +20773,16 @@
         "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "5e678804c1612efbd9810c00df31223c8799fc1e6d0d8d2d3edaab35fe40db9c",
+        "sha256": "68e1120ec11b3d47d3b24b30393864212bb3d935304784082ba583099f1e44cf",
         "symbols": [
           "HAWebSocketSubscription",
           "HomeAssistantWebSocketConnection"
         ],
-        "worktreeBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6"
+        "worktreeBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9"
       },
       {
         "dirty": false,
@@ -20846,16 +20846,16 @@
         "worktreeBlob": "ca35e2f1af27ba347d6a80ee406feb59977971ff"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a8d9a5e13ec5bffa6b3f7b288723f61b3a0b50de",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardLifecycle.swift",
-        "sha256": "306aa9f9c9cd8bb555a5c1f430443fa6e62eea3f54086ca4bd02d03d954370dd",
+        "sha256": "45b6ead8070b2bf1aaae7d7687e9e10a31f67a960dff0555fefe9722db9fb3b7",
         "symbols": [
           "DashboardLifecycle",
           "DashboardLifetimeAuthority"
         ],
-        "worktreeBlob": "a8d9a5e13ec5bffa6b3f7b288723f61b3a0b50de"
+        "worktreeBlob": "153088d4d5301979134be4ca415e9d599078a699"
       },
       {
         "dirty": false,
@@ -20869,8 +20869,8 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": true,
-        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
+        "dirty": false,
+        "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
@@ -20881,16 +20881,16 @@
         "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "1d33e87b62e6a5a20c00c7af1868472e3fdde467",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardWeatherDetailCoordinator.swift",
-        "sha256": "fc3454ed1fc5d8eadff706e79a93177c0618e9e47cde2460b2c0392df93965c7",
+        "sha256": "cda98f8909e4c757dbfcd7abfeb285d5bb1b3cd8ca956cfcc9c544f905b78276",
         "symbols": [
           "DashboardWeatherDetailCoordinator",
           "WeatherDetailOwnerCandidate"
         ],
-        "worktreeBlob": "1d33e87b62e6a5a20c00c7af1868472e3fdde467"
+        "worktreeBlob": "50eed439cf199f936b449184c45e64f49379293d"
       },
       {
         "dirty": false,
@@ -21006,8 +21006,8 @@
         "worktreeBlob": "c9721a2f372a8ea585e3b0cb7817c47b4bf74992"
       },
       {
-        "dirty": true,
-        "headBlob": "8b917b5db790356bdf58315e6e79c1256691f532",
+        "dirty": false,
+        "headBlob": "eb21088f8579a700817a92feb2f2ff004bdd0a00",
         "missing": false,
         "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
         "sha256": "b821b718dd5a5e43673495ba8c9a0557b82d61c25ed04e2a7a6b0efb6738a477",
@@ -21096,7 +21096,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
+    "gitHead": "1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd"
   },
   "nodes": [
     {

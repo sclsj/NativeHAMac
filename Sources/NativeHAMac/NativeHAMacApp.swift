@@ -6,6 +6,11 @@ import NativeHACore
 struct NativeHAMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    init() {
+        activeLoggingPolicy = AppConfig.loggingPolicy
+        _ = AppLogger.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             DashboardView()
@@ -20,9 +25,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
-        activeLoggingPolicy = AppConfig.loggingPolicy
-        _ = AppLogger.shared // Initialize logger table
-        
         AppLog("Application launched, SQLite logger initialized", category: .lifecycle)
 
         DispatchQueue.main.async {

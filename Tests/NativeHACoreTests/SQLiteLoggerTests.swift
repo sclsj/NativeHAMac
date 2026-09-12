@@ -138,6 +138,98 @@ final class SQLiteLoggerTests: XCTestCase {
         XCTAssertEqual(logger.successfulTransactionCount, 1)
     }
 
+    func testEmbeddedNULAndUnicodeRoundTripWithoutTruncation() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let logger = AppLogger(databaseURL: fixture.databaseURL, policy: fixture.policy)
+        let message = "before\0after 温度 🌡️"
+        logger.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: message)
+        XCTAssertTrue(logger.flushAndWait())
+        XCTAssertEqual(try readMessages(databaseURL: fixture.databaseURL, tableName: logger.tableName), [message])
+    }
+
+    func testReleasingLoggerFlushesOrdinaryPendingBatch() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        var logger: AppLogger? = AppLogger(databaseURL: fixture.databaseURL, policy: fixture.policy)
+        let table = try XCTUnwrap(logger).tableName
+        logger?.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: "last entry")
+        logger = nil
+        XCTAssertEqual(try readMessages(databaseURL: fixture.databaseURL, tableName: table), ["last entry"])
+    }
+
+    func testNewTrafficCannotBypassFailedWriteRetryInterval() throws {
+        var fixture = try makeFixture()
+        fixture.policy.flushEntryThreshold = 2
+        fixture.policy.busyTimeoutMilliseconds = 0
+        fixture.policy.retryIntervalSeconds = 60
+        let logger = AppLogger(databaseURL: fixture.databaseURL, policy: fixture.policy)
+        func append(_ text: String) {
+            logger.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: text)
+        }
+        append("initial")
+        XCTAssertTrue(logger.flushAndWait())
+        var database: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(fixture.databaseURL.path, &database), SQLITE_OK)
+        defer { sqlite3_close(database) }
+        XCTAssertEqual(sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil), SQLITE_OK)
+        append("blocked")
+        XCTAssertFalse(logger.flushAndWait())
+        XCTAssertEqual(sqlite3_exec(database, "COMMIT;", nil, nil, nil), SQLITE_OK)
+        append("new traffic")
+        // A writer-queue barrier drains any incorrectly enqueued immediate write.
+        XCTAssertEqual(logger.successfulTransactionCount, 1)
+        XCTAssertEqual(logger.bufferedEntryCount, 2)
+        XCTAssertTrue(logger.flushAndWait())
+        XCTAssertEqual(try readMessages(databaseURL: fixture.databaseURL, tableName: logger.tableName), ["initial", "blocked", "new traffic"])
+    }
+
+    func testTimerAndAutomaticRetryPersistWithoutManualSuccessfulFlush() async throws {
+        var fixture = try makeFixture()
+        fixture.policy.flushIntervalSeconds = 0.02
+        fixture.policy.retryIntervalSeconds = 0.02
+        fixture.policy.busyTimeoutMilliseconds = 0
+        let logger = AppLogger(databaseURL: fixture.databaseURL, policy: fixture.policy)
+        logger.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: "timer")
+        var deadline = Date().addingTimeInterval(2)
+        while logger.successfulTransactionCount == 0, Date() < deadline {
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertEqual(logger.successfulTransactionCount, 1)
+        var database: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(fixture.databaseURL.path, &database), SQLITE_OK)
+        defer { sqlite3_close(database) }
+        XCTAssertEqual(sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil), SQLITE_OK)
+        logger.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: "retry")
+        XCTAssertFalse(logger.flushAndWait())
+        XCTAssertEqual(sqlite3_exec(database, "COMMIT;", nil, nil, nil), SQLITE_OK)
+        deadline = Date().addingTimeInterval(2)
+        while logger.successfulTransactionCount < 2, Date() < deadline {
+            try await Task.sleep(nanoseconds: 5_000_000)
+        }
+        XCTAssertEqual(try readMessages(databaseURL: fixture.databaseURL, tableName: logger.tableName), ["timer", "retry"])
+    }
+
+    func testConcurrentProducersPersistEveryEntryExactlyOnce() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let logger = AppLogger(databaseURL: fixture.databaseURL, policy: fixture.policy)
+        DispatchQueue.concurrentPerform(iterations: 1_000) { index in
+            logger.log(timestamp: 0, severity: "error", category: "general", file: "test", function: #function, line: 1, message: "entry-\(index)")
+        }
+        XCTAssertTrue(logger.flushAndWait())
+        let rows = try readMessages(databaseURL: fixture.databaseURL, tableName: logger.tableName)
+        XCTAssertEqual(rows.count, 1_000)
+        XCTAssertEqual(Set(rows), Set((0..<1_000).map { "entry-\($0)" }))
+    }
+
+    func testAppLogPersistsSelectedErrorInDebugAndReleaseBuilds() throws {
+        let marker = "app-log-regression-\(UUID())"
+        AppLog(marker, severity: .error, category: .general)
+        let rows = try persistedDiagnosticMessages(containing: marker)
+        XCTAssertEqual(rows, [marker])
+    }
+
     private func makeFixture() throws -> (
         directory: URL,
         databaseURL: URL,
@@ -194,7 +286,7 @@ final class SQLiteLoggerTests: XCTestCase {
             guard let text = sqlite3_column_text(statement, 0) else {
                 throw SQLiteLoggerTestError.readFailed
             }
-            messages.append(String(cString: text))
+            messages.append(String(decoding: UnsafeBufferPointer(start: text, count: Int(sqlite3_column_bytes(statement, 0))), as: UTF8.self))
         }
         return messages
     }

@@ -7,16 +7,18 @@ status: complete
 contract_revision: 1
 depends_on: ["01", "02", "04", "12"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
+nativeha_revision: 1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd
 graph_file: ../generated/module-05.dependencies.json
-graph_fingerprint: e79257109d2ada3b40398610ce80cb04803315440ab51268ccaa823a3f9d6356
+graph_fingerprint: 085207ace794cc3f90f47da5ee36caff18a7257e125379e935f43228a0eac2a6
 last_researched: 2026-08-25
 last_implemented: 2026-08-30
 last_verified: 2026-08-31
-last_validated: 2026-09-11
+last_validated: 2026-09-12
 ---
 
 # Module 05 evidence packet
+
+2026-09-11 logging refresh: see the [logging review](../../audits/2026-09-11-logging.md) for failure diagnostics, writer repairs, tests, and validation limits. Native anchors are refreshed; protocol/product contract revisions are unchanged. Earlier verification entries retain their original revision-specific scope.
 
 ## 2026-09-11 bootstrap consolidation
 

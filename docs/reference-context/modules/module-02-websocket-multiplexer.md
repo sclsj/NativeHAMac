@@ -7,15 +7,16 @@ status: complete
 contract_revision: 2
 depends_on: []
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
-nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
+nativeha_revision: 1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd
 graph_file: ../generated/module-02.dependencies.json
-graph_fingerprint: 0d5d18dbc77d36c1f5ee5a16023c0a658788fa96c9394ecc188217280864d4c1
-last_validated: 2026-09-11
+graph_fingerprint: 369f987cdabf6531761f2e9643d98d8f03c40c4ce9a9d6c7f98d911de28bcbe7
+last_validated: 2026-09-12
 ---
 
 # Module 02 evidence packet
 
-2026-09-11 anchor refresh: the shared dashboard bootstrap and its tests changed; see [Module 05 consolidation](module-05-dashboard-viewmodel-state.md#2026-09-11-bootstrap-consolidation) for validation and limits. This module's contract revision is unchanged; older verification entries below retain their original revision-specific evidence.
+2026-09-11 logging refresh: see the [logging review](../../audits/2026-09-11-logging.md) for failure diagnostics, writer repairs, tests, and validation limits. Native anchors are refreshed; protocol/product contract revisions are unchanged. Earlier verification entries retain their original revision-specific scope.
+
 
 ## Scope delta
 
@@ -26,7 +27,7 @@ This packet confirms the rescue plan's single-receive-loop direction and adds pr
 
 If NativeHA advertises Home Assistant's `coalesce_messages` supported feature, it must accept an incoming JSON object or an ordered array of objects.
 
-The current diagnostic follow-up is based on NativeHA `e347408455e01b774d93800c881850b6f88997d2`, which contains the explicit lossy-limit revert. The frontmatter revision identifies that committed base; the packet's later validation sections record subsequent implementation work.
+The original diagnostic follow-up used NativeHA `e347408455e01b774d93800c881850b6f88997d2`, containing the explicit lossy-limit revert. The current frontmatter and logging review identify the latest source anchors and validation; earlier sections retain their historical scope.
 
 ## Behavior contracts
 
@@ -38,7 +39,7 @@ The current diagnostic follow-up is based on NativeHA `e347408455e01b774d93800c8
 | C02-04 | Cancel subscription | Send `unsubscribe_events` with `subscription` equal to the original subscription command ID. | Cancellation is idempotent; remove local callback even after disconnect; late events do not deliver. | NPM-01, NPM-03 | Subscription handle | Exact-wire, repeated-cancel, and late-event tests |
 | C02-05 | Failure/disconnect/reconnect | Reject ordinary in-flight commands with connection-lost, clear ownership, and surface lifecycle state. | Never resume a continuation twice. Implement generic automatic resubscription; stale subscriptions and frames decoded after a generation change must not publish into the replacement generation. | NPM-01, HF-04 | Connection actor lifecycle/status events and generation-gated envelope dispatch | Disconnect races, cleanup counts, detached-decode cancellation, and reconnect cycles |
 | C02-06 | Reconnect history stream | History disables generic resubscribe, listens for `ready`, rebuilds `start_time`, and creates a fresh accumulator. | Disposal removes listener and current subscription. Reconnect failures are contained for the owner to retry. | HF-02 | Module 01 owner using Module 02 status/subscription API | Module 01 fresh-stream test; Module 02 supports `resubscribe:false` or equivalent ownership |
-| C02-07 | Command result/error | `success:true` resolves with result, including missing/null where allowed; `success:false` preserves server code/message. | Remove pending storage once; user-facing errors remain concise. Explicitly enabled debug tracing may persist complete wire payloads under the diagnostic policy. | NPM-01 | Command error model and continuation owner | Null result, server error, concise error, cancellation, and timeout tests |
+| C02-07 | Command result/error | `success:true` resolves with result, including missing/null where allowed; `success:false` preserves server code/message. | Remove pending storage once; user-facing errors remain concise. Rejected commands/subscriptions, timeouts, overflow, reconnect failure, and typed decode errors retain context at warning/error. Routine complete wire tracing remains debug-only under the diagnostic policy. | NPM-01 | Command error model and continuation owner | Null result, server error, concise error, cancellation, and timeout tests |
 | C02-08 | Dashboard formatting bootstrap commands | Fetch compressed entity-registry display metadata with `config/entity_registry/list_for_display` and frontend locale preferences with `frontend/get_user_data` key `language` through the same typed command path. Decode effective `dp` precision and the complete locale policy; a null preference value remains an allowed fallback. | These commands may run concurrently with Lovelace fetch and must retain C02-02 routing/order. Optional metadata failure stays local and must not prevent dashboard config loading. Any required bootstrap or state-subscription failure after connect must disconnect the newly owned client exactly once. | HF-05, HF-06, HF-07, NPM-01 | `HomeAssistantWebSocketClient`, typed response models, and `DashboardViewModel.runOwnedBootstrap` | Exact command/decode, bootstrap-failure cleanup, and read-only live formatting/bootstrap tests |
 
 ## Source anchors

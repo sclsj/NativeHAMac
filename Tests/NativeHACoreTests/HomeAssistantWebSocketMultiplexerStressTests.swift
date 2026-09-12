@@ -142,9 +142,10 @@ final class HomeAssistantWebSocketMultiplexerStressTests: XCTestCase {
         let slowLog = JSONValueLog()
         let fastLog = JSONValueLog()
         let terminationLog = WebSocketErrorLog()
+        let slowEventType = "slow-\(UUID())"
         let slow = try await connection.subscribeRaw([
             "type": .string("subscribe_events"),
-            "event_type": .string("slow"),
+            "event_type": .string(slowEventType),
         ], onTermination: { error in
             await terminationLog.append(error)
             await terminationGate.wait()
@@ -207,6 +208,9 @@ final class HomeAssistantWebSocketMultiplexerStressTests: XCTestCase {
         try await waitUntil(iterations: 500_000) {
             await connection.debugSnapshot().subscriptionCount == 1
         }
+        // Registry removal precedes the independently scheduled callback.
+        // Wait for its existing gate before inspecting termination side effects.
+        try await waitUntil { await terminationGate.waitingCount() == 1 }
         let overflowSnapshot = await connection.debugSnapshot()
         XCTAssertEqual(overflowSnapshot.pendingCommandCount, 0)
         XCTAssertEqual(overflowSnapshot.subscriptionCount, 1)
@@ -215,6 +219,10 @@ final class HomeAssistantWebSocketMultiplexerStressTests: XCTestCase {
         XCTAssertEqual(terminations, [.deliveryOverflow(subscriptionID: slow.id)])
         XCTAssertEqual(overflowSnapshot.activeTerminationTaskCount, 1)
         XCTAssertEqual(overflowSnapshot.pendingTerminationCount, 0)
+        let overflowDiagnostics = try persistedDiagnosticMessages(containing: slowEventType)
+            .filter { $0.contains("subscription overflow") }
+        XCTAssertEqual(overflowDiagnostics.count, 1)
+        XCTAssertTrue(overflowDiagnostics.first?.contains("capacity=5") == true)
 
         await gate.open()
         await terminationGate.open()

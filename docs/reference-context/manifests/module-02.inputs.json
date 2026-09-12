@@ -33,7 +33,7 @@
     },
     {
       "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-      "symbols": ["DashboardViewModel.load", "bootstrapDashboard"]
+      "symbols": ["DashboardViewModel.runOwnedBootstrap", "bootstrapDashboard"]
     },
     {
       "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
@@ -42,6 +42,26 @@
     {
       "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
       "symbols": ["DashboardBootstrapLifecycleTests", "testMalformedLovelaceBootstrapDisconnectsAuthenticatedClient", "testRejectedStateSubscriptionDisconnectsAuthenticatedClient"]
+    },
+    {
+      "path": "Sources/NativeHACore/SQLiteLogger.swift",
+      "symbols": ["AppLogger", "AppLog", "LoggingPolicy"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/SQLiteLoggerTests.swift",
+      "symbols": ["SQLiteLoggerTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/WebSocketDiagnosticTests.swift",
+      "symbols": ["WebSocketDiagnosticTests"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/DiagnosticTestSupport.swift",
+      "symbols": ["persistedDiagnosticMessages"]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketMultiplexerStressTests.swift",
+      "symbols": ["HomeAssistantWebSocketMultiplexerStressTests"]
     }
   ],
   "entries": [

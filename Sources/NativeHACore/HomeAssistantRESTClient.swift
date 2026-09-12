@@ -1,8 +1,16 @@
 import Foundation
 
-public enum HomeAssistantClientError: Error, Equatable {
+public enum HomeAssistantClientError: Error, Equatable, LocalizedError {
     case invalidResponse
     case httpStatus(Int, String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidResponse: return "Invalid Home Assistant HTTP response"
+        case let .httpStatus(status, _):
+            return "Home Assistant HTTP \(status): \(HTTPURLResponse.localizedString(forStatusCode: status))"
+        }
+    }
 }
 
 public final class HomeAssistantRESTClient {
@@ -52,17 +60,7 @@ public final class HomeAssistantRESTClient {
         request.setValue("Bearer \(configuration.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw HomeAssistantClientError.invalidResponse
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? ""
-            throw HomeAssistantClientError.httpStatus(httpResponse.statusCode, message)
-        }
-
-        let rawSeries = try decoder.decode([[HAHistoryPoint]].self, from: data)
+        let rawSeries: [[HAHistoryPoint]] = try await perform(request)
         return rawSeries.compactMap { points in
             guard let entityID = points.compactMap(\.entityId).first else {
                 return nil
@@ -100,17 +98,37 @@ public final class HomeAssistantRESTClient {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw HomeAssistantClientError.invalidResponse
-        }
+        return try await perform(request)
+    }
 
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? ""
-            throw HomeAssistantClientError.httpStatus(httpResponse.statusCode, message)
+    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        var responseData: Data?
+        var status: Int?
+        do {
+            let (data, response) = try await session.data(for: request)
+            responseData = data
+            guard let http = response as? HTTPURLResponse else {
+                throw HomeAssistantClientError.invalidResponse
+            }
+            status = http.statusCode
+            guard (200..<300).contains(http.statusCode) else {
+                throw HomeAssistantClientError.httpStatus(http.statusCode, diagnosticPayload(data))
+            }
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            if !isDiagnosticCancellation(error), !Task.isCancelled {
+                AppLog(
+                    "REST \(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "unknown") " +
+                        "failed; status=\(status.map(String.init) ?? "none") " +
+                        "error=\(String(reflecting: error)) " +
+                        "request=\(request.httpBody.map(diagnosticPayload) ?? "none") " +
+                        "response=\(responseData.map(diagnosticPayload) ?? "none")",
+                    severity: .error,
+                    category: .network
+                )
+            }
+            throw error
         }
-
-        return try decoder.decode(T.self, from: data)
     }
 
     private func url(pathComponents: [String]) -> URL {
