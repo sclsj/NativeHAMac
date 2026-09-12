@@ -210,6 +210,8 @@ public struct LovelaceCard: Equatable {
     public let cardSize: Int?
     public let entityIDs: [String]?
     public let entityID: String?
+    /// Exact singular Markdown selector shape used by render_template.
+    public let templateEntityIDs: JSONValue?
     public let showEmpty: Bool?
     public let tapAction: JSONValue?
     public let holdAction: JSONValue?
@@ -343,7 +345,15 @@ public struct LovelaceCard: Equatable {
                 diagnostics.append("entity_ids must be a string or string array")
             }
         } else { parsedEntityIDs = nil }
-        let parsedEntityID = string("entity_id")
+        let parsedEntityID: String?
+        if type == "markdown", case let .array(values)? = object["entity_id"] {
+            parsedEntityID = nil
+            if !values.allSatisfy({ if case .string = $0 { return true }; return false }) {
+                diagnostics.append("entity_id must be a string or string array")
+            }
+        } else {
+            parsedEntityID = string("entity_id")
+        }
         let parsedShowEmpty = bool("show_empty")
 
         switch type {
@@ -368,7 +378,7 @@ public struct LovelaceCard: Equatable {
                 diagnostics.append("weather-forecast requires a nonempty entity")
             }
         case "markdown":
-            if parsedContent == nil {
+            if parsedContent?.isEmpty != false {
                 diagnostics.append("markdown requires content")
             }
         default:
@@ -419,6 +429,7 @@ public struct LovelaceCard: Equatable {
         cardSize = parsedCardSize
         entityIDs = parsedEntityIDs
         entityID = parsedEntityID
+        templateEntityIDs = type == "markdown" ? object["entity_id"] : nil
         showEmpty = parsedShowEmpty
         tapAction = object["tap_action"]
         holdAction = object["hold_action"]

@@ -1,0 +1,109 @@
+{
+  "capturedAt": "2026-09-12T09:21:52.861Z",
+  "endpoint": "http://joyj.me:8123",
+  "views": [
+    {
+      "index": 0,
+      "title": "Home",
+      "path": "default_view"
+    },
+    {
+      "index": 1,
+      "title": "3h",
+      "path": "home_3h"
+    },
+    {
+      "index": 2,
+      "title": "12h",
+      "path": "home_12h"
+    }
+  ],
+  "cards": [
+    {
+      "path": "views.1.cards.0.cards.2",
+      "view": {
+        "index": 1,
+        "title": "3h",
+        "path": "home_3h"
+      },
+      "config": {
+        "type": "markdown",
+        "content": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n"
+      },
+      "subscriptionID": 3,
+      "request": {
+        "id": 3,
+        "type": "render_template",
+        "template": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n",
+        "variables": {
+          "config": {
+            "type": "markdown",
+            "content": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n"
+          },
+          "user": "Joy"
+        },
+        "strict": true,
+        "report_errors": false
+      },
+      "acknowledged": true,
+      "event": {
+        "result": "**Heater last run** — unavailable min \n10s update: **8.9** min\nunavailable",
+        "listeners": {
+          "all": false,
+          "entities": [
+            "sensor.heater_last_run_min",
+            "sensor.ultrasonic_runtime_message",
+            "input_number.kettle_run_duration",
+            "binary_sensor.heater_active"
+          ],
+          "domains": [],
+          "time": false
+        }
+      },
+      "unsubscribeAcknowledged": true
+    },
+    {
+      "path": "views.2.cards.0.cards.2",
+      "view": {
+        "index": 2,
+        "title": "12h",
+        "path": "home_12h"
+      },
+      "config": {
+        "type": "markdown",
+        "content": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n"
+      },
+      "subscriptionID": 4,
+      "request": {
+        "id": 4,
+        "type": "render_template",
+        "template": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n",
+        "variables": {
+          "config": {
+            "type": "markdown",
+            "content": "{% set on_states = ['on','Running','running'] %} {% set s = states.binary_sensor.heater_active %} {% if s.state in on_states %} **Heater is RUNNING** — {{ states('sensor.heater_current_run_min') }} min {% else %} **Heater last run** — {{ states('sensor.heater_last_run_min') }} min {% endif %}\n10s update: **{{ states('input_number.kettle_run_duration') }}** min\n{{ states('sensor.ultrasonic_runtime_message') }}\n"
+          },
+          "user": "Joy"
+        },
+        "strict": true,
+        "report_errors": false
+      },
+      "acknowledged": true,
+      "event": {
+        "result": "**Heater last run** — unavailable min \n10s update: **8.9** min\nunavailable",
+        "listeners": {
+          "all": false,
+          "entities": [
+            "sensor.heater_last_run_min",
+            "sensor.ultrasonic_runtime_message",
+            "input_number.kettle_run_duration",
+            "binary_sensor.heater_active"
+          ],
+          "domains": [],
+          "time": false
+        }
+      },
+      "unsubscribeAcknowledged": true
+    }
+  ]
+}

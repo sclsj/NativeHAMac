@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "boundary": "Exact extracted HA breaks=true alert branch and worker, executed over jsdom HTML parser/TreeWalker; not browser CSS, custom-element runtime or visual evidence",
+  "revision": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+  "dependencies": {
+    "marked": "18.0.5",
+    "xss": "1.0.15",
+    "jsdom": "29.1.1",
+    "typescript": "6.0.3"
+  },
+  "sourceHashes": {
+    "src/resources/markdown-worker.ts": "ff53bfeaba14e2788cfbb2c5f978ebd9c87feb010df4e2d21c7625463f98b717",
+    "src/components/ha-markdown-element.ts": "8947da2643b21ec0b1127cbb3dfa7bfcb2b622e8b9d77577d03643b2b2eb8bc8",
+    "node_modules/marked/lib/marked.esm.js": "43e1fc0927b2d397bdc786c0a9efa8414ce18e7781d0b3490faceea35b7d0d15",
+    "node_modules/xss/lib/default.js": "b31eddcf7ba7983be68a756e9c94b0eafdde42a3ade4feb3f91d9d5687f986f2",
+    "node_modules/xss/lib/xss.js": "e727dd7dc506cc3c5eddba78b1688351df42c11c5bd9f8d365f6b9928d97646c",
+    "node_modules/xss/lib/parser.js": "e01de1d37f0d450bc29d636bc95bf4274741520e490f8e6ff9b238c31d0a1f39",
+    "node_modules/jsdom/lib/api.js": "22a63aa40bad13ea909a115b0c49fbae3493a291414765221942fc5d4396356f"
+  },
+  "extractedBranchHash": "938ad6f803906bbfabba42eb55da1a93b0ee4dc9a93dabba1fce4eef4be9094e",
+  "fixtureHash": "762a56d40c1378953c05df74f7f8e6abf9d34ccfcf81b7a4180de7cf99e496cf",
+  "results": [
+    {
+      "id": "normal",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "escaped",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "inline-code",
+      "workerHTML": "<blockquote>\n<p><code>[!NOTE]</code><br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "same-line",
+      "workerHTML": "<blockquote>\n<p>[!NOTE] same line</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert></ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "",
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "prefix-suffix",
+      "workerHTML": "<blockquote>\n<p>prefix [!NOTE] suffix<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "rich-child",
+      "workerHTML": "<blockquote>\n<p>[!NOTE] <strong>bold</strong></p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert><strong>bold</strong></ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "<strong>bold</strong>",
+          "text": "bold"
+        }
+      ]
+    },
+    {
+      "id": "rich-first-child",
+      "workerHTML": "<blockquote>\n<p><strong>[!NOTE]</strong><br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "split-marker",
+      "workerHTML": "<blockquote>\n<p>[!<strong>NOTE</strong>]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<blockquote>\n<p>[!<strong>NOTE</strong>]<br>body</p>\n</blockquote>\n",
+      "alerts": []
+    },
+    {
+      "id": "duplicate-chunk",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>[!NOTE]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "lowercase-warning",
+      "workerHTML": "<blockquote>\n<p>[!warning]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "warning",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "caution",
+      "workerHTML": "<blockquote>\n<p>[!CAUTION]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "error",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "tip",
+      "workerHTML": "<blockquote>\n<p>[!TIP]<br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>body</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "success",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "later-child",
+      "workerHTML": "<blockquote>\n<p>prefix <strong>[!NOTE]</strong><br>body</p>\n</blockquote>\n",
+      "postprocessedHTML": "<blockquote>\n<p>prefix <strong>[!NOTE]</strong><br>body</p>\n</blockquote>\n",
+      "alerts": []
+    },
+    {
+      "id": "multiline-body",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>first<br>second</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>firstsecond</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "firstsecond",
+          "text": "firstsecond"
+        }
+      ]
+    },
+    {
+      "id": "multiparagraph-body",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>first</p>\n<p>second paragraph</p>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>firstsecond paragraph</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "firstsecond paragraph",
+          "text": "firstsecond paragraph"
+        }
+      ]
+    },
+    {
+      "id": "list-body",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]</p>\n<ul>\n<li>first</li>\n<li>second</li>\n</ul>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>\n<li>first</li>\n<li>second</li>\n</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "\n<li>first</li>\n<li>second</li>\n",
+          "text": "\nfirst\nsecond\n"
+        }
+      ]
+    },
+    {
+      "id": "mixed-body",
+      "workerHTML": "<blockquote>\n<p>[!NOTE]<br>first <strong>bold</strong><br>second</p>\n<ul>\n<li>item</li>\n</ul>\n</blockquote>\n",
+      "postprocessedHTML": "<ha-alert>first <strong>bold</strong>second\n<li>item</li>\n</ha-alert>\n",
+      "alerts": [
+        {
+          "type": "info",
+          "html": "first <strong>bold</strong>second\n<li>item</li>\n",
+          "text": "first boldsecond\nitem\n"
+        }
+      ]
+    }
+  ]
+}

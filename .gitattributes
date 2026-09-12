@@ -1,0 +1,2 @@
+# This Markdown fixture deliberately tests two-space hard breaks and CRLF.
+tools/markdown-reference/core.md -text whitespace=-blank-at-eol,cr-at-eol

@@ -61,6 +61,7 @@ final class DashboardViewModel: ObservableObject {
     private var trackedRetryTransitionSequence: UInt64?
     private let historyCoordinator = DashboardHistoryCoordinator()
     let weatherDetailCoordinator: DashboardWeatherDetailCoordinator
+    let markdownCoordinator: DashboardMarkdownCoordinator
     private var latestConfigRequestSequence: UInt64 = 0
     private var latestNavigationRequestSequence: UInt64 = 0
     private var latestBootstrapSequence: UInt64 = 0
@@ -86,6 +87,7 @@ final class DashboardViewModel: ObservableObject {
     private var lastPrimaryIdentity: LovelaceResolvedIdentity?
     private var lastPrimaryLocator: LovelaceViewLocator?
     private var currentUserID: String?
+    private var currentUserName: String?
     private let navigationSelectionPersistence: LovelaceNavigationSelectionPersistence
     private(set) var presentationDashboard: LovelacePresentationDashboard
     private let lovelaceStore: LovelaceDashboardStore
@@ -135,6 +137,7 @@ final class DashboardViewModel: ObservableObject {
         entityDisplayPrecisions: [String: Int] = [:],
         entityRegistryIcons: [String: String] = [:],
         currentUserID: String? = nil,
+        currentUserName: String? = nil,
         navigationPreferenceStore: LovelaceNavigationPreferenceStore = UserDefaultsLovelaceNavigationPreferenceStore(),
         historyNow: @escaping @Sendable () -> Date = { Date() },
         graphAxisTimeFormattingOverride: GraphTooltipFormattingMetadata? = nil,
@@ -146,6 +149,7 @@ final class DashboardViewModel: ObservableObject {
         let lifetimeAuthority = DashboardLifetimeAuthority()
         let dashboardOwnerOperationRegistry = DashboardOwnerOperationRegistry()
         self.lifetimeAuthority = lifetimeAuthority
+        self.markdownCoordinator = DashboardMarkdownCoordinator(authority: lifetimeAuthority)
         self.weatherDetailCoordinator = DashboardWeatherDetailCoordinator(
             lifetimeAuthority: lifetimeAuthority,
             subscriptionInstallHook: weatherDetailSubscriptionInstallHook
@@ -186,6 +190,7 @@ final class DashboardViewModel: ObservableObject {
         self.lovelaceStore = LovelaceDashboardStore(config: initialConfig)
         self.navigationSelectionPersistence = persistence
         self.currentUserID = currentUserID
+        self.currentUserName = currentUserName
         self.hasLoadedDashboard = !initialViews.isEmpty
         self.selectedViewIdentity = initialSelection?.identity
         self.desiredSelectedViewIdentity = initialSelection?.identity
@@ -219,6 +224,11 @@ final class DashboardViewModel: ObservableObject {
         let emergencyService = serviceController
         let emergencyMounts = graphChartMountRegistry
         let emergencyWeather = weatherDetailCoordinator
+        let emergencyMarkdown = markdownCoordinator
+        markdownCoordinator.ownershipChanged = { ownership in emergencyBag.setMarkdownOwnership(ownership) }
+        markdownCoordinator.visibilityChanged = { [weak self] in self?.objectWillChange.send() }
+        markdownCoordinator.retire = { [weak self] ownership in self?.enqueueMarkdownRetirement(ownership) }
+        _ = markdownCoordinator.reconcile(dashboard: initialPresentation, selected: initialSelection?.identity)
         emergencyService.setTaskObserver { tasks in
             emergencyBag.setServiceTasks(tasks)
         }
@@ -231,7 +241,8 @@ final class DashboardViewModel: ObservableObject {
                 historyCoordinator: emergencyHistory,
                 serviceController: emergencyService,
                 mountRegistry: emergencyMounts,
-                weatherCoordinator: emergencyWeather
+                weatherCoordinator: emergencyWeather,
+                markdownCoordinator: emergencyMarkdown
             )
         }
     }
@@ -347,15 +358,16 @@ final class DashboardViewModel: ObservableObject {
     var dashboardColumns: [[LovelacePresentationCard]] {
         guard let activeView = activePresentationView else { return [] }
         if activeView.resolved.source.panel == true || activeView.resolved.source.type == "panel" {
-            return activeView.cards.first.map { [[$0]] } ?? []
+            return activeView.cards.first.map { markdownIsVisible($0) ? [[$0]] : [] } ?? []
         }
         guard activeView.resolved.source.path == "default_view" else {
-            return activeView.cards.isEmpty ? [] : [activeView.cards]
+            let visible = activeView.cards.filter { markdownIsVisible($0) }
+            return visible.isEmpty ? [] : [visible]
         }
         var columns = Array(repeating: [LovelacePresentationCard](), count: AppConfig.dashboardColumnCount)
         var unplaced: [LovelacePresentationCard] = []
 
-        for card in homeCards {
+        for card in homeCards where markdownIsVisible(card) {
             if let rule = AppConfig.cardColumnRules.first(where: { $0.matches(card) }) {
                 let index = min(max(rule.column, 0), columns.count - 1)
                 columns[index].append(card)
@@ -961,6 +973,10 @@ final class DashboardViewModel: ObservableObject {
 
     func dashboardOwnerSnapshotForTesting() -> DashboardOwnerDebugSnapshot {
         DashboardOwnerDebugSnapshot(
+            markdownOwnerCount: markdownCoordinator.ownerCount,
+            markdownStartupCount: markdownCoordinator.startupCount,
+            markdownPreparationCount: markdownCoordinator.preparationCount,
+            markdownRetainedCardCount: markdownCoordinator.retainedCardCount,
             activeCardOwnerIDs: activeCardOwnerIDs(
                 from: presentationDashboard,
                 selectedViewIdentity: selectedViewIdentity
@@ -1429,9 +1445,12 @@ final class DashboardViewModel: ObservableObject {
         guard isCurrentBootstrap(sequence, client: client) else { return nil }
         frontendLocalePreferences = locale
         switch currentUserResult {
-        case let .success(user): currentUserID = user.id
+        case let .success(user):
+            currentUserID = user.id
+            currentUserName = user.name
         case .failure:
             currentUserID = nil
+            currentUserName = nil
             AppLog(
                 "Current user metadata unavailable; user-restricted navigation is hidden",
                 severity: .warning,
@@ -1531,6 +1550,7 @@ final class DashboardViewModel: ObservableObject {
             installedClient: installedBootstrapClient
         )
         restClient = nil
+        currentUserName = nil
         entityCoordinator = nil
         latestBootstrapEntityCoordinator = nil
         lovelaceUpdateSubscription = nil
@@ -1604,6 +1624,7 @@ final class DashboardViewModel: ObservableObject {
                         }
                         self?.weatherDetailCoordinator.connectionChanged(.ready)
                         self?.enqueueWeatherDetailReadyReconciliation()
+                        self?.markdownCoordinator.connectionReady()
                     case .disconnected:
                         nextStatus = "Disconnected"
                         self?.connectionWasNonReady = true
@@ -1984,7 +2005,9 @@ final class DashboardViewModel: ObservableObject {
         {
             detachedEntityOwnerships.append(candidateEntityOwner.detachOwnershipSynchronously())
         }
-        let detachedHistory = detachOwnershipSynchronously(notIn: [])
+        var detachedHistory = detachOwnershipSynchronously(notIn: [])
+        detachedHistory.markdown = markdownCoordinator.close()
+        currentUserName = nil
         // Explicit app stop is stronger than ordinary view/config
         // reconciliation. A card startup may be suspended awaiting its wire
         // acknowledgement; cancelling the captured task propagates into the
@@ -2303,7 +2326,8 @@ final class DashboardViewModel: ObservableObject {
         )
 
         desiredSelectedViewIdentity = selectedIdentity
-        let detached = detachOwnershipSynchronously(notIn: desiredKeys)
+        var detached = detachOwnershipSynchronously(notIn: desiredKeys)
+        detached.markdown = markdownCoordinator.reconcile(dashboard: dashboard, selected: selectedIdentity)
         latestQueuedDashboardCandidate = candidate
         latestDashboardOwnerOperationSequence &+= 1
         let operationSequence = latestDashboardOwnerOperationSequence
@@ -2412,6 +2436,32 @@ final class DashboardViewModel: ObservableObject {
             sequence: operationSequence
         )
         dashboardOwnerOperationTail = task
+    }
+
+    private func enqueueMarkdownRetirement(_ ownership: MarkdownDetachedOwnership) {
+        let retirement = Task { await ownership.finish() }
+        latestDashboardOwnerOperationSequence &+= 1
+        let sequence = latestDashboardOwnerOperationSequence
+        let previousTail = dashboardOwnerOperationTail
+        let registry = dashboardOwnerOperationRegistry
+        let task = Task { @MainActor in
+            defer { registry.finish(sequence: sequence) }
+            await retirement.value
+            await previousTail?.value
+        }
+        var detached = DetachedDashboardOwnership()
+        detached.markdown = ownership
+        detached.markdown.tasks.append(retirement)
+        registry.register(DashboardOwnerOperationNode(task: task, detachedOwnership: detached), sequence: sequence)
+        dashboardOwnerOperationTail = task
+    }
+
+    func markdownState(for card: LovelacePresentationCard) -> MarkdownCardState? {
+        markdownCoordinator.state(for: card, view: selectedViewIdentity)
+    }
+
+    func markdownIsVisible(_ card: LovelacePresentationCard) -> Bool {
+        markdownState(for: card)?.hidden != true
     }
 
     private func enqueueWeatherDetailTermination(_ ownership: WeatherDetailDetachedOwnership) {
@@ -2525,6 +2575,8 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private static func finishDetachedOwnership(_ detached: DetachedDashboardOwnership) async {
+        detached.markdown.cancelTasks()
+        let markdownRetirement = Task { await detached.markdown.finish() }
         for startup in detached.startups {
             await startup.value
         }
@@ -2543,6 +2595,7 @@ final class DashboardViewModel: ObservableObject {
         for subscription in detached.weatherSubscriptions {
             await subscription.cancel()
         }
+        await markdownRetirement.value
     }
 
     private func isCurrent(_ candidate: DashboardOwnerCandidate) -> Bool {
@@ -2601,6 +2654,9 @@ final class DashboardViewModel: ObservableObject {
             clearPersistedNavigationSelection()
         }
 
+        if candidate.startHistoryOwners, let client = webSocketClient {
+            markdownCoordinator.activate(using: client, userName: currentUserName)
+        }
         return candidate.startHistoryOwners && isCurrent(candidate)
     }
 
@@ -3126,6 +3182,7 @@ final class DashboardViewModel: ObservableObject {
         guard let cleanup = emergencyDetachAction?() else { return }
         Task { @MainActor in
             let weatherOwnership = cleanup.weatherCoordinator.close()
+            let markdownOwnership = cleanup.markdownCoordinator.close()
             cleanup.mountRegistry.invalidateOwners(notIn: [])
             cleanup.historyCoordinator.reconciliationEpoch &+= 1
             cleanup.historyCoordinator.desiredKeys.removeAll()
@@ -3152,6 +3209,10 @@ final class DashboardViewModel: ObservableObject {
             {
                 entityOwnerships.append(candidate.detachOwnershipSynchronously())
             }
+            let markdownRetirement = Task {
+                await cleanup.ownership.markdown.finish()
+                await markdownOwnership.finish()
+            }
             for ownership in entityOwnerships { await ownership.finish() }
             await cleanup.ownership.lovelaceSubscription?.cancel()
             for subscription in cleanup.ownership.historySubscriptions {
@@ -3167,6 +3228,7 @@ final class DashboardViewModel: ObservableObject {
             for client in cleanup.ownership.clients { await client.disconnect() }
             for task in cleanup.ownership.tasks { await task.value }
             for task in serviceTasks { await task.value }
+            await markdownRetirement.value
         }
     }
 }
@@ -3202,6 +3264,10 @@ struct HistoryRequest: Hashable {
 }
 
 struct DashboardOwnerDebugSnapshot: Equatable {
+    let markdownOwnerCount: Int
+    let markdownStartupCount: Int
+    let markdownPreparationCount: Int
+    let markdownRetainedCardCount: Int
     let activeCardOwnerIDs: Set<String>
     let desiredHistoryKeys: Set<String>
     let subscriptionKeys: Set<String>
@@ -3233,6 +3299,7 @@ struct DashboardOwnerDebugSnapshot: Equatable {
 }
 
 private struct DetachedDashboardOwnership {
+    var markdown = MarkdownDetachedOwnership()
     let startups: [Task<Void, Never>]
     let subscriptions: [HAHistoryStreamSubscription]
     let detailStartups: [Task<Void, Never>]
@@ -3317,13 +3384,16 @@ private final class DashboardOwnerOperationRegistry: @unchecked Sendable {
     }
 
     private func cancel(_ ownership: DetachedDashboardOwnership) {
+        ownership.markdown.cancelTasks()
         ownership.startups.forEach { $0.cancel() }
         ownership.detailStartups.forEach { $0.cancel() }
         ownership.weatherStartups.forEach { $0.cancel() }
         Task {
+            let markdownRetirement = Task { await ownership.markdown.finish() }
             for subscription in ownership.subscriptions { await subscription.cancel() }
             for subscription in ownership.detailSubscriptions { await subscription.cancel() }
             for subscription in ownership.weatherSubscriptions { await subscription.cancel() }
+            await markdownRetirement.value
         }
     }
 }
@@ -3374,6 +3444,7 @@ private struct DashboardEmergencyDeinitCleanup {
     let serviceController: DashboardServiceController
     let mountRegistry: DashboardGraphChartMountRegistry
     let weatherCoordinator: DashboardWeatherDetailCoordinator
+    let markdownCoordinator: DashboardMarkdownCoordinator
 }
 
 private enum DashboardEmergencyTaskKey: Hashable {
@@ -3388,6 +3459,7 @@ private enum DashboardEmergencyTaskKey: Hashable {
 }
 
 private struct DashboardEmergencyBagOwnership {
+    let markdown: MarkdownDetachedOwnership
     let tasks: [Task<Void, Never>]
     let entityCoordinator: HAEntitySubscriptionCoordinator?
     let candidateEntityCoordinator: HAEntitySubscriptionCoordinator?
@@ -3409,6 +3481,7 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
     private let lifetimeAuthority: DashboardLifetimeAuthority
     private let dashboardOwnerOperationRegistry: DashboardOwnerOperationRegistry
     private var isDetached = false
+    private var markdownOwnership = MarkdownDetachedOwnership()
     private var tasks: [DashboardEmergencyTaskKey: Task<Void, Never>] = [:]
     private var serviceTasks: [Task<Void, Never>] = []
     private var entityCoordinatorTasks: [UUID: [Task<Void, Never>]] = [:]
@@ -3429,6 +3502,13 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
     ) {
         self.lifetimeAuthority = lifetimeAuthority
         self.dashboardOwnerOperationRegistry = dashboardOwnerOperationRegistry
+    }
+
+    func setMarkdownOwnership(_ value: MarkdownDetachedOwnership) {
+        lock.lock()
+        if isDetached { lock.unlock(); value.cancelTasks(); return }
+        markdownOwnership = value
+        lock.unlock()
     }
 
     func setTask(_ task: Task<Void, Never>?, for key: DashboardEmergencyTaskKey) {
@@ -3543,6 +3623,13 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
         )
         lock.lock()
         isDetached = true
+        var detachedMarkdown = markdownOwnership
+        markdownOwnership = MarkdownDetachedOwnership()
+        for operation in ownerOperations {
+            detachedMarkdown.tasks += operation.detachedOwnership?.markdown.tasks ?? []
+            detachedMarkdown.subscriptions += operation.detachedOwnership?.markdown.subscriptions ?? []
+        }
+        detachedMarkdown.cancelTasks()
         var detachedTasks = Array(tasks.values)
         detachedTasks.append(contentsOf: serviceTasks)
         detachedTasks.append(contentsOf: entityCoordinatorTasks.values.flatMap { $0 })
@@ -3588,6 +3675,7 @@ private final class DashboardEmergencyOwnershipBag: @unchecked Sendable {
 
         detachedTasks.forEach { $0.cancel() }
         return DashboardEmergencyBagOwnership(
+            markdown: detachedMarkdown,
             tasks: detachedTasks,
             entityCoordinator: detachedEntity,
             candidateEntityCoordinator: detachedCandidate,

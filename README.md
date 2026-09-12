@@ -48,7 +48,7 @@ Supported native Lovelace cards:
 - `history-graph`
 - `weather-forecast`
 - `vertical-stack`
-- `markdown`
+- `markdown` — native Markdown and HA templates; advanced HTML/media/custom elements show an explicit source fallback.
 
 Supported controls currently include toggles for `switch`, `fan`, `input_boolean`, and `automation` entities.
 

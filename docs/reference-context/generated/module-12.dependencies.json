@@ -21949,7 +21949,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "2a332234b248db87dafb8ff37b95ddef9d3feae6408058126e68190d7b745f72",
+  "graphFingerprint": "5ca34571bfa6ff8ee662713449569c10dca951c0e058a77a548f333f2a827ba2",
   "manifest": {
     "module": "12",
     "path": "docs/reference-context/manifests/module-12.inputs.json",
@@ -21971,51 +21971,51 @@
         "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
-        "sha256": "c53ffb866854c9b6206cbc184687ad92116a175b621b444de2f95a2b6453d3e9",
+        "sha256": "656f3d1da4a84071c45b614e9cc32aa2bdc7b736219e01a641df8a6f7584d463",
         "symbols": [
           "LovelaceResolvedDashboard",
           "LovelaceResolvedIdentity",
           "LovelaceResolvedView",
           "LovelaceView"
         ],
-        "worktreeBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6"
+        "worktreeBlob": "b25e9fba08fb1b671bc86d90ad5fd94cbcf0f9e0"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "859600ada92127650b45f15287a2af92980617bc",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
+        "sha256": "ed5de23bb8cd41aaa70d6e8e70f9303d464e0dd708ed56938f4b39ddfc53003a",
         "symbols": [
           "HACurrentUser",
           "HAFrontendLocalePreferences"
         ],
-        "worktreeBlob": "859600ada92127650b45f15287a2af92980617bc"
+        "worktreeBlob": "41a9c1f395f6618f052d5d954397bdbf6104a1b5"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "67a415fef75e892cdaa723cfe966e33fc6458521affc8891082df9ad47d6759e",
+        "sha256": "214a23ab4a1ac9de43233529f76a1b908f9cfe09e92bf708784d6ab89a38cf30",
         "symbols": [
           "AppConfig",
           "CardColumnRule",
           "GraphTimeRangePolicy",
           "LovelaceNavigationPolicy"
         ],
-        "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
+        "worktreeBlob": "3299dc478bd496f3b40a5bbb0d0e7142c2ceb552"
       },
       {
         "dirty": true,
-        "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
+        "headBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "003fa8825f867346ebc4da1bda9bb5dd19f47a1d704fb706f78f9ad4df339f25",
+        "sha256": "c03e7e7216cdb4057ad88b5bd2310b98dc5db36b337a2b6a4c28d5ea6b37b963",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -22023,7 +22023,7 @@
           "HistoryGraphCard",
           "UnitGraph"
         ],
-        "worktreeBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d"
+        "worktreeBlob": "f29618d4da60b0d363f539ba7b1ce5e0d56e71ac"
       },
       {
         "dirty": false,
@@ -22051,20 +22051,20 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
+        "sha256": "1c3acd1ad11874a92d5c56a29f33815b8d5e1759172a034d7fc38a85b914033f",
         "symbols": [
           "DashboardViewModel",
           "HistoryRequest"
         ],
-        "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
+        "worktreeBlob": "63c5561686256d2e9c47ac03ccd5e877d8618a08"
       },
       {
-        "dirty": true,
-        "headBlob": "a2666396d811547431710302f8f31244a8ca5794",
+        "dirty": false,
+        "headBlob": "13fe668503e8609b1946a7e060361fc4adb8c099",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRendering.swift",
         "sha256": "f508c6a9cc155162b5e8221d993a1c8ce0e5b7bb78e96e4d33aed308072a2483",
@@ -22206,7 +22206,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
+    "gitHead": "e43010778fe1d5a06b777580fc6ccd7b60a72fac"
   },
   "nodes": [
     {

@@ -41,6 +41,12 @@ This file is the canonical list of intentional NativeHA deviations from the `/Us
 - Reducing disk-write frequency through asynchronous transaction batching is allowed, but the implementation must retry temporary database contention and clearly account for the crash window of any memory-resident batch.
 - The selected debug-build balance is a one-second or 256-entry batch, whichever comes first, using a background serial writer, explicit transactions, WAL mode with full synchronization, retry on contention, and a final normal-termination flush. A sudden process or machine failure may lose the current memory-resident batch; this is not intentional filtering or queue-pressure dropping.
 
+## Markdown implementation stages
+
+- Implement native Markdown and HA server-rendered templates first. Defer advanced HTML, media, and HA-specific custom elements (including icons and QR codes) to a later stage.
+- Deferred content must have an explicit fallback; do not silently discard it or claim full reference rendering parity for the first stage.
+- This staging does not change the approved Home/maintenance-view navigation policy or authorize moving Markdown cards into Home.
+
 ## Numeric graph y-axis transitions
 
 - While zooming or inertially scrolling changes the visible numeric range, the y-axis must respond smoothly and continuously. It must not remain frozen and jump only when the interaction ends.

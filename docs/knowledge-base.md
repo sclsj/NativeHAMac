@@ -21,6 +21,18 @@ This is not a substitute for source code, tests, product decisions in `docs/user
 - **Evidence:** A 2026-07-22 read-only scan of the tracked `Tests/Fixtures/History/sps30_1day.json` capture found 83,969 effective timestamps and zero adjacent pairs for which the later timestamp was less than or equal to the earlier timestamp. Separately, `Benchmarks/HistoryFetch/sps30_timestamp_check.py` fetched fourteen consecutive one-day history windows. `Benchmarks/HistoryFetch/sps30_timestamp_results.txt` records 1,173,621 total timestamps, 1,173,621 unique timestamps, zero duplicated timestamp values, and zero points involved in duplicates. The fourteen-day persisted summary proves uniqueness but does not independently calculate ordering.
 - **Revalidate when:** The SPS30 entity or integration, Home Assistant recorder, server deployment, history API path, or timestamp selection policy changes, or a captured response provides a counterexample.
 
+### Markdown is currently present only in maintenance views
+
+- The 2026-09-12 read-only config/template capture found two identical Markdown cards in `home_3h` and `home_12h`, and none in Home/default_view. Both render Jinja to ordinary bold text and line breaks; no advanced HTML/media/custom elements appear in the captured source/output.
+- Evidence: `Tests/Fixtures/Markdown/live-template-capture.json`. This scopes current deployment QA, not supported Markdown syntax. Do not automatically promote these cards into Home; use fixtures/direct routes for validation.
+- Revalidate when Lovelace configuration changes.
+
+## Native platform constraints
+
+### Foundation Markdown source positions on the macOS 12 target
+
+The installed Xcode 13.4.1/macOS 12.3 SDK's Foundation Swift interface exposes Markdown parsing options and presentation-intent table/row/cell identities, but no `appliesSourcePosition`, `MarkdownSourcePosition` or original source range. Foundation can omit empty table-cell runs. NativeHA therefore needs tested source-context handling to preserve empty table geometry; parsed identities alone cannot locate omitted cells. Established by SDK-interface/header review on 2026-09-12. Revalidate when the deployment target or toolchain changes.
+
 ## Local test-oracle observations
 
 ### 2026-09-11 graph-oracle calibration

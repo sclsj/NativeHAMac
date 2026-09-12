@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "boundary": "Exact markdown-worker sanitized HTML; excludes DOM postprocessing, CSS, navigation, actions and native fallback execution",
+  "revision": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+  "dependencies": {
+    "marked": "18.0.5",
+    "xss": "1.0.15",
+    "typescript": "6.0.3"
+  },
+  "sourceHashes": {
+    "src/resources/markdown-worker.ts": "ff53bfeaba14e2788cfbb2c5f978ebd9c87feb010df4e2d21c7625463f98b717",
+    "src/components/ha-markdown-element.ts": "8947da2643b21ec0b1127cbb3dfa7bfcb2b622e8b9d77577d03643b2b2eb8bc8",
+    "src/components/ha-markdown.ts": "fbe676bf4ba9d274285b33156f76275733b276921b7f85a2a25728aed3ecfc82",
+    "src/panels/lovelace/cards/hui-markdown-card.ts": "f50a78a58e08ad26311fb23034e1726d89933c62f6ebea1d9cee142d35440efd",
+    "src/common/dom/is-navigation-click.ts": "87d6130b4c6d2a0e141c1666624ec5fec093a4f87f66d788dad471e83090445e",
+    "src/panels/lovelace/common/directives/action-handler-directive.ts": "ef9f129d36010fab3037fdf1906018d29bc4c601125b5c892d7d0252507cfa5d",
+    "node_modules/marked/lib/marked.esm.js": "43e1fc0927b2d397bdc786c0a9efa8414ce18e7781d0b3490faceea35b7d0d15",
+    "node_modules/xss/lib/index.js": "6b7c5aa2176162838421e891a60c8c4b4205fa292a5a7bda51f27075be2b7b1b",
+    "node_modules/xss/lib/default.js": "b31eddcf7ba7983be68a756e9c94b0eafdde42a3ade4feb3f91d9d5687f986f2",
+    "node_modules/xss/lib/parser.js": "e01de1d37f0d450bc29d636bc95bf4274741520e490f8e6ff9b238c31d0a1f39",
+    "node_modules/xss/lib/xss.js": "e727dd7dc506cc3c5eddba78b1688351df42c11c5bd9f8d365f6b9928d97646c",
+    "node_modules/xss/lib/util.js": "6f0baafbd1634f644267941fb37240604d1e5b8ce7c05ebc25f687330206f880"
+  },
+  "fixtureHash": "531763fd9fcb766d0e99b26e61a8b1c886eefcc1dde79ca59c780f1ed920c6ca",
+  "options": {
+    "marked": {
+      "breaks": true,
+      "gfm": true
+    },
+    "hass": {
+      "allowSvg": false,
+      "allowDataUrl": false
+    }
+  },
+  "results": [
+    {
+      "id": "headings",
+      "fragments": [
+        "<h1>One</h1>\n",
+        "",
+        "<h2>Two</h2>\n",
+        "",
+        "<h3>Three</h3>\n",
+        "",
+        "<h4>Four</h4>\n",
+        "",
+        "<h5>Five</h5>\n",
+        "",
+        "<h6>Six</h6>\n",
+        "",
+        "<h1>Setext one</h1>\n",
+        "",
+        "<h2>Setext two</h2>\n"
+      ],
+      "html": "<h1>One</h1>\n<h2>Two</h2>\n<h3>Three</h3>\n<h4>Four</h4>\n<h5>Five</h5>\n<h6>Six</h6>\n<h1>Setext one</h1>\n<h2>Setext two</h2>\n"
+    },
+    {
+      "id": "inline-unicode",
+      "fragments": [
+        "<p><strong>bold</strong> <em>italic</em> <em><strong>both</strong></em> <del>strike</del> <del>also</del> <code>x &lt; y</code> *literal* &amp; café 日本語 👩🏽‍💻</p>\n"
+      ],
+      "html": "<p><strong>bold</strong> <em>italic</em> <em><strong>both</strong></em> <del>strike</del> <del>also</del> <code>x &lt; y</code> *literal* &amp; café 日本語 👩🏽‍💻</p>\n"
+    },
+    {
+      "id": "breaks-paragraphs",
+      "fragments": [
+        "<p>one<br>two<br>three<br>four</p>\n",
+        "",
+        "<p>five<br>six</p>\n"
+      ],
+      "html": "<p>one<br>two<br>three<br>four</p>\n<p>five<br>six</p>\n"
+    },
+    {
+      "id": "nested-lists",
+      "fragments": [
+        "<ul>\n<li>first<ul>\n<li>nested</li>\n<li>next</li>\n</ul>\n</li>\n<li>second</li>\n</ul>\n",
+        "",
+        "<ol>\n<li>ordered<ol>\n<li>nested ordered</li>\n</ol>\n</li>\n<li>final</li>\n</ol>\n"
+      ],
+      "html": "<ul>\n<li>first<ul>\n<li>nested</li>\n<li>next</li>\n</ul>\n</li>\n<li>second</li>\n</ul>\n<ol>\n<li>ordered<ol>\n<li>nested ordered</li>\n</ol>\n</li>\n<li>final</li>\n</ol>\n"
+    },
+    {
+      "id": "ordered-start",
+      "fragments": [
+        "<ol>\n<li>third</li>\n<li>fourth</li>\n</ol>\n"
+      ],
+      "html": "<ol>\n<li>third</li>\n<li>fourth</li>\n</ol>\n"
+    },
+    {
+      "id": "loose-tasks",
+      "fragments": [
+        "<ul>\n<li><p><input disabled type=\"checkbox\"> pending</p>\n</li>\n<li><p><input checked disabled type=\"checkbox\"> complete</p>\n</li>\n<li><p><input checked disabled type=\"checkbox\"> complete uppercase</p>\n</li>\n</ul>\n"
+      ],
+      "html": "<ul>\n<li><p><input disabled type=\"checkbox\"> pending</p>\n</li>\n<li><p><input checked disabled type=\"checkbox\"> complete</p>\n</li>\n<li><p><input checked disabled type=\"checkbox\"> complete uppercase</p>\n</li>\n</ul>\n"
+    },
+    {
+      "id": "code-blocks",
+      "fragments": [
+        "<pre><code>let x = &quot;&lt;tag&gt;&quot;\n  print(x)\n</code></pre>\n",
+        "",
+        "<pre><code>indented &amp; code\n</code></pre>\n",
+        "",
+        "<pre><code>unclosed fence\n</code></pre>\n"
+      ],
+      "html": "<pre><code>let x = &quot;&lt;tag&gt;&quot;\n  print(x)\n</code></pre>\n<pre><code>indented &amp; code\n</code></pre>\n<pre><code>unclosed fence\n</code></pre>\n"
+    },
+    {
+      "id": "blockquote-rule",
+      "fragments": [
+        "<blockquote>\n<p>quoted <strong>bold</strong></p>\n<ul>\n<li>item<ul>\n<li>nested</li>\n</ul>\n</li>\n</ul>\n</blockquote>\n",
+        "",
+        "<hr>\n"
+      ],
+      "html": "<blockquote>\n<p>quoted <strong>bold</strong></p>\n<ul>\n<li>item<ul>\n<li>nested</li>\n</ul>\n</li>\n</ul>\n</blockquote>\n<hr>\n"
+    },
+    {
+      "id": "gfm-table",
+      "fragments": [
+        "<div><table>\n<thead>\n<tr>\n<th align=\"left\">Left</th>\n<th align=\"center\">Center</th>\n<th align=\"right\">Right</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>one</strong></td>\n<td align=\"center\">a|b</td>\n<td align=\"right\">3</td>\n</tr>\n<tr>\n<td align=\"left\">short</td>\n<td align=\"center\"></td>\n<td align=\"right\"></td>\n</tr>\n<tr>\n<td align=\"left\">extra</td>\n<td align=\"center\">columns</td>\n<td align=\"right\">kept</td>\n</tr>\n</tbody></table>\n</div>"
+      ],
+      "html": "<div><table>\n<thead>\n<tr>\n<th align=\"left\">Left</th>\n<th align=\"center\">Center</th>\n<th align=\"right\">Right</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\"><strong>one</strong></td>\n<td align=\"center\">a|b</td>\n<td align=\"right\">3</td>\n</tr>\n<tr>\n<td align=\"left\">short</td>\n<td align=\"center\"></td>\n<td align=\"right\"></td>\n</tr>\n<tr>\n<td align=\"left\">extra</td>\n<td align=\"center\">columns</td>\n<td align=\"right\">kept</td>\n</tr>\n</tbody></table>\n</div>"
+    },
+    {
+      "id": "reference-links",
+      "fragments": [
+        "<p><a href=\"https://example.com/path\" title=\"Reference title\">first</a></p>\n",
+        "",
+        "<p>Other paragraph and <a href=\"https://example.com/path\" title=\"Reference title\">REF</a>.</p>\n",
+        "",
+        ""
+      ],
+      "html": "<p><a href=\"https://example.com/path\" title=\"Reference title\">first</a></p>\n<p>Other paragraph and <a href=\"https://example.com/path\" title=\"Reference title\">REF</a>.</p>\n"
+    },
+    {
+      "id": "autolinks",
+      "fragments": [
+        "<p><a href=\"https://example.com/a?q=1\">https://example.com/a?q=1</a> <a href=\"http://www.example.com\">www.example.com</a> <a href=\"mailto:person@example.com\">person@example.com</a> <a href=\"https://example.org\">https://example.org</a> <a href=\"mailto:person@example.org\">person@example.org</a></p>\n"
+      ],
+      "html": "<p><a href=\"https://example.com/a?q=1\">https://example.com/a?q=1</a> <a href=\"http://www.example.com\">www.example.com</a> <a href=\"mailto:person@example.com\">person@example.com</a> <a href=\"https://example.org\">https://example.org</a> <a href=\"mailto:person@example.org\">person@example.org</a></p>\n"
+    },
+    {
+      "id": "link-routes",
+      "fragments": [
+        "<p><a href=\"/lovelace/home\">local</a> <a href=\"./home\">dot</a> <a href=\"../home\">up</a> <a href=\"#section\">fragment</a> <a href>query</a> <a href=\"//example.org/a\">protocol</a></p>\n"
+      ],
+      "html": "<p><a href=\"/lovelace/home\">local</a> <a href=\"./home\">dot</a> <a href=\"../home\">up</a> <a href=\"#section\">fragment</a> <a href>query</a> <a href=\"//example.org/a\">protocol</a></p>\n"
+    },
+    {
+      "id": "link-unsafe",
+      "fragments": [
+        "<p><a href>bare</a> <a href>js</a> <a href>upper</a> <a href>file</a> <a href=\"mailto:p@example.com\">mail</a> <a href=\"tel:123\">tel</a> <a href=\"ftp://example.org\">ftp</a></p>\n"
+      ],
+      "html": "<p><a href>bare</a> <a href>js</a> <a href>upper</a> <a href>file</a> <a href=\"mailto:p@example.com\">mail</a> <a href=\"tel:123\">tel</a> <a href=\"ftp://example.org\">ftp</a></p>\n"
+    },
+    {
+      "id": "link-entities",
+      "fragments": [
+        "<p><a href>encoded</a> <a href=\"/home\" target=\"_blank\">target</a></p>\n"
+      ],
+      "html": "<p><a href>encoded</a> <a href=\"/home\" target=\"_blank\">target</a></p>\n"
+    },
+    {
+      "id": "data-links",
+      "fragments": [
+        "<p><a href=\"data:image/png;base64,AAAA\">image data</a> <a href>plain data</a></p>\n"
+      ],
+      "html": "<p><a href=\"data:image/png;base64,AAAA\">image data</a> <a href>plain data</a></p>\n"
+    },
+    {
+      "id": "malformed-literal-math",
+      "fragments": [
+        "<p>[unclosed](<a href=\"https://example.com\">https://example.com</a></p>\n",
+        "",
+        "<p>**unclosed</p>\n",
+        "",
+        "<p>$x^2$</p>\n",
+        "",
+        "<p>$$x$$</p>\n"
+      ],
+      "html": "<p>[unclosed](<a href=\"https://example.com\">https://example.com</a></p>\n<p>**unclosed</p>\n<p>$x^2$</p>\n<p>$$x$$</p>\n"
+    },
+    {
+      "id": "empty",
+      "fragments": [],
+      "html": ""
+    },
+    {
+      "id": "whitespace",
+      "fragments": [
+        ""
+      ],
+      "html": ""
+    },
+    {
+      "id": "html-advanced",
+      "fragments": [
+        "<details open><summary>Expand</summary><p>Details</p></details>",
+        "",
+        "<table role=\"presentation\" border=\"0\"><tr><td colspan=\"2\">Layout</td></tr></table>"
+      ],
+      "html": "<details open><summary>Expand</summary><p>Details</p></details><table role=\"presentation\" border=\"0\"><tr><td colspan=\"2\">Layout</td></tr></table>"
+    },
+    {
+      "id": "images",
+      "fragments": [
+        "<p><img src=\"https://example.org/image.png\" alt=\"alt label\" title=\"Image\"></p>\n",
+        "",
+        "<p><img src=\"data:image/png;base64,AAAA\" alt=\"inline data\"></p>\n"
+      ],
+      "html": "<p><img src=\"https://example.org/image.png\" alt=\"alt label\" title=\"Image\"></p>\n<p><img src=\"data:image/png;base64,AAAA\" alt=\"inline data\"></p>\n"
+    },
+    {
+      "id": "media",
+      "fragments": [
+        "<p><audio controls src=\"https://example.org/a.mp3\"></audio></p>\n",
+        "",
+        "<p><video controls poster=\"https://example.org/p.png\" src=\"/local/movie.mp4\"></video></p>\n"
+      ],
+      "html": "<p><audio controls src=\"https://example.org/a.mp3\"></audio></p>\n<p><video controls poster=\"https://example.org/p.png\" src=\"/local/movie.mp4\"></video></p>\n"
+    },
+    {
+      "id": "custom-elements",
+      "fragments": [
+        "<p><ha-icon icon=\"mdi:home\"></ha-icon></p>\n",
+        "",
+        "<p><ha-svg-icon path=\"M0 0h24v24z\"></ha-svg-icon></p>\n",
+        "",
+        "<p><ha-alert alert-type=\"warning\" title=\"Warning\">Body</ha-alert></p>\n",
+        "",
+        "<p><ha-qr-code data=\"hello\" width=\"100\" center-image=\"/local/logo.png\"></ha-qr-code></p>\n"
+      ],
+      "html": "<p><ha-icon icon=\"mdi:home\"></ha-icon></p>\n<p><ha-svg-icon path=\"M0 0h24v24z\"></ha-svg-icon></p>\n<p><ha-alert alert-type=\"warning\" title=\"Warning\">Body</ha-alert></p>\n<p><ha-qr-code data=\"hello\" width=\"100\" center-image=\"/local/logo.png\"></ha-qr-code></p>\n"
+    },
+    {
+      "id": "github-alerts",
+      "fragments": [
+        "<blockquote>\n<p>[!NOTE]<br>Note <strong>body</strong></p>\n</blockquote>\n",
+        "",
+        "<blockquote>\n<p>[!WARNING]<br>Warning body</p>\n</blockquote>\n"
+      ],
+      "html": "<blockquote>\n<p>[!NOTE]<br>Note <strong>body</strong></p>\n</blockquote>\n<blockquote>\n<p>[!WARNING]<br>Warning body</p>\n</blockquote>\n"
+    },
+    {
+      "id": "unsafe-html",
+      "fragments": [
+        "&lt;script&gt;alert(1)&lt;/script&gt;<div>safe text</div>",
+        "",
+        "<p>&lt;svg&gt;&lt;path d=\"M0 0\"/&gt;&lt;/svg&gt;</p>\n",
+        "",
+        ""
+      ],
+      "html": "&lt;script&gt;alert(1)&lt;/script&gt;<div>safe text</div><p>&lt;svg&gt;&lt;path d=\"M0 0\"/&gt;&lt;/svg&gt;</p>\n"
+    }
+  ]
+}

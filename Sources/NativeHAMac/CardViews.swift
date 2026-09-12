@@ -3,6 +3,7 @@ import NativeHACore
 import SwiftUI
 
 struct CardRenderer: View {
+    @EnvironmentObject private var model: DashboardViewModel
     let card: LovelacePresentationCard
 
     @ViewBuilder
@@ -13,7 +14,7 @@ struct CardRenderer: View {
         switch card.type {
         case "vertical-stack":
             VStack(spacing: AppConfig.dashboardColumnSpacing) {
-                ForEach(card.cards ?? [], id: \.nativeID) { nestedCard in
+                ForEach((card.cards ?? []).filter { model.markdownIsVisible($0) }, id: \.nativeID) { nestedCard in
                     CardRenderer(card: nestedCard)
                 }
             }
@@ -1535,25 +1536,6 @@ struct UnsupportedEntityRow: View {
             Spacer()
         }
         .padding(.vertical, 11)
-    }
-}
-
-struct MarkdownCard: View {
-    let card: LovelacePresentationCard
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let title = card.title {
-                CardTitle(title)
-            }
-
-            Text(card.content ?? "")
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.74))
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-        }
-        .cardStyle()
     }
 }
 

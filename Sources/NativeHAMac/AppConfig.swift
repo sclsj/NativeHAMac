@@ -229,3 +229,18 @@ private extension LovelacePresentationCard {
         return false
     }
 }
+
+struct MarkdownPresentationPolicy {
+    let preparedCacheBytes: Int
+    let bodySize: CGFloat
+    let codeSize: CGFloat
+    let blockSpacing: CGFloat
+    let listIndent: CGFloat
+}
+
+extension AppConfig {
+    static let markdownPolicy = MarkdownPresentationPolicy(
+        preparedCacheBytes: 16 * 1_024 * 1_024,
+        bodySize: 14, codeSize: 13, blockSpacing: 12, listIndent: 20
+    )
+}

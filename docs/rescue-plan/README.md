@@ -31,7 +31,9 @@ Implement in this order unless a future audit finds a blocker:
 6. Module 07 revision 1 current conditions: complete and independently verified.
 7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
 8. A4 bootstrap consolidation and lifecycle validation are complete. Keep A1/A2 deferred and collect A3 into the future dedicated graphing module; do not repair or redesign graphs as part of this cleanup.
-9. Module 08 is the next research gate. Its plan now corrects marker-free server rendering, source-versus-rendered empty content, and existing decoder status, but it still needs a complete researched and independently reviewed packet. Module 08 implementation follows that review, not the deferred audit fixes.
+9. Module 08 stage 1 is complete and independently verified: native Markdown, HA templates, scoped actions, per-card updates and lifecycle/cache handling. Advanced HTML/media/custom elements have the user-approved source fallback. Visual evidence is a matched component-style approximation, not full live theme/runtime parity or approved goldens.
+10. Next: Module 10 climate-detail research. Keep broader graph work deferred
+    until its dedicated scope is agreed; this does not close A1/A2/A3.
 
 Later subscription consumers reuse completed Module 02. Preserve the coordinated Module 01/12 graph-range and active-owner contracts.
 

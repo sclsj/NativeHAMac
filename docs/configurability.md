@@ -115,6 +115,12 @@ Configure one typed `LovelaceNavigationPolicy` with:
 
 **Implementation note:** Module 12 defines `LovelaceNavigationPolicy` in `AppConfig.swift`. The fixed personal deployment excludes exact paths `home_3h` and `home_12h` from primary navigation while preserving their raw configuration and explicit route lookup. The preference key is `nativeha.navigation.selected-primary-view.v1`; its property-list value stores only a unique nonempty path or a source index for a pathless view. It stores no server, token, profile, resolved identity, hash, content revision, or timestamp. This policy does not add a settings UI and does not alter the existing token/bootstrap path.
 
+### 11. Native Markdown presentation and prepared-content cache
+
+**Intent:** Keep native Markdown typography, spacing and prepared-document memory use explicit while preserving parsed content and template semantics.
+
+**Implementation note:** Module 08 introduces `AppConfig.markdownPolicy` with `MarkdownPresentationPolicy`: a 16 MiB estimated-cost prepared-document cache budget, 14-point body text, 13-point code text, 12-point block spacing and 20-point list indent. The prepared cache is separate from HA's one-second template-result handoff cache and from retained cached-view presentation. Eviction only discards rebuildable prepared documents; it never truncates source or rendered output. The budget accounts for estimated source, text and attributed-run storage; it is not a bound on process resident memory. The measured 1,125,000-byte dense fixture costs an estimated 57,900,000 bytes and therefore renders fully without being retained at the default budget. A 64 MiB diagnostic cache can retain it; its warm benchmark is not the production-default result. Reference template/cache lifecycle and subscription correctness are not configuration switches. No settings UI is introduced. Module 08 validates these defaults with scoped native/reference fixtures, lifecycle tests and recorded benchmarks.
+
 ## Not selected
 
 Render-resolution, reconnect timing, axis-density, and off-live-edge update policies remain historical candidates rather than approved configuration requirements. Revisit them only when the user selects them or a current task requires a material product choice.

@@ -20739,7 +20739,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "9b8186a301068b79e2493d89ce82ab408ab97957462c7247faed3e8a6590b8c5",
+  "graphFingerprint": "5fa3513f5f0cc5aa5301448431caa6213ba1a195d15e6063cd2e3b2055b9c87f",
   "manifest": {
     "module": "07",
     "path": "docs/reference-context/manifests/module-07.inputs.json",
@@ -20773,8 +20773,8 @@
         "worktreeBlob": "d5005844c926642a091995d2f0fef8d5d98db105"
       },
       {
-        "dirty": true,
-        "headBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9",
+        "dirty": false,
+        "headBlob": "38e840dac09d2235ade52ef0c9b9d00fcf696630",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
         "sha256": "d09a83ff7ec4209d5de3b19272b2bcdcd57534490fe3a0d2c3e7579677e97a21",
@@ -20785,54 +20785,54 @@
         "worktreeBlob": "38e840dac09d2235ade52ef0c9b9d00fcf696630"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6",
         "missing": false,
         "path": "Sources/NativeHACore/LovelaceModels.swift",
-        "sha256": "c53ffb866854c9b6206cbc184687ad92116a175b621b444de2f95a2b6453d3e9",
+        "sha256": "656f3d1da4a84071c45b614e9cc32aa2bdc7b736219e01a641df8a6f7584d463",
         "symbols": [
           "LovelaceCard",
           "LovelaceResolvedCard",
           "LovelaceResolvedIdentity"
         ],
-        "worktreeBlob": "a054d8c7306f4e03c3d68eb6483b68460da3c2a6"
+        "worktreeBlob": "b25e9fba08fb1b671bc86d90ad5fd94cbcf0f9e0"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "859600ada92127650b45f15287a2af92980617bc",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
-        "sha256": "e4b274b0d28a4af021af57cb607dc48e06f886cbee1d59f77df176fe4621cf92",
+        "sha256": "ed5de23bb8cd41aaa70d6e8e70f9303d464e0dd708ed56938f4b39ddfc53003a",
         "symbols": [
           "HAConfig",
           "HAState",
           "JSONValue"
         ],
-        "worktreeBlob": "859600ada92127650b45f15287a2af92980617bc"
-      },
-      {
-        "dirty": false,
-        "headBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8",
-        "missing": false,
-        "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "67a415fef75e892cdaa723cfe966e33fc6458521affc8891082df9ad47d6759e",
-        "symbols": [
-          "AppConfig"
-        ],
-        "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
+        "worktreeBlob": "41a9c1f395f6618f052d5d954397bdbf6104a1b5"
       },
       {
         "dirty": true,
-        "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
+        "headBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8",
+        "missing": false,
+        "path": "Sources/NativeHAMac/AppConfig.swift",
+        "sha256": "214a23ab4a1ac9de43233529f76a1b908f9cfe09e92bf708784d6ab89a38cf30",
+        "symbols": [
+          "AppConfig"
+        ],
+        "worktreeBlob": "3299dc478bd496f3b40a5bbb0d0e7142c2ceb552"
+      },
+      {
+        "dirty": true,
+        "headBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "003fa8825f867346ebc4da1bda9bb5dd19f47a1d704fb706f78f9ad4df339f25",
+        "sha256": "c03e7e7216cdb4057ad88b5bd2310b98dc5db36b337a2b6a4c28d5ea6b37b963",
         "symbols": [
           "CardRenderer",
           "EntityDetailSheet",
           "WeatherCard"
         ],
-        "worktreeBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d"
+        "worktreeBlob": "f29618d4da60b0d363f539ba7b1ce5e0d56e71ac"
       },
       {
         "dirty": false,
@@ -20846,8 +20846,8 @@
         "worktreeBlob": "ca35e2f1af27ba347d6a80ee406feb59977971ff"
       },
       {
-        "dirty": true,
-        "headBlob": "153088d4d5301979134be4ca415e9d599078a699",
+        "dirty": false,
+        "headBlob": "2a502085a9da642743a667b08ac08cdaa941e3d1",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardLifecycle.swift",
         "sha256": "226937eb08efe6f9ee318b5e45d615935950d5f23d2be499edc90f3d5cf9f0eb",
@@ -20869,16 +20869,16 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
+        "sha256": "1c3acd1ad11874a92d5c56a29f33815b8d5e1759172a034d7fc38a85b914033f",
         "symbols": [
           "DashboardOwnerCandidate",
           "DashboardViewModel"
         ],
-        "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
+        "worktreeBlob": "63c5561686256d2e9c47ac03ccd5e877d8618a08"
       },
       {
         "dirty": false,
@@ -20985,14 +20985,14 @@
       },
       {
         "dirty": true,
-        "headBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca",
+        "headBlob": "66a1bc6db5a1c84194512a5da00d79cb9badaad7",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
-        "sha256": "b1d3928066ce3c1cf724f60575e45d54a80a238d73c23a4b1439eb1bb7f69845",
+        "sha256": "ebceadb17cb77690a1957895a81fdbc720c53816869f1d432ffa408b41a5cb25",
         "symbols": [
           "HomeAssistantWebSocketConnectionTests"
         ],
-        "worktreeBlob": "66a1bc6db5a1c84194512a5da00d79cb9badaad7"
+        "worktreeBlob": "01557d7cfa23bde763fe7464c652f1a143ec954c"
       },
       {
         "dirty": false,
@@ -21050,8 +21050,8 @@
         "worktreeBlob": "b08c637741073d2fba41a52d2ce808b16270dedb"
       },
       {
-        "dirty": true,
-        "headBlob": "80afe31077c794d763376432520f663a3b2af751",
+        "dirty": false,
+        "headBlob": "fd402dceaaf6bcdae5a9fe75533f75be39db0fe3",
         "missing": false,
         "path": "Tests/NativeHAMacTests/WeatherDetailIntegrationTests.swift",
         "sha256": "a6d1171f81e83031d1c720ec1d91737f4c6a371ec99dafbba8b1c6c579bd54cf",
@@ -21096,7 +21096,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
+    "gitHead": "e43010778fe1d5a06b777580fc6ccd7b60a72fac"
   },
   "nodes": [
     {

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "normal",
+      "source": "> [!NOTE]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "escaped",
+      "source": "> \\[!NOTE]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "inline-code",
+      "source": "> `[!NOTE]`\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "same-line",
+      "source": "> [!NOTE] same line",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "",
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "prefix-suffix",
+      "source": "> prefix [!NOTE] suffix\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "rich-child",
+      "source": "> [!NOTE] **bold**",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "<strong>bold</strong>",
+          "text": "bold"
+        }
+      ]
+    },
+    {
+      "id": "rich-first-child",
+      "source": "> **[!NOTE]**\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "split-marker",
+      "source": "> [!**NOTE**]\n> body",
+      "expectedAlerts": []
+    },
+    {
+      "id": "duplicate-chunk",
+      "source": "> [!NOTE]\n> [!NOTE]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "lowercase-warning",
+      "source": "> [!warning]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "warning",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "caution",
+      "source": "> [!CAUTION]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "error",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "tip",
+      "source": "> [!TIP]\n> body",
+      "expectedAlerts": [
+        {
+          "type": "success",
+          "html": "body",
+          "text": "body"
+        }
+      ]
+    },
+    {
+      "id": "later-child",
+      "source": "> prefix **[!NOTE]**\n> body",
+      "expectedAlerts": []
+    },
+    {
+      "id": "multiline-body",
+      "source": "> [!NOTE]\n> first\n> second",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "firstsecond",
+          "text": "firstsecond"
+        }
+      ]
+    },
+    {
+      "id": "multiparagraph-body",
+      "source": "> [!NOTE]\n> first\n>\n> second paragraph",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "firstsecond paragraph",
+          "text": "firstsecond paragraph"
+        }
+      ]
+    },
+    {
+      "id": "list-body",
+      "source": "> [!NOTE]\n>\n> - first\n> - second",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "\n<li>first</li>\n<li>second</li>\n",
+          "text": "\nfirst\nsecond\n"
+        }
+      ]
+    },
+    {
+      "id": "mixed-body",
+      "source": "> [!NOTE]\n> first **bold**\n> second\n>\n> - item",
+      "expectedAlerts": [
+        {
+          "type": "info",
+          "html": "first <strong>bold</strong>second\n<li>item</li>\n",
+          "text": "first boldsecond\nitem\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "headings",
+      "category": "core",
+      "source": "# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six\n\nSetext one\n===\n\nSetext two\n---",
+      "note": "All six ATX heading levels and two setext levels.",
+      "mustContain": [
+        "<h1>One</h1>",
+        "<h6>Six</h6>",
+        "<h1>Setext one</h1>",
+        "<h2>Setext two</h2>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "inline-unicode",
+      "category": "core",
+      "source": "**bold** *italic* ***both*** ~strike~ ~~also~~ ` x < y ` \\*literal\\* &amp; café 日本語 👩🏽‍💻",
+      "note": "Inline nesting, escapes, entities and Unicode.",
+      "mustContain": [
+        "<strong>bold</strong>",
+        "<del>strike</del>",
+        "<code>x &lt; y</code>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "breaks-paragraphs",
+      "category": "core",
+      "source": "one\ntwo  \nthree\\\nfour\n\nfive\r\nsix",
+      "note": "Single, explicit and CRLF line breaks; blank line separates paragraphs.",
+      "mustContain": [
+        "one<br>two<br>three<br>four",
+        "<p>five<br>six</p>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "nested-lists",
+      "category": "core",
+      "source": "- first\n  - nested\n  - next\n- second\n\n1. ordered\n   1. nested ordered\n2. final",
+      "note": "Nested unordered/ordered structure.",
+      "mustContain": [
+        "<ul>",
+        "<ol>",
+        "nested ordered"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "ordered-start",
+      "category": "core",
+      "source": "3. third\n4. fourth",
+      "note": "Sanitizer removes marked start attribute; browser starts numbering at one.",
+      "mustContain": [
+        "<ol>"
+      ],
+      "mustNotContain": [
+        "start="
+      ]
+    },
+    {
+      "id": "loose-tasks",
+      "category": "core",
+      "source": "- [ ] pending\n\n- [x] complete\n\n- [X] complete uppercase",
+      "note": "Task markers are disabled; blank-separated list items retain paragraphs.",
+      "mustContain": [
+        "<input disabled type=\"checkbox\">",
+        "<input checked disabled type=\"checkbox\">",
+        "<p>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "code-blocks",
+      "category": "core",
+      "source": "```swift\nlet x = \"<tag>\"\n  print(x)\n```\n\n    indented & code\n\n~~~text\nunclosed fence",
+      "note": "Code whitespace and literal punctuation survive; no language classes/highlighter.",
+      "mustContain": [
+        "<pre><code>",
+        "&lt;tag&gt;",
+        "indented &amp; code",
+        "unclosed fence"
+      ],
+      "mustNotContain": [
+        "class="
+      ]
+    },
+    {
+      "id": "blockquote-rule",
+      "category": "core",
+      "source": "> quoted **bold**\n>\n> - item\n>   - nested\n\n---",
+      "note": "Nested quote/list and thematic rule.",
+      "mustContain": [
+        "<blockquote>",
+        "<strong>bold</strong>",
+        "<hr>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "gfm-table",
+      "category": "core",
+      "source": "| Left | Center | Right |\n| :--- | :---: | ---: |\n| **one** | a\\|b | 3 |\n| short |\n| extra | columns | kept | discarded |",
+      "note": "Table wrapper, alignment, inline formatting, escaped pipes, missing/extra cells.",
+      "mustContain": [
+        "<div><table>",
+        "align=\"center\"",
+        "align=\"right\"",
+        "a|b",
+        "<td align=\"right\"></td>"
+      ],
+      "mustNotContain": [
+        "discarded"
+      ]
+    },
+    {
+      "id": "reference-links",
+      "category": "core",
+      "source": "[first][ref]\n\nOther paragraph and [REF].\n\n[ref]: https://example.com/path \"Reference title\"",
+      "note": "Whole-document lexer resolves later cross-block references before per-token parsing.",
+      "mustContain": [
+        "href=\"https://example.com/path\" title=\"Reference title\""
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "autolinks",
+      "category": "core",
+      "source": "https://example.com/a?q=1 www.example.com person@example.com <https://example.org> <person@example.org>",
+      "note": "Bare URLs, www, emails and angle autolinks.",
+      "mustContain": [
+        "href=\"http://www.example.com\"",
+        "href=\"mailto:person@example.com\""
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "link-routes",
+      "category": "sanitizer",
+      "source": "[local](/lovelace/home) [dot](./home) [up](../home) [fragment](#section) [query](?q=1) [protocol](//example.org/a)",
+      "note": "Sanitizer permits rooted/dot-relative/fragment/protocol-relative URLs; bare query becomes empty href.",
+      "mustContain": [
+        "href=\"/lovelace/home\"",
+        "href=\"./home\"",
+        "href=\"#section\"",
+        "<a href>query</a>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "link-unsafe",
+      "category": "sanitizer",
+      "source": "[bare](relative/path) [js](javascript:alert(1)) [upper](HTTPS://example.org) [file](file:///tmp/a) [mail](mailto:p@example.com) [tel](tel:123) [ftp](ftp://example.org)",
+      "note": "Rejected values produce bare href, which is not guaranteed inert in a browser.",
+      "mustContain": [
+        "<a href>bare</a>",
+        "<a href>js</a>",
+        "<a href>upper</a>",
+        "href=\"tel:123\""
+      ],
+      "mustNotContain": [
+        "javascript:",
+        "file:///"
+      ]
+    },
+    {
+      "id": "link-entities",
+      "category": "sanitizer",
+      "source": "<a href=\"java&#x73;cript:alert(1)\" onclick=\"alert(1)\">encoded</a> <a href=\"/home\" target=\"_blank\" download rel=\"external\">target</a>",
+      "note": "Entity-obfuscated scheme rejected; target survives but download/rel stripped with card defaults.",
+      "mustContain": [
+        "<a href>encoded</a>",
+        "target=\"_blank\""
+      ],
+      "mustNotContain": [
+        "onclick",
+        "download",
+        "rel="
+      ]
+    },
+    {
+      "id": "data-links",
+      "category": "sanitizer",
+      "source": "[image data](data:image/png;base64,AAAA) [plain data](data:text/plain,hello)",
+      "note": "Image data prefix passes even though allowDataUrl is false; arbitrary data does not.",
+      "mustContain": [
+        "href=\"data:image/png;base64,AAAA\"",
+        "<a href>plain data</a>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "malformed-literal-math",
+      "category": "core",
+      "source": "[unclosed](https://example.com\n\n**unclosed\n\n$x^2$\n\n$$x$$",
+      "note": "Malformed syntax remains visible; no math extension.",
+      "mustContain": [
+        "[unclosed]",
+        "**unclosed",
+        "$x^2$",
+        "$$x$$"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "empty",
+      "category": "core",
+      "source": "",
+      "note": "Worker empty-input boundary only; card configuration separately rejects empty source.",
+      "mustContain": [],
+      "mustNotContain": []
+    },
+    {
+      "id": "whitespace",
+      "category": "core",
+      "source": "  \n\n",
+      "note": "Whitespace source is not identical to empty source; rendered visibility uses server result length.",
+      "mustContain": [],
+      "mustNotContain": []
+    },
+    {
+      "id": "html-advanced",
+      "category": "deferred",
+      "source": "<details open><summary>Expand</summary><p>Details</p></details>\n\n<table role=\"presentation\" border=\"0\"><tr><td colspan=\"2\">Layout</td></tr></table>",
+      "note": "Approved native first stage uses visible inert source fallback for advanced HTML.",
+      "mustContain": [
+        "<details open>",
+        "role=\"presentation\""
+      ],
+      "mustNotContain": [],
+      "nativeFallback": "visible-inert-source"
+    },
+    {
+      "id": "images",
+      "category": "deferred",
+      "source": "![alt **label**](https://example.org/image.png \"Image\")\n\n![inline data](data:image/png;base64,AAAA)",
+      "note": "Defer image loading; preserve visible alt/source fallback. Reference permits image data URLs.",
+      "mustContain": [
+        "<img src=\"https://example.org/image.png\"",
+        "src=\"data:image/png;base64,AAAA\""
+      ],
+      "mustNotContain": [],
+      "nativeFallback": "visible-inert-source"
+    },
+    {
+      "id": "media",
+      "category": "deferred",
+      "source": "<audio controls src=\"https://example.org/a.mp3\"></audio>\n\n<video controls poster=\"https://example.org/p.png\" src=\"/local/movie.mp4\"></video>",
+      "note": "Defer playback and remote retrieval; visible inert source fallback.",
+      "mustContain": [
+        "<audio controls",
+        "<video controls"
+      ],
+      "mustNotContain": [],
+      "nativeFallback": "visible-inert-source"
+    },
+    {
+      "id": "custom-elements",
+      "category": "deferred",
+      "source": "<ha-icon icon=\"mdi:home\"></ha-icon>\n\n<ha-svg-icon path=\"M0 0h24v24z\"></ha-svg-icon>\n\n<ha-alert alert-type=\"warning\" title=\"Warning\">Body</ha-alert>\n\n<ha-qr-code data=\"hello\" width=\"100\" center-image=\"/local/logo.png\"></ha-qr-code>",
+      "note": "All four recognized HA custom elements; native stage defers them explicitly.",
+      "mustContain": [
+        "<ha-icon icon=\"mdi:home\">",
+        "<ha-qr-code data=\"hello\""
+      ],
+      "mustNotContain": [],
+      "nativeFallback": "visible-inert-source"
+    },
+    {
+      "id": "github-alerts",
+      "category": "core",
+      "source": "> [!NOTE]\n> Note **body**\n\n> [!WARNING]\n> Warning body",
+      "note": "Worker returns blockquotes; DOM postprocessing maps markers into ha-alert. Native stage 1 implements matching callout semantics; this fixture alone does not prove DOM/native conversion.",
+      "mustContain": [
+        "[!NOTE]",
+        "<blockquote>"
+      ],
+      "mustNotContain": []
+    },
+    {
+      "id": "unsafe-html",
+      "category": "deferred",
+      "source": "<script>alert(1)</script><div onclick=\"x()\" style=\"color:red\">safe text</div>\n\n<svg><path d=\"M0 0\"/></svg>\n\n<!-- hidden comment -->",
+      "note": "Reference escapes unknown script/SVG tags, strips event/style attributes and comments. Native deferred fallback remains inert.",
+      "mustContain": [
+        "&lt;script&gt;alert(1)&lt;/script&gt;",
+        "<div>safe text</div>",
+        "&lt;svg&gt;"
+      ],
+      "mustNotContain": [
+        "onclick",
+        "style=",
+        "hidden comment"
+      ],
+      "nativeFallback": "visible-inert-source"
+    }
+  ]
+}

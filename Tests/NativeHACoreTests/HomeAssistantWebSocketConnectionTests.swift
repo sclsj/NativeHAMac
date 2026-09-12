@@ -1165,7 +1165,7 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         await connection.disconnect()
     }
 
-    func testTypedCurrentUserCommandDecodesOnlyRequiredIdentity() async throws {
+    func testTypedCurrentUserCommandDecodesIdentityAndOptionalTemplateName() async throws {
         let transport = ScriptedWebSocketTransport(automaticAuthentication: true)
         let connection = makeConnection(transports: [transport])
         try await connection.connect()
@@ -1183,13 +1183,13 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
             "success": .bool(true),
             "result": .object([
                 "id": .string("current-user-id"),
-                "name": .string("Must not be retained"),
+                "name": .string("Actual template user"),
                 "credentials": .array([.object(["auth_provider_type": .string("homeassistant")])]),
             ]),
         ])
 
         let currentUser = try await task.value
-        XCTAssertEqual(currentUser, HACurrentUser(id: "current-user-id"))
+        XCTAssertEqual(currentUser, HACurrentUser(id: "current-user-id", name: "Actual template user"))
         await connection.disconnect()
     }
 

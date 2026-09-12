@@ -1,210 +1,49 @@
-# Module 08 - MarkdownCard Rendering and Template Support
+# Module 08 — Native Markdown and HA templates
 
-## Purpose
+The [revision 1 evidence packet](../reference-context/modules/module-08-markdown-card.md) is the current behavioral authority. Stage 1 is implemented and independently verified. The packet records exact contracts, full debug/release results, scoped visual evidence and remaining stage boundaries.
 
-Research is still required before implementation. The 2026-09-11 readiness audit corrected the marker-only subscription assumption below against `HuiMarkdownCard._tryConnect`; this correction is not a complete Module 08 evidence packet.
+## Approved first stage
 
-Render Lovelace `markdown` cards as actual Markdown and prepare for Home Assistant template rendering through WebSocket subscriptions.
+Implement native Markdown and Home Assistant server-rendered templates. The [user-approved staging](../user-deviations.md#markdown-implementation-stages) defers advanced HTML, media and HA-specific custom elements with an explicit, selectable source fallback. No WebView, JavaScript runtime or local Jinja interpreter belongs in the app.
 
-The recorded live dashboard has two markdown cards. Module 02 multiplexing is complete; Module 08 research and review, including server-rendering lifecycle and native rendering fidelity, remain prerequisites.
+The 2026-09-12 read-only check found two identical Markdown cards, only in `home_3h` and `home_12h`. Home/default_view contains none. Preserve the approved navigation policy; validate fixtures or explicitly route to a maintenance view without moving its cards into Home.
 
-## Current-Code Findings
+## Corrections to the original plan
 
-Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
+- Module 04 already preserves raw config, unknown keys and Markdown options. Correct only the remaining `entity_id` string/array and empty-source validation gaps. A separate `MarkdownCardConfig` decoder is unnecessary.
+- Every actually mounted supported Markdown card uses `render_template`, including content without Jinja markers. Initial uncached content is blank; source rendering is the subscription-rejection fallback. A local static-only path does not establish dashboard parity.
+- The template variables contain the full raw card config and the existing current-user response's name. Retain that name during bootstrap; do not add another fetch or substitute an ID.
+- `show_empty:false` hides a successful zero-length result, not pending content or whitespace. The outer `hui-card` removes that hidden child and cancels its subscription. Returning to the cached view does not revive the hidden child.
+- Cached view instances retain their previous results beyond one second. That lifetime differs from the complete-config one-second handoff cache used by newly created components. Changed installed dashboard config recreates all views/cards; unchanged entity and graph-range updates do not.
+- A stream error retains the previous body and alert precedence; later success does not clear the alert. Subscription rejection and transport reconnect are separate paths, specified in C08-03–07.
+- Foundation Markdown parsing needs explicit native block layout and compatibility corrections. One attributed `Text` is insufficient for lists, code, tables and alerts. Preserve literal code/escaped syntax except the reference GitHub-alert DOM conversion, which also recognizes markers in those forms.
+- Interactive card actions consume link clicks. Support the packet's bounded none/navigate/explicit-entity more-info/external-URL matrix; unsupported or confirmation-bearing actions show a notice and execute nothing. Full generic action parity remains outside this stage.
 
-- `MarkdownCard` currently renders `card.content` using plain `Text`.
-- Markdown syntax, links, lists, emphasis, headings, and code blocks are not rendered.
-- HA template rendering is not supported.
-- Rendering does not yet implement the preserved `show_empty`, `text_only`, and action options.
+## Implementation ownership
 
-Current decoder evidence is in `Sources/NativeHACore/LovelaceModels.swift`:
+| Concern | Native path |
+|---|---|
+| Existing config/current-user decode | `LovelaceModels.swift`, `Models.swift` |
+| Typed template wire/event API | `HomeAssistantTemplate.swift` through Module 02 |
+| Demand, retained view state, cancellation and result handoff | `DashboardMarkdownCoordinator.swift`, `DashboardViewModel.swift` |
+| Native document preparation/cache | `MarkdownRendering.swift` |
+| Card/block rendering and bounded actions | `MarkdownCardView.swift`; dispatch in `CardViews.swift` |
 
-- Module 04 already preserves raw Markdown options and exposes `content`, `textOnly`, `cardSize`, `showEmpty`, and action fields. Do not redo that decoder.
-- Research must resolve the real remaining shape mismatch: the reference card accepts `entity_id` as a string or array and sends it as wire `entity_ids`; the current typed `entityID` accessor accepts only a string. Raw array input is preserved but diagnosed.
-- Empty source content currently decodes; reference `setConfig` rejects it. Correct this in Module 08 alongside the separate rendered-empty behavior.
+Keep one Swift-writing owner. Reuse Module 02's transport and Modules 05/12's weak lifetime, owner reconciliation and direct-route boundaries. Publish ordinary result updates through the individual card state. Parse off-main and reject retired generations; keep diagnostics debug-only. Typed presentation and rebuildable-document cache policy lives in `AppConfig.swift`.
 
-## Reference Implementation Paths
+## Verification gates
 
-- `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/cards/hui-markdown-card.ts`
-- `/Users/jin/Documents/HA/hass-frontend/src/components/ha-markdown.ts`
-- `/Users/jin/Documents/HA/hass-frontend/src/data/ws-templates.ts`
+Follow the packet's C08-01–12 contract matrix and [visual testing workflow](../visual-testing.md), with these evidence layers:
 
-## Target Architecture
+1. **Reference oracle:** exact worker output and source hashes for tracked Markdown fixtures. Keep DOM postprocessing, lifecycle and actions separate from the worker oracle.
+2. **Deterministic Swift tests:** wire payloads, config validation, supported Markdown semantics, explicit deferred fallback, link/action dispatch, per-card isolation, error precedence, cancellation, reconnect, cached-empty mounting and view/config cache lifetimes. No service calls or real URL opening.
+3. **Native rendering:** matching 496/320-point dark fixtures for core content, title/text-only, pending, retained error, long wrapping and deferred fallback. Use natural content height rather than cropping a long document to an arbitrary composite height. Hidden content requires semantic parent-layout removal assertions. Inspect native images beside comparable reference captures; label offline component-style approximations honestly and do not automatically approve them as goldens.
+4. **Performance/lifecycle:** cold/warm 1 MB preparation, isolated repeated updates among 100 cards, owner churn and cancellation. Construct inputs outside measurement, consume results and report CPU/memory where supported. Keep reusable methodology/results under `Benchmarks/Markdown/`. Graph history-window benchmarks do not apply to this Markdown-only cache.
+5. **Read-only HA smoke:** production-shaped template requests and successful unsubscribe cleanup against existing Markdown source. This confirms server acceptance; fake transport tests establish actual Swift wire behavior.
+6. **Integration review:** full debug/release suites, independent implementation review, resolver self-test, exact diff and refreshed affected source anchors.
 
-Split the card into three concerns:
+Full-runtime browser visual comparison and event-to-frame XCUITest coverage must be distinguished from fixture/source evidence. Xcode 13.4.1 has no `XCTHitchMetric`; its absence is not a reason to fabricate performance coverage. Do not claim module completion while an applicable contract still fails.
 
-- `MarkdownCardConfig`
-  - Decodes and preserves Lovelace options.
-- `MarkdownRenderer`
-  - Converts static Markdown into SwiftUI-renderable attributed text or structured views.
-- `TemplateRenderSubscription`
-  - Uses server template rendering according to the reference card lifecycle,
-    including content without recognizable template markers.
-  - Owns subscribe/unsubscribe lifecycle through Module 02.
+## Deferred work
 
-## Confirmed Corrections to Claude's Original Direction
-
-- Do not treat Markdown as a visual-only polish item. HA dashboards often use Markdown for dynamic status summaries.
-- Do not implement template rendering by doing local string interpolation. HA templates must be rendered by Home Assistant because they can reference server state, helpers, and Jinja-specific behavior.
-- Do not block static Markdown rendering on template support. The two should be staged.
-
-## Implementation Tasks
-
-1. Preserve Module 04 decoding and correct only researched remaining gaps.
-   - Already preserved:
-     - `content`
-     - `title`
-     - `show_empty`
-     - `text_only`
-     - `card_size`
-     - `tap_action`
-     - `hold_action`
-     - `double_tap_action`
-   - Preserve unknown keys and exact identity. Resolve the `entity_id` string/array and empty-source validation gaps above.
-
-2. Implement static Markdown rendering.
-   - Use `AttributedString(markdown:)` if platform deployment allows.
-   - If `AttributedString(markdown:)` is insufficient for layout, add a small renderer that supports headings, paragraphs, lists, links, inline code, fenced code, emphasis, strong text, and line breaks.
-   - Keep styling consistent with existing NativeHA card typography.
-
-3. Add safe fallback behavior.
-   - If Markdown parsing fails, show plain text rather than an empty card.
-   - Reference `setConfig` rejects absent/empty source `content` as a configuration error.
-   - `show_empty == false` hides the card only after a template result exists and its rendered string is empty; neither missing config nor pending first result is that state.
-   - Pin subscription rejection fallback separately: `_tryConnect` uses source content as the result and shows the rejection message only in preview mode. Stream error/warning events retain their distinct reference handling.
-
-4. Research template demand from the reference lifecycle.
-   - `HuiMarkdownCard._tryConnect` calls `subscribeRenderTemplate` whenever
-     config and HA are available and no subscription is pending. It does not
-     gate demand on `{{`, `{%`, or `{#` markers.
-   - Preserve server rendering, error fallback, cache, and visibility behavior
-     in the researched contract. A local static-rendering stage does not
-     establish parity or authorize skipping the server path.
-
-5. Add template rendering after Module 02.
-   - Use HA's template WebSocket API through the multiplexer.
-   - Subscribe while the card is visible.
-   - Update rendered content when the server pushes a new rendered result.
-   - Unsubscribe when the card disappears or the active Lovelace view changes.
-   - Recreate subscriptions after reconnect.
-
-6. Render server output as Markdown.
-   - HA renders the template to a string; NativeHA should then pass that string through the Markdown renderer.
-   - Preserve the researched distinction between subscription rejection fallback and streamed error/warning events; do not invent one generic error presentation.
-
-7. Honor `text_only`.
-   - Match the reference suppression of the title header, background, shadow, border, and its compact content padding.
-   - Native layout choices must preserve observable semantics; an intentional product difference needs user approval, not merely a note.
-
-8. Add link behavior.
-   - External links should open in the system browser.
-   - Module 12 navigation is complete. Research how internal links can use its existing routing boundary; explicitly bound any unsupported link behavior in the reviewed packet.
-
-## File Ownership and Scope
-
-Primary files:
-
-- `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`
-- `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHACore/Models.swift`
-
-Likely new files:
-
-- `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/MarkdownRenderer.swift`
-- `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/MarkdownTemplateStore.swift`
-
-Out of scope:
-
-- A full HTML renderer.
-- Running HA/Jinja templates locally.
-- Editing Markdown cards.
-- Full Lovelace action parity unless shared action routing already exists.
-
-## Tests and Verification
-
-Follow the offscreen capture and approved-reference workflow in [`../visual-testing.md`](../visual-testing.md). Parsing, link policy, template routing, sanitization, and lifecycle require semantic tests; pixels alone cannot show that content is safe or that only the intended card subscribed.
-
-### Unit tests
-
-Add `MarkdownRendererTests.swift` and, after template task 5 is implemented, `MarkdownTemplateStoreTests.swift` to `NativeHAMacTests`. Use fixed strings for:
-
-- headings, paragraphs, emphasis/strong text, links, ordered and unordered lists, inline code, line breaks, and the subset of fenced code actually supported by the chosen renderer;
-- long unbroken and whitespace-delimited lines, empty/nil content, malformed or unsupported markup, and plain-text parse fallback;
-- `show_empty`, `text_only`, title, and card-chrome decisions;
-- subscription demand for both marker-free and templated content, with fallback/error behavior pinned by research;
-- server-rendered output passing back through Markdown exactly once; and
-- external versus internal link classification without opening a browser in the unit suite.
-
-Define and test the renderer's safety boundary. At minimum, script/event-handler content, unsafe URL schemes, unexpected HTML, images/data URLs, and malformed links must be rejected, escaped, or rendered as inert text according to the implementation's documented supported subset. This is an implementation-time decision: NativeHA does not currently have an HTML renderer, and this plan does not require one. Compare the intended subset and safe fallback with `hui-markdown-card.ts`, `ha-markdown.ts`, and hass-frontend's `ha-markdown-element.ts`/`render-markdown` path rather than assuming web HTML can be passed directly into SwiftUI.
-
-### Integration tests
-
-Add `MarkdownCardIntegrationTests.swift` with fixture-only view models/transports and no live server. Verify researched subscription demand for marker-free and templated content through Module 02; an initial and late template result rerender only the affected card; two template cards do not share results accidentally; errors remain recoverable; reconnect does not duplicate subscriptions; and disappearance prevents post-cancellation updates. Use deterministic fixture content and the root deployment/logging policy.
-
-### GUI rendering and visual regression
-
-Add `MarkdownCardRenderingTests.swift` (or extend the existing `GUIRenderingAndPerformanceTests.swift` until its renderer helper is shared) and run it on the main actor. On macOS 12 with Swift 5.6/Xcode 13.4.1, use `MacViewPNGRenderer`: `NSHostingView` in an offscreen AppKit window with capture through `bitmapImageRepForCachingDisplay(in:)` and `cacheDisplay(in:to:)`. SwiftUI `ImageRenderer` is unavailable.
-
-At display scale 2, fixed dark-Aqua appearance, dark color scheme, locale, timezone, and timestamps, render both the production 496-point width and a 320-point narrow width. Use `496x320` for the normal composite content fixture, `320x420` for its narrow counterpart, `496x120` and `320x160` for empty/fallback states, and `496x220` and `320x280` for explicit async template states. Always write inspectable PNGs to `.build/render-artifacts/` for:
-
-- headings plus paragraphs;
-- emphasis/strong text and links;
-- ordered and unordered lists;
-- long wrapping lines at both widths;
-- empty content with each supported `show_empty` outcome;
-- unsupported/malformed markup fallback; and
-- a supported dynamic template's initial/loading state and settled late result, once template subscriptions are implemented.
-
-Use fixture/state/width filenames such as `markdown-composite-496.png`, `markdown-long-lines-320.png`, `markdown-empty-hidden-320.png`, and `markdown-template-settled-496.png`. Do not write the hidden-card filename as a fabricated blank golden; use it only for a diagnostic parent-layout artifact if needed, while the pass/fail contract remains semantic visibility removal.
-
-Assert valid PNG signature, exact dimensions, nonblank output when content should be visible, expected text/link/list regions, padding, wrapping without horizontal clipping, and the settled result replacing its loading state. For an intentionally hidden empty card, assert semantic visibility/layout removal rather than requiring a nonblank PNG. Always write current visible-state artifacts and manually compare them with the same content/configuration in `/Users/jin/Documents/HA/hass-frontend`; do not mechanically approve NativeHA's current output. Only reviewed PNGs go in `Tests/NativeHAMacTests/ReferenceImages/`, with tolerant pixel comparison and a documented macOS baseline version. CI may later require the completed set via `NATIVEHA_REQUIRE_VISUAL_REFERENCES=1`. Intentional visual changes require reviewing actual, expected, and preferably diff artifacts before updating a reference.
-
-### Animation and interaction
-
-This module does not require decorative animation. Represent async template delivery as explicit loading, result, empty, and error states and snapshot those meaningful states; do not sleep until a real WebSocket happens to update. Use a bounded expectation or poll only to settle the offscreen SwiftUI view. If a custom link/card hover or press transition is added, expose deterministic state and render unhovered/hovered and released/pressed, or progress `0`, `0.5`, and `1`; assert distinct keyframes and a correct final frame, and test reduced motion where supported. Link destination and action routing remain semantic assertions, not screenshot claims.
-
-### Performance and lifecycle
-
-Add `MarkdownCardPerformanceTests.swift`. Prepare content outside measured blocks, consume the attributed/structured output, warm caches before warm measurements, and use `XCTClockMetric`, `XCTCPUMetric`, and `XCTMemoryMetric` to measure:
-
-- cold parsing/preparation of a deterministic 1 MB Markdown document containing headings, paragraphs, emphasis, links, and lists;
-- warm cached preparation of that same document;
-- 100 repeated late-template results affecting one of 100 cards, without live template subscriptions; and
-- repeated subscribe/unsubscribe, reconnect, card removal, and task cancellation once template support exists.
-
-Measure Markdown preparation separately from offscreen bitmap capture. Prefer stored XCTest baselines; a broad safety ceiling is acceptable only if loose and documented. Verify memory stabilizes and cached attributed content, subscriptions, and callbacks do not retain disappeared cards. Signpost metrics apply only to instrumented work. `XCTHitchMetric` is unavailable in Xcode 13.4.1, so real click/scroll event-to-frame hitch testing is later XCUITest work under newer Xcode.
-
-### Manual QA
-
-- Inspect both live Markdown cards at normal and narrow window widths and compare typography, headings, lists, link styling, line breaks, padding, wrapping, clipping, empty behavior, and unsupported markup fallback with hass-frontend.
-- With an offline fake result or a non-mutating live reference check, confirm a late template result changes only its card, a broken template shows a recoverable error, and navigating away stops updates.
-- Exercise external and internal links only after reviewing routing policy; confirm unsafe schemes/content are inert.
-
-## Dependencies
-
-- Module 02 for template subscriptions.
-- Module 04 for complete markdown card decoding.
-- Module 05 for card lifecycle and active-view cancellation.
-- Module 12 for internal navigation links if supported.
-
-## Risks
-
-- Swift `AttributedString(markdown:)` may not cover all Markdown/HTML that HA's web component supports.
-- Template subscriptions can leak if tied to SwiftUI view identity instead of the dashboard/view lifecycle.
-- Rendered template output may be empty by design. Respect `show_empty` rather than forcing placeholders.
-- Swift `AttributedString` behavior and supported Markdown differ across OS releases; document the supported subset and keep semantic parsing tests separate from OS-specific tolerant visual baselines.
-- Treating server-rendered Markdown as trusted HTML would create a security gap. The implementation must choose and test an inert/sanitized fallback rather than infer safety from hass-frontend screenshots.
-- A cache or template store keyed too broadly can display one card's late result in another card or retain sensitive output after disappearance.
-- True browser-style focus, click, and scroll hitch testing is outside the current SwiftPM/Xcode 13.4.1 setup; deterministic state rendering and semantic routing tests are required now, with later XCUITest if needed.
-
-## Acceptance Criteria
-
-- Static Markdown renders as formatted content.
-- Empty and malformed content have intentional fallback behavior.
-- Content follows the researched HA server-rendering lifecycle, including marker-free content, with explicit local fallback behavior.
-- Template subscriptions unsubscribe correctly.
-- The live dashboard's Markdown cards no longer display raw Markdown syntax unless the source intentionally uses plain text.
-- Unit tests define the supported Markdown subset, empty/fallback behavior, template demand, link classification, and sanitization/inert handling of unsafe content without opening browsers or contacting Home Assistant.
-- Integration tests prove researched subscription demand and that late template results, errors, reconnect, and cancellation remain isolated to the correct card when template support is implemented.
-- Reviewed 496-point and 320-point artifacts cover the required static fixtures and, when supported, explicit template states; they pass PNG, dimension, nonblank/visibility, region, wrapping, clipping, and padding checks with OS-documented tolerant references where approved.
-- Cold and warm 1 MB preparation, 100-card late-result isolation, and applicable subscription lifecycle tests pass stored XCTest performance baselines without unbounded memory growth or retained disappeared cards.
-- Manual hass-frontend comparison covers visible fidelity, while semantic tests remain the authority for safety, link routing, template lifecycle, data isolation, and performance.
+Advanced HTML/media/custom elements, editing, full generic action parity and unbounded browser navigation remain outside the first stage. The graph redesign, climate/fan modules, dashboard-card forecasts and previously deferred synthetic climate/axis failures retain their existing priority and scope.

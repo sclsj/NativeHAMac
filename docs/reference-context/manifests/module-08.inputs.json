@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "08",
+  "title": "Native Markdown and server template lifecycle, stage 1",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHACore/LovelaceModels.swift",
+      "symbols": [
+        "LovelaceCard",
+        "LovelaceResolvedIdentity"
+      ]
+    },
+    {
+      "path": "Sources/NativeHACore/Models.swift",
+      "symbols": [
+        "HACurrentUser",
+        "JSONValue"
+      ]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketClient.swift",
+      "symbols": [
+        "HomeAssistantWebSocketClient"
+      ]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
+      "symbols": [
+        "HomeAssistantWebSocketConnection"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": [
+        "CardRenderer"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": [
+        "DashboardViewModel"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelacePresentation.swift",
+      "symbols": [
+        "LovelacePresentationCard"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardLifecycle.swift",
+      "symbols": [
+        "DashboardLifetimeAuthority"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": [
+        "AppConfig"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/LovelaceViewNavigation.swift",
+      "symbols": [
+        "LovelaceViewNavigation"
+      ]
+    },
+    {
+      "path": "Sources/NativeHACore/HomeAssistantTemplate.swift",
+      "symbols": [
+        "HATemplateEvent",
+        "subscribeRenderTemplate"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardMarkdownCoordinator.swift",
+      "symbols": [
+        "DashboardMarkdownCoordinator",
+        "MarkdownCardState"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/MarkdownRendering.swift",
+      "symbols": [
+        "MarkdownParser",
+        "MarkdownPreparationCache"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/MarkdownCardView.swift",
+      "symbols": [
+        "MarkdownCard",
+        "MarkdownDocumentView",
+        "MarkdownActionPolicy"
+      ]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/MarkdownTests.swift",
+      "symbols": [
+        "MarkdownParserTests",
+        "MarkdownRenderingTests",
+        "MarkdownPerformanceTests"
+      ]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/MarkdownLifecycleTests.swift",
+      "symbols": [
+        "MarkdownLifecycleTests"
+      ]
+    },
+    {
+      "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
+      "symbols": [
+        "HomeAssistantWebSocketConnectionTests"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/panels/lovelace/cards/hui-markdown-card.ts",
+      "symbols": [
+        "HuiMarkdownCard"
+      ]
+    },
+    {
+      "path": "src/components/ha-markdown.ts",
+      "symbols": [
+        "HaMarkdown"
+      ]
+    },
+    {
+      "path": "src/components/ha-markdown-element.ts",
+      "symbols": [
+        "HaMarkdownElement"
+      ]
+    },
+    {
+      "path": "src/resources/render-markdown.ts",
+      "symbols": [
+        "renderMarkdown"
+      ]
+    },
+    {
+      "path": "src/resources/markdown-worker.ts",
+      "symbols": []
+    },
+    {
+      "path": "src/data/ws-templates.ts",
+      "symbols": [
+        "subscribeRenderTemplate",
+        "RenderTemplateResult",
+        "RenderTemplateError"
+      ]
+    },
+    {
+      "path": "src/util/cache-manager.ts",
+      "symbols": [
+        "CacheManager"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/common/has-action.ts",
+      "symbols": [
+        "hasAction"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/common/handle-action.ts",
+      "symbols": [
+        "handleAction"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/common/directives/action-handler-directive.ts",
+      "symbols": [
+        "actionHandler"
+      ]
+    },
+    {
+      "path": "src/common/dom/is-navigation-click.ts",
+      "symbols": [
+        "isNavigationClick"
+      ]
+    },
+    {
+      "path": "src/common/navigate.ts",
+      "symbols": [
+        "navigate"
+      ]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/connection.js",
+      "symbols": [
+        "Connection"
+      ]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/object-hash/dist/object_hash.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/marked/lib/marked.esm.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/xss/lib/index.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/xss/lib/default.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/xss/lib/parser.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/xss/lib/xss.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/comlink/dist/esm/comlink.mjs",
+      "symbols": []
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-card.ts",
+      "symbols": [
+        "HuiCard"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-stack-card.ts",
+      "symbols": [
+        "HuiStackCard"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/cards/hui-vertical-stack-card.ts",
+      "symbols": []
+    },
+    {
+      "path": "src/panels/lovelace/views/hui-view.ts",
+      "symbols": [
+        "HuiView"
+      ]
+    },
+    {
+      "path": "src/data/ws-user.ts",
+      "symbols": [
+        "userCollection",
+        "subscribeUser"
+      ]
+    },
+    {
+      "path": "src/state/auth-mixin.ts",
+      "symbols": []
+    },
+    {
+      "path": "src/panels/lovelace/hui-root.ts",
+      "symbols": [
+        "HUIRoot"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-card-element.ts",
+      "symbols": [
+        "tryCreateCardElement"
+      ]
+    },
+    {
+      "path": "src/panels/lovelace/create-element/create-element-base.ts",
+      "symbols": [
+        "createErrorCardElement"
+      ]
+    },
+    {
+      "path": "node_modules/xss/lib/util.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/object-hash/index.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/collection.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/store.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/commands.js",
+      "symbols": []
+    },
+    {
+      "path": "src/components/ha-alert.ts",
+      "symbols": []
+    },
+    {
+      "path": "src/components/ha-card.ts",
+      "symbols": []
+    }
+  ],
+  "followPackages": [
+    "home-assistant-js-websocket",
+    "marked",
+    "xss",
+    "cssfilter",
+    "object-hash",
+    "comlink"
+  ],
+  "followTypeOnly": false,
+  "maxDepth": 1,
+  "maxNodes": 5000
+}
