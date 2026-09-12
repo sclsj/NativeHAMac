@@ -1,5 +1,7 @@
 import Foundation
+#if DEBUG
 import SQLite3
+#endif
 
 public enum LogCategory: String {
     case webSocket
@@ -26,7 +28,9 @@ public enum LogSeverity: String {
     }
 }
 
+#if DEBUG
 let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+#endif
 
 public struct LogSeverityPolicy {
     public var webSocket: LogSeverity?
@@ -93,6 +97,7 @@ public struct LoggingPolicy {
     }
 }
 
+#if DEBUG
 private var storedLoggingPolicy = LoggingPolicy(
     minimumSeverity: LogSeverityPolicy(
         webSocket: .debug,
@@ -120,11 +125,14 @@ public var activeLoggingPolicy: LoggingPolicy {
     }
 }
 
+#endif
+
 /// Preserve non-UTF8 diagnostic payloads without silently replacing bytes.
 func diagnosticPayload(_ data: Data) -> String {
     String(data: data, encoding: .utf8) ?? "base64:\(data.base64EncodedString())"
 }
 
+#if DEBUG
 func isDiagnosticCancellation(_ error: Error) -> Bool {
     error is CancellationError ||
         (error as? URLError)?.code == .cancelled ||
@@ -476,3 +484,9 @@ public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity =
     
     AppLogger.shared.log(timestamp: t, severity: sev, category: cat, file: f, function: fun, line: Int(line), message: msg)
 }
+
+#else
+/// Optimized callers erase this call without evaluating the message.
+@inlinable @inline(__always)
+public func AppLog(_ message: @autoclosure () -> String, severity: LogSeverity = .info, category: LogCategory = .general, file: StaticString = #file, function: StaticString = #function, line: UInt = #line) {}
+#endif

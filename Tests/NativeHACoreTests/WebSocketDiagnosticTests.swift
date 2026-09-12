@@ -1,3 +1,4 @@
+#if DEBUG
 import XCTest
 @testable import NativeHACore
 
@@ -104,3 +105,5 @@ final class WebSocketDiagnosticTests: XCTestCase {
 }
 
 private struct DiagnosticPayload: Decodable { let sequence: Int }
+
+#endif

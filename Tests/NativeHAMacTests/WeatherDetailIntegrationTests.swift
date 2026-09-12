@@ -233,10 +233,12 @@ final class WeatherDetailIntegrationTests: XCTestCase {
                 ]), diagnosticPath: "views[0].cards[0]"),
             ]),
         ])
+        let replacementBoundary = WeatherDetailSuspensionGate()
         let model = DashboardViewModel(
             webSocketClient: client,
             initialStates: [state.entityId: state],
-            initialViews: original.views
+            initialViews: original.views,
+            dashboardOwnerCandidateHook: { await replacementBoundary.suspend() }
         )
         await model.synchronizeHistorySubscriptionsForTesting()
         let cardOnlyCommands = await transport.forecastCommands()
@@ -248,9 +250,12 @@ final class WeatherDetailIntegrationTests: XCTestCase {
             LovelaceView(title: "Other", path: "other", cards: []),
         ])
         let apply = Task { @MainActor in await model.applyLovelaceConfigForTesting(replacement) }
-        await Task.yield()
+        // Hold replacement before asynchronous cleanup; yielding once does
+        // not prove the MainActor task has started.
+        await replacementBoundary.waitUntilEntered()
         XCTAssertNil(model.selectedEntityID, "Config invalidation dismisses detail synchronously")
         XCTAssertFalse(model.weatherDetailCoordinator.debugSnapshot().desired)
+        await replacementBoundary.release()
         await apply.value
         XCTAssertEqual(model.weatherDetailCoordinator.ownerCount, 0)
         let socket = await client.connection.debugSnapshot()

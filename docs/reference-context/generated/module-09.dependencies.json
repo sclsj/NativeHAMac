@@ -6390,7 +6390,7 @@
       "typeResolved": "src/resources/echarts/ha-ec-option.ts"
     }
   ],
-  "graphFingerprint": "bfed63f5ecd603efa351c70db310fd53da260adc6532abd4a97f2ff5deec4e58",
+  "graphFingerprint": "dd7b6da22cfa3e9fa448561db660f0c409d23ed69ddb2e8424d600bce3177fc9",
   "manifest": {
     "module": "09",
     "path": "docs/reference-context/manifests/module-09.inputs.json",
@@ -6457,16 +6457,16 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
+        "sha256": "003fa8825f867346ebc4da1bda9bb5dd19f47a1d704fb706f78f9ad4df339f25",
         "symbols": [
           "BitmapLineChart",
           "UnitGraph"
         ],
-        "worktreeBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc"
+        "worktreeBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d"
       },
       {
         "dirty": false,
@@ -6480,8 +6480,8 @@
         "worktreeBlob": "ca35e2f1af27ba347d6a80ee406feb59977971ff"
       },
       {
-        "dirty": true,
-        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
+        "dirty": false,
+        "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
@@ -6504,18 +6504,18 @@
         "worktreeBlob": "fc38e808c3beeba1640318be2b82683e22e7754b"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a2666396d811547431710302f8f31244a8ca5794",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRendering.swift",
-        "sha256": "6fdeb14608f5a396a800fba83ce40df034e0cc93fde90b8ddaccfbaa1d22e373",
+        "sha256": "f508c6a9cc155162b5e8221d993a1c8ce0e5b7bb78e96e4d33aed308072a2483",
         "symbols": [
           "GraphBitmapRenderer",
           "GraphPreparedSeriesCache",
           "GraphPreparedSeriesCacheStatistics",
           "GraphRenderMetrics"
         ],
-        "worktreeBlob": "a2666396d811547431710302f8f31244a8ca5794"
+        "worktreeBlob": "13fe668503e8609b1946a7e060361fc4adb8c099"
       },
       {
         "dirty": false,
@@ -6555,7 +6555,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
+    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
   },
   "nodes": [
     {

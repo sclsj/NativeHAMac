@@ -68,7 +68,9 @@ final class HAEntitySubscriptionCoordinator {
         generation: UInt64,
         continuation: CheckedContinuation<[String: HAState], Error>
     )?
+    #if DEBUG
     private var loggedUnknownEntityIDs = Set<String>()
+    #endif
     private let onSnapshot: SnapshotHandler
     private let onPhase: PhaseHandler
     private let lifetimeAuthority: DashboardLifetimeAuthority
@@ -245,6 +247,7 @@ final class HAEntitySubscriptionCoordinator {
         store = prepared.0
         acceptedFirstSnapshot = true
         acceptedLiveGeneration = ownerGeneration
+        #if DEBUG
         for entityID in prepared.1.unknownChangedEntityIDs
             where loggedUnknownEntityIDs.insert(entityID).inserted
         {
@@ -254,6 +257,7 @@ final class HAEntitySubscriptionCoordinator {
                 category: .webSocket
             )
         }
+        #endif
         // This one MainActor callback is the only observable publication for a
         // payload; the complete prepared dictionary is already immutable here.
         onSnapshot(prepared.1.snapshot)

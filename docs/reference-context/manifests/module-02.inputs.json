@@ -52,6 +52,10 @@
       "symbols": ["SQLiteLoggerTests"]
     },
     {
+      "path": "Tests/NativeHACoreTests/ReleaseLoggingTests.swift",
+      "symbols": ["ReleaseLoggingTests"]
+    },
+    {
       "path": "Tests/NativeHACoreTests/WebSocketDiagnosticTests.swift",
       "symbols": ["WebSocketDiagnosticTests"]
     },

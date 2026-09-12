@@ -19905,7 +19905,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "085207ace794cc3f90f47da5ee36caff18a7257e125379e935f43228a0eac2a6",
+  "graphFingerprint": "318af1df47d17ed1b2e3d3bc6347521c0da15d5bcba5d8bf5f24b22d6999d6f3",
   "manifest": {
     "module": "05",
     "path": "docs/reference-context/manifests/module-05.inputs.json",
@@ -19928,17 +19928,17 @@
       },
       {
         "dirty": true,
-        "headBlob": "f57d2d4e20eaa8271085dfda7985b292b9fc6332",
+        "headBlob": "0b028c44ac2e44fce6cfa94cb779a9650a6d240a",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantRESTClient.swift",
-        "sha256": "8f9a79422b06cc71de8d7cddd5a2022534a0127014d3277dd954654bf97b2b3a",
+        "sha256": "9f417d0a5057ee16475a511785bc966297802a0423aca0c0b91735b22c1ba13a",
         "symbols": [
           "HomeAssistantRESTClient",
           "callService",
           "fetchConfig",
           "fetchStates"
         ],
-        "worktreeBlob": "0b028c44ac2e44fce6cfa94cb779a9650a6d240a"
+        "worktreeBlob": "6b83dbe89a34c6abb802ef7461fbac7e3be819aa"
       },
       {
         "dirty": false,
@@ -19957,10 +19957,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6",
+        "headBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "68e1120ec11b3d47d3b24b30393864212bb3d935304784082ba583099f1e44cf",
+        "sha256": "d09a83ff7ec4209d5de3b19272b2bcdcd57534490fe3a0d2c3e7579677e97a21",
         "symbols": [
           "HAWebSocketConnectionState",
           "HAWebSocketSubscription",
@@ -19971,7 +19971,7 @@
           "hasReadyConnectionOwner",
           "validateConnectionAttempt"
         ],
-        "worktreeBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9"
+        "worktreeBlob": "38e840dac09d2235ade52ef0c9b9d00fcf696630"
       },
       {
         "dirty": false,
@@ -20016,11 +20016,11 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
+        "sha256": "003fa8825f867346ebc4da1bda9bb5dd19f47a1d704fb706f78f9ad4df339f25",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -20030,7 +20030,7 @@
           "EntityRow",
           "HistoryGraphCard"
         ],
-        "worktreeBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc"
+        "worktreeBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d"
       },
       {
         "dirty": false,
@@ -20045,10 +20045,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "a8d9a5e13ec5bffa6b3f7b288723f61b3a0b50de",
+        "headBlob": "153088d4d5301979134be4ca415e9d599078a699",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardLifecycle.swift",
-        "sha256": "45b6ead8070b2bf1aaae7d7687e9e10a31f67a960dff0555fefe9722db9fb3b7",
+        "sha256": "226937eb08efe6f9ee318b5e45d615935950d5f23d2be499edc90f3d5cf9f0eb",
         "symbols": [
           "DashboardComponent",
           "DashboardComponentPhase",
@@ -20056,7 +20056,7 @@
           "DashboardLifecyclePhase",
           "DashboardLifetimeAuthority"
         ],
-        "worktreeBlob": "153088d4d5301979134be4ca415e9d599078a699"
+        "worktreeBlob": "2a502085a9da642743a667b08ac08cdaa941e3d1"
       },
       {
         "dirty": false,
@@ -20099,17 +20099,17 @@
         "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a2666396d811547431710302f8f31244a8ca5794",
         "missing": false,
         "path": "Sources/NativeHAMac/GraphRendering.swift",
-        "sha256": "6fdeb14608f5a396a800fba83ce40df034e0cc93fde90b8ddaccfbaa1d22e373",
+        "sha256": "f508c6a9cc155162b5e8221d993a1c8ce0e5b7bb78e96e4d33aed308072a2483",
         "symbols": [
           "GraphBitmapRenderer",
           "GraphPreparedSeriesCache",
           "GraphRenderSeriesInput"
         ],
-        "worktreeBlob": "a2666396d811547431710302f8f31244a8ca5794"
+        "worktreeBlob": "13fe668503e8609b1946a7e060361fc4adb8c099"
       },
       {
         "dirty": false,
@@ -20126,30 +20126,30 @@
         "worktreeBlob": "e96a925797cc7849663b0f4a6e4157afdd50a386"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "91311219e62cabecfde872df4cab8e563c34f08f",
         "missing": false,
         "path": "Sources/NativeHAMac/HAEntityStore.swift",
-        "sha256": "4ae8b132f662d51926fe5b2ccbc5b749435cedb81d5292ea6db1fb519e964387",
+        "sha256": "7a0ae8a03247e6b3eb2670fc1f2e8581f41cf179f2107fff7dfd23ea5b45d709",
         "symbols": [
           "HAEntityStore",
           "HAEntityStoreApplication"
         ],
-        "worktreeBlob": "91311219e62cabecfde872df4cab8e563c34f08f"
+        "worktreeBlob": "911362cb92ac88b52d09951265ddba869c9daaf5"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a5c9cb7d66f9ff0191ccb53af8bb129e8c21a5d6",
         "missing": false,
         "path": "Sources/NativeHAMac/HAEntitySubscriptionCoordinator.swift",
-        "sha256": "2fed40e543bdc4eea44dd898e8b529f7c9e0d25a84cdb5b3adb58434e3704d88",
+        "sha256": "df69ab0a73b8176b6336c34d6e5e642cf2401df6fb4ae46002c9ede9ffbc9226",
         "symbols": [
           "HAEntitySubscriptionCoordinator",
           "HAEntitySubscriptionDebugSnapshot",
           "HAEntitySubscriptionError",
           "HAEntitySubscriptionInstallationProof"
         ],
-        "worktreeBlob": "a5c9cb7d66f9ff0191ccb53af8bb129e8c21a5d6"
+        "worktreeBlob": "082e7df970d0c819e10c269e6ff2498ddc4d3b1c"
       },
       {
         "dirty": false,
@@ -20199,21 +20199,21 @@
       },
       {
         "dirty": true,
-        "headBlob": "bf2ba3059f268765517c193fcc40fb61fdf6f970",
+        "headBlob": "64c40bef08cddf2a556f536de18fdb8e05aa7cdc",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantRESTClientTests.swift",
-        "sha256": "b54a35007ce36bba05ad1209ca65cd629ee3d67e969cb5155047ac59e326c1d6",
+        "sha256": "b3a2e5ac14bbefdc54034731fdb6dd85dd98d96d74e4d5e5ce9a52891bfb17e9",
         "symbols": [
           "HomeAssistantRESTClientTests"
         ],
-        "worktreeBlob": "64c40bef08cddf2a556f536de18fdb8e05aa7cdc"
+        "worktreeBlob": "479e7230d60c5a8c390233f9e90574d72d8a99a9"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
-        "sha256": "f7b948a11fcd31f8e07e90cf7a78a2a0b2d97edcb116f49bdf504bafa90e6e2a",
+        "sha256": "b1d3928066ce3c1cf724f60575e45d54a80a238d73c23a4b1439eb1bb7f69845",
         "symbols": [
           "HomeAssistantWebSocketConnectionTests",
           "testConnectDuringHeldDisconnectInstallsRealOwnerAndOldCleanupCannotOverwriteIt",
@@ -20221,7 +20221,7 @@
           "testDisconnectDuringHeldReconnectConnectCannotInstallStaleReceiveLoop",
           "testLateCancelledConnectCannotClearNewerHeldConnectTaskSlot"
         ],
-        "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
+        "worktreeBlob": "66a1bc6db5a1c84194512a5da00d79cb9badaad7"
       },
       {
         "dirty": false,
@@ -20296,15 +20296,15 @@
         "worktreeBlob": "3a9a2626855bcbb9da76f704165bc35af4d72ea7"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "f88cc8eb4a98b732e6a8717cbe4ce78c2be359e4",
         "missing": false,
         "path": "Tests/NativeHAMacTests/HAEntityStoreTests.swift",
-        "sha256": "77b2939de1d3fb5a3fb8900eb1887d50d0c387898695163616dce7cb04d6d9cb",
+        "sha256": "36898df3fdce83b6e4d4a7447728594f65dfc4410f9036c941ff63e1c32a611f",
         "symbols": [
           "HAEntityStoreTests"
         ],
-        "worktreeBlob": "f88cc8eb4a98b732e6a8717cbe4ce78c2be359e4"
+        "worktreeBlob": "6450f61f6a57b2579b595824ec7c20d0a1ce05b9"
       },
       {
         "dirty": false,
@@ -20342,7 +20342,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd"
+    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
   },
   "nodes": [
     {

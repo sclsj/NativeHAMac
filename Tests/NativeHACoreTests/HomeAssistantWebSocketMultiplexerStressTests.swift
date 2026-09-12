@@ -219,10 +219,12 @@ final class HomeAssistantWebSocketMultiplexerStressTests: XCTestCase {
         XCTAssertEqual(terminations, [.deliveryOverflow(subscriptionID: slow.id)])
         XCTAssertEqual(overflowSnapshot.activeTerminationTaskCount, 1)
         XCTAssertEqual(overflowSnapshot.pendingTerminationCount, 0)
+        #if DEBUG
         let overflowDiagnostics = try persistedDiagnosticMessages(containing: slowEventType)
             .filter { $0.contains("subscription overflow") }
         XCTAssertEqual(overflowDiagnostics.count, 1)
         XCTAssertTrue(overflowDiagnostics.first?.contains("capacity=5") == true)
+        #endif
 
         await gate.open()
         await terminationGate.open()

@@ -908,14 +908,18 @@ private final class GraphPreparedSeriesCache {
         let key = stableKey(for: input, displayUnit: displayUnit)
         let fingerprint = sourceFingerprint(for: input.history)
 
+        #if DEBUG
         let isMainThread = Thread.isMainThread
         let requestStart = graphRenderClock()
+        #endif
         
         lock.lock()
+        #if DEBUG
         let lockWaitNanoseconds = graphRenderElapsed(since: requestStart)
         if lockWaitNanoseconds > 5_000_000 {
             AppLog("[\(isMainThread ? "MAIN" : "BG")] lock.lock() waited \(Double(lockWaitNanoseconds) / 1_000_000)ms for \(input.entityID)", severity: .warning, category: .rendering)
         }
+        #endif
 
         if let cached = storage[key] {
             if cached.matches(fingerprint) {
@@ -925,7 +929,9 @@ private final class GraphPreparedSeriesCache {
             }
             lock.unlock()
 
+            #if DEBUG
             let incStart = graphRenderClock()
+            #endif
             let exactLineage = exactLineageUpdate(
                 cached,
                 input: input,
@@ -943,10 +949,12 @@ private final class GraphPreparedSeriesCache {
                 displayUnit: displayUnit,
                 fingerprint: fingerprint
             ) {
+                #if DEBUG
                 let incElapsed = graphRenderElapsed(since: incStart)
                 if incElapsed > 5_000_000 {
                     AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate took \(Double(incElapsed) / 1_000_000)ms for \(input.entityID)", severity: .debug, category: .rendering)
                 }
+                #endif
                 lock.lock()
                 incrementalPreparationCount += 1
                 if exactLineage != nil {
@@ -956,18 +964,24 @@ private final class GraphPreparedSeriesCache {
                 store(updated, key: key)
                 return updated.series
             } else {
+                #if DEBUG
                 AppLog("[\(isMainThread ? "MAIN" : "BG")] incrementallyUpdate FAILED for \(input.entityID) (points: \(input.history.points.count))", severity: .debug, category: .rendering)
+                #endif
             }
         } else {
             lock.unlock()
         }
 
+        #if DEBUG
         let fullStart = graphRenderClock()
+        #endif
         guard let prepared = prepareFull(input: input, displayUnit: displayUnit, fingerprint: fingerprint) else {
             return nil
         }
+        #if DEBUG
         let fullElapsed = graphRenderElapsed(since: fullStart)
         AppLog("[\(isMainThread ? "MAIN" : "BG")] prepareFull took \(Double(fullElapsed) / 1_000_000)ms for \(input.entityID)", severity: .debug, category: .rendering)
+        #endif
 
         lock.lock()
         fullPreparationCount += 1

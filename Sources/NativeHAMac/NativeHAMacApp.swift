@@ -6,10 +6,12 @@ import NativeHACore
 struct NativeHAMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    #if DEBUG
     init() {
         activeLoggingPolicy = AppConfig.loggingPolicy
         _ = AppLogger.shared
     }
+    #endif
 
     var body: some Scene {
         WindowGroup {
@@ -43,8 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    #if DEBUG
     func applicationWillTerminate(_ notification: Notification) {
         AppLog("Application will terminate", category: .lifecycle)
         AppLogger.shared.flushAndWait()
     }
+    #endif
 }

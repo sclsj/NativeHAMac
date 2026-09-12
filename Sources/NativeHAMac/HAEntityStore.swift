@@ -3,7 +3,9 @@ import NativeHACore
 
 struct HAEntityStoreApplication: Equatable {
     let snapshot: [String: HAState]
+    #if DEBUG
     let unknownChangedEntityIDs: [String]
+    #endif
     let revision: UInt64
 }
 
@@ -24,7 +26,9 @@ struct HAEntityStore {
         authoritative: Bool
     ) -> HAEntityStoreApplication {
         var candidate = authoritative ? [:] : snapshot
+        #if DEBUG
         var unknown: [String] = []
+        #endif
 
         // Wire contract: additions/replacements, then removals, then changes.
         for (entityID, compressed) in payload.additions ?? [:] {
@@ -35,7 +39,9 @@ struct HAEntityStore {
         }
         for (entityID, change) in payload.changes ?? [:] {
             guard let old = candidate[entityID] else {
+                #if DEBUG
                 unknown.append(entityID)
+                #endif
                 continue
             }
             candidate[entityID] = Self.patched(old, with: change)
@@ -43,11 +49,15 @@ struct HAEntityStore {
 
         revision &+= 1
         snapshot = candidate
+        #if DEBUG
         return HAEntityStoreApplication(
             snapshot: candidate,
             unknownChangedEntityIDs: unknown.sorted(),
             revision: revision
         )
+        #else
+        return HAEntityStoreApplication(snapshot: candidate, revision: revision)
+        #endif
     }
 
     private static func state(

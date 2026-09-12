@@ -1,3 +1,4 @@
+#if DEBUG
 import XCTest
 import SQLite3
 @testable import NativeHACore
@@ -223,7 +224,7 @@ final class SQLiteLoggerTests: XCTestCase {
         XCTAssertEqual(Set(rows), Set((0..<1_000).map { "entry-\($0)" }))
     }
 
-    func testAppLogPersistsSelectedErrorInDebugAndReleaseBuilds() throws {
+    func testAppLogPersistsSelectedErrorInDebugBuilds() throws {
         let marker = "app-log-regression-\(UUID())"
         AppLog(marker, severity: .error, category: .general)
         let rows = try persistedDiagnosticMessages(containing: marker)
@@ -297,3 +298,5 @@ private enum SQLiteLoggerTestError: Error {
     case prepareFailed
     case readFailed
 }
+
+#endif

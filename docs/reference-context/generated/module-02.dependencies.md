@@ -1,6 +1,6 @@
 # Dependency graph: module 02
 
-- Fingerprint: `369f987cdabf6531761f2e9643d98d8f03c40c4ce9a9d6c7f98d911de28bcbe7`
+- Fingerprint: `a1fd7162b8a4f4c1572989bdc3f7bc0c7dd54b43c3633fe152ead291459bad98`
 - Reference revision: `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` (clean)
 - TypeScript: `6.0.3`
 - Nodes: 31; edges: 61; cycles: 0

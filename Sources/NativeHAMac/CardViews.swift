@@ -760,9 +760,13 @@ struct UnitGraph: View {
                 guard zoomScale > 1.01 else {
                     return
                 }
+                #if DEBUG
                 let old = panFraction
+                #endif
                 panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
+                #if DEBUG
                 AppLog("onPan: scrollDelta=\(delta) oldPan=\(old) newPan=\(panFraction)", severity: .debug, category: .interaction)
+                #endif
             }
             .frame(height: chartHeight)
 
@@ -795,25 +799,37 @@ struct UnitGraph: View {
             }
         }
         .onChange(of: seriesContentToken) { _ in
+            #if DEBUG
             let oldAnchor = windowAnchor
+            #endif
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            #if DEBUG
             AppLog("onChange(seriesContentToken): zoom=\(zoomScale) pan=\(panFraction) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
+            #endif
         }
         .onChange(of: zoomScale) { newValue in
+            #if DEBUG
             let oldAnchor = windowAnchor
+            #endif
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            #if DEBUG
             AppLog("onChange(zoomScale): zoom=\(newValue) pan=\(panFraction) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
+            #endif
         }
         .onChange(of: panFraction) { newValue in
+            #if DEBUG
             let oldAnchor = windowAnchor
+            #endif
             if zoomScale <= 1.01 && panFraction >= 0.995 {
                 windowAnchor = Date().timeIntervalSince1970
             }
+            #if DEBUG
             AppLog("onChange(panFraction): zoom=\(zoomScale) pan=\(newValue) oldAnchor=\(oldAnchor) newAnchor=\(windowAnchor)", severity: .debug, category: .interaction)
+            #endif
         }
     }
 
@@ -1427,12 +1443,14 @@ struct GraphInteractionOverlay: NSViewRepresentable {
             let point = convert(event.locationInWindow, from: nil)
             onHover(point)
             
+            #if DEBUG
             if event.phase == .began {
                 AppLog("Magnification gesture began at \(point)", category: .interaction)
             } else if event.phase == .ended || event.phase == .cancelled {
                 AppLog("Magnification gesture ended", category: .interaction)
             }
             
+            #endif
             onMagnify(event.magnification, point)
         }
 
@@ -2383,9 +2401,13 @@ struct DetailHistoryGraph: View {
                     guard zoomScale > 1.01 else {
                         return
                     }
+                    #if DEBUG
                     let old = panFraction
+                    #endif
                     panFraction = min(max(panFraction - panDelta(for: delta, zoomScale: zoomScale), 0), 1)
+                    #if DEBUG
                     AppLog("onPan: scrollDelta=\(delta) oldPan=\(old) newPan=\(panFraction)", severity: .debug, category: .interaction)
+                    #endif
                 }
                 .frame(height: 230)
                 .onChange(of: "\(history.points.count):\(history.contentRevision)") { _ in

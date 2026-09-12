@@ -67,7 +67,7 @@ final class HomeAssistantRESTClientTests: XCTestCase {
         XCTAssertEqual(states.first?.state, "on")
     }
 
-    func testFailedServicePersistsRequestStatusAndCompleteResponse() async throws {
+    func testFailedServicePreservesStatusAndResponseWithDebugDiagnostics() async throws {
         let marker = "service-rejection-\(UUID())"
         MockURLProtocol.requestHandler = { request in
             (HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!, Data(marker.utf8))
@@ -79,15 +79,17 @@ final class HomeAssistantRESTClientTests: XCTestCase {
             XCTAssertTrue(error.localizedDescription.contains("400"))
             XCTAssertEqual(error as? HomeAssistantClientError, .httpStatus(400, marker))
         }
+        #if DEBUG
         let rows = try persistedDiagnosticMessages(containing: marker)
         XCTAssertEqual(rows.count, 1)
         let message = try XCTUnwrap(rows.first)
         XCTAssertTrue(message.contains("POST http://homeassistant.local:8123/api/services/light/turn_on"))
         XCTAssertTrue(message.contains("light.desk"))
         XCTAssertTrue(message.contains("status=400"))
+        #endif
     }
 
-    func testMalformedSuccessResponsePersistsDecodeCauseAndPayload() async throws {
+    func testMalformedSuccessResponsePreservesDecodeErrorWithDebugDiagnostics() async throws {
         let marker = "decode-regression-\(UUID())"
         MockURLProtocol.requestHandler = { request in
             (HTTPURLResponse.ok(for: request), Data("{\"location_name\":123,\"marker\":\"\(marker)\"}".utf8))
@@ -98,10 +100,12 @@ final class HomeAssistantRESTClientTests: XCTestCase {
         } catch {
             XCTAssertTrue(error is DecodingError)
         }
+        #if DEBUG
         let rows = try persistedDiagnosticMessages(containing: marker)
         XCTAssertEqual(rows.count, 1)
         XCTAssertTrue(rows.first?.contains("typeMismatch") == true)
         XCTAssertTrue(rows.first?.contains("location_name") == true)
+        #endif
     }
 
     private func makeClient() -> HomeAssistantRESTClient {

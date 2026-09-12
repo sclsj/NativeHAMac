@@ -821,6 +821,11 @@ final class HomeAssistantWebSocketConnectionTests: XCTestCase {
         XCTAssertEqual(factory.count(), 2)
         XCTAssertEqual(readyWhileOldDisconnectIsHeld.state, .ready)
         XCTAssertEqual(readyWhileOldDisconnectIsHeld.receiveLoopCount, 1)
+        // Ready installs the receive task; the separate transport actor may
+        // not have entered receive() yet when connect() returns.
+        try await waitUntilDeadline(timeout: 2) {
+            await replacement.metrics().activeReceives == 1
+        }
         let replacementMetrics = await replacement.metrics()
         XCTAssertEqual(replacementMetrics.activeReceives, 1)
 

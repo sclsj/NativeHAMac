@@ -1,10 +1,11 @@
+#if DEBUG
 import Foundation
 import SQLite3
 import XCTest
 @testable import NativeHACore
 
 // Uses the real AppLog sink so integration tests verify persisted diagnostics,
-// including release-build behavior, rather than merely a mock callback.
+// in debug builds, rather than merely a mock callback.
 func persistedDiagnosticMessages(containing marker: String) throws -> [String] {
     let logger = AppLogger.shared
     XCTAssertTrue(logger.flushAndWait())
@@ -35,3 +36,5 @@ func persistedDiagnosticMessages(containing marker: String) throws -> [String] {
 }
 
 private enum DiagnosticReadError: Error { case failed }
+
+#endif

@@ -66774,7 +66774,7 @@
       "typeResolved": "node_modules/lit/development/index.d.ts"
     }
   ],
-  "graphFingerprint": "46cc82de64786e77cf64f9ef8d89ae35ba765fea586db9c29e01e5c1072e52b9",
+  "graphFingerprint": "e1a75fe1c6065114dbb2e0edf610cea318109d7aa79c6429e67450d1ee15ca4a",
   "manifest": {
     "module": "04",
     "path": "docs/reference-context/manifests/module-04.inputs.json",
@@ -66833,11 +66833,11 @@
         "worktreeBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "64771f6c15e45616fb8867e73419c5cc2347b051ad173a195e1af9227ba76b58",
+        "sha256": "003fa8825f867346ebc4da1bda9bb5dd19f47a1d704fb706f78f9ad4df339f25",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -66848,7 +66848,7 @@
           "UnsupportedCard",
           "WeatherCard"
         ],
-        "worktreeBlob": "642e59e8b0d3ca9da497fa75d232f1b01978dcbc"
+        "worktreeBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d"
       },
       {
         "dirty": false,
@@ -66862,8 +66862,8 @@
         "worktreeBlob": "f85ba0d9c5cfb203b568754f1da140d91a13f4fb"
       },
       {
-        "dirty": true,
-        "headBlob": "c6ad9dec318e2b6b17e4e12242ae939af2462cb0",
+        "dirty": false,
+        "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "03cbe76947736218cd5f3b09181272b2d008b47642da5903dc2698e4bfe98897",
@@ -66946,8 +66946,8 @@
         "worktreeBlob": "c9721a2f372a8ea585e3b0cb7817c47b4bf74992"
       },
       {
-        "dirty": true,
-        "headBlob": "8b917b5db790356bdf58315e6e79c1256691f532",
+        "dirty": false,
+        "headBlob": "eb21088f8579a700817a92feb2f2ff004bdd0a00",
         "missing": false,
         "path": "Tests/NativeHAMacTests/DashboardBootstrapLifecycleTests.swift",
         "sha256": "b821b718dd5a5e43673495ba8c9a0557b82d61c25ed04e2a7a6b0efb6738a477",
@@ -67014,7 +67014,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "9291da336d2f068c39c4924fed3add4c52c27f85"
+    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
   },
   "nodes": [
     {

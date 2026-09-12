@@ -102,20 +102,27 @@ public final class HomeAssistantRESTClient {
     }
 
     private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        #if DEBUG
         var responseData: Data?
         var status: Int?
+        #endif
         do {
             let (data, response) = try await session.data(for: request)
+            #if DEBUG
             responseData = data
+            #endif
             guard let http = response as? HTTPURLResponse else {
                 throw HomeAssistantClientError.invalidResponse
             }
+            #if DEBUG
             status = http.statusCode
+            #endif
             guard (200..<300).contains(http.statusCode) else {
                 throw HomeAssistantClientError.httpStatus(http.statusCode, diagnosticPayload(data))
             }
             return try decoder.decode(T.self, from: data)
         } catch {
+            #if DEBUG
             if !isDiagnosticCancellation(error), !Task.isCancelled {
                 AppLog(
                     "REST \(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "unknown") " +
@@ -127,6 +134,7 @@ public final class HomeAssistantRESTClient {
                     category: .network
                 )
             }
+            #endif
             throw error
         }
     }

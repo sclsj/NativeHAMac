@@ -1611,11 +1611,11 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "369f987cdabf6531761f2e9643d98d8f03c40c4ce9a9d6c7f98d911de28bcbe7",
+  "graphFingerprint": "a1fd7162b8a4f4c1572989bdc3f7bc0c7dd54b43c3633fe152ead291459bad98",
   "manifest": {
     "module": "02",
     "path": "docs/reference-context/manifests/module-02.inputs.json",
-    "sha256": "4112477313b0a26a07ac22af39163d6b183c121811d73d25a728eeed72da72cb"
+    "sha256": "28d2f3a49df4944bddbf60962b834af718d484dc95faf6cd469127c995affbff"
   },
   "nativeha": {
     "anchors": [
@@ -1646,10 +1646,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "f8f6c814ef53304bc42d5b35f1f53b31ffb358e6",
+        "headBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9",
         "missing": false,
         "path": "Sources/NativeHACore/HomeAssistantWebSocketConnection.swift",
-        "sha256": "68e1120ec11b3d47d3b24b30393864212bb3d935304784082ba583099f1e44cf",
+        "sha256": "d09a83ff7ec4209d5de3b19272b2bcdcd57534490fe3a0d2c3e7579677e97a21",
         "symbols": [
           "HAWebSocketDetachedDecodeBoundary",
           "HomeAssistantWebSocketConnection",
@@ -1659,7 +1659,7 @@
           "subscribeMessage",
           "subscribeRaw"
         ],
-        "worktreeBlob": "cfb53b0cd4f3d4da48dcfb921bd550deab867dc9"
+        "worktreeBlob": "38e840dac09d2235ade52ef0c9b9d00fcf696630"
       },
       {
         "dirty": false,
@@ -1700,16 +1700,16 @@
       },
       {
         "dirty": true,
-        "headBlob": "07c90abe52ce14b3dcac9839d6adef96af4eae06",
+        "headBlob": "4fe5acb128ef1c323ca51673c0df7cf84de15781",
         "missing": false,
         "path": "Sources/NativeHACore/SQLiteLogger.swift",
-        "sha256": "858440a886c746cdc829441020da0e244db32174eccbd9787fc5141e03db159b",
+        "sha256": "6cb69b89561e2d33bac97af9bb4fc99b9a94c35e86b97c6aa3fee2ee5f18e790",
         "symbols": [
           "AppLog",
           "AppLogger",
           "LoggingPolicy"
         ],
-        "worktreeBlob": "4fe5acb128ef1c323ca51673c0df7cf84de15781"
+        "worktreeBlob": "f908de5a6d9c79e63bf15e81cb78475611914b54"
       },
       {
         "dirty": false,
@@ -1735,60 +1735,71 @@
         "worktreeBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a"
       },
       {
-        "dirty": false,
-        "headBlob": null,
+        "dirty": true,
+        "headBlob": "54b6629ee2e85cce7d8aa07a60ecffaa649bea7d",
         "missing": false,
         "path": "Tests/NativeHACoreTests/DiagnosticTestSupport.swift",
-        "sha256": "f4a190748444383e3bb1ace32770453c2cb2563ff3443e18034b765f9934824f",
+        "sha256": "7fcf84af5ffd90d6f55c251675fdf31ce9a712fb7ee6312641e1a63b90f1d459",
         "symbols": [
           "persistedDiagnosticMessages"
         ],
-        "worktreeBlob": "54b6629ee2e85cce7d8aa07a60ecffaa649bea7d"
+        "worktreeBlob": "4d388e882793c8d9e3d97679689953eb501409a9"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketConnectionTests.swift",
-        "sha256": "f7b948a11fcd31f8e07e90cf7a78a2a0b2d97edcb116f49bdf504bafa90e6e2a",
+        "sha256": "b1d3928066ce3c1cf724f60575e45d54a80a238d73c23a4b1439eb1bb7f69845",
         "symbols": [
           "testCancelledQueuedTypedSliceReleasesLargeCoalescedFrameBacking",
           "testDetachedScanAndDecodeGuardsDropStaleGenerationEvents"
         ],
-        "worktreeBlob": "8c65d20bcf5f861358b134b4fba40cbfaecdeaca"
+        "worktreeBlob": "66a1bc6db5a1c84194512a5da00d79cb9badaad7"
       },
       {
         "dirty": true,
-        "headBlob": "7bfcafa121db14588d7acf8ef2a447c6cefb8205",
+        "headBlob": "fe96e0d30136322749bde831a373345c75f2d6e7",
         "missing": false,
         "path": "Tests/NativeHACoreTests/HomeAssistantWebSocketMultiplexerStressTests.swift",
-        "sha256": "e6dc9d27bdad5c2d2c7d51ac8a9c680b7b8507c537747f4478c137d7e96928dc",
+        "sha256": "736e7c98a4e2eb50c93e2f510dd9ce3e14746f835aff03925a74e1ec8c0e23ec",
         "symbols": [
           "HomeAssistantWebSocketMultiplexerStressTests"
         ],
-        "worktreeBlob": "fe96e0d30136322749bde831a373345c75f2d6e7"
-      },
-      {
-        "dirty": true,
-        "headBlob": "c6832b5fee9bdca9326c90d1cad5933390168129",
-        "missing": false,
-        "path": "Tests/NativeHACoreTests/SQLiteLoggerTests.swift",
-        "sha256": "71b037ba0e0d3d754e044bd58c934db36d3b16bd00f28abff479bae956466f14",
-        "symbols": [
-          "SQLiteLoggerTests"
-        ],
-        "worktreeBlob": "5d1db8892d66140653e4c4d6df6b64101af208f2"
+        "worktreeBlob": "912fb9bfd2c6a93186d14dd22ae331c97f3b7cae"
       },
       {
         "dirty": false,
         "headBlob": null,
         "missing": false,
+        "path": "Tests/NativeHACoreTests/ReleaseLoggingTests.swift",
+        "sha256": "4a03232404da9eef5f11b8fe74bd74653eb59d10f65a96becc1f2425422c73c3",
+        "symbols": [
+          "ReleaseLoggingTests"
+        ],
+        "worktreeBlob": "36130309f6187fddc9f29903f07cb921152535d4"
+      },
+      {
+        "dirty": true,
+        "headBlob": "5d1db8892d66140653e4c4d6df6b64101af208f2",
+        "missing": false,
+        "path": "Tests/NativeHACoreTests/SQLiteLoggerTests.swift",
+        "sha256": "ef8bef2596d9bad5920248e4dc8757810c5c238947c445a7d7c695c27d7f35a1",
+        "symbols": [
+          "SQLiteLoggerTests"
+        ],
+        "worktreeBlob": "e94875a4f35ea1b58e1bed6b139db11712c6e083"
+      },
+      {
+        "dirty": true,
+        "headBlob": "56a3e12734b8e6e7144d220e2b6f2485a85db01a",
+        "missing": false,
         "path": "Tests/NativeHACoreTests/WebSocketDiagnosticTests.swift",
-        "sha256": "f67490dca808cba99f87ba8cfaee5632d642d9fe5df6c5d9d1d21231368ac53e",
+        "sha256": "0a5239a34f95d17cd93fbdb4c1816b22e8a932c628b47b619fa44cfe63b1df4f",
         "symbols": [
           "WebSocketDiagnosticTests"
         ],
-        "worktreeBlob": "56a3e12734b8e6e7144d220e2b6f2485a85db01a"
+        "worktreeBlob": "7c5c718ad172a546b03cd541885b9c5f66570680"
       },
       {
         "dirty": false,
@@ -1806,7 +1817,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd"
+    "gitHead": "95c8c6fa927458c0db4dca11df9f006d67d9ac73"
   },
   "nodes": [
     {

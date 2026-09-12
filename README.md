@@ -54,7 +54,7 @@ Supported controls currently include toggles for `switch`, `fan`, `input_boolean
 
 ## Error logs
 
-See [logging and inspection commands](docs/logging.md). To inspect recent warnings/errors without modifying the database:
+Debug builds provide logging; release builds compile it out. See [logging and inspection commands](docs/logging.md). To inspect recent warnings/errors without modifying the database:
 
 ```sh
 python3 tools/read_logs.py --sessions --limit 10

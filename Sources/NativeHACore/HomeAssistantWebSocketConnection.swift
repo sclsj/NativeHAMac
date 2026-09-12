@@ -101,10 +101,17 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
         )
     }
 
+    // Empty in release: no diagnostic UUID or retained request dictionary.
+    struct DiagnosticContext {
+        #if DEBUG
+        let connectionID: UUID
+        let message: [String: JSONValue]
+        #endif
+    }
+
     static func typed<T: Decodable>(
         _ type: T.Type,
-        connectionID: UUID,
-        message: [String: JSONValue],
+        diagnosticContext: DiagnosticContext,
         onDecodingFailure: @escaping @Sendable (Error) async -> Void,
         callback: @escaping @Sendable (T) async -> Void
     ) -> HAWebSocketSubscriptionPayloadHandler {
@@ -119,11 +126,13 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
                         await callback(decoded)
                     } catch {
                         guard !Task.isCancelled else { return }
+                        #if DEBUG
                         AppLog(
-                            "WebSocket decode failed; connection=\(connectionID) type=\(type) " +
-                                "request=\(message) error=\(String(reflecting: error)) payload=\(value)",
+                            "WebSocket decode failed; connection=\(diagnosticContext.connectionID) type=\(type) " +
+                                "request=\(diagnosticContext.message) error=\(String(reflecting: error)) payload=\(value)",
                             severity: .warning, category: .webSocket
                         )
+                        #endif
                         await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
                     }
                 })
@@ -136,11 +145,13 @@ private struct HAWebSocketSubscriptionPayloadHandler: @unchecked Sendable {
                         await callback(decoded)
                     } catch {
                         guard !Task.isCancelled else { return }
+                        #if DEBUG
                         AppLog(
-                            "WebSocket decode failed; connection=\(connectionID) type=\(type) " +
-                                "request=\(message) error=\(String(reflecting: error)) payload=\(diagnosticPayload(data))",
+                            "WebSocket decode failed; connection=\(diagnosticContext.connectionID) type=\(type) " +
+                                "request=\(diagnosticContext.message) error=\(String(reflecting: error)) payload=\(diagnosticPayload(data))",
                             severity: .warning, category: .webSocket
                         )
+                        #endif
                         await onDecodingFailure(HomeAssistantWebSocketError.invalidMessage)
                     }
                 })
@@ -175,7 +186,9 @@ public actor HomeAssistantWebSocketConnection {
     public typealias TransportFactory = () throws -> HomeAssistantWebSocketTransport
 
     private struct PendingCommand {
-        let message: [String: JSONValue]
+        #if DEBUG
+        var message: [String: JSONValue] = [:]
+        #endif
         let logicalID: UUID
         let continuation: CheckedContinuation<JSONValue, Error>
         let timeoutTask: Task<Void, Never>
@@ -193,7 +206,9 @@ public actor HomeAssistantWebSocketConnection {
         var timeoutTask: Task<Void, Never>?
     }
 
+    #if DEBUG
     private let diagnosticID = UUID()
+    #endif
     private let accessToken: String
     private let commandTimeoutNanoseconds: UInt64
     private let deliveryCapacity: Int
@@ -278,7 +293,9 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func connect() async throws {
+        #if DEBUG
         AppLog("WebSocket connect() called", category: .webSocket)
+        #endif
         if hasReadyConnectionOwner {
             return
         }
@@ -325,11 +342,13 @@ public actor HomeAssistantWebSocketConnection {
             else {
                 throw CancellationError()
             }
+            #if DEBUG
             AppLog(
                 "WebSocket initial connection failed; connection=\(diagnosticID) generation=\(generation): \(String(reflecting: error))",
                 severity: .warning,
                 category: .webSocket
             )
+            #endif
             disconnectRequested = true
             let oldTransport = detachCurrentTransportSynchronously()
             await oldTransport?.disconnect()
@@ -349,7 +368,9 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     public func disconnect() async {
+        #if DEBUG
         AppLog("WebSocket disconnect() called", category: .webSocket)
+        #endif
         disconnectRequested = true
         connectionTask?.cancel()
         connectionTask = nil
@@ -482,11 +503,13 @@ public actor HomeAssistantWebSocketConnection {
             let data = try JSONEncoder().encode(result)
             return try JSONDecoder().decode(type, from: data)
         } catch {
+            #if DEBUG
             AppLog(
                 "WebSocket result decode failed; connection=\(diagnosticID) type=\(type) " +
                     "request=\(message) error=\(String(reflecting: error)) payload=\(result)",
                 severity: .warning, category: .webSocket
             )
+            #endif
             throw error
         }
     }
@@ -512,13 +535,19 @@ public actor HomeAssistantWebSocketConnection {
         onTermination: (@Sendable (Error) async -> Void)? = nil,
         onMessage: @escaping @Sendable (T) async -> Void
     ) async throws -> HAWebSocketSubscription {
-        try await subscribe(
+        #if DEBUG
+        let diagnosticContext = HAWebSocketSubscriptionPayloadHandler.DiagnosticContext(
+            connectionID: diagnosticID, message: message
+        )
+        #else
+        let diagnosticContext = HAWebSocketSubscriptionPayloadHandler.DiagnosticContext()
+        #endif
+        return try await subscribe(
             message,
             resubscribe: resubscribe,
             payloadHandler: .typed(
                 type,
-                connectionID: diagnosticID,
-                message: message,
+                diagnosticContext: diagnosticContext,
                 onDecodingFailure: { error in
                     await onTermination?(error)
                 },
@@ -903,7 +932,9 @@ public actor HomeAssistantWebSocketConnection {
                     pending.continuation.resume(returning: message["result"] ?? .null)
                 } else {
                     let error = commandError(from: message)
+                    #if DEBUG
                     logFailure(error, operation: "command id=\(id)", message: pending.message)
+                    #endif
                     pending.continuation.resume(throwing: error)
                 }
                 return
@@ -923,7 +954,9 @@ public actor HomeAssistantWebSocketConnection {
                 subscriptions[logicalID] = record
             } else {
                 let error = commandError(from: message)
+                #if DEBUG
                 logFailure(error, operation: "subscription id=\(id)", message: record.message)
+                #endif
                 wireSubscriptions.removeValue(forKey: id)
                 subscriptions.removeValue(forKey: logicalID)
                 if let acknowledgement = record.acknowledgement {
@@ -976,7 +1009,9 @@ public actor HomeAssistantWebSocketConnection {
         }
         record.timeoutTask?.cancel()
         let error = HomeAssistantWebSocketError.deliveryOverflow(subscriptionID: record.originalID)
+        #if DEBUG
         logFailure(error, operation: "subscription overflow logical=\(logicalID) wire=\(String(describing: record.wireID)) capacity=\(deliveryCapacity)", message: record.message)
+        #endif
         if let acknowledgement = record.acknowledgement {
             acknowledgement.resume(throwing: error)
         } else {
@@ -1028,11 +1063,13 @@ public actor HomeAssistantWebSocketConnection {
             await connection.timeoutPendingCommand(id)
         }
         pendingCommands[id] = PendingCommand(
-            message: command,
             logicalID: logicalID,
             continuation: continuation,
             timeoutTask: timeoutTask
         )
+        #if DEBUG
+        pendingCommands[id]?.message = command
+        #endif
         var commandToSend = command
         commandToSend["id"] = .int(id)
         await sendPendingCommand(commandToSend, id: id, generation: generation)
@@ -1179,11 +1216,13 @@ public actor HomeAssistantWebSocketConnection {
         guard generation == self.generation, !disconnectRequested else {
             return
         }
+        #if DEBUG
         AppLog(
             "WebSocket connection failed; connection=\(diagnosticID) generation=\(generation): \(String(reflecting: error))",
             severity: .warning,
             category: .webSocket
         )
+        #endif
 
         let oldTransport = detachCurrentTransportSynchronously()
         failAllPending(with: HomeAssistantWebSocketError.disconnected)
@@ -1257,10 +1296,12 @@ public actor HomeAssistantWebSocketConnection {
                       !Task.isCancelled,
                       !disconnectRequested
                 else { break }
+                #if DEBUG
                 AppLog(
                     "WebSocket reconnect failed; connection=\(diagnosticID) generation=\(generation) attempt=\(attempt): \(String(reflecting: error))",
                     severity: .warning, category: .webSocket
                 )
+                #endif
                 await abandonCurrentTransport()
                 guard reconnectTaskOwner == owner,
                       !Task.isCancelled,
@@ -1276,10 +1317,12 @@ public actor HomeAssistantWebSocketConnection {
                       !Task.isCancelled,
                       !disconnectRequested
                 else { break }
+                #if DEBUG
                 AppLog(
                     "WebSocket reconnect failed; connection=\(diagnosticID) generation=\(generation) attempt=\(attempt): \(String(reflecting: error))",
                     severity: .warning, category: .webSocket
                 )
+                #endif
                 await abandonCurrentTransport()
                 guard reconnectTaskOwner == owner,
                       !Task.isCancelled,
@@ -1320,7 +1363,9 @@ public actor HomeAssistantWebSocketConnection {
         guard let pending = pendingCommands.removeValue(forKey: id) else {
             return
         }
+        #if DEBUG
         logFailure(error, operation: "command id=\(id)", message: pending.message)
+        #endif
         pending.timeoutTask.cancel()
         pending.continuation.resume(throwing: error)
     }
@@ -1342,7 +1387,9 @@ public actor HomeAssistantWebSocketConnection {
         guard let record = subscriptions.removeValue(forKey: logicalID) else {
             return
         }
+        #if DEBUG
         logFailure(error, operation: "subscription logical=\(logicalID) wire=\(String(describing: record.wireID))", message: record.message)
+        #endif
         if let wireID = record.wireID {
             wireSubscriptions.removeValue(forKey: wireID)
         }
@@ -1355,6 +1402,7 @@ public actor HomeAssistantWebSocketConnection {
         await callbackCoordinator.remove(ownerID: logicalID)
     }
 
+    #if DEBUG
     private func logFailure(_ error: Error, operation: String, message: [String: JSONValue]) {
         // Disconnect is recorded once at the connection boundary, not once per
         // retired owner. Expected cancellation is not a failure diagnostic.
@@ -1367,6 +1415,8 @@ public actor HomeAssistantWebSocketConnection {
             severity: .warning, category: .webSocket
         )
     }
+
+    #endif
 
     private func allocateID() -> Int {
         let id = nextID
@@ -1383,7 +1433,9 @@ public actor HomeAssistantWebSocketConnection {
         guard let text = String(data: data, encoding: .utf8) else {
             throw HomeAssistantWebSocketError.invalidMessage
         }
+        #if DEBUG
         AppLog(text, severity: .debug, category: .webSocket)
+        #endif
         guard let outboundSender = outboundSender, outboundSender.isFor(transport) else {
             throw HomeAssistantWebSocketError.disconnected
         }
@@ -1398,14 +1450,18 @@ public actor HomeAssistantWebSocketConnection {
     private func frameData(_ frame: HAWebSocketFrame) -> Data {
         switch frame {
         case let .string(value):
+            #if DEBUG
             AppLog(value, severity: .debug, category: .webSocket)
+            #endif
             return Data(value.utf8)
         case let .data(value):
+            #if DEBUG
             AppLog(
                 "WebSocket receive data (base64): \(value.base64EncodedString())",
                 severity: .debug,
                 category: .webSocket
             )
+            #endif
             return value
         }
     }
@@ -1439,7 +1495,9 @@ public actor HomeAssistantWebSocketConnection {
     }
 
     private func transition(to newState: HAWebSocketConnectionState) {
+        #if DEBUG
         AppLog("WebSocket connection state transitioned to: \(newState)", category: .webSocket)
+        #endif
         state = newState
         for continuation in statusListeners.values {
             continuation.yield(newState)

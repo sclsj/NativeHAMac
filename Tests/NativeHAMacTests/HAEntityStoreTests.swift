@@ -85,7 +85,9 @@ final class HAEntityStoreTests: XCTestCase {
         )
         let second = store.apply(delta, authoritative: false)
         XCTAssertNil(second.snapshot["sensor.ordered"], "add then remove then change must ignore the final unknown patch")
+        #if DEBUG
         XCTAssertEqual(second.unknownChangedEntityIDs, ["sensor.ordered"])
+        #endif
         XCTAssertEqual(second.snapshot["sensor.one"]?.state, "2")
         XCTAssertEqual(second.snapshot["sensor.one"]?.attributes["keep"], .int(1))
         XCTAssertEqual(second.snapshot["sensor.one"]?.attributes["added"], .string("yes"))

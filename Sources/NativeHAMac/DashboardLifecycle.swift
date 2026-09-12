@@ -101,9 +101,11 @@ struct DashboardLifecycle: Equatable {
     }
 
     mutating func set(_ component: DashboardComponent, phase: DashboardComponentPhase) {
+        #if DEBUG
         if case let .failed(message) = phase, components[component] != phase {
             AppLog("Dashboard \(component.rawValue) failed: \(message)", severity: .error, category: .lifecycle)
         }
+        #endif
         components[component] = phase
         if self.phase == .reconnecting,
            components[.realtime] == .ready,
