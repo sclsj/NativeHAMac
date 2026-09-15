@@ -73,6 +73,7 @@ final class HAEntitySubscriptionCoordinator {
     #endif
     private let onSnapshot: SnapshotHandler
     private let onPhase: PhaseHandler
+    private let onReplacement: @MainActor (Set<String>) -> Void
     private let lifetimeAuthority: DashboardLifetimeAuthority
     private let taskObserver: ([Task<Void, Never>]) -> Void
 
@@ -80,6 +81,7 @@ final class HAEntitySubscriptionCoordinator {
         initialStates: [String: HAState] = [:],
         lifetimeAuthority: DashboardLifetimeAuthority = DashboardLifetimeAuthority(),
         taskObserver: @escaping ([Task<Void, Never>]) -> Void = { _ in },
+        onReplacement: @escaping @MainActor (Set<String>) -> Void = { _ in },
         onSnapshot: @escaping SnapshotHandler,
         onPhase: @escaping PhaseHandler
     ) {
@@ -90,6 +92,7 @@ final class HAEntitySubscriptionCoordinator {
         self.taskObserver = taskObserver
         self.onSnapshot = onSnapshot
         self.onPhase = onPhase
+        self.onReplacement = onReplacement
     }
 
     func start(using client: HomeAssistantWebSocketClient) async throws -> [String: HAState] {
@@ -261,6 +264,8 @@ final class HAEntitySubscriptionCoordinator {
         // This one MainActor callback is the only observable publication for a
         // payload; the complete prepared dictionary is already immutable here.
         onSnapshot(prepared.1.snapshot)
+        let replaced = authoritative ? Set(base.snapshot.keys).union(prepared.1.snapshot.keys) : Set((payload.additions ?? [:]).keys).union((payload.changes ?? [:]).keys).union(payload.removals ?? [])
+        onReplacement(replaced)
         onPhase(.ready)
         if firstSnapshotWaiter?.generation == ownerGeneration {
             let waiter = firstSnapshotWaiter?.continuation

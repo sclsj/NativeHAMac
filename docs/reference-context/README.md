@@ -2,7 +2,9 @@
 
 This directory is the durable handoff between read-heavy reference research and Swift implementation. The rescue plans define scope and intended architecture; the files here record revision-pinned evidence, current contract status, and the exact next action.
 
-The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md) and its user follow-up record the current priorities: bootstrap duplication is addressed; synthetic climate/axis failures are deferred pending reachability or module work; graph correctness and oracle repairs belong to the later dedicated graphing module. These deferrals do not block Module 08 stage 1. The table's `complete` entries describe scoped contracts, not whole-app readiness.
+The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md) and its follow-ups record the current priorities: bootstrap duplication is addressed; Module 10 repairs the synthetic climate fallback crash; numeric-axis and graph correctness/oracle repairs remain deferred to later dedicated graph work. Module 08 stage 1 is complete. The table's `complete` entries describe scoped contracts, not whole-app readiness.
+
+Module 10 refreshed shared native source anchors and packet fingerprints without reopening other modules' contracts. Current checks are green for 01/02/04/05/06/07/09/12; 08 and 10 retain only their documented dependency-boundary warnings, with no stale anchors.
 
 Do not copy generated dependency graphs into prompts or evidence packets. Run the staleness check, then read only the packet and the graph nodes named by the packet.
 
@@ -18,7 +20,7 @@ Do not copy generated dependency graphs into prompts or evidence packets. Run th
 | 07 | [Weather](../rescue-plan/module-07-weather-card.md) | [Module 07 evidence](modules/module-07-weather-card.md) | complete; revisions 1 and 2 independently verified | 2 / Complete 02, 04, 05, 06, and 12 | Preserve current-card and modal weather-detail contracts; keep C07-09/10 dashboard forecast deferred |
 | 08 | [Markdown](../rescue-plan/module-08-markdown-card.md) | [Module 08 evidence](modules/module-08-markdown-card.md) | complete; scoped implementation/visual verification; two reviewed graph boundaries | 1 / Requires 02, 04, 05, and 12; advanced HTML/media/custom elements deferred by user | Preserve template/native Markdown contracts and explicit fallback; full live-theme/golden verification remains outside current evidence |
 | 09 | [Graph rendering](../rescue-plan/module-09-graph-rendering.md) | [Module 09 bounded async-repair evidence](modules/module-09-graph-rendering.md) | bounded async repair verified; post-Module 08 graph green; stale-viewport fallback open; broader module unresearched | 3 / Module 01 implementation complete | Preserve the safe lineage fallback; defer audit graph fixes and broader design to the dedicated graphing module |
-| 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | not created | unresearched | Requires 05 and 06; fixed-server assumption replaces 03 | Card/detail phase |
+| 10 | [Climate detail](../rescue-plan/module-10-climate-detail.md) | [Module 10 evidence](modules/module-10-climate-detail.md) | verification-ready; independent offline/reference checks passed; A1 repaired | 1 / Requires 05 and 06; fixed-server assumption replaces 03 | Obtain explicit safe-target authorization for live temperature, preset and HVAC acceptance, then restore initial settings |
 | 11 | [Fan detail](../rescue-plan/module-11-fan-detail.md) | not created | unresearched | Requires 05 and 06 | Card/detail phase |
 
 ## Files

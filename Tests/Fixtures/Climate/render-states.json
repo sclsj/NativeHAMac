@@ -1,0 +1,21 @@
+{
+  "unit": "°C",
+  "timestamp": "2026-09-12T00:00:00.000Z",
+  "base": {
+    "entity_id": "climate.fixture",
+    "state": "off",
+    "attributes": {"friendly_name": "Room AC", "supported_features": 401, "hvac_modes": ["cool", "off"], "min_temp": 19, "max_temp": 28, "target_temp_step": 0.1, "current_temperature": 23.7, "temperature": 22.8, "preset_mode": "none", "preset_modes": ["none", "sleep", "activity"], "hvac_action": "off"}
+  },
+  "variants": [
+    {"name": "off", "state": "off", "attributes": {}},
+    {"name": "idle", "state": "cool", "attributes": {"hvac_action": "idle"}},
+    {"name": "cooling", "state": "cool", "attributes": {"hvac_action": "cooling"}},
+    {"name": "heating", "state": "heat", "attributes": {"hvac_action": "heating", "hvac_modes": ["heat", "cool", "off"], "temperature": 25}},
+    {"name": "unavailable", "state": "unavailable", "attributes": {}},
+    {"name": "unknown", "state": "unknown", "attributes": {}},
+    {"name": "sparse", "state": "off", "replaceAttributes": true, "attributes": {"friendly_name": "Sparse climate"}},
+    {"name": "current-only", "state": "cool", "replaceAttributes": true, "attributes": {"friendly_name": "Current only", "hvac_modes": ["cool", "off"], "current_temperature": 23.7, "min_temp": 19, "max_temp": 28}},
+    {"name": "current-no-bounds", "state": "cool", "replaceAttributes": true, "attributes": {"friendly_name": "Current without bounds", "hvac_modes": ["cool", "off"], "current_temperature": 23.7}},
+    {"name": "complete", "state": "heat_cool", "attributes": {"supported_features": 1022, "temperature": null, "target_temp_low": 21, "target_temp_high": 25, "hvac_modes": ["off", "heat_cool", "heat", "cool"], "hvac_action": "idle", "current_humidity": 45, "humidity": 50, "fan_mode": "auto", "fan_modes": ["auto", "low", "high"], "swing_mode": "off", "swing_modes": ["off", "vertical"], "swing_horizontal_mode": "off", "swing_horizontal_modes": ["off", "horizontal"]}}
+  ]
+}

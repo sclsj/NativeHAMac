@@ -33,16 +33,16 @@ final class DashboardServiceController {
         errorMessage = nil
     }
 
-    func canInvoke(entityID: String, state: HAState?, domain: String, service: String) -> Bool {
+    func canInvoke(entityID: String, state: HAState?, domain: String, service: String, climateInteraction: Bool = false) -> Bool {
         guard lifetimeAuthority.acceptsWork,
               caller != nil,
               let state = state,
               state.state != "unavailable",
-              state.state != "unknown"
+              state.state != "unknown" || climateInteraction
         else {
             return false
         }
-        return tasks[actionKey(entityID: entityID, domain: domain, service: service)] == nil
+        return climateInteraction || tasks[actionKey(entityID: entityID, domain: domain, service: service)] == nil
     }
 
     @discardableResult
@@ -52,9 +52,12 @@ final class DashboardServiceController {
         service: String,
         data: [String: JSONValue],
         errorContext: String,
+        climateInteraction: Bool = false,
         onCompletion: @escaping @MainActor (String?) -> Void = { _ in }
     ) -> Bool {
-        let action = actionKey(entityID: entityID, domain: domain, service: service)
+        // Climate gestures are independently committed in HA, including while a previous
+        // response is outstanding. Keep each task owned without dropping a later commit.
+        let action = actionKey(entityID: entityID, domain: domain, service: climateInteraction ? service + ":" + UUID().uuidString : service)
         guard lifetimeAuthority.acceptsWork,
               tasks[action] == nil,
               let caller = caller

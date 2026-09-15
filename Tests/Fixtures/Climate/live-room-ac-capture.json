@@ -1,0 +1,347 @@
+{
+  "capturedAt": "2026-09-12T10:49:49.053Z",
+  "endpoint": "http://joyj.me:8123",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/states/climate.room_ac"
+    },
+    {
+      "method": "GET",
+      "path": "/api/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services"
+    }
+  ],
+  "state": {
+    "entity_id": "climate.room_ac",
+    "state": "off",
+    "attributes": {
+      "hvac_modes": [
+        "cool",
+        "off"
+      ],
+      "min_temp": 19,
+      "max_temp": 28,
+      "target_temp_step": 0.1,
+      "preset_modes": [
+        "none",
+        "sleep",
+        "activity"
+      ],
+      "current_temperature": 23.7,
+      "temperature": 22.8,
+      "hvac_action": "off",
+      "preset_mode": "none",
+      "friendly_name": "AC Unit Controller Room AC",
+      "supported_features": 401
+    },
+    "last_changed": "2026-09-09T05:47:51.214292+00:00",
+    "last_reported": "2026-09-12T10:49:42.232081+00:00",
+    "last_updated": "2026-09-12T10:49:42.232081+00:00",
+    "context": {
+      "id": "01M2AKSGJPVC3GBQBBQJFG20C9",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  "config": {
+    "version": "2026.5.4",
+    "unit_system": {
+      "length": "km",
+      "accumulated_precipitation": "mm",
+      "area": "m²",
+      "mass": "g",
+      "pressure": "Pa",
+      "temperature": "°C",
+      "volume": "L",
+      "wind_speed": "m/s"
+    },
+    "time_zone": "Asia/Shanghai",
+    "language": "en"
+  },
+  "climateServices": {
+    "domain": "climate",
+    "services": {
+      "turn_on": {
+        "fields": {},
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                256
+              ]
+            }
+          ]
+        }
+      },
+      "turn_off": {
+        "fields": {},
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                128
+              ]
+            }
+          ]
+        }
+      },
+      "toggle": {
+        "fields": {},
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                128,
+                256
+              ]
+            }
+          ]
+        }
+      },
+      "set_hvac_mode": {
+        "fields": {
+          "hvac_mode": {
+            "selector": {
+              "state": {
+                "hide_states": [
+                  "unavailable",
+                  "unknown"
+                ],
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ]
+            }
+          ]
+        }
+      },
+      "set_preset_mode": {
+        "fields": {
+          "preset_mode": {
+            "required": true,
+            "example": "away",
+            "selector": {
+              "state": {
+                "attribute": "preset_mode",
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                16
+              ]
+            }
+          ]
+        }
+      },
+      "set_temperature": {
+        "fields": {
+          "temperature": {
+            "filter": {
+              "supported_features": [
+                1
+              ]
+            },
+            "selector": {
+              "number": {
+                "min": 0,
+                "max": 250,
+                "step": 0.1,
+                "mode": "box"
+              }
+            }
+          },
+          "target_temp_high": {
+            "filter": {
+              "supported_features": [
+                2
+              ]
+            },
+            "advanced": true,
+            "selector": {
+              "number": {
+                "min": 0,
+                "max": 250,
+                "step": 0.1,
+                "mode": "box"
+              }
+            }
+          },
+          "target_temp_low": {
+            "filter": {
+              "supported_features": [
+                2
+              ]
+            },
+            "advanced": true,
+            "selector": {
+              "number": {
+                "min": 0,
+                "max": 250,
+                "step": 0.1,
+                "mode": "box"
+              }
+            }
+          },
+          "hvac_mode": {
+            "selector": {
+              "state": {
+                "hide_states": [
+                  "unavailable",
+                  "unknown"
+                ],
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                1,
+                2
+              ]
+            }
+          ]
+        }
+      },
+      "set_humidity": {
+        "fields": {
+          "humidity": {
+            "required": true,
+            "selector": {
+              "number": {
+                "min": 30,
+                "max": 99,
+                "unit_of_measurement": "%",
+                "step": 1,
+                "mode": "slider"
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                4
+              ]
+            }
+          ]
+        }
+      },
+      "set_fan_mode": {
+        "fields": {
+          "fan_mode": {
+            "required": true,
+            "example": "low",
+            "selector": {
+              "state": {
+                "attribute": "fan_mode",
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                8
+              ]
+            }
+          ]
+        }
+      },
+      "set_swing_mode": {
+        "fields": {
+          "swing_mode": {
+            "required": true,
+            "example": "on",
+            "selector": {
+              "state": {
+                "attribute": "swing_mode",
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                32
+              ]
+            }
+          ]
+        }
+      },
+      "set_swing_horizontal_mode": {
+        "fields": {
+          "swing_horizontal_mode": {
+            "required": true,
+            "example": "on",
+            "selector": {
+              "state": {
+                "attribute": "swing_horizontal_mode",
+                "multiple": false
+              }
+            }
+          }
+        },
+        "target": {
+          "entity": [
+            {
+              "domain": [
+                "climate"
+              ],
+              "supported_features": [
+                512
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

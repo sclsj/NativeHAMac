@@ -16,6 +16,9 @@ final class DashboardViewModel: ObservableObject {
     @Published var activeBaseURL: URL?
     @Published var showEntityIDs = AppConfig.showEntityIDsByDefault
     @Published var selectedEntityID: String?
+    @Published private(set) var climateEntityRevision: UInt64 = 0
+    @Published private(set) var climateDetailGeneration: UInt64 = 0
+    private var climateServiceGeneration: UInt64 = 0
     private(set) var homeAssistantConfig: HAConfig?
     private(set) var frontendLocalePreferences: HAFrontendLocalePreferences?
     private(set) var entityDisplayPrecisions: [String: Int] = [:]
@@ -737,129 +740,38 @@ final class DashboardViewModel: ObservableObject {
         )
     }
 
-    func setClimateTemperature(entityID: String, temperature: Double) {
-        guard serviceController.canInvoke(
-            entityID: entityID,
-            state: states[entityID],
-            domain: "climate",
-            service: "set_temperature"
-        ) else { return }
-        applyOptimisticAttributes(entityID: entityID, attributes: ["temperature": .double(temperature)])
-        callService(
-            domain: "climate",
-            service: "set_temperature",
-            data: [
-                "entity_id": .string(entityID),
-                "temperature": .double(temperature),
-            ],
-            errorContext: "Temperature change failed for \(entityID)"
-        )
+    func canInvokeClimate(entityID: String, service: String) -> Bool {
+        serviceController.canInvoke(entityID: entityID, state: states[entityID], domain: "climate", service: service, climateInteraction: true)
     }
 
-    func setClimateHVACMode(entityID: String, mode: String) {
-        guard states[entityID]?.state != mode,
-              serviceController.canInvoke(
-                entityID: entityID,
-                state: states[entityID],
-                domain: "climate",
-                service: "set_hvac_mode"
-              )
-        else {
-            return
-        }
-
-        applyOptimisticAttributes(entityID: entityID, state: mode, attributes: [:])
-        callService(
-            domain: "climate",
-            service: "set_hvac_mode",
-            data: [
-                "entity_id": .string(entityID),
-                "hvac_mode": .string(mode),
-            ],
-            errorContext: "Mode change failed for \(entityID)"
-        )
-    }
-
+    // Compatibility entrypoint for existing lifecycle callers. Predictions are
+    // intentionally ignored: only HA can publish a climate target temperature.
     func setClimatePresetMode(entityID: String, mode: String, predictedTemperature: Double? = nil) {
-        guard serviceController.canInvoke(
-            entityID: entityID,
-            state: states[entityID],
-            domain: "climate",
-            service: "set_preset_mode"
-        ) else { return }
-        guard states[entityID]?.attributes["preset_mode"]?.asString != mode else {
-            if let predictedTemperature = predictedTemperature {
-                applyOptimisticAttributes(
-                    entityID: entityID,
-                    attributes: ["temperature": .double(predictedTemperature)]
-                )
+        guard let state = states[entityID], let request = ClimateServiceBuilder.mode("preset_mode", value: mode, entity: ClimateEntity(state: state, unit: homeAssistantConfig?.unitSystem?.temperature)) else { return }
+        _ = invokeClimate(request, entityID: entityID, completion: { _ in })
+    }
+
+    func acceptClimateReplacement(entityIDs: Set<String>) {
+        guard let selected = selectedEntityID, selected.hasPrefix("climate."), entityIDs.contains(selected) else { return }
+        climateEntityRevision &+= 1
+    }
+
+    @discardableResult
+    func invokeClimate(_ request: ClimateServiceRequest, entityID: String, completion: @escaping (String?) -> Void) -> Bool {
+        guard canInvokeClimate(entityID: entityID, service: request.service), let state = states[entityID] else { return false }
+        let entity = ClimateEntity(state: state, unit: homeAssistantConfig?.unitSystem?.temperature)
+        guard ClimateServiceBuilder.isSupported(request, entity: entity) else { return false }
+        climateServiceGeneration &+= 1
+        let generation = climateServiceGeneration
+        let selectedDetail = selectedEntityID
+        let entityRevision = climateEntityRevision
+        lifecycle.set(.service, phase: .loading)
+        return serviceController.invoke(entityID: entityID, domain: "climate", service: request.service, data: request.data, errorContext: "Climate control failed for \(entityID)", climateInteraction: true) { [weak self] failure in
+            if self?.climateServiceGeneration == generation, self?.selectedEntityID == selectedDetail, self?.climateEntityRevision == entityRevision {
+                self?.lifecycle.set(.service, phase: failure.map(DashboardComponentPhase.failed) ?? .ready)
             }
-            return
+            completion(failure)
         }
-
-        var updates: [String: JSONValue] = ["preset_mode": .string(mode)]
-        if let predictedTemperature = predictedTemperature {
-            updates["temperature"] = .double(predictedTemperature)
-        }
-
-        applyOptimisticAttributes(entityID: entityID, attributes: updates)
-        callService(
-            domain: "climate",
-            service: "set_preset_mode",
-            data: [
-                "entity_id": .string(entityID),
-                "preset_mode": .string(mode),
-            ],
-            errorContext: "Preset change failed for \(entityID)"
-        )
-    }
-
-    func setClimateFanMode(entityID: String, mode: String) {
-        guard states[entityID]?.attributes["fan_mode"]?.asString != mode,
-              serviceController.canInvoke(
-                entityID: entityID,
-                state: states[entityID],
-                domain: "climate",
-                service: "set_fan_mode"
-              )
-        else {
-            return
-        }
-
-        applyOptimisticAttributes(entityID: entityID, attributes: ["fan_mode": .string(mode)])
-        callService(
-            domain: "climate",
-            service: "set_fan_mode",
-            data: [
-                "entity_id": .string(entityID),
-                "fan_mode": .string(mode),
-            ],
-            errorContext: "Fan mode change failed for \(entityID)"
-        )
-    }
-
-    func setClimateSwingMode(entityID: String, mode: String) {
-        guard states[entityID]?.attributes["swing_mode"]?.asString != mode,
-              serviceController.canInvoke(
-                entityID: entityID,
-                state: states[entityID],
-                domain: "climate",
-                service: "set_swing_mode"
-              )
-        else {
-            return
-        }
-
-        applyOptimisticAttributes(entityID: entityID, attributes: ["swing_mode": .string(mode)])
-        callService(
-            domain: "climate",
-            service: "set_swing_mode",
-            data: [
-                "entity_id": .string(entityID),
-                "swing_mode": .string(mode),
-            ],
-            errorContext: "Swing mode change failed for \(entityID)"
-        )
     }
 
     func allOn(entityIDs: [String]) -> Bool {
@@ -1131,6 +1043,8 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func openDetails(entityID: String) {
+        climateServiceGeneration &+= 1
+        climateDetailGeneration &+= 1
         if let previous = selectedEntityID, previous != entityID {
             unloadDetailHistory(
                 entityID: previous,
@@ -1156,6 +1070,8 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func closeDetails() {
+        climateServiceGeneration &+= 1
+        climateDetailGeneration &+= 1
         if let selectedEntityID = selectedEntityID {
             unloadDetailHistory(
                 entityID: selectedEntityID,
@@ -1465,6 +1381,10 @@ final class DashboardViewModel: ObservableObject {
             lifetimeAuthority: lifetimeAuthority,
             taskObserver: { tasks in
                 emergencyBag.setEntityCoordinatorTasks(tasks, ownerID: entityTaskOwnerID)
+            },
+            onReplacement: { entityIDs in
+                guard let owner = weakEntityOwner.value, weakModel.value?.entityCoordinator === owner else { return }
+                weakModel.value?.acceptClimateReplacement(entityIDs: entityIDs)
             },
             onSnapshot: { snapshot in
                 guard let owner = weakEntityOwner.value,
@@ -2530,6 +2450,8 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func detachOwnershipSynchronously(notIn desiredKeys: Set<String>) -> DetachedDashboardOwnership {
+        climateServiceGeneration &+= 1
+        climateDetailGeneration &+= 1
         if desiredHistoryKeys != desiredKeys {
             historyReconciliationEpoch &+= 1
         }

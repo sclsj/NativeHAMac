@@ -1,0 +1,1096 @@
+{
+  "capturedDate": "2026-09-14",
+  "referenceRevision": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+  "kind": "actual-component-runtime-browser-evidence",
+  "sourceHashes": {
+    "tools/climate-reference/browser-entry.ts": "a1781718668a48df1fa6bc42561330f56879720b1c34f3c090ee074ec97d8bd7",
+    "tools/climate-reference/browser-harness.mjs": "fbb185ef8232a05011d6e77bb79391cb4fd1db204adbebfd798ba89acb5c7def",
+    "tools/climate-reference/capture.mjs": "14fa71bd7f9252dc36f9759763c1b2bda6226f1dfd9f27c8e1ca2be003d66a88",
+    "tools/climate-reference/ts-loader.cjs": "5d48ef69023fe39cf9a4f0b3b71c76ba50714acd53f3af365e9d86f2d7c8d249",
+    "Tests/Fixtures/Climate/render-states.json": "b25d96ab484c94dd252c338efd3688efc778d9e04a81a8c5539bbace7999dc29",
+    "Tests/Fixtures/Climate/backend-translations.json": "527ab499140b0900ce751427b1a13b2c898d0140de804266a8a26cb5418c1c28"
+  },
+  "referenceHashes": {
+    "src/dialogs/more-info/controls/more-info-climate.ts": "f112f190da83d99e64f60f97e2a8d38a2f5f6f7ea080e241853e7e69b7d1cde6",
+    "src/components/ha-control-circular-slider.ts": "9c2c85c141461326ab8aa47eecc788d0098798f46a76b1712ccac1068310a75e",
+    "src/state-control/climate/ha-state-control-climate-temperature.ts": "b7b7c6a26734c153f98b1c5206fae7b18e44d4929f39d414e1db7c8f09a47222",
+    "src/state-control/climate/ha-state-control-climate-humidity.ts": "4a18e9a16c37a387bf870e49ea380aef32213d2a0b4acc22fac3d076de5e88f6",
+    "src/components/ha-control-select-menu.ts": "ff22308c16bd3985f6228ea73296d3c58f8a1d12ff32c080401fcdb2cd858d08",
+    "src/common/translations/entity-state.ts": "28c0d1a6677a03ee0cefec3ee4212f8bc89aeb8c4d0511307c02f8b9182a42b5",
+    "src/resources/theme/theme.ts": "e445250b57c73fd54037797782e5cd90a26a9ad3f5b68f4fd7148a64ecef8a29",
+    "src/translations/en.json": "9065561ab0cc1cd2795ad8e0364e63192f994af3d2092bd936a52a86ce5c58f0"
+  },
+  "pngs": [
+    {
+      "file": "live-off-520.png",
+      "sha256": "0dc050c9f788e4ba3870d283a31f7e5e452789fb0a41ff3d5818aaa5b0db80f5",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-complete-360x620.png",
+      "sha256": "7e248f7d60582f36e5a578e72052db1adda672c7faa92f329cd2c73d2c260afc",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-complete-520x620.png",
+      "sha256": "10ff15a0362d582c9850fab74584222c2b50d24632c5ca2a8fd5ef2204a00549",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-complete-humidity-360x620.png",
+      "sha256": "723537425cd976585e60701572011652ca1ff423dfd31d423a5ae53c6ad75359",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-complete-humidity-520x620.png",
+      "sha256": "8d9db41266cded4f7dfe84e287f2ed9ff1ba30ae2f1d2d01dca38aca09665660",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-cooling-360x620.png",
+      "sha256": "68da0e76d8d535d0424b8fba31b8983edcd16dedb762400052ad510b987b1ee4",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-cooling-520x620.png",
+      "sha256": "90187449bd0a894822968790ff273dfb416c813bdde481a860c1d6483460bf1b",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-cooling-keyboard-focus-520x620.png",
+      "sha256": "32d4a1f0ef97afbc1d2997334699304241708d6320078cd336e3f8868c0eddef",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-current-no-bounds-360x620.png",
+      "sha256": "97c6df7359d2982c91eac184573e0ff2ceee7daa53199da973c4166355bc056e",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-current-no-bounds-520x620.png",
+      "sha256": "6e95d125d78c8a2af17acffb5b89565d8ff6e6e4e969a69dbf154b298aa1ab2d",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-current-only-360x620.png",
+      "sha256": "49267a31864fca1269bee2b164b981f575da1e6a4443b7046e13f8d090cdc03c",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-current-only-520x620.png",
+      "sha256": "1e98e805214602c7c8749879fa50d0569a4228053b88e6549876f7933ceac0fe",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-heating-360x620.png",
+      "sha256": "8012f7de03aa70775b331724697499f5ddd91acc9c5a9d2700cd0fb410d398b0",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-heating-520x620.png",
+      "sha256": "963ca6d58035b209eaa958ea88899244efaf77029bf7bb0b9b00ca6455c2879f",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-idle-360x620.png",
+      "sha256": "3dcc53a9807f339a2d20be595a4ed3c5090c1a2b589f0e716cfc1b56fabf6077",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-idle-520x620.png",
+      "sha256": "36a3af80a37a0fc2304aba18d7d2919a4ba5b8e619ce4f5f7e6a04285257c31e",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-off-360x620.png",
+      "sha256": "5f10906fa5a7df3684d225267ac07a5b21c3089dd44a5a939cab241f147caa05",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-off-520x620.png",
+      "sha256": "0dc050c9f788e4ba3870d283a31f7e5e452789fb0a41ff3d5818aaa5b0db80f5",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-sparse-valid-360x620.png",
+      "sha256": "4de0eb65d7c7c1c011212eaaca5617d0f344502b3d95fa57d3a1837bb478d242",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-sparse-valid-520x620.png",
+      "sha256": "2a5daa0601e2f0ce50323533a398a2884fad033ed7bf2605b59cfd673e588e03",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-unavailable-360x620.png",
+      "sha256": "7321bfb3a5d830f4f5a744611ba3301eab45cf0d23f9405ac0c8ff53829bca55",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-unavailable-520x620.png",
+      "sha256": "54541298396b15bc120c155cf97ad6918c95ba63fc036f760c37526f29be5f99",
+      "width": 1040,
+      "height": 1240
+    },
+    {
+      "file": "reference-unknown-360x620.png",
+      "sha256": "e55440b35703f96cb4c4fb027a8d8bb8ab44d4fcdc1ae9304a8fdf816fabd531",
+      "width": 720,
+      "height": 1240
+    },
+    {
+      "file": "reference-unknown-520x620.png",
+      "sha256": "3da99d456159a84a8867961c8b6b0cef97cba5f22620f3956c82c72364b93032",
+      "width": 1040,
+      "height": 1240
+    }
+  ],
+  "browser": "118.0.5993.3",
+  "viewport": {
+    "width": 600,
+    "height": 720
+  },
+  "scale": 2,
+  "locale": "en-US",
+  "timezone": "Asia/Shanghai",
+  "renders": [
+    {
+      "name": "off",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-off-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "off",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-off-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "idle",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "idle"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-idle-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "idle",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "idle"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-idle-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "cooling",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "cooling"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-cooling-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "cooling",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "cooling"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-cooling-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "heating",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "heat",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "heat",
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 25,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "heating"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-heating-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "heating",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "heat",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "heat",
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 25,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "heating"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-heating-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "unavailable",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "unavailable",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-unavailable-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "unavailable",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "unavailable",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-unavailable-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "unknown",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "unknown",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-unknown-520x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "unknown",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "unknown",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 401,
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": 22.8,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "off"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-unknown-360x620.png",
+      "errors": [],
+      "menus": 2,
+      "sliders": 1
+    },
+    {
+      "name": "sparse",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Sparse climate"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": null,
+      "setError": "Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'concat')",
+      "errors": [],
+      "menus": 0,
+      "sliders": 0
+    },
+    {
+      "name": "sparse",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Sparse climate"
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": null,
+      "setError": "Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'concat')",
+      "errors": [],
+      "menus": 0,
+      "sliders": 0
+    },
+    {
+      "name": "current-only",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Current only",
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "current_temperature": 23.7,
+          "min_temp": 19,
+          "max_temp": 28
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-current-only-520x620.png",
+      "errors": [],
+      "menus": 1,
+      "sliders": 1
+    },
+    {
+      "name": "current-only",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Current only",
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "current_temperature": 23.7,
+          "min_temp": 19,
+          "max_temp": 28
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-current-only-360x620.png",
+      "errors": [],
+      "menus": 1,
+      "sliders": 1
+    },
+    {
+      "name": "current-no-bounds",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Current without bounds",
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "current_temperature": 23.7
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-current-no-bounds-520x620.png",
+      "errors": [],
+      "menus": 1,
+      "sliders": 1
+    },
+    {
+      "name": "current-no-bounds",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "cool",
+        "attributes": {
+          "friendly_name": "Current without bounds",
+          "hvac_modes": [
+            "cool",
+            "off"
+          ],
+          "current_temperature": 23.7
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-current-no-bounds-360x620.png",
+      "errors": [],
+      "menus": 1,
+      "sliders": 1
+    },
+    {
+      "name": "complete",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "heat_cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 1022,
+          "hvac_modes": [
+            "off",
+            "heat_cool",
+            "heat",
+            "cool"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": null,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "idle",
+          "target_temp_low": 21,
+          "target_temp_high": 25,
+          "current_humidity": 45,
+          "humidity": 50,
+          "fan_mode": "auto",
+          "fan_modes": [
+            "auto",
+            "low",
+            "high"
+          ],
+          "swing_mode": "off",
+          "swing_modes": [
+            "off",
+            "vertical"
+          ],
+          "swing_horizontal_mode": "off",
+          "swing_horizontal_modes": [
+            "off",
+            "horizontal"
+          ]
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-complete-520x620.png",
+      "errors": [],
+      "menus": 5,
+      "sliders": 1
+    },
+    {
+      "name": "complete",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "heat_cool",
+        "attributes": {
+          "friendly_name": "Room AC",
+          "supported_features": 1022,
+          "hvac_modes": [
+            "off",
+            "heat_cool",
+            "heat",
+            "cool"
+          ],
+          "min_temp": 19,
+          "max_temp": 28,
+          "target_temp_step": 0.1,
+          "current_temperature": 23.7,
+          "temperature": null,
+          "preset_mode": "none",
+          "preset_modes": [
+            "none",
+            "sleep",
+            "activity"
+          ],
+          "hvac_action": "idle",
+          "target_temp_low": 21,
+          "target_temp_high": 25,
+          "current_humidity": 45,
+          "humidity": 50,
+          "fan_mode": "auto",
+          "fan_modes": [
+            "auto",
+            "low",
+            "high"
+          ],
+          "swing_mode": "off",
+          "swing_modes": [
+            "off",
+            "vertical"
+          ],
+          "swing_horizontal_mode": "off",
+          "swing_horizontal_modes": [
+            "off",
+            "horizontal"
+          ]
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-complete-360x620.png",
+      "errors": [],
+      "menus": 5,
+      "sliders": 1
+    },
+    {
+      "name": "sparse-valid",
+      "width": 520,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Sparse climate",
+          "hvac_modes": []
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-sparse-valid-520x620.png",
+      "errors": [],
+      "qualification": "Additional web-renderable sparse fixture; hvac_modes=[] differs from raw native sparse fixture"
+    },
+    {
+      "name": "sparse-valid",
+      "width": 360,
+      "state": {
+        "entity_id": "climate.fixture",
+        "state": "off",
+        "attributes": {
+          "friendly_name": "Sparse climate",
+          "hvac_modes": []
+        },
+        "last_changed": "2026-09-12T00:00:00.000Z",
+        "last_updated": "2026-09-12T00:00:00.000Z"
+      },
+      "file": "reference-sparse-valid-360x620.png",
+      "errors": [],
+      "qualification": "Additional web-renderable sparse fixture; hvac_modes=[] differs from raw native sparse fixture"
+    }
+  ],
+  "interactions": [
+    {
+      "kind": "keyboard",
+      "key": "ArrowUp",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 22.75
+          }
+        }
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "key": "ArrowDown",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 21.75
+          }
+        }
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "key": "PageUp",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 23
+          }
+        }
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "key": "PageDown",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 21.5
+          }
+        }
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "key": "Home",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 19
+          }
+        }
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "key": "End",
+      "start": 22.25,
+      "step": 0.5,
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 28
+          }
+        }
+      ]
+    },
+    {
+      "kind": "plus",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 22.900000000000002
+          }
+        }
+      ]
+    },
+    {
+      "kind": "tap-top",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 23.5
+          }
+        }
+      ]
+    },
+    {
+      "kind": "drag-left-top",
+      "intermediate": [],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 23.5
+          }
+        }
+      ]
+    },
+    {
+      "kind": "range-high-key",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "target_temp_low": 21,
+            "target_temp_high": 24.9
+          }
+        }
+      ]
+    },
+    {
+      "kind": "humidity-toggle",
+      "humidityControls": 1,
+      "calls": []
+    },
+    {
+      "kind": "hvac-menu",
+      "value": "cool",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_hvac_mode",
+          "data": {
+            "hvac_mode": "cool",
+            "entity_id": "climate.fixture"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "preset-menu",
+      "value": "sleep",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_preset_mode",
+          "data": {
+            "preset_mode": "sleep",
+            "entity_id": "climate.fixture"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "fan-menu",
+      "value": "high",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_fan_mode",
+          "data": {
+            "fan_mode": "high",
+            "entity_id": "climate.fixture"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "swing-menu",
+      "value": "vertical",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_swing_mode",
+          "data": {
+            "swing_mode": "vertical",
+            "entity_id": "climate.fixture"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "horizontal-menu",
+      "value": "horizontal",
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_swing_horizontal_mode",
+          "data": {
+            "swing_horizontal_mode": "horizontal",
+            "entity_id": "climate.fixture"
+          }
+        }
+      ]
+    }
+  ],
+  "focus": {
+    "matchesFocus": true,
+    "matchesFocusVisible": true,
+    "strokeWidth": "27.0728px"
+  },
+  "finalErrors": []
+}

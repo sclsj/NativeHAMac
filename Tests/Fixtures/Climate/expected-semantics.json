@@ -1,0 +1,840 @@
+{
+  "referenceRevision": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+  "typescriptVersion": "6.0.3",
+  "sources": {
+    "src/common/number/clamp.ts": "aede8b08549007e96c6ba65a97eb37c92cbd154bce3e3b4dd634402d8027eb32",
+    "src/common/entity/supports-feature.ts": "0001d607bcd46442989f4f3c0c7f8497896b773bf2c19a9b11c4b772fa7fe955",
+    "src/data/climate.ts": "8a8d758774c2c98f9e3ee3064f3c5b68c9683ede4ff1be98a6991da019dd5e9e",
+    "src/components/ha-control-circular-slider.ts": "9c2c85c141461326ab8aa47eecc788d0098798f46a76b1712ccac1068310a75e",
+    "src/state-control/climate/ha-state-control-climate-temperature.ts": "b7b7c6a26734c153f98b1c5206fae7b18e44d4929f39d414e1db7c8f09a47222"
+  },
+  "extractions": {
+    "src/components/ha-control-circular-slider.ts": {
+      "className": "HaControlCircularSlider",
+      "topNames": [
+        "MAX_ANGLE",
+        "ROTATE_ANGLE",
+        "RADIUS",
+        "xy2polar",
+        "rad2deg",
+        "A11Y_KEY_CODES"
+      ],
+      "memberNames": [
+        "_valueToPercentage",
+        "_percentageToValue",
+        "_steppedValue",
+        "_boundedValue",
+        "_getPercentageFromEvent",
+        "_findActiveSlider",
+        "_setActiveValue",
+        "_getActiveValue",
+        "_tenPercentStep",
+        "_handleKeyDown",
+        "_handleKeyUp",
+        "_strokeDashArc"
+      ]
+    },
+    "src/state-control/climate/ha-state-control-climate-temperature.ts": {
+      "className": "HaStateControlClimateTemperature",
+      "topNames": [],
+      "memberNames": [
+        "_step",
+        "_min",
+        "_max",
+        "_valueChanged",
+        "_valueChanging",
+        "_callService",
+        "_handleButton",
+        "_supportsTargetTemperature",
+        "_supportsTargetTemperatureRange"
+      ]
+    }
+  },
+  "hvacModes": [
+    "auto",
+    "heat_cool",
+    "heat",
+    "cool",
+    "dry",
+    "fan_only",
+    "off"
+  ],
+  "featureBits": {
+    "TARGET_TEMPERATURE": 1,
+    "TARGET_TEMPERATURE_RANGE": 2,
+    "TARGET_HUMIDITY": 4,
+    "FAN_MODE": 8,
+    "PRESET_MODE": 16,
+    "SWING_MODE": 32,
+    "AUX_HEAT": 64,
+    "TURN_OFF": 128,
+    "TURN_ON": 256,
+    "SWING_HORIZONTAL_MODE": 512
+  },
+  "actionModes": {
+    "cooling": "cool",
+    "defrosting": "heat",
+    "drying": "dry",
+    "fan": "fan_only",
+    "heating": "heat",
+    "idle": "off",
+    "off": "off",
+    "preheating": "heat"
+  },
+  "featureMasks": [
+    {
+      "mask": {
+        "$undefined": true
+      },
+      "target": false,
+      "preset": false,
+      "horizontal": false
+    },
+    {
+      "mask": 0,
+      "target": false,
+      "preset": false,
+      "horizontal": false
+    },
+    {
+      "mask": 1,
+      "target": true,
+      "preset": false,
+      "horizontal": false
+    },
+    {
+      "mask": 2,
+      "target": false,
+      "preset": false,
+      "horizontal": false
+    },
+    {
+      "mask": 16,
+      "target": false,
+      "preset": true,
+      "horizontal": false
+    },
+    {
+      "mask": 401,
+      "target": true,
+      "preset": true,
+      "horizontal": false
+    },
+    {
+      "mask": 512,
+      "target": false,
+      "preset": false,
+      "horizontal": true
+    }
+  ],
+  "mapping": [
+    {
+      "id": "bottom-left",
+      "point": {
+        "x": 0,
+        "y": 320
+      },
+      "percentage": 0,
+      "raw": 19,
+      "bounded": 19,
+      "stepped": 19
+    },
+    {
+      "id": "left",
+      "point": {
+        "x": 0,
+        "y": 160
+      },
+      "percentage": 0.16666666666666666,
+      "raw": 20.5,
+      "bounded": 20.5,
+      "stepped": 20.5
+    },
+    {
+      "id": "top",
+      "point": {
+        "x": 160,
+        "y": 0
+      },
+      "percentage": 0.5,
+      "raw": 23.5,
+      "bounded": 23.5,
+      "stepped": 23.5
+    },
+    {
+      "id": "right",
+      "point": {
+        "x": 320,
+        "y": 160
+      },
+      "percentage": 0.8333333333333334,
+      "raw": 26.5,
+      "bounded": 26.5,
+      "stepped": 26.5
+    },
+    {
+      "id": "bottom-right",
+      "point": {
+        "x": 320,
+        "y": 320
+      },
+      "percentage": 1,
+      "raw": 28,
+      "bounded": 28,
+      "stepped": 28
+    },
+    {
+      "id": "gap-left",
+      "point": {
+        "x": 159.999,
+        "y": 320
+      },
+      "percentage": 0,
+      "raw": 19,
+      "bounded": 19,
+      "stepped": 19
+    },
+    {
+      "id": "gap-right",
+      "point": {
+        "x": 160.001,
+        "y": 320
+      },
+      "percentage": 1,
+      "raw": 28,
+      "bounded": 28,
+      "stepped": 28
+    },
+    {
+      "id": "gap-center",
+      "point": {
+        "x": 160,
+        "y": 320
+      },
+      "percentage": 0,
+      "raw": 19,
+      "bounded": 19,
+      "stepped": 19
+    },
+    {
+      "id": "center",
+      "point": {
+        "x": 160,
+        "y": 160
+      },
+      "percentage": 0.8333333333333334,
+      "raw": 26.5,
+      "bounded": 26.5,
+      "stepped": 26.5
+    }
+  ],
+  "rounding": [
+    {
+      "id": "celsius-half",
+      "min": 19,
+      "max": 28,
+      "step": 0.5,
+      "input": 22.25,
+      "bounded": 22.25,
+      "stepped": 22.5,
+      "percentage": 0.3611111111111111
+    },
+    {
+      "id": "negative-half",
+      "min": -10,
+      "max": 10,
+      "step": 0.5,
+      "input": -1.25,
+      "bounded": -1.25,
+      "stepped": -1,
+      "percentage": 0.4375
+    },
+    {
+      "id": "non-grid-min",
+      "min": 19.2,
+      "max": 28.2,
+      "step": 0.5,
+      "input": 19.2,
+      "bounded": 19.2,
+      "stepped": 19,
+      "percentage": 0
+    },
+    {
+      "id": "non-grid-max",
+      "min": 19.2,
+      "max": 28.2,
+      "step": 0.5,
+      "input": 28.2,
+      "bounded": 28.2,
+      "stepped": 28,
+      "percentage": 1
+    },
+    {
+      "id": "over-max",
+      "min": 19,
+      "max": 28,
+      "step": 0.1,
+      "input": 99,
+      "bounded": 28,
+      "stepped": 28,
+      "percentage": 1
+    },
+    {
+      "id": "below-min",
+      "min": 19,
+      "max": 28,
+      "step": 0.1,
+      "input": 0,
+      "bounded": 19,
+      "stepped": 19,
+      "percentage": 0
+    },
+    {
+      "id": "fahrenheit-half",
+      "min": 50,
+      "max": 90,
+      "step": 1,
+      "input": 72.5,
+      "bounded": 72.5,
+      "stepped": 73,
+      "percentage": 0.5625
+    },
+    {
+      "id": "zero-step",
+      "min": 19,
+      "max": 28,
+      "step": 0,
+      "input": 22,
+      "bounded": 22,
+      "stepped": {
+        "$number": "NaN"
+      },
+      "percentage": 0.3333333333333333
+    },
+    {
+      "id": "negative-step",
+      "min": 19,
+      "max": 28,
+      "step": -0.5,
+      "input": 22.25,
+      "bounded": 22.25,
+      "stepped": 22,
+      "percentage": 0.3611111111111111
+    }
+  ],
+  "dual": [
+    {
+      "input": 17,
+      "active": "low",
+      "bounded": 19
+    },
+    {
+      "input": 20,
+      "active": "low",
+      "bounded": 20
+    },
+    {
+      "input": 22,
+      "active": "low",
+      "bounded": 22
+    },
+    {
+      "input": 24,
+      "active": "high",
+      "bounded": 24
+    },
+    {
+      "input": 29,
+      "active": "high",
+      "bounded": 28
+    }
+  ],
+  "keyboard": [
+    {
+      "code": "ArrowUp",
+      "value": 22.900000000000002,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 22.900000000000002
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 22.900000000000002
+        }
+      ]
+    },
+    {
+      "code": "ArrowDown",
+      "value": 22.7,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 22.7
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 22.7
+        }
+      ]
+    },
+    {
+      "code": "PageUp",
+      "value": 23.700000000000003,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 23.700000000000003
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 23.700000000000003
+        }
+      ]
+    },
+    {
+      "code": "PageDown",
+      "value": 21.900000000000002,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 21.900000000000002
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 21.900000000000002
+        }
+      ]
+    },
+    {
+      "code": "Home",
+      "value": 19,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 19
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 19
+        }
+      ]
+    },
+    {
+      "code": "End",
+      "value": 28,
+      "events": [
+        {
+          "type": "value-changing",
+          "value": 28
+        },
+        {
+          "type": "value-changing",
+          "value": {
+            "$undefined": true
+          }
+        },
+        {
+          "type": "value-changed",
+          "value": 28
+        }
+      ]
+    }
+  ],
+  "buttons": [
+    {
+      "id": "off-grid-add",
+      "attributes": {
+        "temperature": 22.25,
+        "target_temp_step": 0.5
+      },
+      "target": "value",
+      "step": 0.5,
+      "targets": {
+        "value": 22.75,
+        "low": {
+          "$undefined": true
+        },
+        "high": {
+          "$undefined": true
+        }
+      },
+      "scheduled": [
+        "value"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 22.75
+          }
+        }
+      ]
+    },
+    {
+      "id": "upper-clamp",
+      "attributes": {
+        "temperature": 28
+      },
+      "target": "value",
+      "step": 0.1,
+      "targets": {
+        "value": 28,
+        "low": {
+          "$undefined": true
+        },
+        "high": {
+          "$undefined": true
+        }
+      },
+      "scheduled": [
+        "value"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 28
+          }
+        }
+      ]
+    },
+    {
+      "id": "lower-clamp",
+      "attributes": {
+        "temperature": 19
+      },
+      "target": "value",
+      "step": -0.1,
+      "targets": {
+        "value": 19,
+        "low": {
+          "$undefined": true
+        },
+        "high": {
+          "$undefined": true
+        }
+      },
+      "scheduled": [
+        "value"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "missing-single",
+      "attributes": {
+        "temperature": null
+      },
+      "target": "value",
+      "step": 0.1,
+      "targets": {
+        "value": 19.1,
+        "low": {
+          "$undefined": true
+        },
+        "high": {
+          "$undefined": true
+        }
+      },
+      "scheduled": [
+        "value"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 19.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "range-low-cross",
+      "attributes": {
+        "target_temp_low": 23.9,
+        "target_temp_high": 24
+      },
+      "target": "low",
+      "step": 1,
+      "targets": {
+        "value": 22.8,
+        "low": 24,
+        "high": 24
+      },
+      "scheduled": [
+        "low"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "target_temp_low": 24,
+            "target_temp_high": 24
+          }
+        }
+      ]
+    },
+    {
+      "id": "range-high-cross",
+      "attributes": {
+        "target_temp_low": 20,
+        "target_temp_high": 20.1
+      },
+      "target": "high",
+      "step": -1,
+      "targets": {
+        "value": 22.8,
+        "low": 20,
+        "high": 20
+      },
+      "scheduled": [
+        "high"
+      ],
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "target_temp_low": 20,
+            "target_temp_high": 20
+          }
+        }
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "attributes": {
+        "supported_features": 0
+      },
+      "single": false,
+      "range": false
+    },
+    {
+      "attributes": {
+        "supported_features": 1,
+        "temperature": null
+      },
+      "single": false,
+      "range": false
+    },
+    {
+      "attributes": {
+        "supported_features": 1,
+        "temperature": 0
+      },
+      "single": true,
+      "range": false
+    },
+    {
+      "attributes": {
+        "supported_features": 2,
+        "temperature": null,
+        "target_temp_low": 20,
+        "target_temp_high": 24
+      },
+      "single": false,
+      "range": true
+    },
+    {
+      "attributes": {
+        "supported_features": 3,
+        "temperature": 22,
+        "target_temp_low": 20,
+        "target_temp_high": 24
+      },
+      "single": true,
+      "range": true
+    },
+    {
+      "attributes": {
+        "supported_features": 2,
+        "target_temp_low": 20,
+        "target_temp_high": null
+      },
+      "single": false,
+      "range": false
+    }
+  ],
+  "stepDefaults": [
+    {
+      "input": {
+        "$undefined": true
+      },
+      "unit": "°C",
+      "step": 0.5
+    },
+    {
+      "input": {
+        "$undefined": true
+      },
+      "unit": "°F",
+      "step": 1
+    },
+    {
+      "input": 0,
+      "unit": "°C",
+      "step": 0.5
+    },
+    {
+      "input": 0,
+      "unit": "°F",
+      "step": 1
+    },
+    {
+      "input": 0.1,
+      "unit": "°C",
+      "step": 0.1
+    },
+    {
+      "input": 0.1,
+      "unit": "°F",
+      "step": 0.1
+    },
+    {
+      "input": -0.5,
+      "unit": "°C",
+      "step": -0.5
+    },
+    {
+      "input": -0.5,
+      "unit": "°F",
+      "step": -0.5
+    }
+  ],
+  "valueEvents": [
+    {
+      "type": "value-changing",
+      "targets": {
+        "value": 22,
+        "low": 20,
+        "high": 24
+      },
+      "calls": []
+    },
+    {
+      "type": "value-changed",
+      "targets": {
+        "value": 22,
+        "low": 20,
+        "high": 24
+      },
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "temperature": 22
+          }
+        }
+      ]
+    },
+    {
+      "type": "low-changed",
+      "targets": {
+        "value": 22.8,
+        "low": 22,
+        "high": 24
+      },
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "target_temp_low": 22,
+            "target_temp_high": 24
+          }
+        }
+      ]
+    },
+    {
+      "type": "high-changed",
+      "targets": {
+        "value": 22.8,
+        "low": 20,
+        "high": 22
+      },
+      "calls": [
+        {
+          "domain": "climate",
+          "service": "set_temperature",
+          "data": {
+            "entity_id": "climate.fixture",
+            "target_temp_low": 20,
+            "target_temp_high": 22
+          }
+        }
+      ]
+    }
+  ],
+  "dualOffGrid": [
+    {
+      "active": "low",
+      "low": 20,
+      "high": 23.8,
+      "input": 24,
+      "step": 0.5,
+      "bounded": 23.8,
+      "stepped": 24
+    },
+    {
+      "active": "high",
+      "low": 20.2,
+      "high": 24,
+      "input": 19,
+      "step": 0.5,
+      "bounded": 20.2,
+      "stepped": 20
+    }
+  ]
+}

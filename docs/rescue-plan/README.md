@@ -7,7 +7,8 @@ This directory contains staged implementation plans. Their original findings are
 The [2026-09-11 readiness audit](../audits/2026-09-11-readiness.md), against `adc2c03`, found substantial rescue progress plus four bounded findings. The user's follow-up changes their priority:
 
 - **A4 bootstrap duplication:** repaired and validated. Production and fixture bootstrap entry points now use the same `runOwnedBootstrap` lifecycle; the follow-up validation is recorded in the audit.
-- **A1 climate fallback crash and A2 numeric-axis nontermination:** deferred. Both were reproduced with synthetic inputs; reachability from the deployed Home Assistant server was not established. Deferral does not close them or assert that HA cannot supply the triggering data.
+- **A1 climate fallback crash:** repaired in Module 10; independent sparse/malformed-state regression tests pass. The repair does not depend on proving live reachability of the original synthetic input.
+- **A2 numeric-axis nontermination:** deferred. It was reproduced with synthetic inputs; reachability from the deployed Home Assistant server was not established. Deferral does not close it or assert that HA cannot supply the triggering data.
 - **A3 graph step/hover/viewport semantics and false-positive step test:** deferred to a dedicated graphing module alongside further user-requested changes. Re-scope that module before implementing it.
 
 The deferred findings are no longer a gate on the next feature. Preserve the narrower verified transport/history/weather contracts; green tests or source hashes alone do not establish whole-app parity.
@@ -30,10 +31,9 @@ Implement in this order unless a future audit finds a blocker:
 5. Module 06: complete and independently verified at contract revision 2.
 6. Module 07 revision 1 current conditions: complete and independently verified.
 7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
-8. A4 bootstrap consolidation and lifecycle validation are complete. Keep A1/A2 deferred and collect A3 into the future dedicated graphing module; do not repair or redesign graphs as part of this cleanup.
+8. A4 bootstrap consolidation and lifecycle validation are complete. A1 is repaired in Module 10; keep A2 deferred and collect A3 into the future dedicated graphing module.
 9. Module 08 stage 1 is complete and independently verified: native Markdown, HA templates, scoped actions, per-card updates and lifecycle/cache handling. Advanced HTML/media/custom elements have the user-approved source fallback. Visual evidence is a matched component-style approximation, not full live theme/runtime parity or approved goldens.
-10. Next: Module 10 climate-detail research. Keep broader graph work deferred
-    until its dedicated scope is agreed; this does not close A1/A2/A3.
+10. Module 10 climate detail is implemented and independently offline/reference-verified under its evidence packet, including the A1 sparse-state crash repair. Status remains verification-ready pending explicitly authorized live actuation acceptance. Keep A2/A3 and broader graph work deferred until the dedicated scope is agreed.
 
 Later subscription consumers reuse completed Module 02. Preserve the coordinated Module 01/12 graph-range and active-owner contracts.
 

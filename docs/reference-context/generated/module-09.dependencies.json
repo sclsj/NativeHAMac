@@ -6390,7 +6390,7 @@
       "typeResolved": "src/resources/echarts/ha-ec-option.ts"
     }
   ],
-  "graphFingerprint": "6add634ec09528ace910c22f23b2c60ead342c519cd8745db951e666873f512a",
+  "graphFingerprint": "cee3baa758f4d46dc640b4be3ecfab364cc9b97d466449509deecc1c8fb555cd",
   "manifest": {
     "module": "09",
     "path": "docs/reference-context/manifests/module-09.inputs.json",
@@ -6433,8 +6433,8 @@
         "worktreeBlob": "8cac19f68aea0fca6b17af7619c03bdfa528880c"
       },
       {
-        "dirty": true,
-        "headBlob": "859600ada92127650b45f15287a2af92980617bc",
+        "dirty": false,
+        "headBlob": "41a9c1f395f6618f052d5d954397bdbf6104a1b5",
         "missing": false,
         "path": "Sources/NativeHACore/Models.swift",
         "sha256": "ed5de23bb8cd41aaa70d6e8e70f9303d464e0dd708ed56938f4b39ddfc53003a",
@@ -6446,27 +6446,27 @@
       },
       {
         "dirty": true,
-        "headBlob": "e8e1d121dd6ab10a916e1ad7d08545b48f4138c8",
+        "headBlob": "3299dc478bd496f3b40a5bbb0d0e7142c2ceb552",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "214a23ab4a1ac9de43233529f76a1b908f9cfe09e92bf708784d6ab89a38cf30",
+        "sha256": "21f1aceb4a13321d73a03377168d0c40ede7d49c84029c9071b6e44ede7ef2e4",
         "symbols": [
           "AppConfig",
           "GraphRenderEngine"
         ],
-        "worktreeBlob": "3299dc478bd496f3b40a5bbb0d0e7142c2ceb552"
+        "worktreeBlob": "10291a324d700eab3e6ce8a4c2d1aa77824c5e0e"
       },
       {
         "dirty": true,
-        "headBlob": "505e9f2a159da0f0c344511662c4c09195eefd8d",
+        "headBlob": "f29618d4da60b0d363f539ba7b1ce5e0d56e71ac",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "c03e7e7216cdb4057ad88b5bd2310b98dc5db36b337a2b6a4c28d5ea6b37b963",
+        "sha256": "b2d5946fba17cf7bdc8f799648992c90b42d7453f835da50807fa74142ff3681",
         "symbols": [
           "BitmapLineChart",
           "UnitGraph"
         ],
-        "worktreeBlob": "f29618d4da60b0d363f539ba7b1ce5e0d56e71ac"
+        "worktreeBlob": "dd700e70df5605787f2c76582bc47f3f81790f60"
       },
       {
         "dirty": false,
@@ -6481,16 +6481,16 @@
       },
       {
         "dirty": true,
-        "headBlob": "82835166101e7ba6efac3d5b7fcdb582ce5a340a",
+        "headBlob": "63c5561686256d2e9c47ac03ccd5e877d8618a08",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "1c3acd1ad11874a92d5c56a29f33815b8d5e1759172a034d7fc38a85b914033f",
+        "sha256": "6e210003b4ccc0048afea6495513e86b58d376819f396547e7d4772825aeabcc",
         "symbols": [
           "DashboardViewModel",
           "beginHistoryStartup",
           "runHistoryStartup"
         ],
-        "worktreeBlob": "63c5561686256d2e9c47ac03ccd5e877d8618a08"
+        "worktreeBlob": "3ecd3c7a02eaa57626d93fba8d478598643817d6"
       },
       {
         "dirty": false,
@@ -6555,7 +6555,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "e43010778fe1d5a06b777580fc6ccd7b60a72fac"
+    "gitHead": "3f8d15f14ee742ace447034ab4a0e482653216d2"
   },
   "nodes": [
     {

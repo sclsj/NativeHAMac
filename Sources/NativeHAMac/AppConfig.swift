@@ -70,12 +70,7 @@ enum AppConfig {
         ],
     ]
 
-    static let climatePresetTargetTemperatures: [String: [String: Double]] = [
-        "climate.room_ac": [
-            "activity": 23.0,
-            "sleep": 23.6,
-        ],
-    ]
+    static let climateInteractionPolicy = ClimateInteractionPolicy(buttonDebounceNanoseconds: 1_000_000_000, menuResyncNanoseconds: 2_000_000_000, dragThreshold: 0, animationSeconds: 0.3)
 
     static let cardColumnRules: [CardColumnRule] = [
         CardColumnRule(column: 0, title: "温湿度"),
@@ -116,6 +111,13 @@ struct GraphTimeRange: Hashable {
     init(hours: Int) {
         self.hours = max(hours, 1)
     }
+}
+
+struct ClimateInteractionPolicy {
+    let buttonDebounceNanoseconds: UInt64
+    let menuResyncNanoseconds: UInt64
+    let dragThreshold: CGFloat
+    let animationSeconds: Double
 }
 
 enum GraphTimeRangeScope: Equatable {

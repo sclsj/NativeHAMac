@@ -1,0 +1,37 @@
+import "@reference/dialogs/more-info/controls/more-info-climate";
+import { ContextProvider } from "@lit/context";
+import * as contexts from "@reference/data/context";
+import { themeStyles } from "@reference/resources/theme/theme";
+import { darkColorStyles } from "@reference/resources/theme/color/color.globals";
+import { computeFormatFunctions } from "@reference/common/translations/entity-state";
+import translations from "@reference/translations/en.json";
+import backendTranslations from "../../Tests/Fixtures/Climate/backend-translations.json";
+
+const root = document.getElementById("fixture")!;
+const style = document.createElement("style");
+style.textContent = themeStyles + darkColorStyles.toString() + "body{margin:0;font-family:var(--ha-font-family-body);background:var(--card-background-color);color:var(--primary-text-color)}#fixture{box-sizing:border-box;padding:24px;height:620px;overflow:auto}more-info-climate{display:block}html{color-scheme:dark}";
+document.head.append(style);
+const localize = (key: string) => backendTranslations[key] || key.split(".").reduce((value: any, segment) => value?.[segment], translations) || "";
+const locale = { language: "en", number_format: "language", time_format: "24", date_format: "language", time_zone: "server", first_weekday: "language" };
+const calls: any[] = [];
+const api = { callService: async (domain, service, data) => { calls.push({domain,service,data}); }, callWS: async () => ({resources:{}}), hassUrl: (path) => path, loadBackendTranslation: async () => localize };
+const providers: any[] = [];
+const provide = (context: any, initialValue: any) => providers.push(new ContextProvider(root, {context, initialValue}));
+let component: any;
+(window as any).harness = { calls, async setFixture(stateObj, width = 520, unit = "°C") {
+  calls.length = 0;
+  root.replaceChildren();
+  root.style.width = width + "px";
+  const config = {unit_system:{temperature:unit},time_zone:"Asia/Shanghai"};
+  const formatters = await computeFormatFunctions(localize as any, locale as any, config as any, {}, {}, {}, {});
+  const values = [[contexts.apiContext,api],[contexts.configContext,{config}],[contexts.internationalizationContext,{locale,localize,language:"en",loadBackendTranslation:async()=>localize,loadFragmentTranslation:async()=>localize}],[contexts.formattersContext,formatters],[contexts.entitiesContext,{}],[contexts.statesContext,{[stateObj.entity_id]:stateObj}],[contexts.uiContext,{themes:{darkMode:true},selectedTheme:{dark:true}}]];
+  if (!providers.length) for (const [context,value] of values) provide(context,value);
+  else values.forEach(([,value],i)=>providers[i].setValue(value));
+  component = document.createElement("more-info-climate");
+  component.stateObj = stateObj;
+  root.append(component);
+  await component.updateComplete;
+  await document.fonts.ready;
+  return true;
+}};
+(window as any).harnessReady = true;

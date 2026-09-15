@@ -1,10 +1,6 @@
 # Module 10 - ClimateDetailContent Capabilities and Service Semantics
 
-> **Status: unresearched future module.** On 2026-09-11 the user deferred
-> audit A1 (recursive fallback when both temperature attributes are absent).
-> Its synthetic-input crash is confirmed; reachability from the deployed HA
-> server has not been established. Retain it for later climate work without
-> treating it as impossible, repaired, or a current stabilization gate.
+> **Status: verification-ready; implementation and independent offline/reference verification passed.** The [Module 10 evidence packet](../reference-context/modules/module-10-climate-detail.md) defines the current detail-specific contracts and corrects historical assumptions below. Audit A1 (recursive fallback when both temperature attributes are absent) is repaired and covered by passing sparse-state regressions. Live actuation acceptance remains pending explicit authorization for a safe target; read-only deployment checks and recording-service tests do not prove physical AC operation.
 
 ## Purpose
 
@@ -12,7 +8,7 @@ Make climate detail controls driven by the entity's actual HA attributes and sup
 
 The live server includes `climate.room_ac`, so this module should focus first on air-conditioner style climate entities before broad thermostat coverage.
 
-## Current-Code Findings
+## Historical pre-implementation findings
 
 Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/CardViews.swift`:
 
