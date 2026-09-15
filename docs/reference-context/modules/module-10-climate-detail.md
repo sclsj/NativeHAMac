@@ -3,14 +3,14 @@ schema: nativeha-evidence/v1
 module: "10"
 title: Climate detail capabilities and service semantics
 plan: ../../rescue-plan/module-10-climate-detail.md
-status: verification-ready
+status: complete
 contract_revision: 1
 depends_on: ["05", "06"]
 reference_revision: "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd"
-nativeha_revision: "3f8d15f14ee742ace447034ab4a0e482653216d2"
+nativeha_revision: "efd7252e16ae6a287c9c5092d53f924c80e3a18d"
 graph_file: ../generated/module-10.dependencies.json
-graph_fingerprint: "d3414b2d612e14d7e877b92f420c32bf87f2f1bee00cdfbdb7a4e4e798b62393"
-last_validated: 2026-09-14
+graph_fingerprint: "e85b40f9899a8223f57a705c7d1a61e787e6dcc463603f1c281616a11fe96417"
+last_validated: 2026-09-15
 ---
 
 # Module 10 evidence packet
@@ -86,7 +86,7 @@ The [generated graph](../generated/module-10.dependencies.json) contains 164 nod
 
 | ID | Decision/deviation | Allowed reason | Preserved semantics | Evidence | Test | Status |
 |---|---|---|---|---|---|---|
-| D10-01 | Native menus, buttons, dial, cancellation and async service ownership | native-platform convention | Raw options, same capabilities/payloads, authoritative updates, keyboard access | Approved native architecture; A2…A13 | C10-04,06…11 | Implemented; independent offline/reference acceptance passed; live gate pending |
+| D10-01 | Native menus, buttons, dial, cancellation and async service ownership | native-platform convention | Raw options, same capabilities/payloads, authoritative updates, keyboard access | Approved native architecture; A2…A13 | C10-04,06…11 | Implemented; independent offline/reference and authorized live acceptance passed |
 | D10-02 | Safe absent/malformed numeric handling instead of invalid geometry or circular fallback | platform limitation | No fabricated HA values or unsupported service call; valid inputs follow reference | A3/A4; native confirmed recursive fallback | C10-01,03,05…07 | Implemented and deterministically tested |
 
 No new product deviation is approved by this packet. Auxiliary heat absence, horizontal swing inclusion, unknown mutability, range precedence and authoritative menus correct stale plan assumptions rather than changing the reference product.
@@ -97,9 +97,19 @@ No new product deviation is approved by this packet. Auxiliary heat absence, hor
 
 Implemented parsing, feature, payload, hosted interaction and lifecycle tests cover Celsius/Fahrenheit, range, unavailable/unknown, sparse/malformed attributes, feature gating, raw custom modes, negative half-step and off-grid button targets. Recording callers and injectable debounce/resync clocks require no network/token. Final independent debug validation passed 21 focused tests with zero failures in 6.294 seconds and 376 full-suite tests with five expected opt-in skips and zero unexpected failures in 126.439 seconds. Final release climate validation passed 21 tests with zero failures. The existing graph-hover expected failure remains unrelated and deferred. The exact-source semantic oracle and resolver self-test (31 nodes/61 edges) pass. Graph anchors are fresh; the checker retains only the single resolved translation-metadata boundary above, not a green status.
 
+After adding the opt-in live harness, the supervisor reran the complete default `swift test` suite successfully with no live environment flags. Test discovery now contains 377 cases; the additional climate live case skips by default, alongside the five existing opt-in skips. No application Swift source changed after the independently verified implementation commit.
+
 ### Read-only live smoke
 
-QA agent captured `Tests/Fixtures/Climate/live-room-ac-capture.json` at 2026-09-12T10:49:49.053Z: HA 2026.5.4, server °C, entity off, HVAC modes cool/off, bounds 19…28, step 0.1, current 23.7, target 22.8, presets none/sleep/activity, action off, features 401 (1+16+128+256). It has no range/humidity/fan/swing attributes. Domain services include horizontal swing and no auxiliary heat service. The final independent read-only recheck at 2026-09-14T07:32:30.621Z found unchanged capabilities, off, current/target 22.8°C, English and Asia/Shanghai. This is read-only capability evidence, not proof of actuation. No live state-changing service is authorized by this packet; use offline recording for service semantics unless the user supplies an explicitly authorized safe target.
+QA agent captured `Tests/Fixtures/Climate/live-room-ac-capture.json` at 2026-09-12T10:49:49.053Z: HA 2026.5.4, server °C, entity off, HVAC modes cool/off, bounds 19…28, step 0.1, current 23.7, target 22.8, presets none/sleep/activity, action off, features 401 (1+16+128+256). It has no range/humidity/fan/swing attributes. Domain services include horizontal swing and no auxiliary heat service. The independent read-only recheck at 2026-09-14T07:32:30.621Z found unchanged capabilities, off, current/target 22.8°C, English and Asia/Shanghai. These historical captures remain unchanged; the separately authorized actuation evidence follows.
+
+### Authorized live acceptance
+
+The user explicitly approved temperature, presets and Cool/Off testing on `climate.room_ac` with restoration. `ClimateLiveAcceptanceTests.swift` passed in 1.698 seconds at 2026-09-15T00:45:15Z (2026-09-14 local time). Production `ClimateServiceController`/builder → `DashboardViewModel`/service owner → real REST service transport drove the test; the production entity coordinator consumed real WebSocket updates into the model and local draft. Each step required an acknowledgement, an authoritative replacement, and an independent REST state read matching the controller. The selected-entity and sender seams are test setup, not evidence of interactive app launch or real pointer delivery; those native event paths were tested separately offline.
+
+Exactly seven calls were sent: temperature 22.9°C using the one-second button debounce; presets Sleep → Activity → None; temperature 22.8°C; HVAC Cool → Off. All seven acknowledgements and authoritative confirmations passed. HA supplied preset target temperatures 23.6°C, 23°C and 22.9°C respectively; the app made no extra predicted-temperature calls. Cool reported action Idle, so this establishes live command/reconciliation behavior, not physical compressor operation. Final GET at 2026-09-15T00:45:15.012Z restored the original Off/22.8°C/None settings without additional cleanup calls; supervisor GET at 00:45:39.961Z independently confirmed the same state and action Off.
+
+Raw evidence: `Tests/Fixtures/Climate/live-room-ac-acceptance.jsonl` (34 events, seven sends/acks/confirmations). Harness usage and failure-restoration limits: `tools/climate-reference/live-acceptance.md`. Default tests skip before reading credentials or making network requests; each future ACTUATE run requires fresh explicit authorization and the exact entity opt-in. This one-run approval is not standing permission for later device changes.
 
 ### Visual and animation oracle
 
@@ -111,7 +121,7 @@ Measured 10,000-state preparation, initial bitmap construction, 10,000 warmed ma
 
 ## Open questions and risks
 
-- No material product question blocks scoped implementation. Independent offline/reference acceptance has passed; live actuation still requires an explicitly authorized safe target. Physical response and real trackpad smoothness are not inferred from mocks, screenshots or source hashes.
+- All scoped implementation, independent offline/reference and authorized live command/reconciliation gates have passed. Physical compressor operation and real trackpad smoothness were not verified; these remain explicit limits rather than inferred outcomes.
 - Reference numeric behavior assumes sane integration bounds/steps. For nonaligned min/max, slider rounds after bounding and can yield outside the original bound; native validation must preserve valid aligned integration behavior while avoiding invalid service payloads. Record any chosen malformed-input safeguard explicitly and test it rather than claiming universal formula equivalence.
 - Generic DashboardServiceController still suppresses same-service concurrent requests and unknown states by default. The explicit climate path permits these with individually tracked service tasks; unrelated-domain defaults are unchanged.
 - Error draft retention and server reconciliation must not be confused with shared-state rollback. Do not mark an optimistic synthetic target as HA-confirmed or restore an old snapshot after a newer event.
@@ -119,7 +129,7 @@ Measured 10,000-state preparation, initial bitmap construction, 10,000 warmed ma
 
 ## Handoff
 
-Verification-ready implementation handoff, 2026-09-14. Native owners are `ClimateEntity.swift` (features, values, builders, mapping), `ClimateServiceController.swift` (mounted drafts, button debounce, successful-menu resync), `ClimateDetailView.swift` (AppKit menus/buttons/dial input, formatting and responsive control layout), and `ClimateControlDrawing.swift` (target/current interpolation and reference palette). `DashboardViewModel` revalidates each request against current HA state and protects global errors with service/entity/detail generations. `HAEntitySubscriptionCoordinator` reports accepted replacement IDs from wire payload provenance, including equal replacements and authoritative reconnect snapshots, without changing `HAState` semantic equality. Other entity updates do not reset an active climate draft. Detail generation changes synchronously revoke the mounted sender before SwiftUI disappearance cleanup.
+Complete scoped handoff, 2026-09-15 UTC. Native owners are `ClimateEntity.swift` (features, values, builders, mapping), `ClimateServiceController.swift` (mounted drafts, button debounce, successful-menu resync), `ClimateDetailView.swift` (AppKit menus/buttons/dial input, formatting and responsive control layout), and `ClimateControlDrawing.swift` (target/current interpolation and reference palette). `DashboardViewModel` revalidates each request against current HA state and protects global errors with service/entity/detail generations. `HAEntitySubscriptionCoordinator` reports accepted replacement IDs from wire payload provenance, including equal replacements and authoritative reconnect snapshots, without changing `HAState` semantic equality. Other entity updates do not reset an active climate draft. Detail generation changes synchronously revoke the mounted sender before SwiftUI disappearance cleanup.
 
 The preset compatibility method remains for existing lifecycle tests but ignores its obsolete prediction argument; no production UI uses predictions. The legacy `ClimateDialDrawing` is retained only for existing isolated test coverage; production uses `ClimateControlDrawing`. The native specific climate dispatch permits independent in-flight climate commits with every task inventoried by the established service owner, while unrelated-domain dispatch defaults remain unchanged. Native request validation allows the reference half-step rounding envelope at off-grid bounds/neighbors but rejects nonfinite or arbitrarily out-of-range values; crossed authoritative ranges are read-only.
 
@@ -131,7 +141,7 @@ Native PNGs are `.build/render-artifacts/climate-detail-{off,idle,cooling,heatin
 
 Local debug XCTest clock observations: 10,000 typed climate preparations approximately 53–57 ms; 10,000 warmed pointer mappings approximately 1.3 ms; initial 520×620 bitmap construction approximately 0.18 seconds. CPU/memory metrics are emitted in the focused logs; zero reported peak growth and noisy signed physical-memory deltas are not a memory ceiling. Preparation, mapping, controller reconciliation and bitmap generation are measured separately. These are observations on this macOS 12/Xcode 13.4.1 machine, not portable performance guarantees or stored regression baselines.
 
-Final independent read-only deployment check at 2026-09-14T07:32:30.621Z found HA 2026.5.4, climate.room_ac off, target/current 22.8°C, bounds 19…28/step 0.1, modes cool/off, presets none/sleep/activity and features 401 (`/tmp/nativeha-module10-verifier-live.json`). Historical raw capture remains unchanged. Live actuation and physical-device confirmations were not authorized/executed. Exact next action: obtain explicit authorization to test temperature, presets and Cool/Off on climate.room_ac, record initial state, verify authoritative responses, and restore its initial settings. Keep this packet verification-ready until that live acceptance gate passes or the user approves deferring it. Real trackpad/hitch testing remains the previously documented manual/deferred limitation.
+Authorized live acceptance and independent restoration verification passed as recorded above. No climate implementation gate remains open within this module's scope. Preserve these contracts in later work; Module 11 fan detail is the next unresearched detail module, not automatically authorized by this acceptance run. Physical compressor confirmation, full more-info shell/history parity and real trackpad/hitch testing remain outside the completed evidence scope.
 
 ### Independent contract verdict
 
@@ -140,7 +150,7 @@ Final independent read-only deployment check at 2026-09-14T07:32:30.621Z found H
 | C10-01…03 | Sparse/malformed/zero parsing, feature masks, main-control reset/loss and single/range/off/unknown/unavailable capability regressions pass; A1 closed. |
 | C10-04…05 | Raw menu payloads, ordering, gating and native action wiring pass; server units, step defaults, action labels and formatting reviewed against source. |
 | C10-06…07 | Off-grid adjustment, debounce/cancellation, hosted drag/release/cancel/keyboard/button and offset hit testing pass; source oracle confirms mapping/rounding. |
-| C10-08…09 | Exact payloads, unavailable rejection, concurrent commits, authoritative replacements, stale completion/reopen and identity-guarded two-second resync pass without shared optimism. Live actuation remains untested. |
+| C10-08…09 | Exact payloads, unavailable rejection, concurrent commits, authoritative replacements, stale completion/reopen and identity-guarded two-second resync pass without shared optimism. Authorized live temperature/preset/HVAC commands, authoritative model/draft reconciliation and restoration pass. |
 | C10-10 | Corrected arcs/markers/humidity/colors/values, animation vectors, focus and paired normal/narrow presentation pass within the visual scope above. |
 | C10-11 | 100 detail/controller lifetimes verify weak release, canceled debounce and zero climate history ownership. |
 
@@ -148,3 +158,4 @@ Final independent read-only deployment check at 2026-09-14T07:32:30.621Z found H
 
 - 2026-09-12: Established detail-specific reference contracts, runtime dependency boundaries, source anchors and research-ready handoff. No Swift edits or implementation-complete claim.
 - 2026-09-14: Implemented the scoped native climate surface and recording/hosted/visual/lifecycle tests; integrated independent semantic and visual corrections; refreshed native/reference graph anchors and recorded verification-ready handoff without claiming live actuation coverage.
+- 2026-09-15 UTC: User-authorized live acceptance passed through production Swift controllers and real HA services/subscription; original settings restored and independently rechecked. Added opt-in harness/raw evidence and closed the scoped module without claiming physical compressor or trackpad/hitch verification.

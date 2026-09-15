@@ -13,7 +13,8 @@
     { "path": "Sources/NativeHAMac/DashboardViewModel.swift", "symbols": ["DashboardViewModel"] },
     { "path": "Sources/NativeHAMac/DashboardServiceController.swift", "symbols": ["DashboardServiceController"] },
     { "path": "Sources/NativeHAMac/AppConfig.swift", "symbols": ["AppConfig", "ClimateInteractionPolicy"] },
-    { "path": "Tests/NativeHAMacTests/ClimateTests.swift", "symbols": ["ClimateEntityTests", "ClimateDetailInteractionTests", "ClimateDetailRenderingTests"] }
+    { "path": "Tests/NativeHAMacTests/ClimateTests.swift", "symbols": ["ClimateEntityTests", "ClimateDetailInteractionTests", "ClimateDetailRenderingTests"] },
+    { "path": "Tests/NativeHAMacTests/ClimateLiveAcceptanceTests.swift", "symbols": ["ClimateLiveAcceptanceTests", "ClimateLiveRun"] }
   ],
   "entries": [
     { "path": "src/resources/theme/color/color.globals.ts", "symbols": ["colorStyles", "darkColorStyles"] },
