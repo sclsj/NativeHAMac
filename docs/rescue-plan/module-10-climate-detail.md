@@ -1,6 +1,6 @@
 # Module 10 - ClimateDetailContent Capabilities and Service Semantics
 
-> **Status: complete within the evidence packet's scope.** The [Module 10 evidence packet](../reference-context/modules/module-10-climate-detail.md) defines current detail-specific contracts and corrects historical assumptions below. Audit A1 (recursive fallback when both temperature attributes are absent) is repaired and covered by passing sparse-state regressions. Independent offline/reference verification and explicitly authorized live temperature/preset/HVAC command-reconciliation acceptance passed; original Off/22.8°C/None settings were restored and independently rechecked. Physical compressor operation and real trackpad/hitch behavior were not verified.
+> **Status: reopened for established-presentation recovery.** On 2026-09-19 the user rejected the replacement appearance and animation and requested restoration of the previously refined native behavior. Follow the [recovery plan](module-10-presentation-recovery.md) and [approved presentation decision](../user-deviations.md#preserve-established-climate-presentation). Preserve the A1 repair, capability/service/lifetime corrections and working Home-row entry; historical service and screenshot checks do not establish visual acceptance. The [evidence packet](../reference-context/modules/module-10-climate-detail.md) retains prior evidence with this qualification.
 
 ## Purpose
 

@@ -19,6 +19,13 @@ This file is the canonical list of intentional NativeHA deviations from the `/Us
 
 - NativeHA is a native macOS replacement, not a wrapper around the web frontend. Implement behavior with Swift, SwiftUI, AppKit, CoreGraphics, and other native APIs; do not use JavaScript or WebView as the app architecture.
 
+## Preserve established climate presentation
+
+- On 2026-09-19, the user rejected Module 10's replacement climate appearance and animation behavior and requested recovery of the presentation previously refined across sessions.
+- Restore that established visual and animation behavior, integrating necessary capability, service and authoritative-state handling around it. Reference parity is not permission to redesign the approved native presentation.
+- Retain the corrected capability/service/lifetime contracts and the working Home-row entry path. Do not restore prototype data fallbacks, fabricated HVAC options, personal preset predictions or cross-entity fan inference as part of visual recovery.
+- The recovery baseline and incremental validation plan belong in `docs/rescue-plan/module-10-presentation-recovery.md`. Recovery is not complete merely because screenshots render or service tests pass; compare against the established native presentation and obtain renewed visual/animation acceptance.
+
 ## Fixed personal Home Assistant deployment
 
 - NativeHA targets one fixed personal Home Assistant deployment. Module 03 server-profile isolation is intentionally skipped, not completed.

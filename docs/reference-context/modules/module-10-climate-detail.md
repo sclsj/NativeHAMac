@@ -3,7 +3,7 @@ schema: nativeha-evidence/v1
 module: "10"
 title: Climate detail capabilities and service semantics
 plan: ../../rescue-plan/module-10-climate-detail.md
-status: complete
+status: verification-ready
 contract_revision: 1
 depends_on: ["05", "06"]
 reference_revision: "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd"
@@ -14,6 +14,12 @@ last_validated: 2026-09-15
 ---
 
 # Module 10 evidence packet
+
+## Reopened presentation acceptance — 2026-09-19
+
+The user reports that the Home-row repair now opens the dialog, but rejects the replacement appearance and animation. The previous completion/visual-acceptance conclusion is withdrawn. Earlier test and live service results below remain historical evidence for their specific paths, not acceptance of the user's established presentation. Follow the [presentation recovery plan](../../rescue-plan/module-10-presentation-recovery.md) and the overriding decision in `docs/user-deviations.md`: recover the previously refined native visuals and animation while retaining capability/service/lifetime corrections. No application code was changed during this recovery-planning turn.
+
+The interrupted row-entry repair and its tests remain uncommitted in the worktree. Preserve them; do not claim their new tests or affected source anchors were independently revalidated in this planning turn. C10-10 requires renewed baseline-relative visual and motion acceptance, and C10-12 must be included in the final integration verification.
 
 ## Scope delta
 
@@ -40,6 +46,7 @@ The entrypoint for climate detail is `more-info-climate.ts`, with its temperatur
 | C10-09 | New entity state / stale service completion | Any authoritative entity replacement updates controls/drafts, including different target; unrelated entity change does not reset an active draft. Menus display HA values until authoritative state arrives. | Service acknowledgement is not HA confirmation. Older service completion cannot overwrite newer state/request or another detail lifetime. Dismissal cancels pending local debounce/owned callbacks. Keep actual state store authoritative. | A2, A3, A4, A6, A10 | ClimateServiceController / DashboardViewModel | Matching/different/unrelated state, unchanged-state service success, stale failure after new input, dismiss/reopen and deinit. |
 | C10-10 | Visual control state | Target and current markers are distinct; heat/cool colors and single start/end/full or dual arcs follow state/action, with inactive off/unknown and read-only unavailable. Controls remain reachable at520pt shell and360pt content. Desktop optional menus wrap. | 300ms non-pressed arc/marker changes; pressed movement has no position interpolation. Render start/mid/end explicitly. Native menus retain keyboard/focus semantics. | A2, A3, A5, A11 | ClimateDialDrawing / view | Matching fixture screenshots, keyframes, narrow full-capability fixture, focus and hit inspection. |
 | C10-11 | Climate detail lifetime | Climate detail owns no history graph/subscription in current NativeHA surface or scoped reference control. Repeated open/close must not start unrelated history work. | Local tasks/controllers release; app stop/config dismissal revokes pending authority. Established Module05 global entity subscription remains shared. | Native CardViews/DashboardViewModel; A2 | Detail controller / model lifecycle | 100 open/close cycles, weak release, pending debounce and service retirement, no history owners. |
+| C10-12 | Activate a climate entity row on Home | An existing climate entity retains the configured row action; the default more-info action opens the production climate panel, including the AppConfig-injected Room AC row. | Explicit none/unsupported actions remain non-mutating; missing entities retain the existing inactive-row rule. Opening the panel alone issues no climate service. Weather row deferral is unchanged. | Reference climate row/generic more-info action; Native EntityRowPresentation/CardViews/DashboardView | EntityRowPresentationResolver / EntityRow / DashboardView | Whole-dashboard row activation must mount the climate dial, not merely set selectedEntityID; normal and injected rows plus action-boundary regressions. |
 
 ## Source anchors
 
@@ -121,13 +128,13 @@ Measured 10,000-state preparation, initial bitmap construction, 10,000 warmed ma
 
 ## Open questions and risks
 
-- All scoped implementation, independent offline/reference and authorized live command/reconciliation gates have passed. Physical compressor operation and real trackpad smoothness were not verified; these remain explicit limits rather than inferred outcomes.
+- Presentation acceptance is reopened: the user rejected the replacement visuals/animations. Earlier service and deterministic evidence remains useful but does not resolve this failure. Physical compressor operation and real trackpad smoothness were not verified.
 - Reference numeric behavior assumes sane integration bounds/steps. For nonaligned min/max, slider rounds after bounding and can yield outside the original bound; native validation must preserve valid aligned integration behavior while avoiding invalid service payloads. Record any chosen malformed-input safeguard explicitly and test it rather than claiming universal formula equivalence.
 - Generic DashboardServiceController still suppresses same-service concurrent requests and unknown states by default. The explicit climate path permits these with individually tracked service tasks; unrelated-domain defaults are unchanged.
 - Error draft retention and server reconciliation must not be confused with shared-state rollback. Do not mark an optimistic synthetic target as HA-confirmed or restore an old snapshot after a newer event.
 - Live optional capability coverage is limited to single target/preset. Range, humidity, fan, vertical/horizontal swing require synthetic frontend/native comparison.
 
-## Handoff
+## Historical implementation handoff — superseded for presentation acceptance
 
 Complete scoped handoff, 2026-09-15 UTC. Native owners are `ClimateEntity.swift` (features, values, builders, mapping), `ClimateServiceController.swift` (mounted drafts, button debounce, successful-menu resync), `ClimateDetailView.swift` (AppKit menus/buttons/dial input, formatting and responsive control layout), and `ClimateControlDrawing.swift` (target/current interpolation and reference palette). `DashboardViewModel` revalidates each request against current HA state and protects global errors with service/entity/detail generations. `HAEntitySubscriptionCoordinator` reports accepted replacement IDs from wire payload provenance, including equal replacements and authoritative reconnect snapshots, without changing `HAState` semantic equality. Other entity updates do not reset an active climate draft. Detail generation changes synchronously revoke the mounted sender before SwiftUI disappearance cleanup.
 
@@ -141,7 +148,7 @@ Native PNGs are `.build/render-artifacts/climate-detail-{off,idle,cooling,heatin
 
 Local debug XCTest clock observations: 10,000 typed climate preparations approximately 53–57 ms; 10,000 warmed pointer mappings approximately 1.3 ms; initial 520×620 bitmap construction approximately 0.18 seconds. CPU/memory metrics are emitted in the focused logs; zero reported peak growth and noisy signed physical-memory deltas are not a memory ceiling. Preparation, mapping, controller reconciliation and bitmap generation are measured separately. These are observations on this macOS 12/Xcode 13.4.1 machine, not portable performance guarantees or stored regression baselines.
 
-Authorized live acceptance and independent restoration verification passed as recorded above. No climate implementation gate remains open within this module's scope. Preserve these contracts in later work; Module 11 fan detail is the next unresearched detail module, not automatically authorized by this acceptance run. Physical compressor confirmation, full more-info shell/history parity and real trackpad/hitch testing remain outside the completed evidence scope.
+Authorized live service acceptance and independent restoration verification passed as recorded above. The later user report reopens presentation recovery and entry-path integration verification; follow the recovery plan before claiming Module 10 complete or advancing to another module. Physical compressor confirmation, full more-info shell/history parity and real trackpad/hitch testing remain outside the historical evidence scope.
 
 ### Independent contract verdict
 
@@ -151,7 +158,7 @@ Authorized live acceptance and independent restoration verification passed as re
 | C10-04…05 | Raw menu payloads, ordering, gating and native action wiring pass; server units, step defaults, action labels and formatting reviewed against source. |
 | C10-06…07 | Off-grid adjustment, debounce/cancellation, hosted drag/release/cancel/keyboard/button and offset hit testing pass; source oracle confirms mapping/rounding. |
 | C10-08…09 | Exact payloads, unavailable rejection, concurrent commits, authoritative replacements, stale completion/reopen and identity-guarded two-second resync pass without shared optimism. Authorized live temperature/preset/HVAC commands, authoritative model/draft reconciliation and restoration pass. |
-| C10-10 | Corrected arcs/markers/humidity/colors/values, animation vectors, focus and paired normal/narrow presentation pass within the visual scope above. |
+| C10-10 | Earlier fixture/reference checks passed, but the user rejected the replacement appearance/animation. Acceptance is reopened pending established-native-baseline recovery and comparison. |
 | C10-11 | 100 detail/controller lifetimes verify weak release, canceled debounce and zero climate history ownership. |
 
 ## Change log
@@ -159,3 +166,4 @@ Authorized live acceptance and independent restoration verification passed as re
 - 2026-09-12: Established detail-specific reference contracts, runtime dependency boundaries, source anchors and research-ready handoff. No Swift edits or implementation-complete claim.
 - 2026-09-14: Implemented the scoped native climate surface and recording/hosted/visual/lifecycle tests; integrated independent semantic and visual corrections; refreshed native/reference graph anchors and recorded verification-ready handoff without claiming live actuation coverage.
 - 2026-09-15 UTC: User-authorized live acceptance passed through production Swift controllers and real HA services/subscription; original settings restored and independently rechecked. Added opt-in harness/raw evidence and closed the scoped module without claiming physical compressor or trackpad/hitch verification.
+- 2026-09-19: Withdrew the presentation completion claim after user feedback; recorded the approved established-presentation recovery direction and bounded planning handoff. Existing row-entry repair remains preserved and uncommitted.

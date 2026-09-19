@@ -33,7 +33,7 @@ Implement in this order unless a future audit finds a blocker:
 7. Module 07 revision 2 weather more-info: complete and independently verified; keep C07-09/10 dashboard forecast deferred.
 8. A4 bootstrap consolidation and lifecycle validation are complete. A1 is repaired in Module 10; keep A2 deferred and collect A3 into the future dedicated graphing module.
 9. Module 08 stage 1 is complete and independently verified: native Markdown, HA templates, scoped actions, per-card updates and lifecycle/cache handling. Advanced HTML/media/custom elements have the user-approved source fallback. Visual evidence is a matched component-style approximation, not full live theme/runtime parity or approved goldens.
-10. Module 10 climate detail is complete under its evidence packet, including the A1 sparse-state crash repair, independent offline/reference verification and authorized live temperature/preset/HVAC acceptance. Original Off/22.8°C/None settings were restored and independently rechecked. Keep A2/A3 and broader graph work deferred until the dedicated scope is agreed; Module 11 fan detail remains unresearched.
+10. Module 10 is reopened after the user rejected its replacement visuals/animations. Recover the established native presentation under the [bounded recovery plan](module-10-presentation-recovery.md), preserving the A1 repair, corrected capability/service/lifetime handling and working Home-row entry. Earlier offline and live service evidence does not establish acceptance of the replacement presentation. Keep A2/A3 and broader graph work deferred; do not advance to Module 11 as part of this recovery.
 
 Later subscription consumers reuse completed Module 02. Preserve the coordinated Module 01/12 graph-range and active-owner contracts.
 
