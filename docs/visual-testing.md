@@ -2,6 +2,8 @@
 
 NativeHA can test most of its visual behavior on macOS 12 without `ImageRenderer` or third-party snapshot libraries. The test target hosts SwiftUI in AppKit with `NSHostingView`, captures the result through `NSView`'s bitmap cache API, and writes inspectable PNGs to `.build/render-artifacts`.
 
+For timed Canvas transitions, do not assume `cacheDisplay` captures the current compositor frame. During climate recovery on this machine, repeated bitmap-cache captures retained the initial dial while text changed; captures of the same mounted window via `CGWindowListCreateImage` showed the moving knob correctly. Use window-pixel captures for hosted motion, assert marker geometry independently of changing text, and retain bitmap caching for static fixture rendering. Whole-image inequality alone cannot prove that a dial animated.
+
 ## Run the tests
 
 ```sh

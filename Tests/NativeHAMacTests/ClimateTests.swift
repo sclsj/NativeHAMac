@@ -482,16 +482,24 @@ final class ClimateDetailRenderingTests: XCTestCase {
         XCTAssertGreaterThan(consumed, 0)
     }
 
-    func testAnimationVectorInterpolatesTargetAndCurrentWithoutInventingMissingValues() throws {
+    func testAnimationVectorInterpolatesOnlyTargetsWithoutInventingMissingValues() throws {
         let startEntity = try ClimateFixtures.entity(overrides: ["current_temperature": .double(20)])
         let endEntity = try ClimateFixtures.entity(overrides: ["current_temperature": .double(26)])
-        let start = ClimateControlDrawing(entity: startEntity, mainControl: .temperature, values: [.value: 20])
-        var midpoint = ClimateControlDrawing(entity: endEntity, mainControl: .temperature, values: [.value: 26])
+        let start = ClimateCapabilityDrawing(entity: startEntity, mainControl: .temperature, values: [.value: 20])
+        var midpoint = ClimateCapabilityDrawing(entity: endEntity, mainControl: .temperature, values: [.value: 26])
         var vector = midpoint.animatableData - start.animatableData
         vector.scale(by: 0.5)
         midpoint.animatableData = start.animatableData + vector
         XCTAssertEqual(midpoint.values[.value], 23)
-        XCTAssertEqual(midpoint.animatableData.second.first, 23)
+        let directMidpoint = ClimateCapabilityDrawing(entity: endEntity, mainControl: .temperature, values: [.value: 23])
+        XCTAssertEqual(try MacViewPNGRenderer.render(midpoint, size: CGSize(width: 320, height: 320), displayScale: 2).pngData,
+                       try MacViewPNGRenderer.render(directMidpoint, size: CGSize(width: 320, height: 320), displayScale: 2).pngData)
         XCTAssertNil(midpoint.values[.humidity])
+        var single = ClimateDialDrawing(targetProgress: 0.8, currentProgress: 0.7, isCooling: true, hasTemperatureDifference: true)
+        single.animatableData = 0.5
+        XCTAssertEqual(single.currentProgress, 0.7)
+        let expected = ClimateDialDrawing(targetProgress: 0.5, currentProgress: 0.7, isCooling: true, hasTemperatureDifference: true)
+        XCTAssertEqual(try MacViewPNGRenderer.render(single, size: CGSize(width: 320, height: 320), displayScale: 2).pngData,
+                       try MacViewPNGRenderer.render(expected, size: CGSize(width: 320, height: 320), displayScale: 2).pngData)
     }
 }

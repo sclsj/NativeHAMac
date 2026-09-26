@@ -24,6 +24,7 @@ This file is the canonical list of intentional NativeHA deviations from the `/Us
 - On 2026-09-19, the user rejected Module 10's replacement climate appearance and animation behavior and requested recovery of the presentation previously refined across sessions.
 - Restore that established visual and animation behavior, integrating necessary capability, service and authoritative-state handling around it. Reference parity is not permission to redesign the approved native presentation.
 - Retain the corrected capability/service/lifetime contracts and the working Home-row entry path. Do not restore prototype data fallbacks, fabricated HVAC options, personal preset predictions or cross-entity fan inference as part of visual recovery.
+- On 2026-09-20, the user confirmed that Mode/Preset triggers should be rounded boxes showing both the label and selected value. The old SwiftUI Menu's label-only rendering on macOS 12 is not the intended appearance.
 - The recovery baseline and incremental validation plan belong in `docs/rescue-plan/module-10-presentation-recovery.md`. Recovery is not complete merely because screenshots render or service tests pass; compare against the established native presentation and obtain renewed visual/animation acceptance.
 
 ## Fixed personal Home Assistant deployment

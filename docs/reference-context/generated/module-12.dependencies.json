@@ -21949,7 +21949,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "28f2ccd142ccadcb5a0f418a29d8e18f221fcf12cb01a184f87b64bd6aa598ec",
+  "graphFingerprint": "89bc540ce379709b7fb3527d463ca09f7321678ce532b6a513e88d3d9a62dd90",
   "manifest": {
     "module": "12",
     "path": "docs/reference-context/manifests/module-12.inputs.json",
@@ -21998,24 +21998,24 @@
       },
       {
         "dirty": true,
-        "headBlob": "3299dc478bd496f3b40a5bbb0d0e7142c2ceb552",
+        "headBlob": "10291a324d700eab3e6ce8a4c2d1aa77824c5e0e",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "21f1aceb4a13321d73a03377168d0c40ede7d49c84029c9071b6e44ede7ef2e4",
+        "sha256": "e742b0546314417b59d5944974e082af3ade6d0f788676ca71c03fb2b7411148",
         "symbols": [
           "AppConfig",
           "CardColumnRule",
           "GraphTimeRangePolicy",
           "LovelaceNavigationPolicy"
         ],
-        "worktreeBlob": "10291a324d700eab3e6ce8a4c2d1aa77824c5e0e"
+        "worktreeBlob": "6107b9523b4b5433e224999e76aefa1a67f1bfc6"
       },
       {
         "dirty": true,
-        "headBlob": "f29618d4da60b0d363f539ba7b1ce5e0d56e71ac",
+        "headBlob": "dd700e70df5605787f2c76582bc47f3f81790f60",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "b2d5946fba17cf7bdc8f799648992c90b42d7453f835da50807fa74142ff3681",
+        "sha256": "0f2f2c9821464fd94330433fc5c6522f4db1d022cfc44720094a495625ac5641",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -22023,7 +22023,7 @@
           "HistoryGraphCard",
           "UnitGraph"
         ],
-        "worktreeBlob": "dd700e70df5605787f2c76582bc47f3f81790f60"
+        "worktreeBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71"
       },
       {
         "dirty": false,
@@ -22206,7 +22206,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "3f8d15f14ee742ace447034ab4a0e482653216d2"
+    "gitHead": "9dcf650b7c63bd08b7d30bc359c012afbdeb70e3"
   },
   "nodes": [
     {

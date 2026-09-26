@@ -333,7 +333,7 @@ final class EntityRowPresentationTests: XCTestCase {
     func testRowSelectionAndPowerRoutingMatrix() {
         XCTAssertEqual(presentation(for: state("climate.room", "heat")).kind, .deferredSpecialized)
         XCTAssertEqual(presentation(for: state("weather.home", "sunny")).kind, .deferredSpecialized)
-        XCTAssertEqual(presentation(for: state("climate.room", "heat")).primaryAction, .none)
+        XCTAssertEqual(presentation(for: state("climate.room", "heat")).primaryAction, .details(entityID: "climate.room"))
         XCTAssertTrue(presentation(for: state("binary_sensor.door", "on")).isSupported)
 
         let unsupported = presentation(
@@ -365,6 +365,21 @@ final class EntityRowPresentationTests: XCTestCase {
         )
     }
 
+    func testClimateOpeningRetainsConfiguredActionAndMissingBoundary() {
+        let entity = state("climate.room", "cool")
+        for (action, expected): (String, EntityPrimaryAction) in [
+            ("more-info", .details(entityID: "climate.room")),
+            ("none", .none), ("toggle", .unsupported), ("navigate", .unsupported)
+        ] {
+            let raw = JSONValue.object(["entity": .string(entity.entityId), "tap_action": .object(["action": .string(action)])])
+            XCTAssertEqual(presentation(raw: raw, states: [entity.entityId: entity]).primaryAction, expected)
+            XCTAssertEqual(presentation(raw: raw, states: [:]).primaryAction, .none)
+        }
+        let redirected = JSONValue.object(["entity": .string(entity.entityId), "tap_action": .object(["action": .string("more-info"), "entity": .string("climate.other")])])
+        XCTAssertEqual(presentation(raw: redirected, states: [entity.entityId: entity]).primaryAction, .details(entityID: "climate.other"))
+        XCTAssertEqual(presentation(for: state("weather.home", "sunny")).primaryAction, .none)
+    }
+
     func testImplicitRowFactoryMatrixRejectsEveryReferenceSpecializedDomain() {
         let toggleDomains = [
             "alert", "automation", "fan", "input_boolean", "light",
@@ -385,7 +400,7 @@ final class EntityRowPresentationTests: XCTestCase {
         for domain in ["climate", "weather"] {
             let result = presentation(for: state("\(domain).example", "off"))
             XCTAssertEqual(result.kind, .deferredSpecialized, domain)
-            XCTAssertEqual(result.primaryAction, .none, domain)
+            XCTAssertEqual(result.primaryAction, domain == "climate" ? .details(entityID: "climate.example") : .none, domain)
         }
 
         let specializedDomains = [

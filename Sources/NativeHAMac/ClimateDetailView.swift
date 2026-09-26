@@ -27,11 +27,18 @@ struct ClimateDetailContent: View {
                 .frame(maxWidth: 280)
                 .disabled(entity.unavailable)
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 138), spacing: 10)], spacing: 10) {
+            HStack(spacing: 10) {
                 modeMenu("Mode", attribute: "hvac_mode", options: entity.hvacModes, current: state.state)
-                ForEach(["preset_mode", "fan_mode", "swing_mode", "swing_horizontal_mode"], id: \.self) { attribute in
+                if let options = entity.options("preset_mode") {
+                    modeMenu("Preset", attribute: "preset_mode", options: options, current: entity.string("preset_mode"))
+                }
+            }
+            if ["fan_mode", "swing_mode", "swing_horizontal_mode"].contains(where: { entity.options($0) != nil }) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 138), spacing: 10)], spacing: 10) {
+                    ForEach(["fan_mode", "swing_mode", "swing_horizontal_mode"], id: \.self) { attribute in
                     if let options = entity.options(attribute) {
                         modeMenu(menuTitle(attribute), attribute: attribute, options: options, current: entity.string(attribute))
+                    }
                     }
                 }
             }
@@ -55,18 +62,18 @@ struct ClimateDetailContent: View {
 
     private func reading(_ label: String, value: Double, unit: String) -> some View {
         VStack(spacing: 5) {
-            Text(label).font(.system(size: 12)).foregroundColor(.secondary)
-            Text(ClimateNumberFormatting.format(value, digits: nil, unit: unit, preferences: model.frontendLocalePreferences)).font(.system(size: 20, weight: .medium))
+            Text(label).font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.55))
+            Text(ClimateNumberFormatting.format(value, digits: nil, unit: unit, preferences: model.frontendLocalePreferences)).font(.system(size: 20, weight: .semibold))
         }.frame(maxWidth: .infinity)
     }
 
     private func menuTitle(_ attribute: String) -> String {
-        ["preset_mode": "Preset", "fan_mode": "Fan mode", "swing_mode": "Swing mode", "swing_horizontal_mode": "Horizontal swing"][attribute] ?? attribute
+        ["preset_mode": "Preset", "fan_mode": "Fan", "swing_mode": "Swing", "swing_horizontal_mode": "Horizontal swing"][attribute] ?? attribute
     }
 
     private func modeMenu(_ title: String, attribute: String, options: [String], current: String?) -> some View {
-        ClimateModeMenu(title: title, options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute)) { controller.mode(attribute, value: $0) }
-            .frame(height: 54)
+        ClimateModeMenu(title: title, symbol: ["hvac_mode": "power", "preset_mode": "figure.walk", "fan_mode": "fanblades", "swing_mode": "arrow.left.and.right", "swing_horizontal_mode": "arrow.left.and.right"][attribute] ?? "power", options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute)) { controller.mode(attribute, value: $0) }
+            .frame(width: attribute == "swing_horizontal_mode" ? 148 : 122, height: 56)
     }
 }
 
@@ -75,6 +82,7 @@ struct ClimateControlDial: View {
     @ObservedObject var controller: ClimateServiceController
     @State private var gestureTarget: ClimateTarget?
     @State private var gestureStarted = false
+    @State private var isDragging = false
     @EnvironmentObject private var model: DashboardViewModel
 
     private var humidity: Bool { controller.mainControl == .humidity }
@@ -90,18 +98,23 @@ struct ClimateControlDial: View {
             let metrics = ClimateDialGeometry(size: geometry.size)
             ZStack {
                 ClimateControlDrawing(entity: entity, mainControl: controller.mainControl, values: controller.values)
+                    .animation(isDragging || !entity.canAdjust(target) ? nil : climateTargetAnimation, value: visibleTargets)
                     .allowsHitTesting(false)
                 ClimateDialInput(isEnabled: entity.canAdjust(target), value: displayed(target), bounds: bounds, onPointer: { point, phase in pointer(point, phase: phase, geometry: metrics) }, onKey: { key, released in keyboard(key, released: released) })
                     .accessibilityLabel(Text(humidity ? "Target humidity" : "Target temperature"))
-                VStack(spacing: 6) {
-                    Text(label).font(.system(size: 16, weight: .semibold)).foregroundColor(ClimateControlDrawing.actionColor(entity) ?? .primary)
+                VStack(spacing: 4) {
+                    Text(label).font(.system(size: 13, weight: .semibold)).foregroundColor(.white.opacity(0.72))
+                        .multilineTextAlignment(.center).frame(width: 192).frame(minHeight: 24)
                     if isDual {
                         HStack(spacing: 16) { targetButton(.low); targetButton(.high) }
                     } else if let value = displayed(target), entity.targetKind != .readOnly || humidity {
                         ClimateLargeNumber(value: value, digits: humidity ? 0 : ClimateNumberFormatting.digits(step), unit: unit, preferences: model.frontendLocalePreferences)
+                            .frame(minHeight: 64)
                     } else if !entity.unavailable {
                         Text(ClimateEntity.label(entity.state.state)).font(.system(size: 32))
+                            .frame(minHeight: 64)
                     }
+                    Text("").font(.system(size: 13, weight: .medium)).frame(width: 192).frame(minHeight: 24)
                 }
                 .frame(width: 230)
                 .allowsHitTesting(isDual)
@@ -115,12 +128,18 @@ struct ClimateControlDial: View {
                     }
                 }
             }
-            .animation(gestureStarted ? nil : .easeInOut(duration: AppConfig.climateInteractionPolicy.animationSeconds), value: controller.values)
-            .animation(gestureStarted ? nil : .easeInOut(duration: AppConfig.climateInteractionPolicy.animationSeconds), value: entity.state)
         }
-        .onChange(of: entity.state) { _ in gestureStarted = false; gestureTarget = nil }
-        .onChange(of: model.climateEntityRevision) { _ in gestureStarted = false; gestureTarget = nil }
+        .onChange(of: entity.canAdjust(target)) { adjustable in if !adjustable { resetGesture() } }
+        .onChange(of: controller.mainControl) { _ in resetGesture() }
+        .onDisappear { resetGesture() }
     }
+
+    private var visibleTargets: [Double?] { humidity ? [displayed(.humidity)] : isDual ? [displayed(.low), displayed(.high)] : [displayed(.value)] }
+    private var climateTargetAnimation: Animation {
+        let policy = AppConfig.climateInteractionPolicy
+        return .timingCurve(policy.animationCurve.x1, policy.animationCurve.y1, policy.animationCurve.x2, policy.animationCurve.y2, duration: policy.animationSeconds)
+    }
+    private func resetGesture() { gestureTarget = nil; gestureStarted = false; isDragging = false }
 
     private var label: String {
         if !humidity { return entity.actionLabel }
@@ -138,14 +157,15 @@ struct ClimateControlDial: View {
         }.buttonStyle(.plain).accessibilityLabel(Text(target == .low ? "Low target" : "High target"))
     }
     private func adjustmentButton(_ symbol: String, direction: Double) -> some View {
-        ClimateAdjustmentButton(symbol: symbol, label: direction < 0 ? "Decrease target" : "Increase target", color: isDual && entity.active ? ClimateControlDrawing.modeColor(target == .high ? "cool" : "heat") : Color.white.opacity(0.5)) { controller.button(direction, target: target) }.frame(width: 48, height: 48)
+        ClimateAdjustmentButton(symbol: symbol, label: direction < 0 ? "Decrease target" : "Increase target", color: isDual && entity.active ? ClimateControlDrawing.modeColor(target == .high ? "cool" : "heat") : Color.white.opacity(0.45)) { controller.button(direction, target: target) }.frame(width: 48, height: 48)
     }
     private func pointer(_ point: CGPoint, phase: ClimatePointerPhase, geometry: ClimateDialGeometry) {
-        guard let bounds = bounds, entity.canAdjust(target) else { return }
-        if phase == .cancel { gestureTarget = nil; gestureStarted = false; return }
+        if phase == .cancel { resetGesture(); return }
+        guard let bounds = bounds, entity.canAdjust(target) else { resetGesture(); return }
         if phase == .down {
             guard geometry.contains(point) else { return }
             gestureStarted = true
+            isDragging = false
             gestureTarget = nil
             return
         }
@@ -157,11 +177,16 @@ struct ClimateControlDial: View {
             } else { gestureTarget = target }
         }
         let selected = gestureTarget ?? target
-        controller.change(raw, target: selected)
+        let direct = isDragging || phase == .move
+        if phase == .move { isDragging = true }
+        // A press alone is a click: its release animates. A recognized drag,
+        // including its final release mapping, tracks the pointer directly.
+        var transaction = Transaction(animation: direct ? nil : climateTargetAnimation)
+        transaction.disablesAnimations = direct
+        withTransaction(transaction) { controller.change(raw, target: selected) }
         if phase == .up {
             controller.commit(selected)
-            gestureTarget = nil
-            gestureStarted = false
+            resetGesture()
         }
     }
     private func keyboard(_ key: UInt16, released: Bool) {
@@ -193,7 +218,8 @@ struct ClimateAdjustmentButton: NSViewRepresentable {
     func updateNSView(_ button: ClimateAdjustmentNSButton, context: Context) {
         button.isEnabled = enabled
         button.onPress = action
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?.withSymbolConfiguration(.init(pointSize: 24, weight: .regular))
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?.withSymbolConfiguration(.init(pointSize: 24, weight: .medium))
+        button.contentTintColor = .white
         button.setAccessibilityLabel(label)
         button.layer?.borderColor = NSColor(color).cgColor
     }
@@ -219,6 +245,7 @@ final class ClimateAdjustmentNSButton: NSButton {
 
 struct ClimateModeMenu: NSViewRepresentable {
     let title: String
+    let symbol: String
     let options: [String]
     let current: String?
     let enabled: Bool
@@ -229,22 +256,31 @@ struct ClimateModeMenu: NSViewRepresentable {
         button.options = options
         button.selected = current
         button.onSelection = action
-        let text = NSMutableAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor])
-        if let current = current, options.contains(current) {
-            text.append(NSAttributedString(string: "\n" + ClimateEntity.label(current), attributes: [.font: NSFont.systemFont(ofSize: 14, weight: .medium), .foregroundColor: enabled ? NSColor.labelColor : NSColor.disabledControlTextColor]))
-        }
-        button.attributedTitle = text
+        button.titleLabel = title
+        button.valueLabel = current.flatMap { options.contains($0) ? ClimateEntity.label($0) : nil }
+        button.symbol = symbol
+        button.needsDisplay = true
         button.setAccessibilityLabel(title)
         button.setAccessibilityValue(current.map(ClimateEntity.label))
     }
 }
 
 final class ClimateModeNSButton: NSButton {
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { isEnabled }
+    override func becomeFirstResponder() -> Bool { needsDisplay = true; return true }
+    override func resignFirstResponder() -> Bool { needsDisplay = true; return true }
     var options: [String] = []
     var selected: String?
     var onSelection: ((String) -> Void)?
+    var titleLabel = ""
+    var valueLabel: String?
+    var symbol = "power"
+    override var intrinsicContentSize: NSSize { NSSize(width: 122, height: 56) }
+    override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        title = ""
         isBordered = false
         alignment = .left
         cell?.wraps = true
@@ -256,6 +292,25 @@ final class ClimateModeNSButton: NSButton {
         action = #selector(showOptions)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func draw(_ dirtyRect: NSRect) {
+        if isHighlighted {
+            NSColor.white.withAlphaComponent(0.08).setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill()
+        }
+        let opacity: CGFloat = isEnabled ? 1 : 0.45
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 16, weight: .semibold).applying(.init(paletteColors: [.white])))
+        image?.draw(in: CGRect(x: 10, y: (bounds.height - 20) / 2, width: 20, height: 20), from: .zero, operation: .sourceOver, fraction: opacity, respectFlipped: true, hints: nil)
+        let titleAttributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white.withAlphaComponent(0.58 * opacity)]
+        let valueAttributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: NSColor.white.withAlphaComponent(opacity)]
+        (titleLabel as NSString).draw(in: CGRect(x: 39, y: 13, width: bounds.width - 49, height: 14), withAttributes: titleAttributes)
+        ((valueLabel ?? "Unavailable") as NSString).draw(in: CGRect(x: 39, y: 29, width: bounds.width - 49, height: 15), withAttributes: valueAttributes)
+        if window?.firstResponder === self {
+            NSColor.keyboardFocusIndicatorColor.setStroke()
+            let ring = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+            ring.lineWidth = 2
+            ring.stroke()
+        }
+    }
     @objc private func showOptions() {
         let menu = NSMenu()
         for option in options {
@@ -281,8 +336,8 @@ struct ClimateLargeNumber: View {
         HStack(alignment: .bottom, spacing: 0) {
             Text(String(number[..<cut])).font(.system(size: 57, weight: .medium))
             VStack(alignment: .leading, spacing: 0) {
-                Text(unit).font(.system(size: 19, weight: .medium))
-                Text(String(number[cut...])).font(.system(size: 24, weight: .medium)).frame(minHeight: 32, alignment: .bottom)
+                Text(unit).font(.system(size: 57 * 0.33, weight: .medium))
+                Text(String(number[cut...])).font(.system(size: 57 * 0.42, weight: .medium)).frame(minHeight: 57 * 0.42 * 1.33, alignment: .bottom)
             }.padding(.vertical, 4)
         }.lineLimit(1).minimumScaleFactor(0.7)
     }

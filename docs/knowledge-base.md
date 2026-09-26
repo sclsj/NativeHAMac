@@ -35,6 +35,11 @@ The installed Xcode 13.4.1/macOS 12.3 SDK's Foundation Swift interface exposes M
 
 ## Local test-oracle observations
 
+### macOS 12 Canvas motion can be stale in bitmap-cache captures
+
+- On 2026-09-26, the mounted climate motion harness reproduced `NSHostingView.cacheDisplay` retaining the initial Canvas knob while updated text made whole-image inequality tests pass. `CGWindowListCreateImage` captures of that same window showed the correct initial, intermediate and final knob positions. This was a capture defect, not evidence that the production dial stayed frozen.
+- Use compositor/window pixels and geometry-sensitive assertions for temporal Canvas tests; static fresh-host rendering remains useful. Evidence and reproduction live in `ClimateRecoveryInteractionTests.swift` and `.build/render-artifacts/climate-recovery-motion/`. Revalidate when the macOS/toolchain or capture mechanism changes.
+
 ### 2026-09-11 graph-oracle calibration
 
 The numeric step-end pixel test passes against a diagonal renderer when its 100-second transition is compressed into a 3,600-second viewport. The same production-object probe with a 100-second viewport fails that pixel oracle. Treat the existing pass as a false positive, not reference conformance; repair the oracle with the graph semantics. Reproduction and scope are in the [readiness audit](audits/2026-09-11-readiness.md). Revalidate when the fixture, geometry assertions, or renderer changes.

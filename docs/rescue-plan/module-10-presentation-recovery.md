@@ -2,9 +2,11 @@
 
 Planning handoff, 2026-09-19. Recover the established native climate appearance and animation while retaining Module 10's capability, service, sparse-state and lifetime corrections. The user rejected the replacement presentation; the earlier Module 10 visual verdict is not acceptance of that replacement. See [approved decisions](../user-deviations.md#preserve-established-climate-presentation) and the [Module 10 packet](../reference-context/modules/module-10-climate-detail.md).
 
-## Recommendation and limits
+## Planning recommendation and limits (historical)
 
 Stop after this plan in the current session. The recovery source is identifiable and much of its drawing code still exists, but reconnecting it safely requires a focused presentation integration and animation verification, not a whole-commit revert. There is no need for another broad module audit, new service design, or live device mutation to start that work.
+
+The user subsequently authorized implementation. On 2026-09-20 they clarified that Mode/Preset controls are rounded boxes showing both the label and selected value, despite the historical SwiftUI Menu rendering labels only on this macOS host. Use that confirmed appearance, not the host's flattening of the historical menu label. The archived Gemini attempt is not a recovery source.
 
 This investigation used Git history and source inspection only. No app/test code changed, build ran, browser or HA request occurred, or animation symptom was reproduced. The user report establishes dissatisfaction; the source differences below establish what changed, not a proven cause of every reported animation problem. Existing service validation evidence is historical and must be regression-tested after integration.
 
@@ -75,4 +77,12 @@ There is no historical approved dual-target or humidity visual baseline to recov
 
 Confidence is high in the recovery source and presentation differences, and high that existing capability/service owners can remain. Confidence is insufficient to call the integration trivial or the “random” animation cause reproduced. Exact old gesture slop versus reference input behavior and the final appearance of capabilities absent from the historical baseline are the bounded risks. They do not block implementing the established single-target presentation first. Preserve working optional controls and use concrete visual evidence before expanding this repair.
 
-Next action: execute steps 1–5 in one focused implementation session, beginning with the pre-replacement/current fixture comparison. Review the restored native transitions before declaring Module 10's presentation accepted again.
+## Implementation outcome — 2026-09-26
+
+Steps 1–6 are implemented and validated offline. Production reuses the established single-target drawing, typography and control styling with the corrected capability/service owners intact. The missing Home-row repair was reinstated and tested through normal and AppConfig-injected dashboard rows. The confirmed rounded Mode/Preset boxes show both label and selected value.
+
+The historical presentation-only harness, expanded normal/narrow fixtures and real window-pixel motion sequences are reproducible from the climate tests. A stale `cacheDisplay` Canvas capture was identified and replaced in the temporal oracle; geometry-sensitive tests now track the actual target knob. Historical comparison confirms the recovered timing curve's interruption behavior. See the [current evidence packet](../reference-context/modules/module-10-climate-detail.md#presentation-recovery-implementation--2026-09-26) for artifact paths and scope.
+
+Validation passed 35 focused tests and the supervisor's full 382-test suite (six expected opt-in skips, zero failures), plus the source-derived semantic oracle, resolver self-test and final diff checks. There were no live device calls. Additional range/humidity visuals remain provisional capability branches, not newly approved designs; real trackpad/hitch performance is not established by timed captures.
+
+Next action: the user launches `swift run`, opens Room AC from Home, and confirms the restored appearance and animation feel. Keep Module 10 `verification-ready` until that acceptance; do not advance to another module as part of this repair.

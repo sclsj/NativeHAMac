@@ -8,6 +8,8 @@ This is a historical deployment capture, not an assertion of current values or a
 
 ## Visual comparison status
 
+**Presentation acceptance reopened:** the user rejected the replacement native visuals and animation on 2026-09-19. The review below is historical control-state evidence, not current visual approval. The [presentation recovery plan](../../docs/rescue-plan/module-10-presentation-recovery.md) uses the established native presentation at `3f8d15f` as its visual baseline; hass-frontend remains the capability, input and service reference.
+
 Actual reference screenshots and interactions were captured on 2026-09-13 with installed standalone Playwright and Google Chrome for Testing 118.0.5993.3. The user explicitly directed use of installed Playwright/other software because this session runs in Codex CLI. This current authorization superseded the initial browser-skill fallback restriction: in-app Browser had reported unavailable and discovery had returned an empty list. No native golden image is approved merely by producing these captures.
 
 The actual reference checkout at revision `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` already has a suitable component gallery:

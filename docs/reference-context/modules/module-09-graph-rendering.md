@@ -9,7 +9,7 @@ depends_on: ["01"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 9291da336d2f068c39c4924fed3add4c52c27f85
 graph_file: ../generated/module-09.dependencies.json
-graph_fingerprint: cee3baa758f4d46dc640b4be3ecfab364cc9b97d466449509deecc1c8fb555cd
+graph_fingerprint: d520ab12f3396918121a071643c9de004f860d1d48bcd0a39bcdb31f732f498c
 last_validated: 2026-09-11
 ---
 

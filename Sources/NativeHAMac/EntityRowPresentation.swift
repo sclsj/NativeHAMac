@@ -164,7 +164,7 @@ enum EntityRowPresentationResolver {
                 powerIsOn: state?.state == "on"
             )
             let warnings = [resolvedName.warning, icon.warning, actions.warning].compactMap { $0 }
-            let primaryAction: EntityPrimaryAction = kind == .deferredSpecialized
+            let primaryAction: EntityPrimaryAction = kind == .deferredSpecialized && domain != "climate"
                 ? .none
                 : (state == nil ? .none : actions.action)
             return EntityRowPresentation(

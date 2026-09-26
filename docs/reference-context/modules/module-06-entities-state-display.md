@@ -9,7 +9,7 @@ depends_on: ["04", "05"]
 reference_revision: dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd
 nativeha_revision: 1c0bc6cc63e14036482dc34ffbf6cd2c0fc39acd
 graph_file: ../generated/module-06.dependencies.json
-graph_fingerprint: 06316172dfefb52dbbeb1b97b0fe6eb73f554b58fbfe64699208d50768307f9b
+graph_fingerprint: 9a8a06a16c1f0721ec214cd82e615aed59d8a3fdd30679d8f6d3d91bfffc2c0c
 last_researched: 2026-08-31
 last_implemented: 2026-09-01
 last_verified: 2026-09-01
@@ -107,7 +107,8 @@ Explicit `type` wins; otherwise the pinned reference `DOMAIN_TO_ELEMENT_TYPE` ma
 | `_domain_not_found` and any unmapped domain, including current `binary_sensor` and `device_tracker` | `simple` | Generic shell plus formatted read-only state. |
 | `alert`, `automation`, `fan`, `input_boolean`, `light`, `remote`, `siren`, `switch`, `vacuum` | `toggle` | Generic shell plus C06-07 power control. These are the only nine implicit toggle domains. |
 | `sensor` | `sensor` | Generic shell plus C06-04 formatted read-only state. |
-| `climate`, `weather` | `climate`, `weather` | Read-only generic shell internally marked `deferredSpecialized`; no specialized controls. Modules 10 and 07 own parity. |
+| `climate` | `climate` | Generic shell internally marked `deferredSpecialized`; Module 10 enables configured primary actions to open the climate detail. Specialized inline controls remain deferred. |
+| `weather` | `weather` | Read-only generic shell internally marked `deferredSpecialized`; no specialized controls. Module 07 owns parity. |
 | `button` | `button` | Visible unsupported-row diagnostic preserving raw identity. |
 | `cover`, `date`, `datetime`, `event`, `group`, `humidifier`, `input_button`, `input_datetime`, `input_number`, `input_select`, `input_text`, `lock`, `media_player`, `number`, `scene`, `script`, `select`, `text`, `time`, `timer`, `update`, `valve`, `water_heater` | respectively `cover`, `date`, `datetime`, `event`, `group`, `humidifier`, `input-button`, `input-datetime`, `input-number`, `input-select`, `input-text`, `lock`, `media-player`, `number`, `scene`, `script`, `select`, `text`, `time`, `timer`, `update`, `valve`, `climate` | Visible unsupported-row diagnostic preserving raw identity; never reinterpret as generic or actionable. In particular, implicit `group` is a specialized `group-entity` row, not a toggle row. |
 | Explicit `simple-entity` or `sensor-entity` | named row | Generic read-only shell. |
@@ -266,7 +267,7 @@ The two current PNGs were manually inspected against the packet's semantic matri
 | D06-03 | Header service dispatch excludes unavailable/unknown/missing/no-authority/in-flight entities while preserving inherited optimistic state publication. | Existing C05-08/D05-05: gate before optimism; retain full accepted state context; authoritative entity publication reconciles; service completion is generation/token gated and never rewrites entity state. | resolved; exact target/optimism/late-result tests. |
 | D06-04 | Support tap default/details/none and safe static-table toggle; preserve but do not recognize hold/double or other tap actions. | Module 06 rescue plan explicitly limits runtime actions to existing native support. Unsupported values are visible/diagnostic and never silently substituted. | resolved; exact matrix/no-call tests. |
 | D06-05 | Carry `ic` alongside `dp` from the existing registry-display response, but add no `area` value. | `ic` is already in the same response and needs only typed decode/carry; area/device context requires fields/registries intentionally not installed in the native bootstrap. | resolved bounded decode; no new command. |
-| D06-06 | Render current climate/weather entity rows as non-interactive deferred-specialized shells; reject every other unsupported explicit/specialized row visibly. | Modules 07/10 own those specialized semantics; the exact factory classification and raw Module 04 identity remain intact. | resolved staged boundary; release-stop on a new live specialized type. |
+| D06-06 | Preserve deferred-specialized climate/weather row classification; reject every other unsupported explicit/specialized row visibly. Module 10 now enables the climate row's configured primary action; weather remains non-interactive. | Modules 07/10 own those specialized semantics; the exact factory classification and raw Module 04 identity remain intact. | Climate entry supersedes the original non-interactive boundary under C10-12; inline controls remain deferred. |
 | D06-07 | Limit verified-English literals to `Missing entity`, `Unknown`, `Unavailable`, and `Never triggered`; retain raw HA state for every other translation-dependent value. | The fixed live deployment reports `en`, while Module 06 is forbidden to add translation bootstrap. No undefined partial localization allowlist remains. | resolved for current deployment; language change is a stop rule. |
 
 No typed configuration, token/bootstrap, profile/settings, persistence, icon fetch policy, service safety policy, graph/range/history, or navigation product question remains unresolved.

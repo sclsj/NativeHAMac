@@ -1,6 +1,35 @@
 import SwiftUI
 
-struct ClimateControlDrawing: View, Animatable {
+/// The established single-target renderer is shared with its geometry regressions.
+/// Extra capabilities retain their existing rendering without changing that surface.
+struct ClimateControlDrawing: View {
+    let entity: ClimateEntity
+    let mainControl: ClimateMainControl
+    let values: [ClimateTarget: Double]
+
+    var body: some View {
+        if mainControl == .temperature, entity.targetKind == .single,
+           !entity.unavailable, let bounds = entity.temperatureBounds,
+           let target = values[.value] ?? entity.value(.value) {
+            ClimateDialDrawing(
+                targetProgress: progress(target, bounds: bounds),
+                currentProgress: entity.currentTemperature.map { progress($0, bounds: bounds) },
+                isCooling: entity.state.state == "cool",
+                hasTemperatureDifference: entity.currentTemperature.map { abs($0 - target) > 0.05 } ?? false
+            )
+        } else {
+            ClimateCapabilityDrawing(entity: entity, mainControl: mainControl, values: values)
+        }
+    }
+
+    private func progress(_ value: Double, bounds: ClosedRange<Double>) -> Double {
+        ClimateValueMapping.clamp((value - bounds.lowerBound) / (bounds.upperBound - bounds.lowerBound), 0...1)
+    }
+
+    static func modeColor(_ mode: String) -> Color { ClimateCapabilityDrawing.modeColor(mode) }
+}
+
+struct ClimateCapabilityDrawing: View, Animatable {
     let entity: ClimateEntity
     let mainControl: ClimateMainControl
     var values: [ClimateTarget: Double]
@@ -14,15 +43,13 @@ struct ClimateControlDrawing: View, Animatable {
         currentHumidity = entity.currentHumidity
     }
     typealias TargetVector = AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<Double, Double>>
-    var animatableData: AnimatablePair<TargetVector, AnimatablePair<Double, Double>> {
-        get { AnimatablePair(TargetVector(AnimatablePair(values[.value] ?? entity.value(.value) ?? 0, values[.low] ?? entity.value(.low) ?? 0), AnimatablePair(values[.high] ?? entity.value(.high) ?? 0, values[.humidity] ?? entity.value(.humidity) ?? 0)), AnimatablePair(currentTemperature ?? 0, currentHumidity ?? 0)) }
+    var animatableData: TargetVector {
+        get { TargetVector(AnimatablePair(values[.value] ?? entity.value(.value) ?? 0, values[.low] ?? entity.value(.low) ?? 0), AnimatablePair(values[.high] ?? entity.value(.high) ?? 0, values[.humidity] ?? entity.value(.humidity) ?? 0)) }
         set {
-            if values[.value] != nil || entity.value(.value) != nil { values[.value] = newValue.first.first.first }
-            if values[.low] != nil || entity.value(.low) != nil { values[.low] = newValue.first.first.second }
-            if values[.high] != nil || entity.value(.high) != nil { values[.high] = newValue.first.second.first }
-            if values[.humidity] != nil || entity.value(.humidity) != nil { values[.humidity] = newValue.first.second.second }
-            if currentTemperature != nil { currentTemperature = newValue.second.first }
-            if currentHumidity != nil { currentHumidity = newValue.second.second }
+            if values[.value] != nil || entity.value(.value) != nil { values[.value] = newValue.first.first }
+            if values[.low] != nil || entity.value(.low) != nil { values[.low] = newValue.first.second }
+            if values[.high] != nil || entity.value(.high) != nil { values[.high] = newValue.second.first }
+            if values[.humidity] != nil || entity.value(.humidity) != nil { values[.humidity] = newValue.second.second }
         }
     }
 
@@ -64,7 +91,7 @@ struct ClimateControlDrawing: View, Animatable {
                 if !humidity, entity.targetKind == .readOnly, entity.active { context.stroke(path(0, 1), with: .color(Self.modeColor(entity.state.state).opacity(0.5)), style: stroke) }
                 return
             }
-            if let current = current, current != 0 { dot(current, diameter: 8, color: .white.opacity(0.5)) }
+            if let current = current { dot(current, diameter: 8, color: .white.opacity(0.5)) }
             guard !entity.unavailable else { return }
             let targets: [ClimateTarget] = humidity ? [.humidity] : entity.targetKind == .range ? [.low, .high] : entity.targetKind == .single ? [.value] : []
             if targets.isEmpty, !humidity, entity.active {

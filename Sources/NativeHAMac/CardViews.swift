@@ -1660,7 +1660,7 @@ struct BigTemperatureText: View {
 
 struct ClimateDialDrawing: View, Animatable {
     var targetProgress: Double
-    let currentProgress: Double
+    let currentProgress: Double?
     let isCooling: Bool
     let hasTemperatureDifference: Bool
 
@@ -1673,8 +1673,6 @@ struct ClimateDialDrawing: View, Animatable {
         Canvas { context, size in
             let metrics = DialMetrics(size: size)
             let style = StrokeStyle(lineWidth: metrics.trackStrokeWidth, lineCap: .round, lineJoin: .round)
-            let highlightStart = Swift.min(targetProgress, currentProgress)
-            let highlightEnd = Swift.max(targetProgress, currentProgress)
 
             context.stroke(
                 dialArcPath(metrics: metrics, from: 0, to: 1),
@@ -1682,18 +1680,20 @@ struct ClimateDialDrawing: View, Animatable {
                 style: style
             )
 
-            if isCooling, hasTemperatureDifference {
+            if isCooling, hasTemperatureDifference, let currentProgress = currentProgress {
                 context.stroke(
-                    dialArcPath(metrics: metrics, from: highlightStart, to: highlightEnd),
+                    dialArcPath(metrics: metrics, from: Swift.min(targetProgress, currentProgress), to: Swift.max(targetProgress, currentProgress)),
                     with: .color(Color(red: 0.10, green: 0.48, blue: 0.95)),
                     style: style
                 )
             }
 
-            context.fill(
-                circlePath(center: metrics.point(progress: currentProgress), diameter: 7),
-                with: .color(Color.white.opacity(0.9))
-            )
+            if let currentProgress = currentProgress {
+                context.fill(
+                    circlePath(center: metrics.point(progress: currentProgress), diameter: 7),
+                    with: .color(Color.white.opacity(0.9))
+                )
+            }
 
             let targetPoint = metrics.point(progress: targetProgress)
             context.addFilter(.shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 1))

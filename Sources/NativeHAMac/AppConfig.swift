@@ -118,6 +118,14 @@ struct ClimateInteractionPolicy {
     let menuResyncNanoseconds: UInt64
     let dragThreshold: CGFloat
     let animationSeconds: Double
+    let animationCurve = ClimateAnimationCurve(x1: 0.42, y1: 0, x2: 0.58, y2: 1)
+}
+
+struct ClimateAnimationCurve {
+    let x1: Double
+    let y1: Double
+    let x2: Double
+    let y2: Double
 }
 
 enum GraphTimeRangeScope: Equatable {

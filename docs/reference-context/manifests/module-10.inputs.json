@@ -8,13 +8,19 @@
     { "path": "Sources/NativeHAMac/ClimateEntity.swift", "symbols": ["ClimateEntity", "ClimateServiceBuilder", "ClimateValueMapping"] },
     { "path": "Sources/NativeHAMac/ClimateServiceController.swift", "symbols": ["ClimateServiceController"] },
     { "path": "Sources/NativeHAMac/ClimateDetailView.swift", "symbols": ["ClimateDetailContent", "ClimateControlDial", "ClimateDialNSView", "ClimateModeNSButton"] },
-    { "path": "Sources/NativeHAMac/ClimateControlDrawing.swift", "symbols": ["ClimateControlDrawing"] },
+    { "path": "Sources/NativeHAMac/ClimateControlDrawing.swift", "symbols": ["ClimateControlDrawing", "ClimateCapabilityDrawing"] },
+    { "path": "Sources/NativeHAMac/EntityRowPresentation.swift", "symbols": ["EntityRowPresentationResolver"] },
     { "path": "Sources/NativeHAMac/HAEntitySubscriptionCoordinator.swift", "symbols": ["HAEntitySubscriptionCoordinator"] },
     { "path": "Sources/NativeHAMac/DashboardViewModel.swift", "symbols": ["DashboardViewModel"] },
     { "path": "Sources/NativeHAMac/DashboardServiceController.swift", "symbols": ["DashboardServiceController"] },
-    { "path": "Sources/NativeHAMac/AppConfig.swift", "symbols": ["AppConfig", "ClimateInteractionPolicy"] },
+    { "path": "Sources/NativeHAMac/AppConfig.swift", "symbols": ["AppConfig", "ClimateInteractionPolicy", "ClimateAnimationCurve"] },
     { "path": "Tests/NativeHAMacTests/ClimateTests.swift", "symbols": ["ClimateEntityTests", "ClimateDetailInteractionTests", "ClimateDetailRenderingTests"] },
-    { "path": "Tests/NativeHAMacTests/ClimateLiveAcceptanceTests.swift", "symbols": ["ClimateLiveAcceptanceTests", "ClimateLiveRun"] }
+    { "path": "Tests/NativeHAMacTests/ClimateLiveAcceptanceTests.swift", "symbols": ["ClimateLiveAcceptanceTests", "ClimateLiveRun"] },
+    { "path": "Tests/NativeHAMacTests/ClimateDashboardEntryTests.swift", "symbols": ["ClimateDashboardEntryTests"] },
+    { "path": "Tests/NativeHAMacTests/ClimateHistoricalPresentationTests.swift", "symbols": ["ClimateHistoricalPresentationTests"] },
+    { "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift", "symbols": ["ClimateRecoveryInteractionTests"] },
+    { "path": "Tests/NativeHAMacTests/EntityRowPresentationTests.swift", "symbols": ["EntityRowPresentationTests"] },
+    { "path": "Tests/Fixtures/Climate/render-states.json", "symbols": [] }
   ],
   "entries": [
     { "path": "src/resources/theme/color/color.globals.ts", "symbols": ["colorStyles", "darkColorStyles"] },
