@@ -19905,7 +19905,7 @@
       "typeResolved": "src/managers/notification-manager.ts"
     }
   ],
-  "graphFingerprint": "640dfc6a148b0928fb4c9c6c2d92685cb5655540d538ad2b686077526e466a00",
+  "graphFingerprint": "3a7e556b6c80d3aa90fe798d48c3f0d28159d0db7ac1ca8c8a5263666af0cf91",
   "manifest": {
     "module": "05",
     "path": "docs/reference-context/manifests/module-05.inputs.json",
@@ -20017,10 +20017,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "dd700e70df5605787f2c76582bc47f3f81790f60",
+        "headBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "0f2f2c9821464fd94330433fc5c6522f4db1d022cfc44720094a495625ac5641",
+        "sha256": "f5d7ed92f9f7f5816f16fa0c2126f00e0c66ac3b36f57643f41adaed7ccf48f6",
         "symbols": [
           "BitmapLineChart",
           "CardRenderer",
@@ -20030,7 +20030,7 @@
           "EntityRow",
           "HistoryGraphCard"
         ],
-        "worktreeBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71"
+        "worktreeBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f"
       },
       {
         "dirty": false,

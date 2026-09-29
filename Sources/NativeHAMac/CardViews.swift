@@ -1542,13 +1542,16 @@ struct UnsupportedEntityRow: View {
 struct EntityDetailSheet: View {
     @EnvironmentObject private var model: DashboardViewModel
     let entityID: String
+    private var isClimate: Bool { model.domain(for: entityID) == "climate" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             EntityPanelHeader(entityID: entityID)
 
-            Divider()
-                .background(Color.white.opacity(0.08))
+            if !isClimate {
+                Divider()
+                    .background(Color.white.opacity(0.08))
+            }
 
             if let state = model.states[entityID] {
                 ScrollView {
@@ -1561,8 +1564,9 @@ struct EntityDetailSheet: View {
                     .padding(22)
             }
         }
-        .frame(width: 520, height: 620)
-        .background(Color(red: 0.09, green: 0.095, blue: 0.1))
+        .frame(width: isClimate ? 580 : 520, height: isClimate ? 594 : 620)
+        .background(isClimate ? Color(white: 28 / 255) : Color(red: 0.09, green: 0.095, blue: 0.1))
+        .cornerRadius(isClimate ? 28 : 0)
         .foregroundColor(.white)
     }
 

@@ -6,6 +6,107 @@ import XCTest
 
 @MainActor
 final class ClimateRecoveryInteractionTests: XCTestCase {
+    func testMountedDetailAuthoritativeEchoDoesNotReplayPreviousTarget() throws {
+        let entity = try ClimateFixtures.entity(overrides: ["temperature": .double(20), "current_temperature": .double(24)])
+        let source = ClimateRecoverySource(entity: entity)
+        let model = DashboardViewModel(initialStates: [entity.entityID: entity.state], homeAssistantConfig: HAConfig(unitSystem: HAUnitSystem(temperature: "°C")))
+        model.installServiceCallerForTesting { _, _, _ in }
+        model.openDetails(entityID: entity.entityID)
+        let host = NSHostingView(rootView: ClimateRecoveryDetailHost(source: source).environmentObject(model))
+        _ = NSApplication.shared
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 380, height: 500), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderBack(nil)
+        defer { model.closeDetails(); window.orderOut(nil); window.close() }
+        settle(0.1)
+        let input = try XCTUnwrap(descendants(host).compactMap { $0 as? ClimateDialNSView }.first)
+        let geometry = ClimateDialGeometry(size: input.bounds.size)
+        func event(_ type: NSEvent.EventType, _ progress: Double) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.mouseEvent(with: type, location: input.convert(geometry.point(progress), to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        func value() throws -> Double { try XCTUnwrap(input.accessibilityValue() as? NSNumber).doubleValue }
+        func captureDial(_ name: String) throws -> Double {
+            let image = try XCTUnwrap(CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(window.windowNumber), [.boundsIgnoreFraming, .bestResolution]))
+            let scale = CGFloat(image.width) / host.bounds.width
+            var rect = input.convert(input.bounds, to: host)
+            if !host.isFlipped { rect.origin.y = host.bounds.height - rect.maxY }
+            let cropped = try XCTUnwrap(image.cropping(to: CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)))
+            let data = try XCTUnwrap(NSBitmapImageRep(cgImage: cropped).representation(using: .png, properties: [:]))
+            let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.build/render-artifacts/climate-recovery-motion")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: directory.appendingPathComponent(name + ".png"))
+            return try knobProgress(data)
+        }
+        for drag in [false, true] {
+            source.entity = entity
+            model.states[entity.entityID] = entity.state
+            model.acceptClimateReplacement(entityIDs: [entity.entityID])
+            settle(0.04)
+            XCTAssertEqual(try value(), 20)
+            input.mouseDown(with: try event(.leftMouseDown, 0.1))
+            if drag {
+                for progress in [0.2, 0.4, 0.6] {
+                    input.mouseDragged(with: try event(.leftMouseDragged, progress))
+                    settle(0.01)
+                }
+            }
+            input.mouseUp(with: try event(.leftMouseUp, 0.8))
+            for _ in 0..<4 { settle(0.01); XCTAssertEqual(try value(), 26.2, accuracy: 0.001) }
+            source.entity = try ClimateFixtures.entity(overrides: ["temperature": .double(26.2), "current_temperature": .double(24)])
+            model.states[entity.entityID] = source.entity.state
+            // Exercise both the value-change callback alone and the production
+            // snapshot/revision pair, which also accepts equal replacements.
+            if drag { model.acceptClimateReplacement(entityIDs: [entity.entityID]) }
+            for _ in 0..<35 { settle(0.01); XCTAssertEqual(try value(), 26.2, accuracy: 0.001) }
+            XCTAssertEqual(try captureDial(drag ? "detail-drag-echo" : "detail-click-echo"), 0.8, accuracy: 0.003)
+            source.entity = try ClimateFixtures.entity(overrides: ["temperature": .double(23.6), "current_temperature": .double(24)])
+            model.states[entity.entityID] = source.entity.state
+            model.acceptClimateReplacement(entityIDs: [entity.entityID])
+            settle(0.04)
+            XCTAssertEqual(try value(), 23.6, accuracy: 0.001)
+            source.entity = try ClimateFixtures.entity(overrides: ["temperature": .double(23.6), "current_temperature": .double(27)])
+            model.states[entity.entityID] = source.entity.state
+            model.acceptClimateReplacement(entityIDs: [entity.entityID])
+            settle(0.04)
+            XCTAssertEqual(try value(), 23.6, accuracy: 0.001, "A current-reading update must not replay the previous target")
+        }
+    }
+
+    func testReferenceDirectionalArcsAndWholePanelFixtures() throws {
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.build/render-artifacts/climate-reference-repair")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for (name, mode, target) in [("off", "off", 21.4), ("cool-above-current", "cool", 24.6), ("cool-below-current", "cool", 21.4)] {
+            let entity = try ClimateFixtures.entity(overrides: ["temperature": .double(target), "current_temperature": .double(22.5), "hvac_action": .string(mode == "off" ? "off" : "idle")], mode: mode)
+            let drawing = ClimateControlDrawing(entity: entity, mainControl: .temperature, values: [.value: target]).background(Color(white: 28 / 255))
+            let dial = try MacViewPNGRenderer.render(drawing, size: CGSize(width: 320, height: 320), displayScale: 2)
+            try dial.pngData.write(to: directory.appendingPathComponent(name + "-dial.png"))
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: dial.pngData))
+            func color(_ progress: Double) throws -> NSColor {
+                let point = ClimateDialGeometry(size: CGSize(width: 320, height: 320)).point(progress)
+                return try XCTUnwrap(bitmap.colorAt(x: Int(point.x * 2), y: Int(point.y * 2))?.usingColorSpace(.deviceRGB))
+            }
+            let before = try color(0.15)
+            XCTAssertEqual(before.blueComponent, before.redComponent, accuracy: 0.02)
+            let neutralPoint = ClimateDialGeometry(size: CGSize(width: 320, height: 320)).point(0.15)
+            let neutralPixel = try XCTUnwrap(bitmap.colorAt(x: Int(neutralPoint.x * 2), y: Int(neutralPoint.y * 2)))
+            // Compare the stored PNG channel, not a display-profile conversion.
+            XCTAssertEqual(neutralPixel.redComponent, 41 / 255, accuracy: 0.02, "Neutral track uses HA's dark disabled color at 30%, not translucent white")
+            let tail = try color(0.95)
+            if mode == "off" { XCTAssertEqual(tail.blueComponent, tail.redComponent, accuracy: 0.02) }
+            else { XCTAssertGreaterThan(tail.blueComponent - tail.redComponent, 0.2) }
+            let between = try color(0.33)
+            if mode == "cool", target < 22.5 { XCTAssertGreaterThan(between.blueComponent, tail.blueComponent + 0.1) }
+            else { XCTAssertEqual(between.blueComponent, between.redComponent, accuracy: 0.02) }
+            let model = DashboardViewModel(initialStates: [entity.entityID: entity.state], homeAssistantConfig: HAConfig(unitSystem: HAUnitSystem(temperature: "°C")))
+            model.installServiceCallerForTesting { _, _, _ in }
+            model.openDetails(entityID: entity.entityID)
+            let panel = try MacViewPNGRenderer.render(EntityDetailSheet(entityID: entity.entityID).environmentObject(model), size: CGSize(width: 580, height: 594), displayScale: 2, settleTime: 0.05)
+            try panel.pngData.write(to: directory.appendingPathComponent(name + "-panel.png"))
+            model.closeDetails()
+        }
+    }
+
     func testMountedTransitionsAndDirectDragRelease() throws {
         let entity = try ClimateFixtures.entity(overrides: ["temperature": .double(20)])
         let controller = ClimateServiceController()
@@ -48,13 +149,15 @@ final class ClimateRecoveryInteractionTests: XCTestCase {
             XCTAssertTrue(host.hitTest(point) === input, "The mounted drawing must not intercept the native dial")
             input.mouseDown(with: try event(.leftMouseDown, progress))
             input.mouseUp(with: try event(.leftMouseUp, progress))
-            window.makeFirstResponder(nil)
         }
         _ = try capture("00-initial", after: 0.01)
         try tap(0.9)
         let tapStart = try capture("01-tap-start", after: 0.01)
         let tapMiddle = try capture("02-tap-middle", after: 0.11)
         let tapFinal = try capture("03-tap-final", after: 0.3)
+        XCTAssertTrue(window.firstResponder === input)
+        window.makeFirstResponder(nil)
+        XCTAssertEqual(tapFinal, try capture("03-pointer-focus-cleared", after: 0.05), "Pointer focus must not cover the climate arc with a keyboard highlight")
         XCTAssertNotEqual(tapStart, tapMiddle)
         XCTAssertNotEqual(tapMiddle, tapFinal)
         XCTAssertEqual(calls.count, 1)
@@ -63,14 +166,14 @@ final class ClimateRecoveryInteractionTests: XCTestCase {
         _ = try capture("04-reverse-outbound", after: 0.1)
         try tap(0.8)
         let reversalStart = try capture("05-reverse-start", after: 0.01)
-        let reversalMiddle = try capture("06-reverse-middle", after: 0.1)
+        _ = try capture("05-reverse-early", after: 0.04)
+        let reversalMiddle = try capture("06-reverse-middle", after: 0.06)
         let reversalFinal = try capture("07-reverse-final", after: 0.3)
         XCTAssertNotEqual(reversalStart, reversalMiddle)
         XCTAssertNotEqual(reversalMiddle, reversalFinal)
 
         input.mouseDown(with: try event(.leftMouseDown, 0.8))
         input.mouseDragged(with: try event(.leftMouseDragged, 0.4))
-        window.makeFirstResponder(nil)
         let drag = try capture("08-drag-direct", after: 0.02)
         XCTAssertEqual(drag, try capture("09-drag-held", after: 0.35))
         XCTAssertEqual(calls.count, 3)
@@ -141,7 +244,10 @@ final class ClimateRecoveryInteractionTests: XCTestCase {
         XCTAssertGreaterThan(abs(reverseStart - reverseFinal), 0.01)
         // Historical SwiftUI timing curves blend interrupted movement: the
         // knob may continue outbound before returning to the latest target.
-        XCTAssertGreaterThan(abs(reverseMiddle - reverseStart), 0.01)
+        // Two frames can straddle the turnaround at nearly the same position;
+        // include an earlier frame so that movement is not mistaken for a stall.
+        let reverseEarly = try progress("05-reverse-early")
+        XCTAssertGreaterThan(max(abs(reverseMiddle - reverseStart), abs(reverseEarly - reverseStart)), 0.01)
         XCTAssertEqual(reverseFinal, 0.8, accuracy: 0.003)
         for name in ["08-drag-direct", "09-drag-held"] { XCTAssertEqual(try progress(name), 0.4, accuracy: 0.003) }
         for name in ["10-drag-release-direct", "11-drag-release-held"] { XCTAssertEqual(try progress(name), 0.6, accuracy: 0.003) }
@@ -195,4 +301,9 @@ private struct ClimateRecoveryDialHost: View {
             else { Color.clear }
         }
     }
+}
+
+private struct ClimateRecoveryDetailHost: View {
+    @ObservedObject var source: ClimateRecoverySource
+    var body: some View { ClimateDetailContent(entityID: source.entity.entityID, state: source.entity.state) }
 }

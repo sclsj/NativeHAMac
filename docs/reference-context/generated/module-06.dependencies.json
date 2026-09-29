@@ -23404,7 +23404,7 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "9a8a06a16c1f0721ec214cd82e615aed59d8a3fdd30679d8f6d3d91bfffc2c0c",
+  "graphFingerprint": "82c3b5646b6c333d47b550f946a45d1016ea1e22cfedbf182228f8d5d01df24e",
   "manifest": {
     "module": "06",
     "path": "docs/reference-context/manifests/module-06.inputs.json",
@@ -23454,10 +23454,10 @@
       },
       {
         "dirty": true,
-        "headBlob": "dd700e70df5605787f2c76582bc47f3f81790f60",
+        "headBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "0f2f2c9821464fd94330433fc5c6522f4db1d022cfc44720094a495625ac5641",
+        "sha256": "f5d7ed92f9f7f5816f16fa0c2126f00e0c66ac3b36f57643f41adaed7ccf48f6",
         "symbols": [
           "CardRenderer",
           "EntitiesCard",
@@ -23468,7 +23468,7 @@
           "EntityPrimaryActionTarget",
           "EntityRow"
         ],
-        "worktreeBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71"
+        "worktreeBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f"
       },
       {
         "dirty": false,

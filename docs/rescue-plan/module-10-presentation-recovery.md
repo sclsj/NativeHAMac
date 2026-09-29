@@ -1,5 +1,9 @@
 # Module 10 established-presentation recovery
 
+## Current correction — 2026-09-29
+
+The user rejected the September 26 result, reported a click/drag-release target jump, and supplied three HA-web reference screenshots and three native screenshots. The web screenshots supersede conflicting historical styling in the preserve/restore table below; that table and the earlier outcome are historical recovery evidence, not current visual acceptance. Repair the demonstrated state-update and pointer-focus defects and match the supplied dial/control appearance without changing the service contract. Full more-info header metadata/actions remain a separate, disclosed gap; do not fabricate room/device names to match a screenshot. Module 10 remains open for renewed user acceptance.
+
 Planning handoff, 2026-09-19. Recover the established native climate appearance and animation while retaining Module 10's capability, service, sparse-state and lifetime corrections. The user rejected the replacement presentation; the earlier Module 10 visual verdict is not acceptance of that replacement. See [approved decisions](../user-deviations.md#preserve-established-climate-presentation) and the [Module 10 packet](../reference-context/modules/module-10-climate-detail.md).
 
 ## Planning recommendation and limits (historical)
