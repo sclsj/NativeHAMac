@@ -7,13 +7,23 @@ status: verification-ready
 contract_revision: 2
 depends_on: ["05", "06"]
 reference_revision: "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd"
-nativeha_revision: "847599e292fd4c767d928e919085fcf60d5223ad"
+nativeha_revision: "99417a8e6b147527bbc772e185f604550211c1bb"
 graph_file: ../generated/module-10.dependencies.json
-graph_fingerprint: "5b7fdb475ab26ff0dc48c851ec01eb1b3d60957a20594b0cdcb9feddb3bf59fb"
-last_validated: 2026-09-29
+graph_fingerprint: "768a14460c01f4bf9a46a11640ab9ec9777a2f82e4d3437cba0ce863c29dca56"
+last_validated: 2026-09-30
 ---
 
 # Module 10 evidence packet
+
+## Click-animation correction — 2026-09-30
+
+The user approved the appearance of `99417a8` ("It looks great!") but reported intermittent clicks snapping instead of animating. Preserve that appearance; this repair addresses only the specified click issue, not the user's as-yet-unspecified further issues.
+
+Reproduced three clicks containing a single 1-point movement with identical early/middle/final knob geometry; the stationary click animated. The failing-before log is `/tmp/nativeha-climate-click-before-20260930.log` (nine failed motion assertions). Reference Hammer emits `panstart` on the first movement; `ha-control-circular-slider` selects an endpoint there without changing its value. Native input had collapsed this into a direct `panmove` update. The repair adds an explicit begin phase: select without mutation, animate release if no subsequent movement occurred, and keep ongoing dragging direct. Once begun, movement continues even when the pointer returns to its down location. No new drag slop, duration, animation curve, service behavior, or presentation styling was introduced.
+
+Five focused mounted tests pass (`/tmp/nativeha-climate-click-focused-20260930.log`): six alternating stationary/incidental-movement clicks, matching/equal authoritative updates mid-motion, a click after actual dragging, range endpoint selection with no intermediate mutation/service, and direct dragging back to the starting point. Actual WindowServer captures `climate-recovery-motion/jitter-*-{early,middle,final}.png` establish knob movement rather than relying on changed text. Supervisor inspected the early/middle/final sequence. Module 10 remains `verification-ready` pending the user's click retest; appearance approval is recorded separately from motion acceptance.
+
+Supervisor full `swift test` passed 386 tests with six expected opt-in skips and zero failures in 160.580 seconds (`/tmp/nativeha-climate-click-full-20260930.log`). The Off, Cool-above-current and Cool-below-current whole-panel PNG hashes are identical to the pre-repair captures; no appearance files or configuration values changed. Semantic oracle, resolver self-test and final diff checks pass. Only Module 10 native anchors needed refresh; its existing generated-translation boundary remains yellow. No live HA services were called. Next action: user retests ordinary dial clicks in `swift run`; subsequent reported issues remain separate work.
 
 ## Screenshot-led correction — 2026-09-29
 
@@ -197,3 +207,4 @@ Authorized live service acceptance and independent restoration verification pass
 - 2026-09-19: Withdrew the presentation completion claim after user feedback; recorded the approved established-presentation recovery direction and bounded planning handoff. Existing row-entry repair remains preserved and uncommitted.
 - 2026-09-26: Integrated established presentation with unchanged capability/service ownership, restored Home entry, added historical and geometry-sensitive hosted motion evidence, and retained verification-ready status for user acceptance. Confirmed menu clarification is recorded in approved deviations.
 - 2026-09-29: Reproduced and repaired previous-target replay through full-content callbacks and pointer-induced full-arc focus painting; aligned control rendering with the user's newly supplied web screenshots. Historical presentation acceptance remains withdrawn; no live services were called.
+- 2026-09-30: Recorded user approval of the corrected appearance and repaired the reproduced incidental-movement click snap through a reference-aligned pan-begin phase. No visual/service policy changes or live HA calls.

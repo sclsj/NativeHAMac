@@ -15770,7 +15770,7 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "5b7fdb475ab26ff0dc48c851ec01eb1b3d60957a20594b0cdcb9feddb3bf59fb",
+  "graphFingerprint": "768a14460c01f4bf9a46a11640ab9ec9777a2f82e4d3437cba0ce863c29dca56",
   "manifest": {
     "module": "10",
     "path": "docs/reference-context/manifests/module-10.inputs.json",
@@ -15805,8 +15805,8 @@
         "worktreeBlob": "6107b9523b4b5433e224999e76aefa1a67f1bfc6"
       },
       {
-        "dirty": true,
-        "headBlob": "c193720d1007ea83df6c91d3e0dec9e3f63c5e71",
+        "dirty": false,
+        "headBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
         "sha256": "f5d7ed92f9f7f5816f16fa0c2126f00e0c66ac3b36f57643f41adaed7ccf48f6",
@@ -15817,8 +15817,8 @@
         "worktreeBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f"
       },
       {
-        "dirty": true,
-        "headBlob": "729fa565dff56d3819a9023813218aec9b01e8c9",
+        "dirty": false,
+        "headBlob": "ef935bb92e78d49a7a756b9ef44d9f49c1a48114",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateControlDrawing.swift",
         "sha256": "1286e4cd9ec7dcee1e06f68bff1002d5784e2022e8abcc32e57331d7ed602a7e",
@@ -15830,17 +15830,17 @@
       },
       {
         "dirty": true,
-        "headBlob": "e591ee603993089bd5ba68c41690967c4162f26a",
+        "headBlob": "42df71b9d54d002e8f77c878482e94f4cd139f0b",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateDetailView.swift",
-        "sha256": "bacaf74fe4e347f46c203e241a859d2772c6dd8af2149011506774594d418fd7",
+        "sha256": "fca991bd0087f5a9dcd639e81801e1c189af3d5e42e41466f5d1faf130081088",
         "symbols": [
           "ClimateControlDial",
           "ClimateDetailContent",
           "ClimateDialNSView",
           "ClimateModeNSButton"
         ],
-        "worktreeBlob": "42df71b9d54d002e8f77c878482e94f4cd139f0b"
+        "worktreeBlob": "7d61c04b40abcac70a434614fb61c91e38664b8e"
       },
       {
         "dirty": false,
@@ -15955,14 +15955,14 @@
       },
       {
         "dirty": true,
-        "headBlob": "dd4ae69c94b7d56bb68ef358d760f3e78e14aebe",
+        "headBlob": "d2552b2e9de4c17413c362b8c03416da76f80218",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift",
-        "sha256": "26def30122aa3512caf87f20533cdc03dffc4b9bfff0e8f3c6fb5624534093f4",
+        "sha256": "65387195e5de5514cbf0217ab22dd7b286fd67d5fc2efcd19dd7d4e8f183ee25",
         "symbols": [
           "ClimateRecoveryInteractionTests"
         ],
-        "worktreeBlob": "d2552b2e9de4c17413c362b8c03416da76f80218"
+        "worktreeBlob": "050f8ff088b663d18ecec86361fe1786b529257d"
       },
       {
         "dirty": false,
@@ -15991,7 +15991,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "847599e292fd4c767d928e919085fcf60d5223ad"
+    "gitHead": "99417a8e6b147527bbc772e185f604550211c1bb"
   },
   "nodes": [
     {

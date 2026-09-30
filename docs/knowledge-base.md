@@ -44,6 +44,7 @@ The installed Xcode 13.4.1/macOS 12.3 SDK's Foundation Swift interface exposes M
 
 - On 2026-09-29, the full mounted `ClimateDetailContent` reproduced an authoritative target update replaying the previous target through an `onChange` closure's captured `entity` on macOS 12. The dial-only harness bypassed those callbacks and therefore passed. Use the callback's new state or the accepted model snapshot, and test state-change and equal-replacement revision paths through the full content view.
 - The previous motion harness also cleared first responder after a pointer click, hiding the production input view's blue full-arc focus overlay. Compare actual window pixels with pointer focus retained; keyboard focus visibility is a separate requirement. These are limits of the earlier test setup, not evidence that controller reconciliation should ignore authoritative updates.
+- On 2026-09-30, a mounted click with one 1-point movement reproduced an immediate jump: native input treated Hammer's first `panstart` phase as `panmove`. The reference `panstart` only selects the endpoint; later movement updates the value. A zero drag threshold does not imply an immediate value change on the first movement event. Preserve that phase distinction and test incidental-movement clicks separately from stationary clicks and ongoing drags.
 
 ### 2026-09-11 graph-oracle calibration
 

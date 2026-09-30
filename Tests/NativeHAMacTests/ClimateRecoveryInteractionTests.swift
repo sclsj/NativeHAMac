@@ -6,6 +6,118 @@ import XCTest
 
 @MainActor
 final class ClimateRecoveryInteractionTests: XCTestCase {
+    func testPanStartSelectsRangeEndpointWithoutChangingOrCommitting() throws {
+        let entity = try ClimateFixtures.entity("complete")
+        let controller = ClimateServiceController()
+        var calls: [ClimateServiceRequest] = []
+        controller.install(entity: entity) { request, _ in calls.append(request); return true }
+        let model = DashboardViewModel(initialStates: [entity.entityID: entity.state])
+        let host = NSHostingView(rootView: ClimateControlDial(entity: entity, controller: controller).environmentObject(model))
+        _ = NSApplication.shared
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 320, height: 320), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderBack(nil)
+        defer { controller.close(); window.orderOut(nil); window.close() }
+        settle(0.05)
+        let input = try XCTUnwrap(descendants(host).compactMap { $0 as? ClimateDialNSView }.first)
+        let geometry = ClimateDialGeometry(size: input.bounds.size)
+        func event(_ type: NSEvent.EventType, _ progress: Double) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.mouseEvent(with: type, location: input.convert(geometry.point(progress), to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        input.mouseDown(with: try event(.leftMouseDown, 0.7))
+        input.mouseDragged(with: try event(.leftMouseDragged, 0.8))
+        settle(0.02)
+        XCTAssertEqual(controller.values[.low], 21)
+        XCTAssertEqual(controller.values[.high], 25)
+        XCTAssertTrue(calls.isEmpty)
+        // Release near the low endpoint: the endpoint chosen at panstart
+        // must remain high, and therefore clamp to the unchanged low value.
+        input.mouseUp(with: try event(.leftMouseUp, 0.1))
+        XCTAssertEqual(calls.count, 1)
+        XCTAssertEqual(calls.first?.data["target_temp_low"], .double(21))
+        XCTAssertEqual(calls.first?.data["target_temp_high"], .double(21))
+    }
+
+    func testMountedClickWithOnePointerMovementStillAnimates() throws {
+        let entity = try ClimateFixtures.entity(overrides: ["temperature": .double(20)])
+        let source = ClimateRecoverySource(entity: entity)
+        let model = DashboardViewModel(initialStates: [entity.entityID: entity.state])
+        model.installServiceCallerForTesting { _, _, _ in }
+        model.openDetails(entityID: entity.entityID)
+        let host = NSHostingView(rootView: ClimateRecoveryDetailHost(source: source).environmentObject(model))
+        _ = NSApplication.shared
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 380, height: 500), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderBack(nil)
+        defer { model.closeDetails(); window.orderOut(nil); window.close() }
+        settle(0.1)
+        let input = try XCTUnwrap(descendants(host).compactMap { $0 as? ClimateDialNSView }.first)
+        let geometry = ClimateDialGeometry(size: input.bounds.size)
+        func event(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.mouseEvent(with: type, location: input.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        func capture(_ name: String) throws -> Data {
+            let image = try XCTUnwrap(CGWindowListCreateImage(.null, .optionIncludingWindow, CGWindowID(window.windowNumber), [.boundsIgnoreFraming, .bestResolution]))
+            let scale = CGFloat(image.width) / host.bounds.width
+            var rect = input.convert(input.bounds, to: host)
+            if !host.isFlipped { rect.origin.y = host.bounds.height - rect.maxY }
+            let cropped = try XCTUnwrap(image.cropping(to: CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)))
+            let data = try XCTUnwrap(NSBitmapImageRep(cgImage: cropped).representation(using: .png, properties: [:]))
+            let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath + "/.build/render-artifacts/climate-recovery-motion")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: directory.appendingPathComponent(name + ".png"))
+            return data
+        }
+        for index in 0..<6 {
+            if index == 2 {
+                input.mouseDown(with: try event(.leftMouseDown, geometry.point(0.1)))
+                input.mouseDragged(with: try event(.leftMouseDragged, geometry.point(0.2)))
+                input.mouseDragged(with: try event(.leftMouseDragged, geometry.point(0.4)))
+                settle(0.02)
+                input.mouseUp(with: try event(.leftMouseUp, geometry.point(0.3)))
+                settle(0.03)
+                XCTAssertEqual(try knobProgress(capture("jitter-preceding-drag")), 0.3, accuracy: 0.003)
+            }
+            let destination = index % 2 == 0 ? 0.9 : 0.1
+            let point = geometry.point(destination)
+            let previousValue = try XCTUnwrap(input.accessibilityValue() as? NSNumber).doubleValue
+            input.mouseDown(with: try event(.leftMouseDown, point))
+            // An ordinary click can contain a single small movement while
+            // held. HA recognizes panstart here, without changing the value.
+            if index % 3 != 1 {
+                input.mouseDragged(with: try event(.leftMouseDragged, CGPoint(x: point.x + 1, y: point.y)))
+                settle(0.02)
+                XCTAssertEqual(try XCTUnwrap(input.accessibilityValue() as? NSNumber).doubleValue, previousValue, "Pan start selects without moving the target")
+            }
+            input.mouseUp(with: try event(.leftMouseUp, point))
+            settle(0.02)
+            let early = try capture("jitter-\(index)-early")
+            if index == 1 || index == 3 {
+                let value = 19 + destination * 9
+                source.entity = try ClimateFixtures.entity(overrides: ["temperature": .double(value)])
+                model.states[entity.entityID] = source.entity.state
+                model.acceptClimateReplacement(entityIDs: [entity.entityID])
+                settle(0.01)
+                // Equal accepted replacements during motion must not cancel
+                // the current click's target transition either.
+                model.acceptClimateReplacement(entityIDs: [entity.entityID])
+            }
+            settle(0.09)
+            let middle = try capture("jitter-\(index)-middle")
+            settle(0.3)
+            let final = try capture("jitter-\(index)-final")
+            let earlyProgress = try knobProgress(early)
+            let middleProgress = try knobProgress(middle)
+            let finalProgress = try knobProgress(final)
+            XCTAssertGreaterThan(abs(earlyProgress - finalProgress), 0.1, "Click \(index) must not jump directly")
+            XCTAssertGreaterThan(abs(middleProgress - earlyProgress), 0.03)
+            XCTAssertGreaterThan(abs(middleProgress - finalProgress), 0.03)
+            XCTAssertEqual(finalProgress, destination, accuracy: 0.003)
+        }
+    }
+
     func testMountedDetailAuthoritativeEchoDoesNotReplayPreviousTarget() throws {
         let entity = try ClimateFixtures.entity(overrides: ["temperature": .double(20), "current_temperature": .double(24)])
         let source = ClimateRecoverySource(entity: entity)
@@ -173,9 +285,12 @@ final class ClimateRecoveryInteractionTests: XCTestCase {
         XCTAssertNotEqual(reversalMiddle, reversalFinal)
 
         input.mouseDown(with: try event(.leftMouseDown, 0.8))
+        input.mouseDragged(with: try event(.leftMouseDragged, 0.7))
         input.mouseDragged(with: try event(.leftMouseDragged, 0.4))
         let drag = try capture("08-drag-direct", after: 0.02)
         XCTAssertEqual(drag, try capture("09-drag-held", after: 0.35))
+        input.mouseDragged(with: try event(.leftMouseDragged, 0.8))
+        XCTAssertEqual(try knobProgress(capture("09-drag-back-at-start", after: 0.03)), 0.8, accuracy: 0.003, "Recognized movement continues when the pointer returns to its down location")
         XCTAssertEqual(calls.count, 3)
         input.mouseUp(with: try event(.leftMouseUp, 0.6))
         let release = try capture("10-drag-release-direct", after: 0.02)

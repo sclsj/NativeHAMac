@@ -193,10 +193,13 @@ struct ClimateControlDial: View {
             } else { gestureTarget = target }
         }
         let selected = gestureTarget ?? target
+        // Reference panstart chooses the endpoint but does not move it. A
+        // click with one incidental movement still animates on release.
+        if phase == .beginDrag { return }
         let direct = isDragging || phase == .move
         if phase == .move { isDragging = true }
-        // A press alone is a click: its release animates. A recognized drag,
-        // including its final release mapping, tracks the pointer directly.
+        // Release animates unless movement has updated the target. After
+        // that, dragging and its final release track the pointer directly.
         var transaction = Transaction(animation: direct ? nil : climateTargetAnimation)
         transaction.disablesAnimations = direct
         withTransaction(transaction) { controller.change(raw, target: selected) }
@@ -222,7 +225,7 @@ struct ClimateControlDial: View {
     }
 }
 
-enum ClimatePointerPhase { case down, move, up, cancel }
+enum ClimatePointerPhase { case down, beginDrag, move, up, cancel }
 
 struct ClimateAdjustmentButton: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
@@ -389,6 +392,7 @@ final class ClimateDialNSView: NSView {
     var onPointer: ((CGPoint, ClimatePointerPhase) -> Void)?
     var onKey: ((UInt16, Bool) -> Void)?
     private var start: CGPoint?
+    private var beganDrag = false
     private var keyboardFocusVisible = true
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { isEnabled }
@@ -416,19 +420,26 @@ final class ClimateDialNSView: NSView {
         window?.makeFirstResponder(self)
         let point = convert(event.locationInWindow, from: nil)
         start = point
+        beganDrag = false
         onPointer?(point, .down)
     }
     override func mouseDragged(with event: NSEvent) {
         guard isEnabled, let start = start else { return }
         let point = convert(event.locationInWindow, from: nil)
-        if hypot(point.x - start.x, point.y - start.y) > AppConfig.climateInteractionPolicy.dragThreshold { onPointer?(point, .move) }
+        if beganDrag {
+            onPointer?(point, .move)
+        } else if hypot(point.x - start.x, point.y - start.y) > AppConfig.climateInteractionPolicy.dragThreshold {
+            beganDrag = true
+            onPointer?(point, .beginDrag)
+        }
     }
     override func mouseUp(with event: NSEvent) {
         guard start != nil else { return }
         start = nil
+        beganDrag = false
         onPointer?(convert(event.locationInWindow, from: nil), isEnabled ? .up : .cancel)
     }
-    override func cancelOperation(_ sender: Any?) { start = nil; onPointer?(.zero, .cancel) }
+    override func cancelOperation(_ sender: Any?) { start = nil; beganDrag = false; onPointer?(.zero, .cancel) }
     override func keyDown(with event: NSEvent) {
         guard isEnabled, [123,124,125,126,115,119,116,121].contains(Int(event.keyCode)) else { super.keyDown(with: event); return }
         keyboardFocusVisible = true
