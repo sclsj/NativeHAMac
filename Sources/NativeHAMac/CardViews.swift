@@ -916,6 +916,15 @@ struct GraphCanvasPlot: View {
     }
 }
 
+private struct GraphChartViewUpdate: Equatable {
+    let request: GraphChartVisualRequest
+    let feed: GraphHistoryRevisionFeed?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.request.token == rhs.request.token
+    }
+}
+
 @MainActor
 struct BitmapLineChart: View {
     let unit: String
@@ -994,6 +1003,14 @@ struct BitmapLineChart: View {
                 renderToken: renderToken,
                 feedGeneration: revisionFeed?.generation
             )
+            let update = GraphChartViewUpdate(
+                request: GraphChartVisualRequest(
+                    token: token, inputs: inputs, unit: unit, size: size,
+                    scale: screenScale, zoomScale: zoomScale,
+                    panFraction: panFraction, engine: engine
+                ),
+                feed: revisionFeed
+            )
             let displayRender = rendered
 
             ZStack(alignment: .topLeading) {
@@ -1053,23 +1070,15 @@ struct BitmapLineChart: View {
                 )
             }
             .onAppear {
-                connectRevisionFeed()
+                connectRevisionFeed(update)
                 connectMountRegistry()
-                requestRender(
-                    token: token,
-                    size: size,
-                    scale: screenScale,
-                    engine: engine
-                )
+                requestRender(update.request)
             }
-            .onChange(of: token) { _ in
-                connectRevisionFeed()
-                requestRender(
-                    token: token,
-                    size: size,
-                    scale: screenScale,
-                    engine: engine
-                )
+            .onChange(of: update) { currentUpdate in
+                // macOS 12 can invoke the previous view's onChange closure.
+                // The new value must carry the payload, not just its token.
+                connectRevisionFeed(currentUpdate)
+                requestRender(currentUpdate.request)
             }
             .onDisappear {
                 mountLease?.cancel()
@@ -1079,29 +1088,15 @@ struct BitmapLineChart: View {
         }
     }
 
-    private func requestRender(
-        token: String,
-        size: CGSize,
-        scale: CGFloat,
-        engine: GraphRenderEngine
-    ) {
+    private func requestRender(_ request: GraphChartVisualRequest) {
         guard acceptsWork(),
-              size.width > 1,
-              size.height > 1,
-              renderedToken != token
+              request.size.width > 1,
+              request.size.height > 1,
+              renderedToken != request.token
         else { return }
         guard !mountedLifecycle.isInvalidated else { return }
-        mountedLifecycle.coordinator.requestVisual(GraphChartVisualRequest(
-            token: token,
-            inputs: inputs,
-            unit: unit,
-            size: size,
-            scale: scale,
-            zoomScale: zoomScale,
-            panFraction: panFraction,
-            engine: engine
-        )) { completedToken, result in
-            guard acceptsWork(), completedToken == token else { return }
+        mountedLifecycle.coordinator.requestVisual(request) { completedToken, result in
+            guard acceptsWork(), completedToken == request.token else { return }
             rendered = result
             renderedToken = completedToken
             renderAttempted = true
@@ -1111,9 +1106,9 @@ struct BitmapLineChart: View {
         }
     }
 
-    private func connectRevisionFeed() {
+    private func connectRevisionFeed(_ update: GraphChartViewUpdate) {
         guard acceptsWork() else { return }
-        mountedLifecycle.connect(feed: revisionFeed, inputs: inputs, unit: unit)
+        mountedLifecycle.connect(feed: update.feed, inputs: update.request.inputs, unit: update.request.unit)
     }
 
     private func connectMountRegistry() {

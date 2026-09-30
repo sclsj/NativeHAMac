@@ -24,3 +24,5 @@ This is diagnostic logging, not a crash recorder. Abrupt process/machine failure
 For regression checks, run `swift test --filter SQLiteLoggerTests` for debug persistence and `swift test -c release --filter ReleaseLoggingTests` to verify that every category/severity leaves message expressions unevaluated.
 
 See the [logging review](audits/2026-09-11-logging.md) for changes, regression coverage, and validation limits.
+
+Graph responsiveness diagnostics include `GraphFrame` entries in the rendering/debug category. They identify frame sequence, delivery versus generation rejection, request-to-delivery response time, background queue wait, render time, zoom and pan. A queued frame skipped because accepted history advanced is recorded separately. Use `--severity debug --category rendering --contains GraphFrame` to distinguish slow rendering from preparation backlog or rejected deliveries. These timings compile out in release builds.

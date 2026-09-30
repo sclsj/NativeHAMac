@@ -219,11 +219,28 @@ final class GraphChartRenderCoordinator: ObservableObject {
         let unit: String
     }
 
+    private struct DataIdentity: Equatable {
+        let cacheScope: String
+        let entityID: String
+        let contentRevision: UInt64
+        let pointCount: Int
+
+        init(_ input: GraphRenderSeriesInput) {
+            cacheScope = input.cacheScope
+            entityID = input.entityID
+            contentRevision = input.history.contentRevision
+            pointCount = input.history.points.count
+        }
+    }
+
     private struct VisualWork {
         let generation: UInt64
         let sequence: UInt64
         let request: GraphChartVisualRequest
         let completion: Completion
+        #if DEBUG
+        let submittedAt = DispatchTime.now().uptimeNanoseconds
+        #endif
     }
 
     private let queue: DispatchQueue
@@ -234,8 +251,10 @@ final class GraphChartRenderCoordinator: ObservableObject {
     private var generation: UInt64 = 0
     private var revisions: [RevisionWork] = []
     private var revisionHead = 0
+    private var latestAcceptedData: [DataIdentity]?
     private var latestVisual: VisualWork?
     private var latestRequestedVisualSequence: UInt64 = 0
+    private var lastDeliveredVisualSequence: UInt64 = 0
     private var inFlightVisualSequence: UInt64?
     private var workerRunning = false
     private var concurrentCount = 0
@@ -280,9 +299,11 @@ final class GraphChartRenderCoordinator: ObservableObject {
         precondition(Thread.isMainThread)
         lock.lock()
         let activeGeneration = generation
+        let acceptedInputs = scoped(inputs, generation: activeGeneration)
+        latestAcceptedData = acceptedInputs.map(DataIdentity.init)
         revisions.append(RevisionWork(
             generation: activeGeneration,
-            inputs: scoped(inputs, generation: activeGeneration),
+            inputs: acceptedInputs,
             unit: unit
         ))
         statisticsStorage.acceptedRevisionCount += 1
@@ -325,6 +346,7 @@ final class GraphChartRenderCoordinator: ObservableObject {
         generation &+= 1
         revisions.removeAll(keepingCapacity: true)
         revisionHead = 0
+        latestAcceptedData = nil
         latestVisual = nil
         inFlightVisualSequence = nil
         lock.unlock()
@@ -394,7 +416,32 @@ final class GraphChartRenderCoordinator: ObservableObject {
             }
 
             guard let visual = visual else { continue }
+            lock.lock()
+            // A visual queued before the accepted-publication boundary may
+            // still contain old data. Never send it back through the cache
+            // after FIFO preparation has advanced. This uses exact owner-local
+            // identity, not numerical ordering of content digests or timestamps.
+            let canRender = visual.generation == generation &&
+                (latestAcceptedData == nil ||
+                 latestAcceptedData == visual.request.inputs.map(DataIdentity.init))
+            if !canRender {
+                if inFlightVisualSequence == visual.sequence {
+                    inFlightVisualSequence = nil
+                }
+                statisticsStorage.staleDeliveryCount += 1
+            }
+            lock.unlock()
+            guard canRender else {
+                AppLog("GraphFrame sequence=\(visual.sequence) skipped before rendering: history or generation advanced", severity: .debug, category: .rendering)
+                continue
+            }
+            #if DEBUG
+            let renderStartedAt = DispatchTime.now().uptimeNanoseconds
+            #endif
             let result = renderer(visual.request)
+            #if DEBUG
+            let renderFinishedAt = DispatchTime.now().uptimeNanoseconds
+            #endif
             lock.lock()
             if inFlightVisualSequence == visual.sequence {
                 inFlightVisualSequence = nil
@@ -403,14 +450,25 @@ final class GraphChartRenderCoordinator: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.lock.lock()
+                // Input can arrive faster than a frame can be drawn. Deliver
+                // completed frames in order within the current generation;
+                // coalesce the pending request without starving an active gesture.
                 let current = visual.generation == self.generation &&
-                    visual.sequence == self.latestRequestedVisualSequence
+                    visual.sequence > self.lastDeliveredVisualSequence
                 if current {
+                    self.lastDeliveredVisualSequence = visual.sequence
                     self.statisticsStorage.renderedVisualCount += 1
                 } else {
                     self.statisticsStorage.staleDeliveryCount += 1
                 }
                 self.lock.unlock()
+                #if DEBUG
+                let responseMilliseconds = Double(DispatchTime.now().uptimeNanoseconds - visual.submittedAt) / 1_000_000
+                AppLog(
+                    "GraphFrame sequence=\(visual.sequence) delivered=\(current) response_ms=\(responseMilliseconds) queue_ms=\(Double(renderStartedAt - visual.submittedAt) / 1_000_000) render_ms=\(Double(renderFinishedAt - renderStartedAt) / 1_000_000) zoom=\(visual.request.zoomScale) pan=\(visual.request.panFraction)",
+                    severity: .debug, category: .rendering
+                )
+                #endif
                 if current {
                     visual.completion(visual.request.token, result)
                 }

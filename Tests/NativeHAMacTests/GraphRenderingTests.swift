@@ -732,10 +732,9 @@ final class GraphRenderingTests: XCTestCase {
     }
 
     @MainActor
-    func testChartCoordinatorDoesNotInstallSupersededInFlightVisual() {
+    func testChartCoordinatorDeliversCompletedFrameWhileNewerViewportIsPending() {
         let oldRenderStarted = expectation(description: "old visual started")
         let oldDelivery = expectation(description: "old visual delivery")
-        oldDelivery.isInverted = true
         let latestDelivery = expectation(description: "latest visual delivery")
         let gate = DispatchSemaphore(value: 0)
         let coordinator = GraphChartRenderCoordinator(
@@ -761,7 +760,7 @@ final class GraphRenderingTests: XCTestCase {
         gate.signal()
         wait(for: [latestDelivery, oldDelivery], timeout: 1)
         XCTAssertEqual(coordinator.statistics.replacedVisualCount, 1)
-        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 1)
+        XCTAssertEqual(coordinator.statistics.staleDeliveryCount, 0)
     }
 
     @MainActor
@@ -1045,6 +1044,39 @@ final class GraphRenderingTests: XCTestCase {
                 alignmentFallbackCount: 1
             )
         )
+    }
+
+    func testExactLineageRetainsNumericIndexMappingAcrossUnavailableSamples() throws {
+        let entityID = "sensor.filtered_lineage"
+        let samples: [(Int, String)] = [
+            (0, "unavailable"), (100, "10"), (200, "unknown"), (300, "20"), (400, "30"),
+        ]
+        var previous = history(entityID: entityID, samples: samples)
+        let scope = "filtered-lineage"
+        GraphBitmapRenderer.resetPreparedSeriesCache()
+        func input(_ series: HAHistorySeries, scope: String) -> GraphRenderSeriesInput {
+            GraphRenderSeriesInput(cacheScope: scope, entityID: entityID, name: "Filtered",
+                                   unit: "°C", color: graphBlue, history: series)
+        }
+        _ = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(input(previous, scope: scope), displayUnit: "°C"))
+        for index in 1...4 {
+            let fresh = history(entityID: entityID, samples: [(400 + index * 100, index == 2 ? "unavailable" : String(30 + index))]).points[0]
+            let next = HAHistorySeries(
+                entityID: entityID, points: Array(previous.points.dropFirst()) + [fresh],
+                contentRevision: previous.contentRevision &+ 1,
+                cacheLineage: HAHistorySeriesCacheLineage(
+                    predecessorRevision: previous.contentRevision, oldStart: 1,
+                    newStart: 0, count: previous.points.count - 1
+                )
+            )
+            let actual = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(input(next, scope: scope), displayUnit: "°C"))
+            let oracle = try XCTUnwrap(GraphBitmapRenderer.preparedSeriesForTesting(input(next, scope: "oracle-\(index)"), displayUnit: "°C"))
+            XCTAssertEqual(actual.points, oracle.points)
+            previous = next
+        }
+        let statistics = GraphBitmapRenderer.preparedSeriesCacheStatistics()
+        XCTAssertEqual(statistics.exactLineagePreparationCount, 4)
+        XCTAssertEqual(statistics.alignmentFallbackCount, 0)
     }
 
     func testRollingTailWithoutProjectionLineageUpdatesIncrementally() throws {

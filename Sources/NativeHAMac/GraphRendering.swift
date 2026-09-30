@@ -1000,14 +1000,14 @@ private final class GraphPreparedSeriesCache {
         fingerprint: GraphSourceFingerprint
     ) -> GraphPreparedCacheEntry? {
         guard displayUnit.lowercased() != "state",
-              cached.isOneToOneStrictlyIncreasingNumericSource,
+              cached.isStrictlyIncreasingNumericSource,
               let lineage = input.history.cacheLineage,
               cached.fingerprint.contentRevision == lineage.predecessorRevision,
               lineage.oldStart >= 0,
               lineage.newStart >= 0,
               lineage.count > 0,
-              lineage.oldStart <= cached.series.points.count,
-              lineage.count <= cached.series.points.count - lineage.oldStart,
+              lineage.oldStart <= cached.fingerprint.count,
+              lineage.count <= cached.fingerprint.count - lineage.oldStart,
               lineage.newStart <= input.history.points.count,
               lineage.count <= input.history.points.count - lineage.newStart
         else {
@@ -1015,6 +1015,7 @@ private final class GraphPreparedSeriesCache {
         }
 
         let parser = GraphDateParser()
+        var omittedSourceIndices: [Int] = []
         var points: [GraphRenderedPoint] = []
         points.reserveCapacity(input.history.points.count)
         var yValues: [Double] = []
@@ -1026,7 +1027,7 @@ private final class GraphPreparedSeriesCache {
                 let source = input.history.points[index]
                 guard let timestamp = parser.timestamp(from: source),
                       let value = numericValue(source.state)
-                else { return false }
+                else { omittedSourceIndices.append(index); continue }
                 if let previous = points.last, timestamp <= previous.t { return false }
                 points.append(GraphRenderedPoint(
                     t: timestamp,
@@ -1039,7 +1040,13 @@ private final class GraphPreparedSeriesCache {
         }
 
         guard appendFresh(0..<lineage.newStart) else { return nil }
-        let cachedRange = lineage.oldStart..<(lineage.oldStart + lineage.count)
+        let rawEnd = lineage.oldStart + lineage.count
+        let skippedStart = cached.omittedSourceIndices.partitionIndex { $0 >= lineage.oldStart }
+        let skippedEnd = cached.omittedSourceIndices.partitionIndex { $0 >= rawEnd }
+        let cachedRange = (lineage.oldStart - skippedStart)..<(rawEnd - skippedEnd)
+        omittedSourceIndices.append(contentsOf: cached.omittedSourceIndices[skippedStart..<skippedEnd].map {
+            $0 - lineage.oldStart + lineage.newStart
+        })
         let overlap = cached.series.points[cachedRange]
         if let previous = points.last, let first = overlap.first, first.t <= previous.t {
             return nil
@@ -1052,14 +1059,15 @@ private final class GraphPreparedSeriesCache {
 
         let suffixStart = lineage.newStart + lineage.count
         guard appendFresh(suffixStart..<input.history.points.count),
-              points.count == input.history.points.count,
+              points.count + omittedSourceIndices.count == input.history.points.count,
               yValues.count == points.count,
               !points.isEmpty
         else { return nil }
 
         return GraphPreparedCacheEntry(
             fingerprint: fingerprint,
-            isOneToOneStrictlyIncreasingNumericSource: true,
+            isStrictlyIncreasingNumericSource: true,
+            omittedSourceIndices: omittedSourceIndices,
             series: GraphRenderedSeries(
                 entityID: input.entityID,
                 name: input.name,
@@ -1085,8 +1093,9 @@ private final class GraphPreparedSeriesCache {
         if !isStateTimeline {
             yValues.reserveCapacity(input.history.points.count)
         }
+        var omittedSourceIndices: [Int] = []
         var isTimestampSorted = true
-        var isOneToOneStrictlyIncreasingNumericSource = !isStateTimeline
+        var isStrictlyIncreasingNumericSource = !isStateTimeline
         var previousTimestamp: Double?
 
         for (index, point) in input.history.points.enumerated() {
@@ -1094,12 +1103,12 @@ private final class GraphPreparedSeriesCache {
                 return nil
             }
             guard let timestamp = parser.timestamp(from: point) else {
-                isOneToOneStrictlyIncreasingNumericSource = false
+                omittedSourceIndices.append(index)
                 continue
             }
             let value = numericValue(point.state)
             if value == nil && !isStateTimeline {
-                isOneToOneStrictlyIncreasingNumericSource = false
+                omittedSourceIndices.append(index)
                 continue
             }
 
@@ -1107,7 +1116,7 @@ private final class GraphPreparedSeriesCache {
                 isTimestampSorted = false
             }
             if let previousTimestamp = previousTimestamp, timestamp <= previousTimestamp {
-                isOneToOneStrictlyIncreasingNumericSource = false
+                isStrictlyIncreasingNumericSource = false
             }
             previousTimestamp = timestamp
             points.append(GraphRenderedPoint(
@@ -1134,8 +1143,8 @@ private final class GraphPreparedSeriesCache {
 
         return GraphPreparedCacheEntry(
             fingerprint: fingerprint,
-            isOneToOneStrictlyIncreasingNumericSource:
-                isOneToOneStrictlyIncreasingNumericSource && points.count == input.history.points.count,
+            isStrictlyIncreasingNumericSource: isStrictlyIncreasingNumericSource,
+            omittedSourceIndices: omittedSourceIndices,
             series: GraphRenderedSeries(
                 entityID: input.entityID,
                 name: input.name,
@@ -1176,6 +1185,7 @@ private final class GraphPreparedSeriesCache {
         }
 
         let parser = GraphDateParser()
+        var omittedSourceIndices: [Int] = []
         var points: [GraphRenderedPoint] = []
         points.reserveCapacity(input.history.points.count)
         var yValues: [Double] = []
@@ -1187,10 +1197,8 @@ private final class GraphPreparedSeriesCache {
                     return false
                 }
                 let pt = input.history.points[i]
-                guard let timestamp = parser.timestamp(from: pt) else {
-                    continue
-                }
-                guard let value = numericValue(pt.state) else {
+                guard let timestamp = parser.timestamp(from: pt), let value = numericValue(pt.state) else {
+                    omittedSourceIndices.append(i)
                     continue
                 }
                 if let last = points.last, timestamp < last.t {
@@ -1283,8 +1291,10 @@ private final class GraphPreparedSeriesCache {
         var cachedIndex = 0
         for i in firstValidNewIndex..<suffixStartRawIndex {
             let rawPt = input.history.points[i]
-            guard let ts = parser.timestamp(from: rawPt) else { continue }
-            guard let val = numericValue(rawPt.state) else { continue }
+            guard let ts = parser.timestamp(from: rawPt), let val = numericValue(rawPt.state) else {
+                omittedSourceIndices.append(i)
+                continue
+            }
             
             guard cachedIndex < cachedOverlap.count else {
                 overlapValid = false
@@ -1328,9 +1338,10 @@ private final class GraphPreparedSeriesCache {
 
         return GraphPreparedCacheEntry(
             fingerprint: fingerprint,
-            isOneToOneStrictlyIncreasingNumericSource: zip(points, points.dropFirst()).allSatisfy {
+            isStrictlyIncreasingNumericSource: zip(points, points.dropFirst()).allSatisfy {
                 $0.t < $1.t
             },
+            omittedSourceIndices: omittedSourceIndices,
             series: GraphRenderedSeries(
                 entityID: input.entityID,
                 name: input.name,
@@ -1393,10 +1404,12 @@ private func graphRenderIsCancelled() -> Bool {
 
 private struct GraphPreparedCacheEntry {
     let fingerprint: GraphSourceFingerprint
-    /// Full preparation records this once so the numeric rolling fast path can
-    /// consume trusted projection lineage by source index without reparsing the
-    /// cached source.
-    let isOneToOneStrictlyIncreasingNumericSource: Bool
+    /// Numeric points must retain source order for exact projection lineage.
+    /// Filtered source rows are mapped separately; one unavailable row must not
+    /// disable reuse of the entire retained window.
+    let isStrictlyIncreasingNumericSource: Bool
+    /// Raw indices omitted by numeric preparation, for exact source-to-point slicing.
+    let omittedSourceIndices: [Int]
     let series: GraphRenderedSeries
 
     func matches(_ other: GraphSourceFingerprint) -> Bool {
@@ -1621,5 +1634,17 @@ private extension Array where Element == GraphRenderedPoint {
             output.append(item)
         }
         return output
+    }
+}
+
+private extension Array where Element == Int {
+    func partitionIndex(where predicate: (Int) -> Bool) -> Int {
+        var low = 0
+        var high = count
+        while low < high {
+            let middle = (low + high) / 2
+            if predicate(self[middle]) { high = middle } else { low = middle + 1 }
+        }
+        return low
     }
 }

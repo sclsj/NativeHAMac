@@ -42,7 +42,7 @@ Configure a typed sampling policy including algorithm, details per pixel, minimu
 
 Configure typed durations and, where useful, immediate/low-latency and batched profiles. Defaults must avoid render storms without starving the final update or delaying foreground interaction.
 
-**Implementation note:** `AppConfig.swift` now groups realtime-state coalescing, live-data render delay, and post-interaction defer time in a typed `GraphRenderSchedulingPolicy`. Viewport rendering itself uses one serialized in-flight render plus one overwriteable latest request; that is a progress and ownership invariant rather than a selectable fidelity mode.
+**Implementation note:** `AppConfig.swift` now groups realtime-state coalescing, live-data render delay, and post-interaction defer time in a typed `GraphRenderSchedulingPolicy`. Viewport rendering itself uses one serialized in-flight render plus one overwriteable latest request. Completed frames advance in sequence within the current generation even while newer gestures are pending; an older queued history snapshot cannot rewind accepted FIFO preparation. Those are progress and ownership invariants rather than selectable fidelity modes.
 
 ### 4. Graph zoom and pan interaction
 
