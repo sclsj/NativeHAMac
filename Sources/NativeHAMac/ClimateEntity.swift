@@ -22,9 +22,12 @@ enum ClimateTargetKind { case single, range, readOnly }
 struct ClimateEntity {
     let state: HAState
     let unit: String
+    /// A mounted control's pending mode, never an authoritative HA attribute.
+    var presentationMode: String? = nil
+    var displayedMode: String { presentationMode ?? state.state }
     var entityID: String { state.entityId }
     var unavailable: Bool { state.state == "unavailable" }
-    var active: Bool { !["off", "unknown", "unavailable"].contains(state.state) }
+    var active: Bool { !["off", "unknown", "unavailable"].contains(displayedMode) }
     var features: ClimateEntityFeature {
         guard let value = number("supported_features"), value >= 0, value < Double(Int.max), value.rounded(.towardZero) == value else { return [] }
         return ClimateEntityFeature(rawValue: Int(value))
@@ -52,6 +55,7 @@ struct ClimateEntity {
     }
     var actionLabel: String {
         if unavailable { return "Unavailable" }
+        if let mode = presentationMode { return Self.label(mode) }
         if let action = string("hvac_action"), action != "off", !action.isEmpty { return Self.label(action) }
         return targetKind == .readOnly ? "" : Self.label(state.state)
     }
@@ -124,7 +128,7 @@ enum ClimateServiceBuilder {
         default:
             let attribute = String(request.service.dropFirst(4))
             guard case let .string(value)? = request.data[attribute] else { return false }
-            return mode(attribute, value: value, entity: entity) == request
+            return mode(attribute, value: value, entity: entity, allowCurrentValue: attribute == "hvac_mode") == request
         }
         guard Set(request.data.keys) == Set(["entity_id"] + targets.map(ClimateEntity.attribute)) else { return false }
         if targets == [.low, .high], case let .double(low)? = request.data["target_temp_low"], case let .double(high)? = request.data["target_temp_high"], low > high + entity.step / 2 + 1e-10 { return false }
@@ -148,11 +152,11 @@ enum ClimateServiceBuilder {
         let request = ClimateServiceRequest(service: target == .humidity ? "set_humidity" : "set_temperature", data: data)
         return isSupported(request, entity: entity) ? request : nil
     }
-    static func mode(_ attribute: String, value: String, entity: ClimateEntity) -> ClimateServiceRequest? {
+    static func mode(_ attribute: String, value: String, entity: ClimateEntity, allowCurrentValue: Bool = false) -> ClimateServiceRequest? {
         guard !entity.unavailable else { return nil }
         let options = attribute == "hvac_mode" ? entity.hvacModes : entity.options(attribute)
         let old = attribute == "hvac_mode" ? entity.state.state : entity.string(attribute)
-        guard options?.contains(value) == true, old != value, attribute != "preset_mode" || !value.isEmpty else { return nil }
+        guard options?.contains(value) == true, old != value || allowCurrentValue, attribute != "preset_mode" || !value.isEmpty else { return nil }
         return ClimateServiceRequest(service: "set_" + attribute, data: ["entity_id": .string(entity.entityID), attribute: .string(value)])
     }
     static func power(on: Bool, entity: ClimateEntity) -> ClimateServiceRequest? {

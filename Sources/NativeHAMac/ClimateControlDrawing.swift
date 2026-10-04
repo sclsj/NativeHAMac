@@ -7,14 +7,14 @@ struct ClimateControlDrawing: View {
     let values: [ClimateTarget: Double]
     var targetAnimation: Animation? = nil
     // Presentation history only: fade the last drawn mode to neutral when
-    // HA reports Off, without replacing or predicting the entity's state.
+    // the displayed mode becomes Off, without changing HA's entity state.
     @State private var lastActiveMode: String?
 
     var body: some View {
-        ClimateModeFadeDrawing(entity: entity, mainControl: mainControl, values: values, targetAnimation: targetAnimation, fadingMode: entity.active ? entity.state.state : lastActiveMode, activeFraction: entity.active ? 1 : 0)
+        ClimateModeFadeDrawing(entity: entity, mainControl: mainControl, values: values, targetAnimation: targetAnimation, fadingMode: entity.active ? entity.displayedMode : lastActiveMode, activeFraction: entity.active ? 1 : 0)
             .animation(.easeInOut(duration: AppConfig.climateInteractionPolicy.modeFadeSeconds), value: entity.active)
-            .onAppear { if entity.active { lastActiveMode = entity.state.state } }
-            .onChange(of: entity.state.state) { mode in
+            .onAppear { if entity.active { lastActiveMode = entity.displayedMode } }
+            .onChange(of: entity.displayedMode) { mode in
                 if !["off", "unknown", "unavailable"].contains(mode) { lastActiveMode = mode }
             }
     }
@@ -133,7 +133,7 @@ struct ClimateCapabilityDrawing: View, Animatable {
                 else if humidity { mode = "heat" }
                 else {
                     let modes = entity.hvacModes.filter { ["heat", "cool", "heat_cool"].contains($0) }
-                    let displayedMode = fadingMode ?? entity.state.state
+                    let displayedMode = fadingMode ?? entity.displayedMode
                     mode = modes.count == 1 && ["off", "auto"].contains(displayedMode) ? modes[0] : displayedMode
                 }
                 let color: Color = Self.modeColor(humidity ? "cool" : mode)

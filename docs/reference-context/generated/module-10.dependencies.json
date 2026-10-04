@@ -15770,11 +15770,11 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "e95bf8ef59bfb394433a289cbe8c9ddffacb12e4930786d4dac50554322978b0",
+  "graphFingerprint": "1423cf6a1ff3d4d3ced8e30216f6f76608310df37724c32063979dcea764d846",
   "manifest": {
     "module": "10",
     "path": "docs/reference-context/manifests/module-10.inputs.json",
-    "sha256": "e5d2d58fb481fa0affd65c9824389d0d768df6ee3220745bdebef89bcaf6758b"
+    "sha256": "baae79615131af4235a11df86f525154ce87af2cd7c813a60662a43a7cb04eff"
   },
   "nativeha": {
     "anchors": [
@@ -15793,16 +15793,16 @@
       },
       {
         "dirty": true,
-        "headBlob": "6107b9523b4b5433e224999e76aefa1a67f1bfc6",
+        "headBlob": "eeb2cbeb358f424e1f5e568c4795821a1a21d086",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "88b2ac647e06c8d425739ddbc10545e97f93c190c714ff1765e3628813490b5d",
+        "sha256": "a84bb9f42ed83ea2393b8efef6e1fd70ccdaa954bd9349e232f5d045b2888a6a",
         "symbols": [
           "AppConfig",
           "ClimateAnimationCurve",
           "ClimateInteractionPolicy"
         ],
-        "worktreeBlob": "eeb2cbeb358f424e1f5e568c4795821a1a21d086"
+        "worktreeBlob": "56d84c04422262e27d3fb0a9d88f6885cd4a9808"
       },
       {
         "dirty": false,
@@ -15818,53 +15818,53 @@
       },
       {
         "dirty": true,
-        "headBlob": "ef935bb92e78d49a7a756b9ef44d9f49c1a48114",
+        "headBlob": "10cd2326541398006af23339fdb970fc794b8594",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateControlDrawing.swift",
-        "sha256": "b9fb33f768a0c87046e9a472a4020572bb8f7b1d2f368374a6778701aeb68725",
+        "sha256": "83c5e424892b178a4a3de0ea227e1bea1cc16d883e0b9440e46e815556a9d70c",
         "symbols": [
           "ClimateCapabilityDrawing",
           "ClimateControlDrawing"
         ],
-        "worktreeBlob": "10cd2326541398006af23339fdb970fc794b8594"
+        "worktreeBlob": "385ff92dcd7e5b1b60a864d1ecbec263391c395e"
       },
       {
         "dirty": true,
-        "headBlob": "7d61c04b40abcac70a434614fb61c91e38664b8e",
+        "headBlob": "47f30bacf3803d3d4fe6388df17322424aacc3ef",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateDetailView.swift",
-        "sha256": "079d737bca246afbb7c39e45059384623f11a35492b359eb7c751bfb6663223b",
+        "sha256": "9e19acba4199cbaaac158df978cb3c156e6767228a5f36fcc793bffcf389ca5b",
         "symbols": [
           "ClimateControlDial",
           "ClimateDetailContent",
           "ClimateDialNSView",
           "ClimateModeNSButton"
         ],
-        "worktreeBlob": "47f30bacf3803d3d4fe6388df17322424aacc3ef"
+        "worktreeBlob": "6fa3d606ffc73595716ac56bf00ba1834c5baf83"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "8b58c936f1be82674682d0b046ca7e385d8cfb21",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateEntity.swift",
-        "sha256": "fe1ea906a3b99201a0c28ccb7822c607e274d1da038ed579dcf22026c322f419",
+        "sha256": "ea8ec01b44e1ac678018bb8df5e02f851f3ab760f794fbedaa9ca8c2f7ffb955",
         "symbols": [
           "ClimateEntity",
           "ClimateServiceBuilder",
           "ClimateValueMapping"
         ],
-        "worktreeBlob": "8b58c936f1be82674682d0b046ca7e385d8cfb21"
+        "worktreeBlob": "97f498234426e39d1dc3b85dee7cfcc71aad9fa5"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "dc05b87919906f4a167a1242aa03447d2e5b5e61",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateServiceController.swift",
-        "sha256": "6b8eb33cba7d725dcba6128ed8ba4f4afcb28f05e33a8aba63f7a3fa500bfc0f",
+        "sha256": "a0e8e963c9c2b00e81311de89c35739db2a60730bd7316fe1a05e6938097cebf",
         "symbols": [
           "ClimateServiceController"
         ],
-        "worktreeBlob": "dc05b87919906f4a167a1242aa03447d2e5b5e61"
+        "worktreeBlob": "84085c00b161a894f55ea93aea166f8a9ebd48f8"
       },
       {
         "dirty": false,
@@ -15931,15 +15931,15 @@
         "worktreeBlob": "8e3080e09f3cdb4b63ea1def9481b3263fcfc9a8"
       },
       {
-        "dirty": false,
-        "headBlob": null,
+        "dirty": true,
+        "headBlob": "d62fd75fe5c4393d6efc14598068bd6ef538434e",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateFollowupTests.swift",
-        "sha256": "ddb876ba18db69b629c6fb6c10db8ebdc927307c163b72a2544ae62cad79ca86",
+        "sha256": "e619046ca186490f8088789b35e9c11b287c7b9b50710920575bea8942e8477f",
         "symbols": [
           "ClimateFollowupTests"
         ],
-        "worktreeBlob": "d62fd75fe5c4393d6efc14598068bd6ef538434e"
+        "worktreeBlob": "8cdfeaf42b958b224b8ee8e36161f88202b7bf86"
       },
       {
         "dirty": false,
@@ -15966,6 +15966,17 @@
       },
       {
         "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/ClimatePendingFeedbackTests.swift",
+        "sha256": "d1f3c1fb944172008b24dd382e7572aaebc840c5dd33060268f8bc9b21288e30",
+        "symbols": [
+          "ClimatePendingFeedbackTests"
+        ],
+        "worktreeBlob": "244eb2f9a22a7018602fbb58c401fce729122c81"
+      },
+      {
+        "dirty": false,
         "headBlob": "050f8ff088b663d18ecec86361fe1786b529257d",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift",
@@ -15976,17 +15987,17 @@
         "worktreeBlob": "050f8ff088b663d18ecec86361fe1786b529257d"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "2b63b62c53bded5e51f3ba4e6e6b7f66c27a5f27",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateTests.swift",
-        "sha256": "474d755ca6fc4d2543282f10400a8720b870d9f4e106bea860d6461e83368766",
+        "sha256": "525d7e77f8e9a9cef896151c0889cd576422f3e5347c2c44db28b20a972db554",
         "symbols": [
           "ClimateDetailInteractionTests",
           "ClimateDetailRenderingTests",
           "ClimateEntityTests"
         ],
-        "worktreeBlob": "2b63b62c53bded5e51f3ba4e6e6b7f66c27a5f27"
+        "worktreeBlob": "4afd456a51ce0782dec0307e85b723d7189f2b7a"
       },
       {
         "dirty": false,
@@ -16002,7 +16013,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "4fc3984f97e23de322bf312fd57af6a46d8ce870"
+    "gitHead": "84763beaefda4998d3a81caf606c07a17a9d30b2"
   },
   "nodes": [
     {

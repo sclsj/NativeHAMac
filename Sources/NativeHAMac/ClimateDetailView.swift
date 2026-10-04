@@ -6,8 +6,14 @@ struct ClimateDetailContent: View {
     @EnvironmentObject private var model: DashboardViewModel
     let entityID: String
     let state: HAState
-    @StateObject private var controller = ClimateServiceController()
-    private var entity: ClimateEntity { ClimateEntity(state: state, unit: model.homeAssistantConfig?.unitSystem?.temperature) }
+    @StateObject private var controller: ClimateServiceController
+    @MainActor init(entityID: String, state: HAState, controller: ClimateServiceController? = nil) {
+        self.entityID = entityID
+        self.state = state
+        _controller = StateObject(wrappedValue: controller ?? ClimateServiceController())
+    }
+    private var authoritativeEntity: ClimateEntity { ClimateEntity(state: state, unit: model.homeAssistantConfig?.unitSystem?.temperature) }
+    private var entity: ClimateEntity { controller.presentation(authoritativeEntity) }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -29,7 +35,7 @@ struct ClimateDetailContent: View {
                 .disabled(entity.unavailable)
             }
             HStack(spacing: 12) {
-                modeMenu("Mode", attribute: "hvac_mode", options: entity.hvacModes, current: state.state)
+                modeMenu("Mode", attribute: "hvac_mode", options: entity.hvacModes, current: entity.displayedMode)
                 if let options = entity.options("preset_mode") {
                     modeMenu("Preset", attribute: "preset_mode", options: options, current: entity.string("preset_mode"))
                 }
@@ -51,7 +57,7 @@ struct ClimateDetailContent: View {
         .foregroundColor(Color(white: 225 / 255))
         .onAppear {
             let detailGeneration = model.climateDetailGeneration
-            controller.install(entity: entity) { [weak model] request, completion in
+            controller.install(entity: authoritativeEntity) { [weak model] request, completion in
                 guard let model = model, model.climateDetailGeneration == detailGeneration else { return false }
                 return model.invokeClimate(request, entityID: entityID, completion: completion)
             }
@@ -82,7 +88,14 @@ struct ClimateDetailContent: View {
     }
 
     private func modeMenu(_ title: String, attribute: String, options: [String], current: String?) -> some View {
-        ClimateModeMenu(title: title, symbol: menuSymbol(attribute, current: current), options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute), togglesTwoOptions: attribute == "hvac_mode") { controller.mode(attribute, value: $0) }
+        ClimateModeMenu(title: title, symbol: menuSymbol(attribute, current: current), options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute), togglesTwoOptions: attribute == "hvac_mode") { selection in
+            // A second activation can arrive before SwiftUI refreshes the
+            // AppKit button. Derive its destination from the latest draft.
+            let selected = controller.pendingMode ?? controller.entity?.state.state ?? current
+            if attribute == "hvac_mode", options.count == 2, options[0] != options[1], let selected = selected, options.contains(selected), let other = options.first(where: { $0 != selected }) {
+                controller.mode(attribute, value: other)
+            } else { controller.mode(attribute, value: selection) }
+        }
             .frame(width: attribute == "swing_horizontal_mode" ? 148 : 120, height: 48)
     }
 
@@ -126,7 +139,7 @@ struct ClimateControlDial: View {
                         ClimateLargeNumber(value: value, digits: humidity ? 0 : ClimateNumberFormatting.digits(step), unit: unit, preferences: model.frontendLocalePreferences)
                             .frame(minHeight: 64)
                     } else if !entity.unavailable {
-                        Text(ClimateEntity.label(entity.state.state)).font(.system(size: 32))
+                        Text(ClimateEntity.label(entity.displayedMode)).font(.system(size: 32))
                             .frame(minHeight: 64)
                     }
                     Text("").font(.system(size: 13, weight: .medium)).frame(width: 192).frame(minHeight: 24)
@@ -158,7 +171,7 @@ struct ClimateControlDial: View {
     private var label: String {
         if !humidity { return entity.actionLabel }
         if entity.unavailable { return "Unavailable" }
-        return displayed(.humidity) == 0 || displayed(.humidity) == nil ? ClimateEntity.label(entity.state.state) : "Target humidity"
+        return displayed(.humidity) == 0 || displayed(.humidity) == nil ? ClimateEntity.label(entity.displayedMode) : "Target humidity"
     }
     private func displayed(_ target: ClimateTarget) -> Double? { controller.value(target, fallback: entity) }
     private func formatted(_ value: Double) -> String { ClimateNumberFormatting.format(value, digits: humidity ? 0 : ClimateNumberFormatting.digits(step), unit: unit, preferences: model.frontendLocalePreferences) }

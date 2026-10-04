@@ -247,7 +247,7 @@ final class ClimateDetailInteractionTests: XCTestCase {
     func testMenuSuccessResyncAndControlRemountResetAuthoritativeDrafts() async throws {
         let gate = ClimateSleepGate()
         let entity = try ClimateFixtures.entity("complete")
-        let controller = ClimateServiceController(sleep: { _ in await gate.wait() })
+        let controller = ClimateServiceController(modeFeedback: .authoritative, sleep: { _ in await gate.wait() })
         var completions: [(String?) -> Void] = []
         controller.install(entity: entity) { _, completion in completions.append(completion); return true }
         controller.change(24, target: .low)

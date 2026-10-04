@@ -20,6 +20,7 @@
     { "path": "Tests/NativeHAMacTests/ClimateHistoricalPresentationTests.swift", "symbols": ["ClimateHistoricalPresentationTests"] },
     { "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift", "symbols": ["ClimateRecoveryInteractionTests"] },
     { "path": "Tests/NativeHAMacTests/ClimateFollowupTests.swift", "symbols": ["ClimateFollowupTests"] },
+    { "path": "Tests/NativeHAMacTests/ClimatePendingFeedbackTests.swift", "symbols": ["ClimatePendingFeedbackTests"] },
     { "path": "Tests/NativeHAMacTests/EntityRowPresentationTests.swift", "symbols": ["EntityRowPresentationTests"] },
     { "path": "Tests/Fixtures/Climate/render-states.json", "symbols": [] }
   ],

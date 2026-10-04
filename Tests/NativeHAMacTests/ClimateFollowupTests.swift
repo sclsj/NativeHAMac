@@ -8,7 +8,7 @@ import XCTest
 final class ClimateFollowupTests: XCTestCase {
     func testTwoModeToggleUsesAuthoritativeSelectionAndSafeMenuFallback() throws {
         let entity = try ClimateFixtures.entity("off")
-        let controller = ClimateServiceController()
+        let controller = ClimateServiceController(modeFeedback: .authoritative)
         var calls: [ClimateServiceRequest] = []
         controller.install(entity: entity) { request, _ in calls.append(request); return true }
         defer { controller.close() }
