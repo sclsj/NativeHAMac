@@ -82,7 +82,7 @@ struct ClimateDetailContent: View {
     }
 
     private func modeMenu(_ title: String, attribute: String, options: [String], current: String?) -> some View {
-        ClimateModeMenu(title: title, symbol: menuSymbol(attribute, current: current), options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute)) { controller.mode(attribute, value: $0) }
+        ClimateModeMenu(title: title, symbol: menuSymbol(attribute, current: current), options: options, current: current, enabled: !options.isEmpty && model.canInvokeClimate(entityID: entityID, service: "set_" + attribute), togglesTwoOptions: attribute == "hvac_mode") { controller.mode(attribute, value: $0) }
             .frame(width: attribute == "swing_horizontal_mode" ? 148 : 120, height: 48)
     }
 
@@ -113,8 +113,7 @@ struct ClimateControlDial: View {
         GeometryReader { geometry in
             let metrics = ClimateDialGeometry(size: geometry.size)
             ZStack {
-                ClimateControlDrawing(entity: entity, mainControl: controller.mainControl, values: controller.values)
-                    .animation(isDragging || !entity.canAdjust(target) ? nil : climateTargetAnimation, value: visibleTargets)
+                ClimateControlDrawing(entity: entity, mainControl: controller.mainControl, values: controller.values, targetAnimation: isDragging || !entity.canAdjust(target) ? nil : climateTargetAnimation)
                     .allowsHitTesting(false)
                 ClimateDialInput(isEnabled: entity.canAdjust(target), value: displayed(target), bounds: bounds, onPointer: { point, phase in pointer(point, phase: phase, geometry: metrics) }, onKey: { key, released in keyboard(key, released: released) })
                     .accessibilityLabel(Text(humidity ? "Target humidity" : "Target temperature"))
@@ -150,7 +149,6 @@ struct ClimateControlDial: View {
         .onDisappear { resetGesture() }
     }
 
-    private var visibleTargets: [Double?] { humidity ? [displayed(.humidity)] : isDual ? [displayed(.low), displayed(.high)] : [displayed(.value)] }
     private var climateTargetAnimation: Animation {
         let policy = AppConfig.climateInteractionPolicy
         return .timingCurve(policy.animationCurve.x1, policy.animationCurve.y1, policy.animationCurve.x2, policy.animationCurve.y2, duration: policy.animationSeconds)
@@ -268,6 +266,7 @@ struct ClimateModeMenu: NSViewRepresentable {
     let options: [String]
     let current: String?
     let enabled: Bool
+    var togglesTwoOptions = false
     let action: (String) -> Void
     func makeNSView(context: Context) -> ClimateModeNSButton { ClimateModeNSButton() }
     func updateNSView(_ button: ClimateModeNSButton, context: Context) {
@@ -275,6 +274,7 @@ struct ClimateModeMenu: NSViewRepresentable {
         button.options = options
         button.selected = current
         button.onSelection = action
+        button.togglesTwoOptions = togglesTwoOptions
         button.titleLabel = title
         button.valueLabel = current.flatMap { options.contains($0) ? ClimateEntity.label($0) : nil }
         button.symbol = symbol
@@ -291,6 +291,11 @@ final class ClimateModeNSButton: NSButton {
     override func resignFirstResponder() -> Bool { needsDisplay = true; return true }
     var options: [String] = []
     var selected: String?
+    var togglesTwoOptions = false
+    var toggleDestination: String? {
+        guard togglesTwoOptions, options.count == 2, options[0] != options[1], let selected = selected, options.contains(selected) else { return nil }
+        return options.first { $0 != selected }
+    }
     var onSelection: ((String) -> Void)?
     var titleLabel = ""
     var valueLabel: String?
@@ -336,6 +341,10 @@ final class ClimateModeNSButton: NSButton {
         }
     }
     @objc private func showOptions() {
+        if let destination = toggleDestination {
+            onSelection?(destination)
+            return
+        }
         let menu = NSMenu()
         for option in options {
             let item = NSMenuItem(title: ClimateEntity.label(option), action: #selector(selectOption(_:)), keyEquivalent: "")
@@ -354,16 +363,25 @@ struct ClimateLargeNumber: View {
     let digits: Int
     let unit: String
     let preferences: HAFrontendLocalePreferences?
+    var layout: ClimateNumberLayout = AppConfig.climateNumberLayout
     var body: some View {
         let number = ClimateNumberFormatting.format(value, digits: digits, unit: "", preferences: preferences)
         let cut = digits > 0 ? number.index(number.endIndex, offsetBy: -(digits + 1), limitedBy: number.startIndex) ?? number.endIndex : number.endIndex
         HStack(alignment: .bottom, spacing: 0) {
-            Text(String(number[..<cut])).font(.system(size: 57))
+            numberText(String(number[..<cut]), size: 57)
             VStack(alignment: .leading, spacing: 0) {
                 Text(unit).font(.system(size: 57 * 0.33))
-                Text(String(number[cut...])).font(.system(size: 57 * 0.42)).frame(minHeight: 57 * 0.42 * 1.33, alignment: .bottom)
+                numberText(String(number[cut...]), size: 57 * 0.42).frame(minHeight: 57 * 0.42 * 1.33, alignment: .bottom)
             }.padding(.vertical, 4)
         }.lineLimit(1).minimumScaleFactor(0.7)
+            // A dial click carries an explicit animation transaction. New
+            // glyphs need their final widths immediately, not an old-width
+            // clipping rectangle interpolating towards the new layout.
+            .transaction { $0.animation = nil; $0.disablesAnimations = true }
+    }
+    @ViewBuilder private func numberText(_ text: String, size: CGFloat) -> some View {
+        if layout == .tabularDigits { Text(text).font(.system(size: size).monospacedDigit()) }
+        else { Text(text).font(.system(size: size)) }
     }
 }
 
@@ -466,7 +484,10 @@ struct ClimateDialGeometry {
         let width = min(size.width, size.height) * 24 / 320
         let distance = hypot(point.x - center.x, point.y - center.y)
         let phi = atan2(point.y - center.y, point.x - center.x) * 180 / .pi
-        return abs(distance - radius) <= width && (phi >= 135 || phi <= 45)
+        if abs(distance - radius) <= width && (phi >= 135 || phi <= 45) { return true }
+        // The reference hit stroke is 48 points wide with rounded caps.
+        // Include the cap beyond each angular endpoint, not just its center.
+        return [self.point(0), self.point(1)].contains { hypot(point.x - $0.x, point.y - $0.y) <= width }
     }
 }
 

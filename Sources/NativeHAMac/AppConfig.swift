@@ -71,6 +71,7 @@ enum AppConfig {
     ]
 
     static let climateInteractionPolicy = ClimateInteractionPolicy(buttonDebounceNanoseconds: 1_000_000_000, menuResyncNanoseconds: 2_000_000_000, dragThreshold: 0, animationSeconds: 0.3)
+    static let climateNumberLayout: ClimateNumberLayout = .proportional
 
     static let cardColumnRules: [CardColumnRule] = [
         CardColumnRule(column: 0, title: "温湿度"),
@@ -118,7 +119,13 @@ struct ClimateInteractionPolicy {
     let menuResyncNanoseconds: UInt64
     let dragThreshold: CGFloat
     let animationSeconds: Double
+    let modeFadeSeconds: Double = 0.18
     let animationCurve = ClimateAnimationCurve(x1: 0.42, y1: 0, x2: 0.58, y2: 1)
+}
+
+enum ClimateNumberLayout {
+    case proportional
+    case tabularDigits
 }
 
 struct ClimateAnimationCurve {

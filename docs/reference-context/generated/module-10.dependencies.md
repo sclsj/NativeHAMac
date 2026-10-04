@@ -1,6 +1,6 @@
 # Dependency graph: module 10
 
-- Fingerprint: `768a14460c01f4bf9a46a11640ab9ec9777a2f82e4d3437cba0ce863c29dca56`
+- Fingerprint: `e95bf8ef59bfb394433a289cbe8c9ddffacb12e4930786d4dac50554322978b0`
 - Reference revision: `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` (clean)
 - TypeScript: `6.0.3`
 - Nodes: 164; edges: 585; cycles: 2
@@ -26,6 +26,7 @@
 - `repo:src/common/translations/blank_before_percent.ts` — `blankBeforePercent`
 - `repo:src/common/translations/blank_before_unit.ts` — `blankBeforeUnit`
 - `repo:src/common/util/debounce.ts` — `debounce`
+- `repo:src/components/ha-big-number.ts` — `HaBigNumber`
 - `repo:src/components/ha-control-circular-slider.ts` — `HaControlCircularSlider`, `ControlCircularSliderMode`, `ActiveSlider`, `xy2polar`, `MAX_ANGLE`, `rad2deg`, `ROTATE_ANGLE`, `A11Y_KEY_CODES`, `RADIUS`
 - `repo:src/components/ha-control-select-menu.ts` — `HaControlSelectMenu`, `SelectOption`
 - `repo:src/components/ha-dropdown-item.ts` — `HaDropdownItem`

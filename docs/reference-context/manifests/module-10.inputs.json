@@ -19,6 +19,7 @@
     { "path": "Tests/NativeHAMacTests/ClimateDashboardEntryTests.swift", "symbols": ["ClimateDashboardEntryTests"] },
     { "path": "Tests/NativeHAMacTests/ClimateHistoricalPresentationTests.swift", "symbols": ["ClimateHistoricalPresentationTests"] },
     { "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift", "symbols": ["ClimateRecoveryInteractionTests"] },
+    { "path": "Tests/NativeHAMacTests/ClimateFollowupTests.swift", "symbols": ["ClimateFollowupTests"] },
     { "path": "Tests/NativeHAMacTests/EntityRowPresentationTests.swift", "symbols": ["EntityRowPresentationTests"] },
     { "path": "Tests/Fixtures/Climate/render-states.json", "symbols": [] }
   ],
@@ -29,6 +30,7 @@
     { "path": "src/state-control/climate/ha-state-control-climate-temperature.ts", "symbols": ["HaStateControlClimateTemperature", "SLIDER_MODES"] },
     { "path": "src/state-control/climate/ha-state-control-climate-humidity.ts", "symbols": ["HaStateControlClimateHumidity"] },
     { "path": "src/components/ha-control-circular-slider.ts", "symbols": ["HaControlCircularSlider"] },
+    { "path": "src/components/ha-big-number.ts", "symbols": ["HaBigNumber"] },
     { "path": "src/components/ha-control-select-menu.ts", "symbols": ["HaControlSelectMenu"] },
     { "path": "src/components/ha-dropdown.ts", "symbols": ["HaDropdown"] },
     { "path": "src/components/ha-dropdown-item.ts", "symbols": ["HaDropdownItem"] },

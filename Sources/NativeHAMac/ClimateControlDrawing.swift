@@ -5,12 +5,44 @@ struct ClimateControlDrawing: View {
     let entity: ClimateEntity
     let mainControl: ClimateMainControl
     let values: [ClimateTarget: Double]
+    var targetAnimation: Animation? = nil
+    // Presentation history only: fade the last drawn mode to neutral when
+    // HA reports Off, without replacing or predicting the entity's state.
+    @State private var lastActiveMode: String?
 
     var body: some View {
-        ClimateCapabilityDrawing(entity: entity, mainControl: mainControl, values: values)
+        ClimateModeFadeDrawing(entity: entity, mainControl: mainControl, values: values, targetAnimation: targetAnimation, fadingMode: entity.active ? entity.state.state : lastActiveMode, activeFraction: entity.active ? 1 : 0)
+            .animation(.easeInOut(duration: AppConfig.climateInteractionPolicy.modeFadeSeconds), value: entity.active)
+            .onAppear { if entity.active { lastActiveMode = entity.state.state } }
+            .onChange(of: entity.state.state) { mode in
+                if !["off", "unknown", "unavailable"].contains(mode) { lastActiveMode = mode }
+            }
     }
 
     static func modeColor(_ mode: String) -> Color { ClimateCapabilityDrawing.modeColor(mode) }
+}
+
+/// Separate animation owners preserve the target's 300ms motion when a
+/// server update changes both target and active state in the same turn.
+private struct ClimateModeFadeDrawing: View, Animatable {
+    let entity: ClimateEntity
+    let mainControl: ClimateMainControl
+    let values: [ClimateTarget: Double]
+    let targetAnimation: Animation?
+    let fadingMode: String?
+    var activeFraction: Double
+    var animatableData: Double {
+        get { activeFraction }
+        set { activeFraction = newValue }
+    }
+    var body: some View {
+        ClimateCapabilityDrawing(entity: entity, mainControl: mainControl, values: values, activeFraction: activeFraction, fadingMode: fadingMode)
+            .animation(targetAnimation, value: visibleTargets)
+    }
+    private var visibleTargets: [Double?] {
+        let targets: [ClimateTarget] = mainControl == .humidity ? [.humidity] : entity.targetKind == .range ? [.low, .high] : [.value]
+        return targets.map { values[$0] ?? entity.value($0) }
+    }
 }
 
 struct ClimateCapabilityDrawing: View, Animatable {
@@ -19,12 +51,16 @@ struct ClimateCapabilityDrawing: View, Animatable {
     var values: [ClimateTarget: Double]
     private var currentTemperature: Double?
     private var currentHumidity: Double?
-    init(entity: ClimateEntity, mainControl: ClimateMainControl, values: [ClimateTarget: Double]) {
+    private let activeFraction: Double
+    private let fadingMode: String?
+    init(entity: ClimateEntity, mainControl: ClimateMainControl, values: [ClimateTarget: Double], activeFraction: Double? = nil, fadingMode: String? = nil) {
         self.entity = entity
         self.mainControl = mainControl
         self.values = values
         currentTemperature = entity.currentTemperature
         currentHumidity = entity.currentHumidity
+        self.activeFraction = activeFraction ?? (entity.active ? 1 : 0)
+        self.fadingMode = fadingMode
     }
     typealias TargetVector = AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<Double, Double>>
     var animatableData: TargetVector {
@@ -38,13 +74,17 @@ struct ClimateCapabilityDrawing: View, Animatable {
     }
 
     static func modeColor(_ mode: String) -> Color {
+        let rgb = modeComponents(mode)
+        return Color(red: rgb.0, green: rgb.1, blue: rgb.2)
+    }
+    private static func modeComponents(_ mode: String) -> (Double, Double, Double) {
         switch mode {
-        case "heat": return Color(red: 1, green: 111 / 255, blue: 34 / 255)
-        case "cool": return Color(red: 33 / 255, green: 150 / 255, blue: 243 / 255)
-        case "dry": return Color(red: 1, green: 152 / 255, blue: 0)
-        case "fan_only": return Color(red: 0, green: 188 / 255, blue: 212 / 255)
-        case "auto": return Color(red: 76 / 255, green: 175 / 255, blue: 80 / 255)
-        default: return Color(red: 1, green: 193 / 255, blue: 7 / 255)
+        case "heat": return (1, 111 / 255, 34 / 255)
+        case "cool": return (33 / 255, 150 / 255, 243 / 255)
+        case "dry": return (1, 152 / 255, 0)
+        case "fan_only": return (0, 188 / 255, 212 / 255)
+        case "auto": return (76 / 255, 175 / 255, 80 / 255)
+        default: return (1, 193 / 255, 7 / 255)
         }
     }
     static func actionColor(_ entity: ClimateEntity) -> Color? {
@@ -73,15 +113,17 @@ struct ClimateCapabilityDrawing: View, Animatable {
             }
             context.stroke(path(0, 1), with: .color(Color(white: 70 / 255).opacity(0.3)), style: stroke)
             guard validBounds != nil else {
-                if !humidity, entity.targetKind == .readOnly, entity.active { context.stroke(path(0, 1), with: .color(Self.modeColor(entity.state.state).opacity(0.5)), style: stroke) }
+                if !humidity, entity.targetKind == .readOnly { context.stroke(path(0, 1), with: .color(Self.modeColor(fadingMode ?? entity.state.state).opacity(0.5 * activeFraction)), style: stroke) }
                 return
             }
             if let current = current { dot(current, diameter: 8, color: Color(white: 225 / 255).opacity(0.5)) }
             guard !entity.unavailable else { return }
             let targets: [ClimateTarget] = humidity ? [.humidity] : entity.targetKind == .range ? [.low, .high] : entity.targetKind == .single ? [.value] : []
-            if targets.isEmpty, !humidity, entity.active {
-                context.stroke(path(0, 1), with: .color(Self.modeColor(entity.state.state).opacity(0.5)), style: stroke)
+            if targets.isEmpty, !humidity, activeFraction > 0 {
+                context.opacity = activeFraction
+                context.stroke(path(0, 1), with: .color(Self.modeColor(fadingMode ?? entity.state.state).opacity(0.5)), style: stroke)
                 if let current = current, bounds.contains(current) { dot(current, diameter: 8, color: Color(red: 0.09, green: 0.095, blue: 0.1)) }
+                context.opacity = 1
             }
             for target in targets {
                 guard let value = values[target] ?? entity.value(target) else { continue }
@@ -91,11 +133,13 @@ struct ClimateCapabilityDrawing: View, Animatable {
                 else if humidity { mode = "heat" }
                 else {
                     let modes = entity.hvacModes.filter { ["heat", "cool", "heat_cool"].contains($0) }
-                    mode = modes.count == 1 && ["off", "auto"].contains(entity.state.state) ? modes[0] : entity.state.state
+                    let displayedMode = fadingMode ?? entity.state.state
+                    mode = modes.count == 1 && ["off", "auto"].contains(displayedMode) ? modes[0] : displayedMode
                 }
                 let color: Color = Self.modeColor(humidity ? "cool" : mode)
                 let fraction = progress(value)
-                if entity.active {
+                if activeFraction > 0 {
+                    context.opacity = activeFraction
                     let start = mode == "cool" ? fraction : 0
                     let end = mode == "heat" ? fraction : 1
                     // HA's arc-clear layer prevents the neutral track from
@@ -111,8 +155,11 @@ struct ClimateCapabilityDrawing: View, Animatable {
                     if let current = current, bounds.contains(current), mode == "cool" && value <= current || mode == "heat" && current <= value || !["heat", "cool"].contains(mode) {
                         dot(current, diameter: 8, color: clearBackground.opacity(0.5))
                     }
+                    context.opacity = 1
                 }
-                dot(value, diameter: 24, color: entity.active ? color : Color(white: 0.62))
+                let rgb = Self.modeComponents(humidity ? "cool" : mode)
+                let outline = Color(red: 0.62 + (rgb.0 - 0.62) * activeFraction, green: 0.62 + (rgb.1 - 0.62) * activeFraction, blue: 0.62 + (rgb.2 - 0.62) * activeFraction)
+                dot(value, diameter: 24, color: outline)
                 dot(value, diameter: 18, color: .white)
             }
         }

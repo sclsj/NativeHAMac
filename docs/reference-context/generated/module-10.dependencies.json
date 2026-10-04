@@ -15770,11 +15770,11 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "768a14460c01f4bf9a46a11640ab9ec9777a2f82e4d3437cba0ce863c29dca56",
+  "graphFingerprint": "e95bf8ef59bfb394433a289cbe8c9ddffacb12e4930786d4dac50554322978b0",
   "manifest": {
     "module": "10",
     "path": "docs/reference-context/manifests/module-10.inputs.json",
-    "sha256": "b12f9d5f739930a4235fe7bac6cf8500d26278e1ed8421ae49044ce599606029"
+    "sha256": "e5d2d58fb481fa0affd65c9824389d0d768df6ee3220745bdebef89bcaf6758b"
   },
   "nativeha": {
     "anchors": [
@@ -15792,55 +15792,55 @@
         "worktreeBlob": "41a9c1f395f6618f052d5d954397bdbf6104a1b5"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "6107b9523b4b5433e224999e76aefa1a67f1bfc6",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "e742b0546314417b59d5944974e082af3ade6d0f788676ca71c03fb2b7411148",
+        "sha256": "88b2ac647e06c8d425739ddbc10545e97f93c190c714ff1765e3628813490b5d",
         "symbols": [
           "AppConfig",
           "ClimateAnimationCurve",
           "ClimateInteractionPolicy"
         ],
-        "worktreeBlob": "6107b9523b4b5433e224999e76aefa1a67f1bfc6"
+        "worktreeBlob": "eeb2cbeb358f424e1f5e568c4795821a1a21d086"
       },
       {
         "dirty": false,
-        "headBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f",
+        "headBlob": "c514af346cadde0663963f723f3f3422b7332b43",
         "missing": false,
         "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "f5d7ed92f9f7f5816f16fa0c2126f00e0c66ac3b36f57643f41adaed7ccf48f6",
+        "sha256": "d8629b40f3e1c5b8099d935091bbd1f18887309100a7f84d5ba602fe98135ffb",
         "symbols": [
           "ClimateDialDrawing",
           "EntityDetailSheet"
         ],
-        "worktreeBlob": "fe1817ff3f55e9f8f746d9ca1c506e1858ff507f"
+        "worktreeBlob": "c514af346cadde0663963f723f3f3422b7332b43"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "ef935bb92e78d49a7a756b9ef44d9f49c1a48114",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateControlDrawing.swift",
-        "sha256": "1286e4cd9ec7dcee1e06f68bff1002d5784e2022e8abcc32e57331d7ed602a7e",
+        "sha256": "b9fb33f768a0c87046e9a472a4020572bb8f7b1d2f368374a6778701aeb68725",
         "symbols": [
           "ClimateCapabilityDrawing",
           "ClimateControlDrawing"
         ],
-        "worktreeBlob": "ef935bb92e78d49a7a756b9ef44d9f49c1a48114"
+        "worktreeBlob": "10cd2326541398006af23339fdb970fc794b8594"
       },
       {
         "dirty": true,
-        "headBlob": "42df71b9d54d002e8f77c878482e94f4cd139f0b",
+        "headBlob": "7d61c04b40abcac70a434614fb61c91e38664b8e",
         "missing": false,
         "path": "Sources/NativeHAMac/ClimateDetailView.swift",
-        "sha256": "fca991bd0087f5a9dcd639e81801e1c189af3d5e42e41466f5d1faf130081088",
+        "sha256": "079d737bca246afbb7c39e45059384623f11a35492b359eb7c751bfb6663223b",
         "symbols": [
           "ClimateControlDial",
           "ClimateDetailContent",
           "ClimateDialNSView",
           "ClimateModeNSButton"
         ],
-        "worktreeBlob": "7d61c04b40abcac70a434614fb61c91e38664b8e"
+        "worktreeBlob": "47f30bacf3803d3d4fe6388df17322424aacc3ef"
       },
       {
         "dirty": false,
@@ -15932,6 +15932,17 @@
       },
       {
         "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/ClimateFollowupTests.swift",
+        "sha256": "ddb876ba18db69b629c6fb6c10db8ebdc927307c163b72a2544ae62cad79ca86",
+        "symbols": [
+          "ClimateFollowupTests"
+        ],
+        "worktreeBlob": "d62fd75fe5c4393d6efc14598068bd6ef538434e"
+      },
+      {
+        "dirty": false,
         "headBlob": "1822fda0645186f0462800c670099b6e9a756734",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateHistoricalPresentationTests.swift",
@@ -15954,8 +15965,8 @@
         "worktreeBlob": "0931ecc85679034d3b90003f3039b4b5297e9ac1"
       },
       {
-        "dirty": true,
-        "headBlob": "d2552b2e9de4c17413c362b8c03416da76f80218",
+        "dirty": false,
+        "headBlob": "050f8ff088b663d18ecec86361fe1786b529257d",
         "missing": false,
         "path": "Tests/NativeHAMacTests/ClimateRecoveryInteractionTests.swift",
         "sha256": "65387195e5de5514cbf0217ab22dd7b286fd67d5fc2efcd19dd7d4e8f183ee25",
@@ -15991,7 +16002,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "99417a8e6b147527bbc772e185f604550211c1bb"
+    "gitHead": "4fc3984f97e23de322bf312fd57af6a46d8ce870"
   },
   "nodes": [
     {
@@ -18352,17 +18363,29 @@
       "worktreeBlob": "1966196253f9c09429f34ffd2319b93427ee6e90"
     },
     {
-      "depth": 1,
+      "depth": 0,
       "dirty": false,
-      "explicitSeed": false,
+      "explicitSeed": true,
       "headBlob": "1f27fb225b452285b7232a307bcd50826fbd7ff3",
       "id": "repo:src/components/ha-big-number.ts",
       "kind": "repo",
       "language": "ts",
-      "localSymbolClosure": [],
+      "localSymbolClosure": [
+        "HaBigNumber"
+      ],
       "missingSymbols": [],
       "path": "src/components/ha-big-number.ts",
-      "selectedSymbols": [],
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 2,
+          "endLine": 110,
+          "length": 2686,
+          "line": 11,
+          "name": "HaBigNumber",
+          "offset": 498
+        }
+      ],
       "sha256": "fe4d5878934c8ca8f87d9fc810072d915a9e82ff5322c56682bc0aa5ea8bcaf7",
       "worktreeBlob": "1f27fb225b452285b7232a307bcd50826fbd7ff3"
     },
@@ -19850,6 +19873,12 @@
         "path": "src/common/util/debounce.ts",
         "symbols": [
           "debounce"
+        ]
+      },
+      {
+        "path": "src/components/ha-big-number.ts",
+        "symbols": [
+          "HaBigNumber"
         ]
       },
       {
