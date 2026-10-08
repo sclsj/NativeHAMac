@@ -1,0 +1,16 @@
+{
+  "entity_id": "fan.fixture_complete",
+  "state": "on",
+  "last_changed": "2026-10-08T12:00:00+00:00",
+  "last_updated": "2026-10-08T12:00:00+00:00",
+  "attributes": {
+    "friendly_name": "Offline fixture fan",
+    "supported_features": 63,
+    "percentage_step": 25,
+    "percentage": 50,
+    "preset_modes": ["auto", "quiet_mode", "Custom Night"],
+    "preset_mode": "auto",
+    "direction": "forward",
+    "oscillating": false
+  }
+}

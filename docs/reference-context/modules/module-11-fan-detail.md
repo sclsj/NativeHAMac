@@ -3,13 +3,13 @@ schema: nativeha-evidence/v1
 module: "11"
 title: Fan more-info controls
 plan: ../../rescue-plan/module-11-fan-detail.md
-status: research-ready
+status: implementation-in-progress
 contract_revision: 1
 depends_on: ["05", "06"]
 reference_revision: "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd"
-nativeha_revision: "639c6654f9077298b596392d171688452cd3514f"
+nativeha_revision: "c86b9eb49ecd2e095a339e8967fcf0c5c6c9a9b1"
 graph_file: ../generated/module-11.dependencies.json
-graph_fingerprint: "c5bf6a2b9de8802c2fde71c0c4dc4b7b44a970574831af63f38c11dcc2d222da"
+graph_fingerprint: "c04844f499238dd4b9c8ed73ec79476bb5e7a1c9d44eff33ae4743a6b6be53b1"
 last_validated: 2026-10-08
 ---
 
@@ -17,7 +17,7 @@ last_validated: 2026-10-08
 
 ## Scope delta
 
-Research covers the actual `more-info-fan` component, its speed/toggle children, shared control implementations, service boundary and relevant runtime dependencies. Lovelace card features are not the detail oracle. This is a research/plan handoff for review, with no application implementation or visual acceptance claimed. The actual fan is offline; approved fake fan fixtures permit implementation and verification without live HA writes.
+Research covers the actual `more-info-fan` component, its speed/toggle children, shared control implementations, service boundary and relevant runtime dependencies. Lovelace card features are not the detail oracle. Pure-contract implementation has started; mounted integration and visual acceptance remain later slices. The actual fan is offline; approved fake fan fixtures permit implementation and verification without live HA writes.
 
 Corrections to the historical plan:
 
@@ -99,7 +99,7 @@ Runtime packages: `@egjs/hammerjs` 2.0.17; `@home-assistant/webawesome` 3.7.0-ha
 
 | Slice | Files and work | Exit evidence |
 |---|---|---|
-| 1. Pure contract | Add `FanEntity.swift` containing typed optional attrs, feature/shape resolution, value mapping and exact service requests. Separate malformed safety from normal optional defaults. Separate helper files only if useful. | Offline parser/mapping/action matrix with positive rounding ties and fractional payloads |
+| 1. Pure contract | Implemented `FanEntity.swift` with typed optional attrs, feature/shape resolution, value mapping and exact service requests. Malformed safety is separate from normal optional defaults. | Seven offline tests plus source-derived numerical oracle; see slice 1 validation below |
 | 2. Mounted service/state owner | Add `FanServiceController.swift`; narrowly bridge DashboardViewModel and DashboardServiceController. Remove fan-only optimistic writes; preserve existing row power contract. Allow independent fan commits/unknown actionability through an explicit fan policy rather than misleading `climateInteraction:true`. | Deferred recording caller proves all commits, authoritative shared states, equal replacements, stale failure suppression and cleanup |
 | 3. Native detail controls | Extract fan content from CardViews into `FanDetailView.swift`. Use SwiftUI drawing/layout plus AppKit pointer/keyboard/accessibility surface for vertical select, slider and switch. Label/value trigger opens NSMenu; do not copy climate's two-mode shortcut. Keep sheet width/history path and climate implementation intact. | Mounted fake-state interactions; matching screenshots; motion geometry |
 | 4. Verification | Fake fixtures + reference actual-component recording harness, full applicable deterministic suite, scoped performance/lifecycle checks and independent review. | Contract-by-contract results; remaining visual acceptance and offline limits explicit |
@@ -111,12 +111,20 @@ Current fan owner hardcodes Off/33/66/100, selects by ±17 tolerance, always dis
 | ID | Decision | Reason and preserved contract | Status |
 |---|---|---|---|
 | D11-01 | Native AppKit input/menu/focus with SwiftUI drawing | Required native architecture/macOS12; preserve choices, commits, local-versus-authoritative values and accessible operation | Recommended implementation mechanism, not implemented |
-| D11-02 | Reject malformed/nonfinite/impossible mapping or out-of-domain outgoing values without silent clamping | Native numeric safety; preserve all valid reference payloads. Web's malformed-input crash/invalid service attempts are explicitly not reproduced | Defensive handling recommendation; adversarial tests must identify this boundary |
+| D11-02 | Reject malformed/nonfinite/impossible mapping or out-of-domain outgoing values without silent clamping | Native numeric safety; preserve all valid reference payloads. Web's malformed-input crash/invalid service attempts are explicitly not reproduced | Implemented/tested at pure builder boundary; production dispatch integration pending |
 | D11-03 | Own finite transitions and callbacks only while mounted | Native resource/lifetime correctness; no continuous spin; dismissal sends no new command | Required lifetime behavior; implementation pending |
 
 Useful fan geometry/motion constants should be grouped in a typed AppConfig policy with the reference defaults (130 width, bounded height, 10-point drag threshold, 180/80ms transitions, 500ms tooltip delay); update configurability notes when implemented. Feature bits, four-option threshold, payload rules and replacement authority are correctness contracts, not arbitrary UI preferences. No fan timeout, busy lockout, climate fade policy or settings UI is proposed.
 
 ## Validation
+
+### Slice 1 implementation — 2026-10-08
+
+`FanEntity.swift` adds typed optional attributes and capability/control-shape resolution, separate header and control defaults, pure discrete/pointer/keyboard mapping, and six exact service payload builders. Missing/null step defaults to one; malformed supplied values remain invalid. Unknown stays actionable, power is not incorrectly gated by TURN_ON/OFF bits, raw preset strings and Boolean oscillation are preserved, and discrete Off remains `set_percentage(0)`. Nonfinite/out-of-domain requests are rejected without re-snapping or clamping valid payloads. There is no transport, state mutation, timeout, controller or UI in this slice; the running app still uses the existing fan panel.
+
+`Tests/Fixtures/Fan/complete.json` is explicitly synthetic and has no live fallback. `FanEntityTests` exercises all 64 capability masks, optional/invalid values, header/control distinctions, raw payloads and numerical reference cases. `tools/fan-reference/semantic-oracle.mjs` executes exact AST-selected reference fan functions and slider methods; its tracked expected fixture preserves nonfinite adversarial outputs explicitly. Native tests compare valid results and separately assert defensive rejection. The oracle is not browser event, animation, localization or device evidence; its [README](../../../tools/fan-reference/README.md) records those limits.
+
+Focused `FanEntityTests` passed seven tests and the debug app build passed (`/tmp/nativeha-fan-slice1-tests.log`, `/tmp/nativeha-fan-slice1-build.log`). The supervisor reviewed the complete new Swift/test files and ran full `swift test`: 415 tests, six expected opt-in skips, zero failures in 174.546 seconds (`/tmp/nativeha-fan-slice1-full-20261008.log`). Fan and climate semantic-oracle checks, resolver self-test and final diff checks pass. The refreshed graph remains 200 nodes/693 edges with only its documented translation-metadata boundary. A debug 10,000-preparation/mapping observation averaged about 34 ms wall/35 ms CPU; small physical-memory deltas were noisy and are not a memory ceiling or portable baseline. No live calls, native fan visual captures or browser tests were run. Full module verification remains pending integration and visual work.
 
 ### Offline deterministic fixtures and tests
 
@@ -155,8 +163,9 @@ No material source-contract question blocks the scoped plan review. Implementati
 
 ## Handoff
 
-Research-ready, implementation not started. Task owner reconciles plan/index with these corrections and presents the bounded four-slice plan for review before application work. Then the sole Swift owner checks staleness, reads anchored owner files, starts slice1 with fake fixtures, and records implementation decisions/results here. Independent verification and user visual review follow implementation; the offline real fan remains a documented live-QA limitation. Keep all Module10 accepted visuals/behavior and global row power routing intact.
+Slice 1 pure contracts and fixtures are implemented and validated. Next is slice 2: a fresh sole Swift owner adds the mounted fan service/state controller and narrow model/service admission bridge, preserving independent commits, raw authoritative state and exact replacement/dedup behavior. UI extraction, browser/native paired captures, full module independent verification and user visual review remain slices 3/4. Do not confuse pure payload/mapping tests with proof that the production UI uses those paths. Keep all Module 10 accepted visuals/behavior and global row power routing intact; the offline real fan remains a documented live-QA limitation.
 
 ## Change log
 
 - 2026-10-07: Initial actual-more-info research; corrected stale card-feature, unknown, Off service, missing-value, optimistic-state and animation assumptions. Added reviewed manifest, dependency graph, contract matrix and bounded fake-fixture handoff.
+- 2026-10-08: Added the bounded pure fan model/value/service slice, synthetic fixture and exact-source numerical oracle. Mounted integration and visual acceptance remain explicitly pending.

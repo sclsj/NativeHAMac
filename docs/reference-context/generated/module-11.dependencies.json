@@ -18736,11 +18736,11 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "c5bf6a2b9de8802c2fde71c0c4dc4b7b44a970574831af63f38c11dcc2d222da",
+  "graphFingerprint": "c04844f499238dd4b9c8ed73ec79476bb5e7a1c9d44eff33ae4743a6b6be53b1",
   "manifest": {
     "module": "11",
     "path": "docs/reference-context/manifests/module-11.inputs.json",
-    "sha256": "4563384b05604a3bf82c61c5f75003711d226ae6327826e31f9692ac9d753aa4"
+    "sha256": "a7d61eca93e069a4e74dcb9cefaecf18004bfd5c067a2df4590c32d55c004d9d"
   },
   "nativeha": {
     "anchors": [
@@ -18789,11 +18789,65 @@
           "DashboardViewModel"
         ],
         "worktreeBlob": "3ecd3c7a02eaa57626d93fba8d478598643817d6"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/FanEntity.swift",
+        "sha256": "8cf630048104968fc34d8ed5deaa4e202aae12a650e75e5f299bfa69b9fa0d90",
+        "symbols": [
+          "FanEntity",
+          "FanEntityFeature",
+          "FanServiceBuilder",
+          "FanServiceRequest",
+          "FanValueMapping"
+        ],
+        "worktreeBlob": "18c92f5465b149173eb0c0a66cd775bb29059415"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/Fixtures/Fan/complete.json",
+        "sha256": "b9c99be07b20a38b60f936f2ed2deffe68e83f3cff54237b9636fb95dac3d2b4",
+        "symbols": [],
+        "worktreeBlob": "7d6622d25a6abb9be6c17e77259637918c97115b"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/Fixtures/Fan/expected-semantics.json",
+        "sha256": "758a56005093cec0979de01a09a8dcd86df1e038660466de949d7f5709195134",
+        "symbols": [],
+        "worktreeBlob": "5f7f1c60422dab30d24d80b625e8d566f98762e8"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/FanEntityTests.swift",
+        "sha256": "7c7f3a035f230d3574b1f637ee84ac7001b986a51f4e22d84d9530e35fc52287",
+        "symbols": [
+          "FanEntityTests",
+          "FanFixtures"
+        ],
+        "worktreeBlob": "bc11b165b29e26eed66e3238224ed71cc71d9eb2"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "tools/fan-reference/semantic-oracle.mjs",
+        "sha256": "fa2b9a59c0495674a5d48d24300948e14ac99cc7a8065064daf205fd5c1812f8",
+        "symbols": [],
+        "worktreeBlob": "777dfab97f68da477e33bb879af1e6d94f22994c"
       }
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "639c6654f9077298b596392d171688452cd3514f"
+    "gitHead": "c86b9eb49ecd2e095a339e8967fcf0c5c6c9a9b1"
   },
   "nodes": [
     {

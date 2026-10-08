@@ -4,6 +4,26 @@
   "title": "Fan more-info control semantics and bounded native detail implementation",
   "nativeEntries": [
     {
+      "path": "Tests/NativeHAMacTests/FanEntityTests.swift",
+      "symbols": ["FanEntityTests", "FanFixtures"]
+    },
+    {
+      "path": "Tests/Fixtures/Fan/complete.json",
+      "symbols": []
+    },
+    {
+      "path": "Sources/NativeHAMac/FanEntity.swift",
+      "symbols": ["FanEntity", "FanEntityFeature", "FanValueMapping", "FanServiceBuilder", "FanServiceRequest"]
+    },
+    {
+      "path": "tools/fan-reference/semantic-oracle.mjs",
+      "symbols": []
+    },
+    {
+      "path": "Tests/Fixtures/Fan/expected-semantics.json",
+      "symbols": []
+    },
+    {
       "path": "Sources/NativeHAMac/CardViews.swift",
       "symbols": [
         "FanDetailContent",

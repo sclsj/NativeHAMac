@@ -1,0 +1,1657 @@
+{
+  "referenceRevision": "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd",
+  "typescriptVersion": "6.0.3",
+  "sources": {
+    "src/data/fan.ts": "9173b06c011ae4591e12f7231d5b680fbd33be63dafef19dd0933695185db897",
+    "src/components/ha-control-slider.ts": "9b09129dd597018a4227177e81bef03f307306c57229d4f57f77384d18ca9b17"
+  },
+  "extractions": {
+    "src/data/fan.ts": {
+      "declarations": [
+        "FanEntityFeature",
+        "FAN_SPEEDS",
+        "FAN_SPEED_COUNT_MAX_FOR_BUTTONS",
+        "computeFanSpeedCount",
+        "fanPercentageToSpeed",
+        "fanSpeedToPercentage"
+      ]
+    },
+    "src/components/ha-control-slider.ts": {
+      "className": "HaControlSlider",
+      "declarations": [
+        "A11Y_KEY_CODES"
+      ],
+      "members": [
+        "valueToPercentage",
+        "percentageToValue",
+        "steppedValue",
+        "boundedValue",
+        "_isVisuallyInverted",
+        "_getPercentageFromEvent",
+        "_tenPercentStep",
+        "_handleKeyDown",
+        "_handleKeyUp"
+      ]
+    }
+  },
+  "featureBits": {
+    "SET_SPEED": 1,
+    "OSCILLATE": 2,
+    "DIRECTION": 4,
+    "PRESET_MODE": 8,
+    "TURN_OFF": 16,
+    "TURN_ON": 32
+  },
+  "discreteThreshold": 4,
+  "countCases": [
+    {
+      "id": "missing",
+      "attributes": {},
+      "count": 101,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "null",
+      "attributes": {
+        "percentage_step": null
+      },
+      "count": 101,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step-100",
+      "attributes": {
+        "percentage_step": 100
+      },
+      "count": 2,
+      "speeds": [
+        {
+          "speed": "off",
+          "percentage": 0
+        },
+        {
+          "speed": "on",
+          "percentage": 100
+        }
+      ],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "on"
+        },
+        {
+          "percentage": 66,
+          "speed": "on"
+        },
+        {
+          "percentage": 100,
+          "speed": "on"
+        }
+      ]
+    },
+    {
+      "id": "step-50",
+      "attributes": {
+        "percentage_step": 50
+      },
+      "count": 3,
+      "speeds": [
+        {
+          "speed": "off",
+          "percentage": 0
+        },
+        {
+          "speed": "low",
+          "percentage": 50
+        },
+        {
+          "speed": "high",
+          "percentage": 100
+        }
+      ],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "low"
+        },
+        {
+          "percentage": 33,
+          "speed": "low"
+        },
+        {
+          "percentage": 50,
+          "speed": "low"
+        },
+        {
+          "percentage": 66,
+          "speed": "low"
+        },
+        {
+          "percentage": 100,
+          "speed": "high"
+        }
+      ]
+    },
+    {
+      "id": "step-33.333333333333336",
+      "attributes": {
+        "percentage_step": 33.333333333333336
+      },
+      "count": 4,
+      "speeds": [
+        {
+          "speed": "off",
+          "percentage": 0
+        },
+        {
+          "speed": "low",
+          "percentage": 33
+        },
+        {
+          "speed": "medium",
+          "percentage": 66
+        },
+        {
+          "speed": "high",
+          "percentage": 100
+        }
+      ],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "low"
+        },
+        {
+          "percentage": 33,
+          "speed": "low"
+        },
+        {
+          "percentage": 50,
+          "speed": "medium"
+        },
+        {
+          "percentage": 66,
+          "speed": "medium"
+        },
+        {
+          "percentage": 100,
+          "speed": "high"
+        }
+      ]
+    },
+    {
+      "id": "step-33",
+      "attributes": {
+        "percentage_step": 33
+      },
+      "count": 4,
+      "speeds": [
+        {
+          "speed": "off",
+          "percentage": 0
+        },
+        {
+          "speed": "low",
+          "percentage": 33
+        },
+        {
+          "speed": "medium",
+          "percentage": 66
+        },
+        {
+          "speed": "high",
+          "percentage": 99
+        }
+      ],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "low"
+        },
+        {
+          "percentage": 33,
+          "speed": "low"
+        },
+        {
+          "percentage": 50,
+          "speed": "medium"
+        },
+        {
+          "percentage": 66,
+          "speed": "medium"
+        },
+        {
+          "percentage": 100,
+          "speed": "high"
+        }
+      ]
+    },
+    {
+      "id": "step-25",
+      "attributes": {
+        "percentage_step": 25
+      },
+      "count": 5,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step-16",
+      "attributes": {
+        "percentage_step": 16
+      },
+      "count": 7,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step-22",
+      "attributes": {
+        "percentage_step": 22
+      },
+      "count": 6,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step-40",
+      "attributes": {
+        "percentage_step": 40
+      },
+      "count": 4,
+      "speeds": [
+        {
+          "speed": "off",
+          "percentage": 0
+        },
+        {
+          "speed": "low",
+          "percentage": 40
+        },
+        {
+          "speed": "medium",
+          "percentage": 80
+        },
+        {
+          "speed": "high",
+          "percentage": 120
+        }
+      ],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "low"
+        },
+        {
+          "percentage": 33,
+          "speed": "low"
+        },
+        {
+          "percentage": 50,
+          "speed": "low"
+        },
+        {
+          "percentage": 66,
+          "speed": "medium"
+        },
+        {
+          "percentage": 100,
+          "speed": "high"
+        }
+      ]
+    },
+    {
+      "id": "step-0",
+      "attributes": {
+        "percentage_step": 0
+      },
+      "count": {
+        "$number": "Infinity"
+      },
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step--1",
+      "attributes": {
+        "percentage_step": -1
+      },
+      "count": -99,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    },
+    {
+      "id": "step-201",
+      "attributes": {
+        "percentage_step": 201
+      },
+      "count": 1,
+      "speeds": [],
+      "selections": [
+        {
+          "percentage": 0,
+          "speed": "off"
+        },
+        {
+          "percentage": 0.4,
+          "speed": "off"
+        },
+        {
+          "percentage": 25,
+          "speed": "off"
+        },
+        {
+          "percentage": 33,
+          "speed": "off"
+        },
+        {
+          "percentage": 50,
+          "speed": "off"
+        },
+        {
+          "percentage": 66,
+          "speed": "off"
+        },
+        {
+          "percentage": 100,
+          "speed": "off"
+        }
+      ]
+    }
+  ],
+  "pointerCases": [
+    {
+      "step": 1,
+      "y": -20,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 100
+    },
+    {
+      "step": 1,
+      "y": 0,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 100
+    },
+    {
+      "step": 1,
+      "y": 64,
+      "progress": 0.8,
+      "raw": 80,
+      "stepped": 80
+    },
+    {
+      "step": 1,
+      "y": 128,
+      "progress": 0.6,
+      "raw": 60,
+      "stepped": 60
+    },
+    {
+      "step": 1,
+      "y": 320,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 1,
+      "y": 340,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 25,
+      "y": -20,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 100
+    },
+    {
+      "step": 25,
+      "y": 0,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 100
+    },
+    {
+      "step": 25,
+      "y": 64,
+      "progress": 0.8,
+      "raw": 80,
+      "stepped": 75
+    },
+    {
+      "step": 25,
+      "y": 128,
+      "progress": 0.6,
+      "raw": 60,
+      "stepped": 50
+    },
+    {
+      "step": 25,
+      "y": 320,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 25,
+      "y": 340,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 16,
+      "y": -20,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 96
+    },
+    {
+      "step": 16,
+      "y": 0,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 96
+    },
+    {
+      "step": 16,
+      "y": 64,
+      "progress": 0.8,
+      "raw": 80,
+      "stepped": 80
+    },
+    {
+      "step": 16,
+      "y": 128,
+      "progress": 0.6,
+      "raw": 60,
+      "stepped": 64
+    },
+    {
+      "step": 16,
+      "y": 320,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 16,
+      "y": 340,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 22,
+      "y": -20,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 110
+    },
+    {
+      "step": 22,
+      "y": 0,
+      "progress": 1,
+      "raw": 100,
+      "stepped": 110
+    },
+    {
+      "step": 22,
+      "y": 64,
+      "progress": 0.8,
+      "raw": 80,
+      "stepped": 88
+    },
+    {
+      "step": 22,
+      "y": 128,
+      "progress": 0.6,
+      "raw": 60,
+      "stepped": 66
+    },
+    {
+      "step": 22,
+      "y": 320,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 22,
+      "y": 340,
+      "progress": 0,
+      "raw": 0,
+      "stepped": 0
+    },
+    {
+      "step": 0,
+      "y": -20,
+      "progress": 1,
+      "raw": 100,
+      "stepped": {
+        "$number": "NaN"
+      }
+    },
+    {
+      "step": 0,
+      "y": 0,
+      "progress": 1,
+      "raw": 100,
+      "stepped": {
+        "$number": "NaN"
+      }
+    },
+    {
+      "step": 0,
+      "y": 64,
+      "progress": 0.8,
+      "raw": 80,
+      "stepped": {
+        "$number": "NaN"
+      }
+    },
+    {
+      "step": 0,
+      "y": 128,
+      "progress": 0.6,
+      "raw": 60,
+      "stepped": {
+        "$number": "NaN"
+      }
+    },
+    {
+      "step": 0,
+      "y": 320,
+      "progress": 0,
+      "raw": 0,
+      "stepped": {
+        "$number": "NaN"
+      }
+    },
+    {
+      "step": 0,
+      "y": 340,
+      "progress": 0,
+      "raw": 0,
+      "stepped": {
+        "$number": "NaN"
+      }
+    }
+  ],
+  "keyboardCases": [
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowUp",
+      "value": 38,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 38
+        },
+        {
+          "type": "value-changed",
+          "value": 38
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowDown",
+      "value": 36,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 36
+        },
+        {
+          "type": "value-changed",
+          "value": 36
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowLeft",
+      "value": 36,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 36
+        },
+        {
+          "type": "value-changed",
+          "value": 36
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowRight",
+      "value": 38,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 38
+        },
+        {
+          "type": "value-changed",
+          "value": 38
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageUp",
+      "value": 47,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 47
+        },
+        {
+          "type": "value-changed",
+          "value": 47
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageDown",
+      "value": 27,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 27
+        },
+        {
+          "type": "value-changed",
+          "value": 27
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowUp",
+      "value": 38,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 38
+        },
+        {
+          "type": "value-changed",
+          "value": 38
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowDown",
+      "value": 36,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 36
+        },
+        {
+          "type": "value-changed",
+          "value": 36
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowLeft",
+      "value": 38,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 38
+        },
+        {
+          "type": "value-changed",
+          "value": 38
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowRight",
+      "value": 36,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 36
+        },
+        {
+          "type": "value-changed",
+          "value": 36
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageUp",
+      "value": 47,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 47
+        },
+        {
+          "type": "value-changed",
+          "value": 47
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageDown",
+      "value": 27,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 27
+        },
+        {
+          "type": "value-changed",
+          "value": 27
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowUp",
+      "value": 53,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 53
+        },
+        {
+          "type": "value-changed",
+          "value": 53
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowDown",
+      "value": 21,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 21
+        },
+        {
+          "type": "value-changed",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowLeft",
+      "value": 21,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 21
+        },
+        {
+          "type": "value-changed",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowRight",
+      "value": 53,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 53
+        },
+        {
+          "type": "value-changed",
+          "value": 53
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageUp",
+      "value": 48,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 48
+        },
+        {
+          "type": "value-changed",
+          "value": 48
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageDown",
+      "value": 16,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 16
+        },
+        {
+          "type": "value-changed",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowUp",
+      "value": 53,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 53
+        },
+        {
+          "type": "value-changed",
+          "value": 53
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowDown",
+      "value": 21,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 21
+        },
+        {
+          "type": "value-changed",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowLeft",
+      "value": 53,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 53
+        },
+        {
+          "type": "value-changed",
+          "value": 53
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowRight",
+      "value": 21,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 21
+        },
+        {
+          "type": "value-changed",
+          "value": 21
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageUp",
+      "value": 48,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 48
+        },
+        {
+          "type": "value-changed",
+          "value": 48
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageDown",
+      "value": 16,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 16
+        },
+        {
+          "type": "value-changed",
+          "value": 16
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 16,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowUp",
+      "value": 59,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 59
+        },
+        {
+          "type": "value-changed",
+          "value": 59
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowDown",
+      "value": 15,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 15
+        },
+        {
+          "type": "value-changed",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowLeft",
+      "value": 15,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 15
+        },
+        {
+          "type": "value-changed",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "ArrowRight",
+      "value": 59,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 59
+        },
+        {
+          "type": "value-changed",
+          "value": 59
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageUp",
+      "value": 66,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 66
+        },
+        {
+          "type": "value-changed",
+          "value": 66
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "PageDown",
+      "value": 22,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 22
+        },
+        {
+          "type": "value-changed",
+          "value": 22
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "ltr",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowUp",
+      "value": 59,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 59
+        },
+        {
+          "type": "value-changed",
+          "value": 59
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowDown",
+      "value": 15,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 15
+        },
+        {
+          "type": "value-changed",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowLeft",
+      "value": 59,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 59
+        },
+        {
+          "type": "value-changed",
+          "value": 59
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "ArrowRight",
+      "value": 15,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 15
+        },
+        {
+          "type": "value-changed",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageUp",
+      "value": 66,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 66
+        },
+        {
+          "type": "value-changed",
+          "value": 66
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "PageDown",
+      "value": 22,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 22
+        },
+        {
+          "type": "value-changed",
+          "value": 22
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "Home",
+      "value": 0,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 0
+        },
+        {
+          "type": "value-changed",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "step": 22,
+      "initial": 37,
+      "direction": "rtl",
+      "code": "End",
+      "value": 100,
+      "events": [
+        {
+          "type": "slider-moved",
+          "value": 100
+        },
+        {
+          "type": "value-changed",
+          "value": 100
+        }
+      ]
+    }
+  ]
+}

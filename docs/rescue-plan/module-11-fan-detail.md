@@ -1,6 +1,6 @@
 # Module 11 - FanDetailContent Speed, Preset, Direction, and Oscillation Support
 
-> **Status: research-ready, 2026-10-08.** The user authorized Module 11 after the climate repair retest. The real fan is offline; isolated fake fans and recording services are authorized for testing. Do not create entities or change configuration on the live HA server. The [Module 11 evidence packet](../reference-context/modules/module-11-fan-detail.md) governs implementation; card-feature behavior alone does not establish the detail-dialog contract.
+> **Status: implementation in progress, 2026-10-08.** The pure model/value/service and fixture slice is implemented; mounted service ownership and native UI remain next. The real fan is offline; isolated fake fans and recording services are authorized for testing. Do not create entities or change configuration on the live HA server. The [Module 11 evidence packet](../reference-context/modules/module-11-fan-detail.md) governs implementation; card-feature behavior alone does not establish the detail-dialog contract.
 
 ## Purpose
 
