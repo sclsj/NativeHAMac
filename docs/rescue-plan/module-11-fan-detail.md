@@ -1,9 +1,6 @@
 # Module 11 - FanDetailContent Speed, Preset, Direction, and Oscillation Support
 
-> **Status: unresearched future module.** Research the complete more-info
-> control path before implementation; card-feature references below do not by
-> themselves establish detail-dialog control or service semantics. Proposed
-> helpers and tests remain subject to that researched contract.
+> **Status: research-ready, 2026-10-08.** The user authorized Module 11 after the climate repair retest. The real fan is offline; isolated fake fans and recording services are authorized for testing. Do not create entities or change configuration on the live HA server. The [Module 11 evidence packet](../reference-context/modules/module-11-fan-detail.md) governs implementation; card-feature behavior alone does not establish the detail-dialog contract.
 
 ## Purpose
 
@@ -28,6 +25,9 @@ Confirmed in `/Users/jin/Documents/Computer/NativeHA/Sources/NativeHAMac/Dashboa
 
 ## Reference Implementation Paths
 
+- `/Users/jin/Documents/HA/hass-frontend/src/dialogs/more-info/controls/more-info-fan.ts`
+- `/Users/jin/Documents/HA/hass-frontend/src/state-control/fan/ha-state-control-fan-speed.ts`
+- `/Users/jin/Documents/HA/hass-frontend/src/state-control/ha-state-control-toggle.ts`
 - `/Users/jin/Documents/HA/hass-frontend/src/data/fan.ts`
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/card-features/hui-fan-speed-card-feature.ts`
 - `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/card-features/hui-fan-preset-modes-card-feature.ts`
@@ -57,6 +57,10 @@ Add fan-specific helpers:
 - Do not hardcode Low/Medium/High percentages. HA frontend derives speed control from `percentage_step`.
 - Do not show a small fixed set of speed buttons for every fan. HA shows button-style control only when the speed count is small enough; otherwise slider behavior is more appropriate.
 - Do not assume presets exist. Use `preset_modes`.
+- The October 7 detail-path research corrects the old unavailable/unknown rule: only `unavailable` disables reference actions. A no-speed fan with unknown or assumed state exposes explicit On and Off controls.
+- A discrete speed's Off selection calls `fan.set_percentage` with `0`; the separate slider Power button calls `turn_on`/`turn_off`. Do not merge these distinct actions.
+- Missing percentage on an active speed-capable fan produces the reference control's zero/Off selection while the header still reports On. This local control fallback must not mutate or relabel the underlying HA state.
+- Direction offers exactly `forward` and `reverse` when its feature is present; no direction-options attribute is required. The more-info power surface does not gate on TURN_ON/TURN_OFF feature bits.
 
 ## Implementation Tasks
 
@@ -75,16 +79,16 @@ Add fan-specific helpers:
    - Treat missing feature flags conservatively.
 
 3. Derive speed controls from `percentage_step`.
-   - Pin the exact reference count/conversion for the selected control; the card-feature path uses `round(100 / percentage_step) + 1`, including off.
+   - The detail path uses `round(100 / percentage_step) + 1`, including off; pin the conversion and valid-count guards in the evidence packet.
    - If the count is small enough, show discrete buttons.
    - If the count is larger, show a percentage slider/stepper.
    - Always include off behavior separately from nonzero percentage when appropriate.
 
 4. Implement correct percentage service payloads.
    - `fan.set_percentage` with `percentage`.
-   - Clamp to `0...100`.
-   - Snap to valid step increments.
-   - Trace the relevant reference control to determine whether off calls `fan.turn_off` or sets percentage 0; do not choose by implementation convenience.
+   - Reject nonfinite/out-of-domain service values rather than silently changing the reference conversion. The packet must distinguish malformed/atypical inputs that yield values outside `0...100` from ordinary supported steps.
+   - Follow each control's exact conversion instead of universally snapping at the service boundary: discrete speed conversion floors index × step; the slider's own rounding contract belongs in the evidence packet.
+   - Preserve discrete Off as `set_percentage(0)` and separate Power as `turn_on`/`turn_off`.
 
 5. Add preset mode support.
    - Show presets from `preset_modes`.
@@ -92,13 +96,13 @@ Add fan-specific helpers:
    - Format labels only for display.
 
 6. Add direction and oscillation controls.
-   - Direction should use HA-supported direction values where present.
+   - Direction uses the reference's fixed `forward`/`reverse` choices when supported.
    - Oscillation should send boolean payload through `fan.oscillate`.
 
 7. Add disabled/error states.
    - Missing entity: show a clear unavailable detail view.
-   - `unavailable`/`unknown`: display current state and disable mutating controls.
-   - Service failure: show a nonfatal error and wait for actual HA state to confirm changes.
+   - `unavailable`: display current state and disable mutating controls. Unknown remains actionable where the reference offers controls.
+   - Service failure: show a nonfatal error without modifying shared HA state; follow the packet's field-specific draft/replacement behavior rather than inventing universal optimistic rollback.
 
 8. Move fan service construction out of `DashboardViewModel`.
    - Keep public view-model methods as wrappers if needed during migration.
@@ -146,10 +150,10 @@ Test:
 - percentage-to-discrete-speed and discrete-speed-to-percentage mapping where buttons apply;
 - percentage clamping, step snapping, rounding ties, missing/zero/invalid steps, and off behavior;
 - exact payloads for set percentage, preset, direction, oscillation, turn on, and turn off, including preservation of raw preset/direction strings;
-- disabled/rejected actions for missing, unavailable, and unknown entities; and
-- optimistic request, matching confirmation, differing authoritative update, failure/rollback, and stale-response ordering.
+- disabled/rejected actions for missing and unavailable entities, plus permitted unknown-state actions; and
+- local speed drafts, authoritative menu display, matching/differing replacements, failure handling and stale-response ordering.
 
-The functions, feature constants, `FAN_SPEED_COUNT_MAX_FOR_BUTTONS`, and service behavior in `/Users/jin/Documents/HA/hass-frontend/src/data/fan.ts` and `/Users/jin/Documents/HA/hass-frontend/src/panels/lovelace/card-features/hui-fan-speed-card-feature.ts` are semantic reference contracts. Do not rely on a screenshot for them. If a contract test is added before its fix, use only a narrowly scoped, reasoned `XCTExpectFailure` and remove it as part of this module.
+The functions, feature constants, `FAN_SPEED_COUNT_MAX_FOR_BUTTONS`, and actual detail control/service behavior pinned in the evidence packet are the semantic reference contracts. Card-feature code is not a substitute for the more-info path. Do not rely on a screenshot for numeric/service semantics. If a contract test is added before its fix, use only a narrowly scoped, reasoned `XCTExpectFailure` and remove it as part of this module.
 
 ### Integration tests
 
@@ -157,10 +161,10 @@ Run these tests on the main actor because they touch `DashboardViewModel` and Sw
 
 - off and each supported on percentage select/display the correct state;
 - a small speed count uses capability-derived discrete controls, while many levels use the percentage control;
-- missing percentage has a safe intentional display and does not fabricate a selected speed;
+- missing percentage uses the reference zero/Off control fallback without overwriting the raw On header/state;
 - presets, direction, and oscillation appear only when reported, can coexist when all are supported, and send exactly one correctly shaped action;
-- unavailable/unknown/missing entities cannot mutate HA state;
-- the optimistic selection waits for realtime confirmation, authoritative HA state wins on disagreement, and a service error restores a truthful UI; and
+- unavailable/missing entities cannot mutate HA state, while unknown-state controls retain reference actionability;
+- local control drafts and authoritative menu values follow their distinct reference reconciliation rules, and service errors never fabricate shared HA state; and
 - dismissing detail cancels any history/subscription or animation work owned by the view.
 
 Test service-call count and payloads directly; a selected button in a PNG does not prove that the correct HA action was sent.
@@ -187,7 +191,7 @@ Compare artifacts with the equivalent fixture in `/Users/jin/Documents/HA/hass-f
 
 ### Animation and interaction
 
-The currently confirmed `FanDetailContent` is static, and custom fan visualizations remain out of scope, so no rotating-fan animation snapshot is required by default. Do use explicit state snapshots for off and supported percentage selections rather than trying to automate a trackpad gesture nondeterministically.
+The current `FanDetailContent` is static, but the researched reference includes finite slider/switch movement and selected-state fades. Implement and test those scoped transitions; no rotating-fan visualization is required. Use explicit state snapshots for off and supported percentage selections, plus mounted gesture tests rather than nondeterministic trackpad automation.
 
 If implementation introduces a rotating icon, progress interpolation, pressed/hover transition, or other substantive animation, expose deterministic animation phase/progress. Render at least start, midpoint, and end (`0`, `0.5`, `1`) to stably named `.build/render-artifacts/fan-detail-animation-*.png` files, assert distinct keyframes and that the final keyframe equals the direct final state, and add pure interpolation/clamping tests. Also verify reduced-motion behavior if supported and prove the animation clock/task stops when detail is hidden. Use bounded settlement expectations, not long sleeps or scheduler timing.
 
@@ -228,7 +232,7 @@ Offscreen PNGs cannot prove percentage correctness, accessibility, payload seman
 - Some integrations expose both percentage and presets in ways that are mutually exclusive. UI should show both only if HA attributes support both.
 - Setting percentage to 0 versus calling `turn_off` can differ by integration. Prefer HA frontend semantics and test against live fan behavior carefully.
 - Feature constants must stay aligned with HA.
-- A missing percentage while state is `on` must not silently look like off; semantic state tests and a dedicated visual fixture are required.
+- A missing percentage while state is `on` selects zero/Off in the reference speed control while retaining the On header. Test both independently so a fallback is not confused with a fabricated authoritative state.
 - Step rounding can drift from hass-frontend if implemented independently. Keep the local reference functions under conformance tests, and preserve the researched reference threshold unless a configuration surface is explicitly approved.
 - Service-call coalescing, optimistic confirmation, and out-of-order state updates can cause flicker or call storms even when static snapshots look correct.
 - Any repeating fan animation can retain a task or consume CPU after the detail disappears unless its lifetime is explicit and tested.
@@ -241,10 +245,10 @@ Offscreen PNGs cannot prove percentage correctness, accessibility, payload seman
 - Fan service payloads are centralized and tested.
 - Unavailable/missing fans have intentional disabled UI.
 - The live fan remains controllable without personal hardcoded assumptions.
-- Complete, sparse, unavailable, missing-percentage, small-step, large-step, and full-capability fixtures pass parsing, feature, value mapping, rounding, payload, and optimistic-reconciliation tests offline.
+- Complete, sparse, unavailable, missing-percentage, small-step, large-step, and full-capability fixtures pass parsing, feature, value mapping, rounding, payload, and field-specific draft/replacement tests offline.
 - Semantic tests match hass-frontend's speed-count and percentage conversion behavior, the button threshold preserves the researched reference value, and service spy tests prove the exact action count and payload for speed, preset, direction, oscillation, on, and off.
 - Valid, nonblank `520x620` and narrow `360x620` PNG artifacts cover off, several on percentages, unavailable, missing percentage, discrete controls, slider controls, and supported preset/direction/oscillation combinations; checked-in references are manually approved against hass-frontend on a documented macOS version and pass tolerant comparison.
 - If animation or a gesture-driven progress control is implemented, deterministic keyframes and pure gesture/value tests pass, reduced motion is covered where supported, and hidden detail performs no animation work. No animation-only test is required for an intentionally static implementation.
 - Stored performance measurements cover cold preparation/rendering, warm 10,000-update mapping, repeated realtime reconciliation, and 100 open/close cycles without retained subscriptions, callbacks, render tasks, controllers, or animation resources.
 - The full module test set passes on macOS 12 with Swift 5.6/Xcode 13.4.1 without `ImageRenderer`, `XCTHitchMetric`, network access, live credentials, or live HA state.
-- Manual QA confirms live percentage/preset/mode behavior, focus and layout at the intended widths, and absence of hidden work; later XCUITest/hitch work is documented rather than claimed complete.
+- Fake-fan mounted/reference QA confirms percentage/preset/mode behavior, focus and layout at the intended widths, and absence of hidden work. Live device confirmation remains explicitly untested while the real fan is offline; later XCUITest/hitch work is documented rather than claimed complete.

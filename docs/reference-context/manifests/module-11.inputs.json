@@ -1,0 +1,285 @@
+{
+  "schemaVersion": "nativeha-reference-inputs/v1",
+  "module": "11",
+  "title": "Fan more-info control semantics and bounded native detail implementation",
+  "nativeEntries": [
+    {
+      "path": "Sources/NativeHAMac/CardViews.swift",
+      "symbols": [
+        "FanDetailContent",
+        "EntityDetailSheet",
+        "DetailHistoryGraph"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardViewModel.swift",
+      "symbols": [
+        "DashboardViewModel"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/DashboardServiceController.swift",
+      "symbols": [
+        "DashboardServiceController"
+      ]
+    },
+    {
+      "path": "Sources/NativeHAMac/AppConfig.swift",
+      "symbols": [
+        "AppConfig"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "path": "src/dialogs/more-info/controls/more-info-fan.ts",
+      "symbols": [
+        "MoreInfoFan"
+      ]
+    },
+    {
+      "path": "src/data/fan.ts",
+      "symbols": [
+        "FanEntityFeature",
+        "FAN_SPEEDS",
+        "computeFanSpeedCount",
+        "fanPercentageToSpeed",
+        "fanSpeedToPercentage",
+        "computeFanSpeedStateDisplay",
+        "computeFanSpeedIcon"
+      ]
+    },
+    {
+      "path": "src/state-control/fan/ha-state-control-fan-speed.ts",
+      "symbols": [
+        "HaStateControlFanSpeed"
+      ]
+    },
+    {
+      "path": "src/state-control/ha-state-control-toggle.ts",
+      "symbols": [
+        "HaStateControlToggle"
+      ]
+    },
+    {
+      "path": "src/components/ha-control-slider.ts",
+      "symbols": [
+        "HaControlSlider"
+      ]
+    },
+    {
+      "path": "src/components/ha-control-select.ts",
+      "symbols": [
+        "HaControlSelect"
+      ]
+    },
+    {
+      "path": "src/components/ha-control-switch.ts",
+      "symbols": [
+        "HaControlSwitch"
+      ]
+    },
+    {
+      "path": "src/components/ha-control-select-menu.ts",
+      "symbols": [
+        "HaControlSelectMenu"
+      ]
+    },
+    {
+      "path": "src/components/ha-control-button.ts",
+      "symbols": [
+        "HaControlButton"
+      ]
+    },
+    {
+      "path": "src/components/ha-outlined-icon-button.ts",
+      "symbols": [
+        "HaOutlinedIconButton"
+      ]
+    },
+    {
+      "path": "src/components/ha-dropdown.ts",
+      "symbols": [
+        "HaDropdown"
+      ]
+    },
+    {
+      "path": "src/components/ha-dropdown-item.ts",
+      "symbols": [
+        "HaDropdownItem"
+      ]
+    },
+    {
+      "path": "src/components/ha-attribute-icon.ts",
+      "symbols": [
+        "HaAttributeIcon"
+      ]
+    },
+    {
+      "path": "src/data/icons.ts",
+      "symbols": [
+        "attributeIcon"
+      ]
+    },
+    {
+      "path": "src/dialogs/more-info/components/ha-more-info-state-header.ts",
+      "symbols": [
+        "HaMoreInfoStateHeader"
+      ]
+    },
+    {
+      "path": "src/dialogs/more-info/components/more-info-control-style.ts",
+      "symbols": [
+        "moreInfoControlStyle"
+      ]
+    },
+    {
+      "path": "src/dialogs/more-info/components/ha-more-info-control-select-container.ts",
+      "symbols": [
+        "HaMoreInfoControlSelectContainer"
+      ]
+    },
+    {
+      "path": "src/resources/state-control-styles.ts",
+      "symbols": [
+        "stateControlToggleStyle"
+      ]
+    },
+    {
+      "path": "src/common/entity/state_active.ts",
+      "symbols": [
+        "stateActive"
+      ]
+    },
+    {
+      "path": "src/common/entity/state_color.ts",
+      "symbols": [
+        "stateColorCss"
+      ]
+    },
+    {
+      "path": "src/common/entity/supports-feature.ts",
+      "symbols": [
+        "supportsFeature"
+      ]
+    },
+    {
+      "path": "src/common/entity/compute_state_display.ts",
+      "symbols": [
+        "computeStateDisplay"
+      ]
+    },
+    {
+      "path": "src/common/entity/compute_attribute_display.ts",
+      "symbols": [
+        "computeAttributeValueDisplay",
+        "computeAttributeNameDisplay"
+      ]
+    },
+    {
+      "path": "src/data/entity/entity_attributes.ts",
+      "symbols": [
+        "DOMAIN_ATTRIBUTES_UNITS"
+      ]
+    },
+    {
+      "path": "src/common/number/format_number.ts",
+      "symbols": [
+        "formatNumber"
+      ]
+    },
+    {
+      "path": "src/common/translations/blank_before_unit.ts",
+      "symbols": [
+        "blankBeforeUnit"
+      ]
+    },
+    {
+      "path": "src/common/translations/blank_before_percent.ts",
+      "symbols": [
+        "blankBeforePercent"
+      ]
+    },
+    {
+      "path": "src/state/connection-mixin.ts",
+      "symbols": [
+        "connectionMixin"
+      ]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/commands.js",
+      "symbols": [
+        "callService"
+      ]
+    },
+    {
+      "path": "node_modules/home-assistant-js-websocket/dist/messages.js",
+      "symbols": [
+        "callService"
+      ]
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizers/pan.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizers/tap.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizers/press.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizers/swipe.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizers/attribute.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/recognizerjs/recognizer-constructor.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/manager.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@home-assistant/webawesome/dist/components/dropdown/dropdown.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@home-assistant/webawesome/dist/components/dropdown-item/dropdown-item.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@home-assistant/webawesome/dist/components/dropdown/dropdown.styles.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@home-assistant/webawesome/dist/internal/animate.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@home-assistant/webawesome/dist/events/select.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@material/web/iconbutton/internal/icon-button.js",
+      "symbols": [
+        "IconButton"
+      ]
+    }
+  ],
+  "followPackages": [
+    "home-assistant-js-websocket",
+    "@egjs/hammerjs",
+    "@home-assistant/webawesome",
+    "@material/web"
+  ],
+  "followTypeOnly": false,
+  "maxDepth": 2,
+  "maxNodes": 5000
+}

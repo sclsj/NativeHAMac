@@ -15,6 +15,10 @@ last_validated: 2026-10-04
 
 # Module 10 evidence packet
 
+## User retest and transition — 2026-10-07
+
+After testing `639c665`, the user reported "Seems like it worked" for immediate mode feedback and the pending +/− target repair, then explicitly approved moving to Module 11. Preserve the accepted climate appearance and interaction; no further climate redesign is authorized by fan work. This is user-reported acceptance of the latest repair, not a new automated run or proof of physical device behavior. Full more-info breadcrumb/header actions, history parity and the separately documented graph findings remain outside this repair. The latest deterministic validation is the October 4 run below; the packet remains `verification-ready` rather than claiming every historical module acceptance gate has been newly completed.
+
 ## Immediate-feedback and pending-button repair — 2026-10-04
 
 The user requests configurable immediate HVAC-mode animation, enabled for testing, instead of waiting for HA confirmation. This is an approved local-presentation deviation; the shared HA model, service validation and actual action/current readings must remain authoritative. The user also reports that a +/− change followed by Cool/Off can replay the old target, unlike dial clicks/drags. Browser activity reportedly changes the frequency, but no browser causation has been established.
@@ -236,3 +240,4 @@ Authorized live service acceptance and independent restoration verification pass
 - 2026-09-30: Recorded user approval of the corrected appearance and repaired the reproduced incidental-movement click snap through a reference-aligned pan-begin phase. No visual/service policy changes or live HA calls.
 - 2026-10-03: Implemented the October 1 mode fade, approved two-mode toggle, rounded endpoint click and configurable number-layout follow-ups; retained the established target curve after a bounded rapid-button tracking probe. Independent graph findings are recorded separately in `docs/audits/2026-10-01-graph-fix-independent-verification.md`.
 - 2026-10-04: Enabled configurable immediate HVAC feedback and repaired reproduced button-target loss through mode echoes; added bounded field-specific reconciliation and nine deterministic/mounted regressions without changing settled styling, dial behavior or shared HA truth.
+- 2026-10-07: Recorded the user's successful repair retest and authorization to proceed to Module 11 while preserving climate presentation and explicitly retaining out-of-scope gaps.
