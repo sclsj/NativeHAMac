@@ -4,6 +4,14 @@
   "title": "Fan more-info control semantics and bounded native detail implementation",
   "nativeEntries": [
     {
+      "path": "Sources/NativeHAMac/FanServiceController.swift",
+      "symbols": ["FanServiceController"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/FanServiceControllerTests.swift",
+      "symbols": ["FanServiceControllerTests"]
+    },
+    {
       "path": "Tests/NativeHAMacTests/FanEntityTests.swift",
       "symbols": ["FanEntityTests", "FanFixtures"]
     },

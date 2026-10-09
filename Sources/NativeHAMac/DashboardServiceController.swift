@@ -7,6 +7,14 @@ struct DashboardServiceAction: Hashable {
     let service: String
 }
 
+enum DashboardServiceAdmission {
+    case standard, fanDetail
+}
+
+struct DashboardServiceCompletionAuthority {
+    let accepts: @MainActor () -> Bool
+}
+
 @MainActor
 final class DashboardServiceController {
     typealias Caller = @Sendable (String, String, [String: JSONValue]) async throws -> Void
@@ -33,16 +41,17 @@ final class DashboardServiceController {
         errorMessage = nil
     }
 
-    func canInvoke(entityID: String, state: HAState?, domain: String, service: String, climateInteraction: Bool = false) -> Bool {
+    func canInvoke(entityID: String, state: HAState?, domain: String, service: String, climateInteraction: Bool = false, admission: DashboardServiceAdmission = .standard) -> Bool {
         guard lifetimeAuthority.acceptsWork,
               caller != nil,
               let state = state,
               state.state != "unavailable",
-              state.state != "unknown" || climateInteraction
+              state.state != "unknown" || climateInteraction || admission == .fanDetail,
+              admission != .fanDetail || (domain == "fan" && state.entityId == entityID && entityID.hasPrefix("fan."))
         else {
             return false
         }
-        return climateInteraction || tasks[actionKey(entityID: entityID, domain: domain, service: service)] == nil
+        return climateInteraction || admission == .fanDetail || tasks[actionKey(entityID: entityID, domain: domain, service: service)] == nil
     }
 
     @discardableResult
@@ -53,11 +62,14 @@ final class DashboardServiceController {
         data: [String: JSONValue],
         errorContext: String,
         climateInteraction: Bool = false,
+        admission: DashboardServiceAdmission = .standard,
+        completionAuthority: DashboardServiceCompletionAuthority = .init(accepts: { true }),
         onCompletion: @escaping @MainActor (String?) -> Void = { _ in }
     ) -> Bool {
-        // Climate gestures are independently committed in HA, including while a previous
+        // Climate and fan detail actions commit independently, including while a previous
         // response is outstanding. Keep each task owned without dropping a later commit.
-        let action = actionKey(entityID: entityID, domain: domain, service: climateInteraction ? service + ":" + UUID().uuidString : service)
+        let independent = climateInteraction || admission == .fanDetail
+        let action = actionKey(entityID: entityID, domain: domain, service: independent ? service + ":" + UUID().uuidString : service)
         guard lifetimeAuthority.acceptsWork,
               tasks[action] == nil,
               let caller = caller
@@ -85,6 +97,7 @@ final class DashboardServiceController {
                 else { return }
                 self.tasks.removeValue(forKey: action)
                 self.taskObserver?(self.tasks.values.map(\.1))
+                guard completionAuthority.accepts() else { return }
                 self.errorMessage = failure
                 onCompletion(failure)
             }

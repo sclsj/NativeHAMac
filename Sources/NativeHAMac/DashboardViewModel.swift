@@ -9,7 +9,13 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var selectedViewIdentity: LovelaceResolvedIdentity?
     @Published private(set) var hasLoadedDashboard: Bool
     @Published var states: [String: HAState] = [:] {
-        didSet { reconcileWeatherDetailAfterStateChange() }
+        didSet {
+            reconcileWeatherDetailAfterStateChange()
+            if !receivingEntitySnapshot, let selected = selectedEntityID,
+               oldValue[selected] != states[selected] {
+                acceptFanReplacement(entityIDs: [selected])
+            }
+        }
     }
     @Published private var historyPublicationRevision: UInt64 = 0
     @Published private(set) var lifecycle = DashboardLifecycle()
@@ -19,6 +25,11 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var climateEntityRevision: UInt64 = 0
     @Published private(set) var climateDetailGeneration: UInt64 = 0
     private var climateServiceGeneration: UInt64 = 0
+    @Published private(set) var fanDetailGeneration: UInt64 = 0
+    @Published private(set) var fanEntityRevision: UInt64 = 0
+    @Published private(set) var fanDetailController: FanServiceController?
+    private var fanServiceGeneration: UInt64 = 0
+    private var receivingEntitySnapshot = false
     private(set) var homeAssistantConfig: HAConfig?
     private(set) var frontendLocalePreferences: HAFrontendLocalePreferences?
     private(set) var entityDisplayPrecisions: [String: Int] = [:]
@@ -670,14 +681,9 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func canSetFanPercentage(entityID: String, percentage: Int) -> Bool {
-        if percentage <= 0 {
-            return canSetRowPower(entityID: entityID, isOn: false)
-        }
-        return canInvokeService(
-            entityID: entityID,
-            domain: "fan",
-            service: "set_percentage"
-        )
+        guard let state = states[entityID],
+              FanServiceBuilder.percentage(Double(percentage), entity: FanEntity(state: state)) != nil else { return false }
+        return serviceController.canInvoke(entityID: entityID, state: state, domain: "fan", service: "set_percentage", admission: .fanDetail)
     }
 
     func setPower(entityID: String, isOn: Bool) {
@@ -706,38 +712,64 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func setFanPercentage(entityID: String, percentage: Int) {
-        if percentage <= 0 {
-            guard canSetRowPower(entityID: entityID, isOn: false) else { return }
-            performPowerCall(entityID: entityID, isOn: false)
-            applyOptimisticAttributes(
-                entityID: entityID,
-                state: "off",
-                attributes: ["percentage": .int(0)]
-            )
-            return
-        }
-        let service = "set_percentage"
-        guard serviceController.canInvoke(
-            entityID: entityID,
-            state: states[entityID],
-            domain: "fan",
-            service: service
-        ) else { return }
+        guard let state = states[entityID],
+              let request = FanServiceBuilder.percentage(Double(percentage), entity: FanEntity(state: state)) else { return }
+        _ = invokeFan(request, entityID: entityID, completion: { _ in })
+    }
 
-        applyOptimisticAttributes(
-            entityID: entityID,
-            state: "on",
-            attributes: ["percentage": .int(percentage)]
-        )
-        callService(
-            domain: "fan",
-            service: "set_percentage",
-            data: [
-                "entity_id": .string(entityID),
-                "percentage": .int(percentage),
-            ],
-            errorContext: "Fan speed failed for \(entityID)"
-        )
+    func acceptFanReplacement(entityIDs: Set<String>) {
+        guard let selected = selectedEntityID, selected.hasPrefix("fan."), entityIDs.contains(selected) else { return }
+        fanEntityRevision &+= 1
+        fanServiceGeneration &+= 1
+        fanDetailController?.replace(states[selected].map(FanEntity.init))
+    }
+
+    private func closeFanDetail() {
+        fanDetailGeneration &+= 1
+        fanServiceGeneration &+= 1
+        fanDetailController?.close()
+        fanDetailController = nil
+    }
+
+    private func openFanDetail(entityID: String) {
+        closeFanDetail()
+        guard entityID.hasPrefix("fan.") else { return }
+        let controller = FanServiceController()
+        let detailGeneration = fanDetailGeneration
+        controller.install(entity: states[entityID].map(FanEntity.init)) { [weak self, weak controller] request, completion in
+            guard let self = self, let controller = controller,
+                  self.fanDetailController === controller,
+                  self.fanDetailGeneration == detailGeneration,
+                  self.selectedEntityID == entityID else { return false }
+            return self.invokeFan(request, entityID: entityID, completion: completion)
+        }
+        fanDetailController = controller
+    }
+
+    @discardableResult
+    func invokeFan(_ request: FanServiceRequest, entityID: String, completion: @escaping (String?) -> Void) -> Bool {
+        guard let state = states[entityID],
+              FanServiceBuilder.isSupported(request, entity: FanEntity(state: state)),
+              serviceController.canInvoke(entityID: entityID, state: state, domain: "fan", service: request.service, admission: .fanDetail) else { return false }
+        fanServiceGeneration &+= 1
+        let serviceGeneration = fanServiceGeneration, detailGeneration = fanDetailGeneration
+        let entityRevision = fanEntityRevision, selectedDetail = selectedEntityID
+        let controller = fanDetailController
+        let interactionRevision = controller?.interactionRevision
+        // Fan commits have no busy presentation. A superseded response still
+        // retires its task, without leaving a loading phase awaiting it.
+        return serviceController.invoke(entityID: entityID, domain: "fan", service: request.service, data: request.data,
+            errorContext: "Fan control failed for \(entityID)", admission: .fanDetail,
+            completionAuthority: .init(accepts: { [weak self, weak controller] in
+                guard let self = self else { return false }
+                return self.fanServiceGeneration == serviceGeneration &&
+                    self.fanDetailGeneration == detailGeneration && self.fanEntityRevision == entityRevision &&
+                    self.selectedEntityID == selectedDetail && self.states[entityID] == state &&
+                    controller?.interactionRevision == interactionRevision
+            })) { [weak self] failure in
+                self?.lifecycle.set(.service, phase: failure.map(DashboardComponentPhase.failed) ?? .ready)
+                completion(failure)
+            }
     }
 
     func canInvokeClimate(entityID: String, service: String) -> Bool {
@@ -1052,6 +1084,7 @@ final class DashboardViewModel: ObservableObject {
             )
         }
         selectedEntityID = entityID
+        openFanDetail(entityID: entityID)
         let transition: WeatherDetailTransition
         if domain(for: entityID) == "weather", let state = states[entityID] {
             transition = weatherDetailCoordinator.open(
@@ -1070,6 +1103,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     func closeDetails() {
+        closeFanDetail()
         climateServiceGeneration &+= 1
         climateDetailGeneration &+= 1
         if let selectedEntityID = selectedEntityID {
@@ -1385,12 +1419,15 @@ final class DashboardViewModel: ObservableObject {
             onReplacement: { entityIDs in
                 guard let owner = weakEntityOwner.value, weakModel.value?.entityCoordinator === owner else { return }
                 weakModel.value?.acceptClimateReplacement(entityIDs: entityIDs)
+                weakModel.value?.acceptFanReplacement(entityIDs: entityIDs)
             },
             onSnapshot: { snapshot in
                 guard let owner = weakEntityOwner.value,
                       weakModel.value?.entityCoordinator === owner
                 else { return }
+                weakModel.value?.receivingEntitySnapshot = true
                 weakModel.value?.states = snapshot
+                weakModel.value?.receivingEntitySnapshot = false
             },
             onPhase: { phase in
                 guard let owner = weakEntityOwner.value,
@@ -2450,6 +2487,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func detachOwnershipSynchronously(notIn desiredKeys: Set<String>) -> DetachedDashboardOwnership {
+        closeFanDetail()
         climateServiceGeneration &+= 1
         climateDetailGeneration &+= 1
         if desiredHistoryKeys != desiredKeys {

@@ -184,8 +184,38 @@ struct FanServiceRequest: Equatable {
 }
 
 /// No transport, drafts, busy flag, or shared-state mutation. Preset duplicate
-/// suppression belongs to the future mounted controller, not this builder.
+/// suppression belongs to FanServiceController, not this builder.
 enum FanServiceBuilder {
+    /// Revalidate untrusted/raw requests at dispatch against the latest entity.
+    /// Numeric JSON representations may differ; never normalize their payload.
+    static func isSupported(_ request: FanServiceRequest, entity: FanEntity) -> Bool {
+        guard request.domain == "fan", request.data["entity_id"] == .string(entity.entityID) else { return false }
+        let expected: FanServiceRequest?
+        switch request.service {
+        case "turn_on", "turn_off": expected = power(on: request.service == "turn_on", entity: entity)
+        case "set_percentage":
+            let value: Double
+            switch request.data["percentage"] {
+            case let .int(number)?: value = Double(number)
+            case let .double(number)?: value = number
+            default: return false
+            }
+            guard percentage(value, entity: entity) != nil else { return false }
+            return Set(request.data.keys) == ["entity_id", "percentage"]
+        case "set_preset_mode":
+            guard case let .string(value)? = request.data["preset_mode"] else { return false }
+            expected = preset(value, entity: entity)
+        case "set_direction":
+            guard case let .string(value)? = request.data["direction"], let direction = FanDirection(rawValue: value) else { return false }
+            expected = self.direction(direction, entity: entity)
+        case "oscillate":
+            guard case let .bool(value)? = request.data["oscillating"] else { return false }
+            expected = oscillation(value, entity: entity)
+        default: return false
+        }
+        return expected == request
+    }
+
     static func percentage(_ value: Double, entity: FanEntity) -> FanServiceRequest? {
         guard entity.features.contains(.setSpeed), entity.speedCount != nil,
               value.isFinite, (0...100).contains(value) else { return nil }

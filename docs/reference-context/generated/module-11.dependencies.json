@@ -18736,11 +18736,11 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "c04844f499238dd4b9c8ed73ec79476bb5e7a1c9d44eff33ae4743a6b6be53b1",
+  "graphFingerprint": "4d2a5c20c7d7476128d8696b783bed2975c01d9895a9b0da8d1330abbf7dd613",
   "manifest": {
     "module": "11",
     "path": "docs/reference-context/manifests/module-11.inputs.json",
-    "sha256": "a7d61eca93e069a4e74dcb9cefaecf18004bfd5c067a2df4590c32d55c004d9d"
+    "sha256": "80f3a8d33279c83fd7e65ddbd005154545400081aff9e3aec23dc7cb57a3fbe2"
   },
   "nativeha": {
     "anchors": [
@@ -18769,33 +18769,33 @@
         "worktreeBlob": "c514af346cadde0663963f723f3f3422b7332b43"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "a489eff7150030c6a788181f3f1d9c2952977f37",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardServiceController.swift",
-        "sha256": "a69c7f9b2142371d2d75d1701f3e4963d9699b0f778a91dfbd76296506b41f1b",
+        "sha256": "102910cb5a89d31a206a160f7a34252ecb574ee35964a50fac68836507acc581",
         "symbols": [
           "DashboardServiceController"
         ],
-        "worktreeBlob": "a489eff7150030c6a788181f3f1d9c2952977f37"
+        "worktreeBlob": "7918d83aa3322a9467ba9b297e415eb6afe18556"
       },
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "3ecd3c7a02eaa57626d93fba8d478598643817d6",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
-        "sha256": "6e210003b4ccc0048afea6495513e86b58d376819f396547e7d4772825aeabcc",
+        "sha256": "2b1c28cd47ee7bf6c5908010af8cf67e29ad293a436a12b209f18a207acaf149",
         "symbols": [
           "DashboardViewModel"
         ],
-        "worktreeBlob": "3ecd3c7a02eaa57626d93fba8d478598643817d6"
+        "worktreeBlob": "e059abde0c0f757f56cc128a868acdd62ecaa39b"
       },
       {
-        "dirty": false,
-        "headBlob": null,
+        "dirty": true,
+        "headBlob": "18c92f5465b149173eb0c0a66cd775bb29059415",
         "missing": false,
         "path": "Sources/NativeHAMac/FanEntity.swift",
-        "sha256": "8cf630048104968fc34d8ed5deaa4e202aae12a650e75e5f299bfa69b9fa0d90",
+        "sha256": "8d06f5db829f45faf98770c9004cab0b244d52a338699510e97d265a143e2152",
         "symbols": [
           "FanEntity",
           "FanEntityFeature",
@@ -18803,11 +18803,22 @@
           "FanServiceRequest",
           "FanValueMapping"
         ],
-        "worktreeBlob": "18c92f5465b149173eb0c0a66cd775bb29059415"
+        "worktreeBlob": "d20324c4f51f92b49ecf4772fe6c4462654d0b14"
       },
       {
         "dirty": false,
         "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/FanServiceController.swift",
+        "sha256": "668695c51ffb4090f63fa95c4db8abc9fadd0aeffe497442ad4e1aba2c973562",
+        "symbols": [
+          "FanServiceController"
+        ],
+        "worktreeBlob": "d83f2cdacf235d73c9d3b2097dc97d3d15bc82c3"
+      },
+      {
+        "dirty": false,
+        "headBlob": "7d6622d25a6abb9be6c17e77259637918c97115b",
         "missing": false,
         "path": "Tests/Fixtures/Fan/complete.json",
         "sha256": "b9c99be07b20a38b60f936f2ed2deffe68e83f3cff54237b9636fb95dac3d2b4",
@@ -18816,7 +18827,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "5f7f1c60422dab30d24d80b625e8d566f98762e8",
         "missing": false,
         "path": "Tests/Fixtures/Fan/expected-semantics.json",
         "sha256": "758a56005093cec0979de01a09a8dcd86df1e038660466de949d7f5709195134",
@@ -18825,7 +18836,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "bc11b165b29e26eed66e3238224ed71cc71d9eb2",
         "missing": false,
         "path": "Tests/NativeHAMacTests/FanEntityTests.swift",
         "sha256": "7c7f3a035f230d3574b1f637ee84ac7001b986a51f4e22d84d9530e35fc52287",
@@ -18839,6 +18850,17 @@
         "dirty": false,
         "headBlob": null,
         "missing": false,
+        "path": "Tests/NativeHAMacTests/FanServiceControllerTests.swift",
+        "sha256": "93adb98bf56fb2989ebfb0ff05b1c282cbdead11a62fa7c8a1b46f4162815391",
+        "symbols": [
+          "FanServiceControllerTests"
+        ],
+        "worktreeBlob": "eb7215574dd60e2a3a5c1f3c1d8f75a4e7fb6ae9"
+      },
+      {
+        "dirty": false,
+        "headBlob": "777dfab97f68da477e33bb879af1e6d94f22994c",
+        "missing": false,
         "path": "tools/fan-reference/semantic-oracle.mjs",
         "sha256": "fa2b9a59c0495674a5d48d24300948e14ac99cc7a8065064daf205fd5c1812f8",
         "symbols": [],
@@ -18847,7 +18869,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "c86b9eb49ecd2e095a339e8967fcf0c5c6c9a9b1"
+    "gitHead": "6ce004eadb856fd86d25498975acb8d1467db2a3"
   },
   "nodes": [
     {
