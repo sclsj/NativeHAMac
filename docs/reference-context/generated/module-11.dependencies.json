@@ -728,6 +728,502 @@
     {
       "bindings": [
         {
+          "imported": "INPUT_START",
+          "local": "INPUT_START",
+          "phase": "runtime"
+        },
+        {
+          "imported": "INPUT_END",
+          "local": "INPUT_END",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 40,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-delta-xy.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 1,
+      "offset": 39,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "computeDeltaXY",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 28,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 20,
+      "line": 9,
+      "offset": 384,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/compute-delta-xy.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/compute-delta-xy.js",
+      "specifier": "./compute-delta-xy",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-delta-xy.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/compute-delta-xy.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "computeIntervalInputData",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 38,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 31,
+      "line": 13,
+      "offset": 563,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/compute-interval-input-data.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/compute-interval-input-data.js",
+      "specifier": "./compute-interval-input-data",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/compute-interval-input-data.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getAngle",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 22,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 13,
+      "line": 7,
+      "offset": 298,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-angle.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-angle.js",
+      "specifier": "./get-angle",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-angle.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-angle.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getCenter",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 23,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 14,
+      "line": 5,
+      "offset": 219,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-center.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-center.js",
+      "specifier": "./get-center",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-center.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-center.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getDirection",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 26,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 17,
+      "line": 8,
+      "offset": 338,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-direction.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-direction.js",
+      "specifier": "./get-direction",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-direction.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-direction.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getDistance",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 6,
+      "offset": 259,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-distance.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-distance.js",
+      "specifier": "./get-distance",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-distance.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-distance.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getRotation",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 12,
+      "offset": 508,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-rotation.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-rotation.js",
+      "specifier": "./get-rotation",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-rotation.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-rotation.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getScale",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 22,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 13,
+      "line": 11,
+      "offset": 469,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-scale.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-scale.js",
+      "specifier": "./get-scale",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-scale.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-scale.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getVelocity",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 10,
+      "offset": 430,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-velocity.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-velocity.js",
+      "specifier": "./get-velocity",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-velocity.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-velocity.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "simpleCloneInputData",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 34,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 27,
+      "line": 4,
+      "offset": 168,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/simple-clone-input-data.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/simple-clone-input-data.js",
+      "specifier": "./simple-clone-input-data",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/simple-clone-input-data.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/simple-clone-input-data.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "hasParent",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 23,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 21,
+      "line": 3,
+      "offset": 112,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/has-parent.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/has-parent.js",
+      "specifier": "../utils/has-parent",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/has-parent.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/has-parent.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "now",
+          "local": "now",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "abs",
+          "local": "abs",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 2,
+      "offset": 65,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getDirection",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 26,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "kind": "static-import",
+      "length": 17,
+      "line": 4,
+      "offset": 176,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-direction.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-direction.js",
+      "specifier": "./get-direction",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-direction.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-direction.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getVelocity",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 3,
+      "offset": 133,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-velocity.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-velocity.js",
+      "specifier": "./get-velocity",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-velocity.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-velocity.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "INPUT_CANCEL",
+          "local": "INPUT_CANCEL",
+          "phase": "runtime"
+        },
+        {
+          "imported": "COMPUTE_INTERVAL",
+          "local": "COMPUTE_INTERVAL",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 47,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 1,
+      "offset": 46,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "abs",
+          "local": "abs",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 2,
+      "offset": 84,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
+    },
+    {
+      "bindings": [
+        {
           "imported": "default",
           "local": "MouseInput",
           "phase": "runtime"
@@ -908,11 +1404,247 @@
       "boundary": null,
       "column": 26,
       "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-angle.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 1,
+      "offset": 25,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "round",
+          "local": "round",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 23,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-center.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 1,
+      "offset": 22,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "DIRECTION_NONE",
+          "local": "DIRECTION_NONE",
+          "phase": "runtime"
+        },
+        {
+          "imported": "DIRECTION_LEFT",
+          "local": "DIRECTION_LEFT",
+          "phase": "runtime"
+        },
+        {
+          "imported": "DIRECTION_RIGHT",
+          "local": "DIRECTION_RIGHT",
+          "phase": "runtime"
+        },
+        {
+          "imported": "DIRECTION_UP",
+          "local": "DIRECTION_UP",
+          "phase": "runtime"
+        },
+        {
+          "imported": "DIRECTION_DOWN",
+          "local": "DIRECTION_DOWN",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 91,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-direction.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 2,
+      "offset": 135,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "abs",
+          "local": "abs",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-direction.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PROPS_XY",
+          "local": "PROPS_XY",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 26,
+      "externalLibraryImport": true,
       "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-distance.js",
       "kind": "static-import",
       "length": 16,
       "line": 1,
       "offset": 25,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getAngle",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 22,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-rotation.js",
+      "kind": "static-import",
+      "length": 13,
+      "line": 1,
+      "offset": 21,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-angle.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-angle.js",
+      "specifier": "./get-angle",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-angle.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-angle.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PROPS_CLIENT_XY",
+          "local": "PROPS_CLIENT_XY",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-rotation.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 2,
+      "offset": 68,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/input-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js",
+      "specifier": "./input-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getDistance",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 25,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-scale.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 2,
+      "offset": 74,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-distance.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-distance.js",
+      "specifier": "./get-distance",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-distance.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-distance.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "PROPS_CLIENT_XY",
+          "local": "PROPS_CLIENT_XY",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 33,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-scale.js",
+      "kind": "static-import",
+      "length": 16,
+      "line": 1,
+      "offset": 32,
       "packageId": {
         "name": "@egjs/hammerjs",
         "subModuleName": "src/inputjs/input-consts.js",
@@ -1041,6 +1773,65 @@
       "specifier": "./input-consts",
       "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/input-consts.js",
       "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/input-consts.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "default",
+          "local": "getCenter",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 23,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/simple-clone-input-data.js",
+      "kind": "static-import",
+      "length": 14,
+      "line": 2,
+      "offset": 73,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/inputjs/get-center.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-center.js",
+      "specifier": "./get-center",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-center.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/inputjs/get-center.js"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "now",
+          "local": "now",
+          "phase": "runtime"
+        },
+        {
+          "imported": "round",
+          "local": "round",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": null,
+      "column": 27,
+      "externalLibraryImport": true,
+      "from": "npm:@egjs/hammerjs@2.0.17:src/inputjs/simple-clone-input-data.js",
+      "kind": "static-import",
+      "length": 23,
+      "line": 1,
+      "offset": 26,
+      "packageId": {
+        "name": "@egjs/hammerjs",
+        "subModuleName": "src/utils/utils-consts.js",
+        "version": "2.0.17"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js",
+      "specifier": "../utils/utils-consts",
+      "to": "npm:@egjs/hammerjs@2.0.17:src/utils/utils-consts.js",
+      "typeResolved": "node_modules/@egjs/hammerjs/src/utils/utils-consts.js"
     },
     {
       "bindings": [
@@ -16792,6 +17583,87 @@
     {
       "bindings": [
         {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/resources/theme/color/color.globals.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/resources/theme/core.globals.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
+          "imported": "css",
+          "local": "css",
+          "phase": "runtime"
+        }
+      ],
+      "boundary": "package-not-allowlisted",
+      "column": 21,
+      "externalLibraryImport": true,
+      "from": "repo:src/resources/theme/typography.globals.ts",
+      "kind": "static-import",
+      "length": 5,
+      "line": 1,
+      "offset": 20,
+      "packageId": {
+        "name": "lit",
+        "subModuleName": "development/index.d.ts",
+        "version": "3.3.3"
+      },
+      "phase": "runtime",
+      "runtimeResolved": "node_modules/lit/index.js",
+      "specifier": "lit",
+      "to": "npm:lit@3.3.3:index.js",
+      "typeResolved": "node_modules/lit/development/index.d.ts"
+    },
+    {
+      "bindings": [
+        {
           "imported": "TranslationMetadata",
           "local": "TranslationMetadata",
           "phase": "type"
@@ -18736,41 +19608,41 @@
       "typeResolved": "node_modules/home-assistant-js-websocket/dist/index.d.ts"
     }
   ],
-  "graphFingerprint": "4d2a5c20c7d7476128d8696b783bed2975c01d9895a9b0da8d1330abbf7dd613",
+  "graphFingerprint": "d92f3da8de3e60afbfbb048db81e13ae296995c47b4dd8ebaa35a51d2213d1f9",
   "manifest": {
     "module": "11",
     "path": "docs/reference-context/manifests/module-11.inputs.json",
-    "sha256": "80f3a8d33279c83fd7e65ddbd005154545400081aff9e3aec23dc7cb57a3fbe2"
+    "sha256": "682b80349076f090e8e6bd247857bfc9ade0d02108916f7dd526ebb34c33d22e"
   },
   "nativeha": {
     "anchors": [
       {
-        "dirty": false,
+        "dirty": true,
         "headBlob": "56d84c04422262e27d3fb0a9d88f6885cd4a9808",
         "missing": false,
         "path": "Sources/NativeHAMac/AppConfig.swift",
-        "sha256": "a84bb9f42ed83ea2393b8efef6e1fd70ccdaa954bd9349e232f5d045b2888a6a",
+        "sha256": "a05240eefd0eee95d06fa5a20725023506b4c962b6bb121123e3c32af41db8d7",
         "symbols": [
-          "AppConfig"
+          "AppConfig",
+          "FanPresentationPolicy"
         ],
-        "worktreeBlob": "56d84c04422262e27d3fb0a9d88f6885cd4a9808"
-      },
-      {
-        "dirty": false,
-        "headBlob": "c514af346cadde0663963f723f3f3422b7332b43",
-        "missing": false,
-        "path": "Sources/NativeHAMac/CardViews.swift",
-        "sha256": "d8629b40f3e1c5b8099d935091bbd1f18887309100a7f84d5ba602fe98135ffb",
-        "symbols": [
-          "DetailHistoryGraph",
-          "EntityDetailSheet",
-          "FanDetailContent"
-        ],
-        "worktreeBlob": "c514af346cadde0663963f723f3f3422b7332b43"
+        "worktreeBlob": "6f855da91f9dd3294a875853641be2ec89432f25"
       },
       {
         "dirty": true,
-        "headBlob": "a489eff7150030c6a788181f3f1d9c2952977f37",
+        "headBlob": "c514af346cadde0663963f723f3f3422b7332b43",
+        "missing": false,
+        "path": "Sources/NativeHAMac/CardViews.swift",
+        "sha256": "6ba0b51fbcbb3d5085b17183557edef7dc8678c2de5022cbd56767c316e243cb",
+        "symbols": [
+          "DetailHistoryGraph",
+          "EntityDetailSheet"
+        ],
+        "worktreeBlob": "0d5288de62bba8fcd64a8425019cad18b4f66cb5"
+      },
+      {
+        "dirty": false,
+        "headBlob": "7918d83aa3322a9467ba9b297e415eb6afe18556",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardServiceController.swift",
         "sha256": "102910cb5a89d31a206a160f7a34252ecb574ee35964a50fac68836507acc581",
@@ -18780,8 +19652,8 @@
         "worktreeBlob": "7918d83aa3322a9467ba9b297e415eb6afe18556"
       },
       {
-        "dirty": true,
-        "headBlob": "3ecd3c7a02eaa57626d93fba8d478598643817d6",
+        "dirty": false,
+        "headBlob": "e059abde0c0f757f56cc128a868acdd62ecaa39b",
         "missing": false,
         "path": "Sources/NativeHAMac/DashboardViewModel.swift",
         "sha256": "2b1c28cd47ee7bf6c5908010af8cf67e29ad293a436a12b209f18a207acaf149",
@@ -18791,8 +19663,33 @@
         "worktreeBlob": "e059abde0c0f757f56cc128a868acdd62ecaa39b"
       },
       {
-        "dirty": true,
-        "headBlob": "18c92f5465b149173eb0c0a66cd775bb29059415",
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/FanControlView.swift",
+        "sha256": "8b53f4647386a73c12ac6cad851efbed40be514bae0995eeef04ebae882efb8f",
+        "symbols": [
+          "FanControlDrawing",
+          "FanControlNSView"
+        ],
+        "worktreeBlob": "bd71ecfd26a1aec8e916ed92a53fd6fbc1b46e2a"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Sources/NativeHAMac/FanDetailView.swift",
+        "sha256": "c40385e6cef0fb1c7f79a89494d44be31b5836b72b7171556ec0515d620541fe",
+        "symbols": [
+          "FanDetailContent",
+          "FanDetailControls",
+          "FanMenuButton"
+        ],
+        "worktreeBlob": "2fc7237556eef3ad6907c20ce7cdcb5990ab1440"
+      },
+      {
+        "dirty": false,
+        "headBlob": "d20324c4f51f92b49ecf4772fe6c4462654d0b14",
         "missing": false,
         "path": "Sources/NativeHAMac/FanEntity.swift",
         "sha256": "8d06f5db829f45faf98770c9004cab0b244d52a338699510e97d265a143e2152",
@@ -18807,7 +19704,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "d83f2cdacf235d73c9d3b2097dc97d3d15bc82c3",
         "missing": false,
         "path": "Sources/NativeHAMac/FanServiceController.swift",
         "sha256": "668695c51ffb4090f63fa95c4db8abc9fadd0aeffe497442ad4e1aba2c973562",
@@ -18836,6 +19733,26 @@
       },
       {
         "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/Fixtures/Fan/render-variants.json",
+        "sha256": "f17b8b67e9b8a0ca8d4d5a23fc9408277ed917435739f133caa890461ced1d16",
+        "symbols": [],
+        "worktreeBlob": "157e94b3b69b0558fab2d55f919c0cf89bb35ab7"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "Tests/NativeHAMacTests/FanControlTests.swift",
+        "sha256": "265c289c40e93045f52232bbeb8346b709d59db199b4a3bedbc24711ad62faf4",
+        "symbols": [
+          "FanControlTests"
+        ],
+        "worktreeBlob": "ddc4f8d7a0cc620caae63caa97e2d973391aeebc"
+      },
+      {
+        "dirty": false,
         "headBlob": "bc11b165b29e26eed66e3238224ed71cc71d9eb2",
         "missing": false,
         "path": "Tests/NativeHAMacTests/FanEntityTests.swift",
@@ -18848,7 +19765,7 @@
       },
       {
         "dirty": false,
-        "headBlob": null,
+        "headBlob": "eb7215574dd60e2a3a5c1f3c1d8f75a4e7fb6ae9",
         "missing": false,
         "path": "Tests/NativeHAMacTests/FanServiceControllerTests.swift",
         "sha256": "93adb98bf56fb2989ebfb0ff05b1c282cbdead11a62fa7c8a1b46f4162815391",
@@ -18856,6 +19773,24 @@
           "FanServiceControllerTests"
         ],
         "worktreeBlob": "eb7215574dd60e2a3a5c1f3c1d8f75a4e7fb6ae9"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "tools/fan-reference/browser-entry.ts",
+        "sha256": "55629c2866bc2a643d9ba7f920d7bb07fb54d59da317c4e91909959b4801894a",
+        "symbols": [],
+        "worktreeBlob": "58d3aa3507d83cca68bc4ae37da605bc37736778"
+      },
+      {
+        "dirty": false,
+        "headBlob": null,
+        "missing": false,
+        "path": "tools/fan-reference/browser-harness.mjs",
+        "sha256": "c2f38cdeb9c855714ac9b9b77d6a7caf83727f29453c21cde7aae384e91756a2",
+        "symbols": [],
+        "worktreeBlob": "27861b393583bfb0736ec5e2bbf28719fdcf3fc8"
       },
       {
         "dirty": false,
@@ -18869,7 +19804,7 @@
     ],
     "dirty": true,
     "gitBranch": "main",
-    "gitHead": "6ce004eadb856fd86d25498975acb8d1467db2a3"
+    "gitHead": "487b5c6fd6251eeaa95f759ee20761acb3d76976"
   },
   "nodes": [
     {
@@ -19029,6 +19964,72 @@
     {
       "depth": 1,
       "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-delta-xy.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/compute-delta-xy.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/compute-delta-xy.js",
+      "selectedSymbols": [],
+      "sha256": "644f8661f3195ef3624bffbf3301e37c4e3fa70f8f6922a83eb075fd5659a7cc"
+    },
+    {
+      "depth": 0,
+      "explicitSeed": true,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/compute-input-data.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/compute-input-data.js",
+      "selectedSymbols": [],
+      "sha256": "13716bbe36ff64c235ae91fb28f8e267cd13dd81a496316ef843bfffbf15b48d"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-interval-input-data.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/compute-interval-input-data.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/compute-interval-input-data.js",
+      "selectedSymbols": [],
+      "sha256": "8416475f53120a8ea542a9d01c4106508c5e1d88fe69306b2d5542c58dec18d0"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
       "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/create-input-instance.js",
       "kind": "npm",
       "language": "js",
@@ -19051,6 +20052,72 @@
     {
       "depth": 1,
       "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-angle.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-angle.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-angle.js",
+      "selectedSymbols": [],
+      "sha256": "478470e600e5e1dd3f2d21f0d9c6f2c86469cd07efc81d2a3b9bbb444cb8a232"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-center.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-center.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-center.js",
+      "selectedSymbols": [],
+      "sha256": "b0d354416cc2ecc71884cf4ececfba7abf2f538afa5b15952f6214ccfa29647f"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-direction.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-direction.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-direction.js",
+      "selectedSymbols": [],
+      "sha256": "18916b6dea9f2cd90386f582652f35f3cbdaa21151ce0eb52e2f3d370e00b145"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
       "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-distance.js",
       "kind": "npm",
       "language": "js",
@@ -19069,6 +20136,72 @@
       "path": "node_modules/@egjs/hammerjs/src/inputjs/get-distance.js",
       "selectedSymbols": [],
       "sha256": "14fd4c4d389bd631088fdb2febaae5fb61074e8657f379917b9a13e9a7fcf279"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-rotation.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-rotation.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-rotation.js",
+      "selectedSymbols": [],
+      "sha256": "0f605a2b005d9e82a0906dd0a4e6ce7ec4de52da07987e7ac44ffdaaedc02f44"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-scale.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-scale.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-scale.js",
+      "selectedSymbols": [],
+      "sha256": "b1553ccda9b59709a09a3a68dade846692ccc30ac1d1bbda8d7d482e6641b1e2"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/get-velocity.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/get-velocity.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/get-velocity.js",
+      "selectedSymbols": [],
+      "sha256": "41f81b8fd6fa796e0844789655b4392e3260f4a4bc4c097fc0285f1d0a7cb29d"
     },
     {
       "depth": 1,
@@ -19113,6 +20246,28 @@
       "path": "node_modules/@egjs/hammerjs/src/inputjs/input-handler.js",
       "selectedSymbols": [],
       "sha256": "b6de741baf78792f7253fe9391e8023b753558bc9e778d64ab91f9aa8c9cc051"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/inputjs/simple-clone-input-data.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/inputjs/simple-clone-input-data.js",
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/simple-clone-input-data.js",
+      "selectedSymbols": [],
+      "sha256": "b29b7c5e47a91ab572e35033cc91277e7629ba21b32a3dee814b0c180c0840c9"
     },
     {
       "depth": 0,
@@ -19553,6 +20708,28 @@
       "path": "node_modules/@egjs/hammerjs/src/utils/each.js",
       "selectedSymbols": [],
       "sha256": "4557327a68e37deb21271b4065cfac0367fc0852a89ead6efc80e9b5232cea0e"
+    },
+    {
+      "depth": 1,
+      "explicitSeed": false,
+      "id": "npm:@egjs/hammerjs@2.0.17:src/utils/has-parent.js",
+      "kind": "npm",
+      "language": "js",
+      "localSymbolClosure": [],
+      "missingSymbols": [],
+      "package": {
+        "lock": {
+          "checksum": "10/f695129d45edfcfd6c5f2d1d36186da36ffade013991972ce23721a6b7ad7f214ce282abc4023e3f6b63062620852a63e897b523f247804afc7acd188fee9d9d",
+          "key": "@egjs/hammerjs@npm:2.0.17"
+        },
+        "name": "@egjs/hammerjs",
+        "packageJSONSha256": "d34bedf030719df4954350236eeffb2e5489eff5e99861b250c181e395e84250",
+        "version": "2.0.17"
+      },
+      "packagePath": "src/utils/has-parent.js",
+      "path": "node_modules/@egjs/hammerjs/src/utils/has-parent.js",
+      "selectedSymbols": [],
+      "sha256": "d02f79f93f147d106e6b54a94a6fd79108ef648f6cc761b57d6830e79c324bfc"
     },
     {
       "depth": 1,
@@ -23204,6 +24381,97 @@
       "worktreeBlob": "528dc45fc8d96c22971c19716d2344d3a89fb865"
     },
     {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "93b35519f5a1566f5a196f9faa3f3b1932da9fda",
+      "id": "repo:src/resources/theme/color/color.globals.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "colorStyles",
+        "darkColorStyles"
+      ],
+      "missingSymbols": [],
+      "path": "src/resources/theme/color/color.globals.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 338,
+          "length": 14825,
+          "line": 5,
+          "name": "colorStyles",
+          "offset": 150
+        },
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 401,
+          "length": 2406,
+          "line": 340,
+          "name": "darkColorStyles",
+          "offset": 14977
+        }
+      ],
+      "sha256": "69e11c9990c7b2112ad41e28727313f8160f4d55bb3e935c2ed31973f43dbe47",
+      "worktreeBlob": "93b35519f5a1566f5a196f9faa3f3b1932da9fda"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "250e9c013585f9232500b308d2f3854ae1af7280",
+      "id": "repo:src/resources/theme/core.globals.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "coreStyles"
+      ],
+      "missingSymbols": [],
+      "path": "src/resources/theme/core.globals.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 61,
+          "length": 1539,
+          "line": 4,
+          "name": "coreStyles",
+          "offset": 102
+        }
+      ],
+      "sha256": "7fd17f3722200613713fe55681fc0a212cfaf3c0225da7299067b8b8d3eec465",
+      "worktreeBlob": "250e9c013585f9232500b308d2f3854ae1af7280"
+    },
+    {
+      "depth": 0,
+      "dirty": false,
+      "explicitSeed": true,
+      "headBlob": "77c8e277a2982db879a293c361e59b8c91aa2db1",
+      "id": "repo:src/resources/theme/typography.globals.ts",
+      "kind": "repo",
+      "language": "ts",
+      "localSymbolClosure": [
+        "typographyStyles"
+      ],
+      "missingSymbols": [],
+      "path": "src/resources/theme/typography.globals.ts",
+      "selectedSymbols": [
+        {
+          "column": 1,
+          "endColumn": 3,
+          "endLine": 44,
+          "length": 1826,
+          "line": 4,
+          "name": "typographyStyles",
+          "offset": 114
+        }
+      ],
+      "sha256": "96066d067006de8edb6003de0c68bd26a8375ab5991e94f852d14b9c2dec502e",
+      "worktreeBlob": "77c8e277a2982db879a293c361e59b8c91aa2db1"
+    },
+    {
       "depth": 1,
       "dirty": false,
       "explicitSeed": false,
@@ -23392,6 +24660,10 @@
   ],
   "options": {
     "entries": [
+      {
+        "path": "node_modules/@egjs/hammerjs/src/inputjs/compute-input-data.js",
+        "symbols": []
+      },
       {
         "path": "node_modules/@egjs/hammerjs/src/manager.js",
         "symbols": []
@@ -23613,6 +24885,25 @@
         "path": "src/resources/state-control-styles.ts",
         "symbols": [
           "stateControlToggleStyle"
+        ]
+      },
+      {
+        "path": "src/resources/theme/color/color.globals.ts",
+        "symbols": [
+          "colorStyles",
+          "darkColorStyles"
+        ]
+      },
+      {
+        "path": "src/resources/theme/core.globals.ts",
+        "symbols": [
+          "coreStyles"
+        ]
+      },
+      {
+        "path": "src/resources/theme/typography.globals.ts",
+        "symbols": [
+          "typographyStyles"
         ]
       },
       {

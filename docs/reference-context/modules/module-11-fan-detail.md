@@ -3,21 +3,21 @@ schema: nativeha-evidence/v1
 module: "11"
 title: Fan more-info controls
 plan: ../../rescue-plan/module-11-fan-detail.md
-status: implementation-in-progress
+status: verification-ready
 contract_revision: 1
 depends_on: ["05", "06"]
 reference_revision: "dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd"
-nativeha_revision: "6ce004eadb856fd86d25498975acb8d1467db2a3"
+nativeha_revision: "487b5c6fd6251eeaa95f759ee20761acb3d76976"
 graph_file: ../generated/module-11.dependencies.json
-graph_fingerprint: "4d2a5c20c7d7476128d8696b783bed2975c01d9895a9b0da8d1330abbf7dd613"
-last_validated: 2026-10-08
+graph_fingerprint: "d92f3da8de3e60afbfbb048db81e13ae296995c47b4dd8ebaa35a51d2213d1f9"
+last_validated: 2026-10-09
 ---
 
 # Module 11 evidence packet
 
 ## Scope delta
 
-Research covers the actual `more-info-fan` component, its speed/toggle children, shared control implementations, service boundary and relevant runtime dependencies. Lovelace card features are not the detail oracle. Pure contracts and detail-lifetime service/state integration are implemented; native control integration and visual acceptance remain later slices. The actual fan is offline; approved fake fan fixtures permit implementation and verification without live HA writes.
+Research covers the actual `more-info-fan` component, its speed/toggle children, shared control implementations, service boundary and relevant runtime dependencies. Lovelace card features are not the detail oracle. Pure contracts, detail-lifetime service/state ownership and native controls are implemented; independent verification and visual acceptance remain pending. The actual fan is offline; approved fake fan fixtures permit implementation and verification without live HA writes.
 
 Corrections to the historical plan:
 
@@ -82,7 +82,7 @@ Reference revision is the front-matter revision (clean worktree when researched)
 | C | `src/state/connection-mixin.ts` / `connectionMixin` service closure | `ed4c83f57d1d308480daf560b91a13d8309f76a8745c035db35f501cc9a48a8a` |
 | H | `node_modules/@egjs/hammerjs/src/recognizers/pan.js` / `PanRecognizer` | `c2ff582c6a1f5a84253b23bcf39e1c855c7272f6f62f940e57aadfd2d0ce4087` |
 
-Runtime packages: `@egjs/hammerjs` 2.0.17; `@home-assistant/webawesome` 3.7.0-ha.0; `@material/web` 2.4.1; `home-assistant-js-websocket` 9.6.0. Reference `yarn.lock` SHA-256: `ca345f66a74a1054b77bd2f47f20cb9e13e79b2c864f3375822cca9b14ff41b6`. Complete native file/test hashes, including the new fan controller, are in the generated graph. Shared-owner anchors are `DashboardViewModel.swift` (`2b1c28cd47ee7bf6c5908010af8cf67e29ad293a436a12b209f18a207acaf149`) and `DashboardServiceController.swift` (`102910cb5a89d31a206a160f7a34252ecb574ee35964a50fac68836507acc581`); `CardViews.swift` and `AppConfig.swift` are unchanged by slices 1/2.
+Runtime packages: `@egjs/hammerjs` 2.0.17; `@home-assistant/webawesome` 3.7.0-ha.0; `@material/web` 2.4.1; `home-assistant-js-websocket` 9.6.0. Reference `yarn.lock` SHA-256: `ca345f66a74a1054b77bd2f47f20cb9e13e79b2c864f3375822cca9b14ff41b6`. Complete native file/test hashes are in the generated graph, including slice 3's extracted control/detail files and AppConfig/CardViews integration. Shared-owner anchors remain `DashboardViewModel.swift` (`2b1c28cd47ee7bf6c5908010af8cf67e29ad293a436a12b209f18a207acaf149`) and `DashboardServiceController.swift` (`102910cb5a89d31a206a160f7a34252ecb574ee35964a50fac68836507acc581`).
 
 ## Dependency traces and boundaries
 
@@ -104,17 +104,17 @@ Runtime packages: `@egjs/hammerjs` 2.0.17; `@home-assistant/webawesome` 3.7.0-ha
 | 3. Native detail controls | Extract fan content from CardViews into `FanDetailView.swift`. Use SwiftUI drawing/layout plus AppKit pointer/keyboard/accessibility surface for vertical select, slider and switch. Label/value trigger opens NSMenu; do not copy climate's two-mode shortcut. Keep sheet width/history path and climate implementation intact. | Mounted fake-state interactions; matching screenshots; motion geometry |
 | 4. Verification | Fake fixtures + reference actual-component recording harness, full applicable deterministic suite, scoped performance/lifecycle checks and independent review. | Contract-by-contract results; remaining visual acceptance and offline limits explicit |
 
-The current visible fan owner still hardcodes Off/33/66/100, selects by ±17 tolerance and always displays percentage; replacing that presentation remains slice 3. Its existing percentage action now uses validated fan dispatch, including zero, without shared optimistic writes. The new per-open controller is model-owned but not yet observed by the visible controls. A separate fan replacement revision handles accepted equal-content replacements without changing the climate revision contract. Future mounted callbacks must carry current state/value payloads rather than stale captured view values; equal owner slider values must not blindly overwrite child drag geometry.
+The visible fan detail now observes the per-open controller directly. Capability-derived discrete, slider, toggle and explicit-power controls replace the old hardcoded Off/33/66/100 stack and tolerance selection. A separate fan replacement revision handles accepted equal-content replacements without changing the climate revision contract. Mounted callbacks carry the current controller binding; equal owner slider values do not overwrite child drag geometry. Shared state remains authoritative and the existing history/row-power paths remain intact.
 
 ## Decisions and native deviations
 
 | ID | Decision | Reason and preserved contract | Status |
 |---|---|---|---|
-| D11-01 | Native AppKit input/menu/focus with SwiftUI drawing | Required native architecture/macOS12; preserve choices, commits, local-versus-authoritative values and accessible operation | Recommended implementation mechanism, not implemented |
+| D11-01 | Native AppKit input/menu/focus with SwiftUI drawing | Required native architecture/macOS12; preserve choices, commits, local-versus-authoritative values and accessible operation | Implemented; independent verification pending |
 | D11-02 | Reject malformed/nonfinite/impossible mapping or out-of-domain outgoing values without silent clamping | Native numeric safety; preserve all valid reference payloads. Web's malformed-input crash/invalid service attempts are explicitly not reproduced | Implemented at pure builder and latest-entity dispatch boundaries |
-| D11-03 | Own finite transitions and callbacks only while mounted | Native resource/lifetime correctness; no continuous spin; dismissal sends no new command | Service callback/detail ownership implemented; control transitions/timers remain slice 3 |
+| D11-03 | Own finite transitions and callbacks only while mounted | Native resource/lifetime correctness; no continuous spin; dismissal sends no new command | Implemented; mounted lifecycle/motion evidence below |
 
-Useful fan geometry/motion constants should be grouped in a typed AppConfig policy with the reference defaults (130 width, bounded height, 10-point drag threshold, 180/80ms transitions, 500ms tooltip delay); update configurability notes when implemented. Feature bits, four-option threshold, payload rules and replacement authority are correctness contracts, not arbitrary UI preferences. No fan timeout, busy lockout, climate fade policy or settings UI is proposed.
+`AppConfig.fanPolicy` groups geometry/motion defaults (130 width, bounded height, 10-point drag threshold, 180/80ms transitions, 500ms tooltip delay); see `docs/configurability.md`. Feature bits, four-option threshold, payload rules and replacement authority are correctness contracts, not arbitrary UI preferences. No fan timeout, busy lockout, climate fade policy or settings UI is introduced.
 
 ## Validation
 
@@ -135,6 +135,24 @@ Focused `FanEntityTests` passed seven tests and the debug app build passed (`/tm
 Nine `FanServiceControllerTests` cover local-versus-authoritative values, preset dedup and failure, repeated direction/oscillation/power, invalid raw payloads/current capability rejection, held out-of-order speed responses, input/replacement/dismissal/stop guards, zero/unknown compatibility calls, and 100 alternating-entity open/close cycles. Weak old controllers release while their service requests remain held; all tasks retire on release without adding history ownership or late errors. A direct shared-service test checks suppressed failures do not enter its error store. Debug build and 20 focused tests passed (`/tmp/nativeha-fan-slice2-build.log`, `/tmp/nativeha-fan-slice2-tests.log`). No live HA calls, browser/native fan visual captures, AppConfig changes or climate presentation edits were made. Pointer recognition, child-binding reconciliation, control drawing/motion and visual acceptance remain untested until slices 3/4.
 
 Supervisor source/diff review and full `swift test` passed: 424 tests, six expected opt-in skips, zero failures in 174.715 seconds (`/tmp/nativeha-fan-slice2-full-20261008.log`). Fan/climate semantic-oracle checks and resolver self-test pass. The refreshed 200-node/693-edge graph remains YELLOW only for its reviewed generated-translation metadata boundary. This is scoped service/state validation, not full module visual verification.
+
+### Slice 3 native controls — 2026-10-09
+
+`FanDetailView.swift` consumes the per-open controller and preserves existing history/sheet ownership. `FanControlView.swift` implements capability-selected vertical slider/discrete/toggle/explicit-power controls, pointer phases, keyboard actions, accessibility, finite tooltip ownership and guarded teardown. The three menus retain authoritative selected values and exact raw service choices. Geometry/motion constants are typed in AppConfig. CardViews changes only remove the superseded fan implementation; climate presentation and shared service/model owners are unchanged in this slice.
+
+Eight mounted UI tests join seven pure-entity and nine controller tests: 24 fan-focused tests passed in 9.075 seconds, and `swift build` passed (`/tmp/nativeha-fan-slice3-final.log`, `/tmp/nativeha-fan-slice3-build.log`). Coverage includes 1,000 drag samples with one release commit, equal versus changed bindings, cancel, key repeat and endpoint mapping, tooltip cleanup, unavailable rejection, menu dedup/authority, retained accessibility children and shape changes. Direct event delivery to mounted AppKit controls is not OS-level end-to-end automation. Eleven shared variants generate native 360×620 control captures, plus one 520×620 native full sheet, at 2× scale.
+
+An initial mounted motion test exposed a snapping fill. Merely moving it out of a nested hosting view did not fix interpolation; the final value-type `Animatable` fill has visible intermediate white-marker positions for tap, keyboard and authoritative replacement. A drag frame reaches exact unsnapped geometry at 60 ms, inside the 180 ms transition interval, without an outbound command. Repeated focused runs pass. A teardown test also exposed publishing during SwiftUI graph invalidation; input/service eligibility and timers retire synchronously while weak, owner-guarded presentation cleanup is deferred beyond dismantling. These fixes do not introduce an animation timer or a shared-state prediction.
+
+Supervisor inspection compared complete/discrete control regions with actual-component reference captures and checked the settled keyboard tooltip outside the track. Geometry/colors align in those scoped examples; native font/glyph/menu widths and the existing timestamp account for visible remaining differences. This is not approval of goldens or all fan animation types. A second bounded `omp` interaction attempt also timed out (`/tmp/nativeha-fan-browser-interaction-omp.log`); no successful browser input report is claimed. No live HA calls were made.
+
+The independent reference researcher performed a bounded, read-only input/lifecycle review and found one swipe mismatch: native used Euclidean distance/time while Hammer uses dominant-axis velocity. The correction uses vertical distance/time for vertical-dominant swipes, keeping the Euclidean movement threshold. A timestamp-aware mounted regression distinguishes slow diagonal movement from accepted fast downward/upward swipes. All 25 final fan-focused tests pass (`/tmp/nativeha-fan-slice3-corrected-focused.log`). This spot-review is not full module verification; switch/discrete motion, hidden inactivity, browser input and user visual acceptance remain pending.
+
+The first supervisor full run executed 432 tests with six expected skips and three failed cleanup assertions in the single history reconnect stress test `testOneHundredHistoryReconnectCyclesHaveFreshStartsAndZeroFinalOwnership` (`/tmp/nativeha-fan-slice3-full-20261009.log`). That test passed immediately in isolation, and the unchanged full suite passed 432 tests/six skips/zero failures in 195.558 seconds (`/tmp/nativeha-fan-slice3-history-rerun.log`, `/tmp/nativeha-fan-slice3-full-rerun-20261009.log`). No history code was changed, and the intermittent failure's cause was not investigated in this fan slice. These runs preceded the final swipe correction and do not replace its validation.
+
+Final corrected-code validation passed: `swift test` executed 433 tests with six expected opt-in skips and zero failures in 185.296 seconds, including the added swipe regression and the history stress test; `swift build` passed (`/tmp/nativeha-fan-slice3-corrected-full-20261009.log`, `/tmp/nativeha-fan-slice3-corrected-build.log`). The source/diff review, bounded independent finding repair and deterministic checks make this slice verification-ready, not fully visually accepted.
+
+Fan and climate numerical oracle checks and resolver self-test pass. The refreshed graph explicitly anchors Hammer's velocity computation and has 214 nodes/724 edges, no truncation or missing seeded symbols, remaining YELLOW only for its reviewed generated-translation metadata boundary. Independent full verification and user visual acceptance are still pending.
 
 ### Offline deterministic fixtures and tests
 
@@ -159,7 +177,9 @@ Not performed; user reports actual fan offline. This blocks real-device response
 
 ### Visual and animation oracle
 
-Use the existing `tools/climate-reference/README.md`/browser harness approach to propose a separate **fan** fixture harness: bundle actual `more-info-fan`, supply matching HA contexts and fake state, record API calls instead of contacting HA. No fan browser harness exists from this research. Capture reference/native same-state control areas plus full native 520×620 and content-only 360×620 at 2× scale, fixed dark theme/locale/time. Record theme-derived colors rather than inheriting climate colors. Review pairs before approving baselines.
+`tools/fan-reference/browser-harness.mjs` now bundles actual `more-info-fan` with HA contexts, reference dark theme/fonts and recording-only fake API calls. Shared `complete.json`/`render-variants.json` supply reference/native states. The browser agent produced twelve reference PNGs for complete/off/unavailable/discrete4/toggle/explicit at widths 360 and 520, height 620, in `.build/fan-reference`; the original screenshot run timed out before delivering an interaction report, so screenshots alone prove no input contract. Native captures are in `.build/render-artifacts/fan`; mounted window-motion artifacts are separate in `.build/render-artifacts/fan-motion`.
+
+Reference-derived track/corner/power geometry and dark colors replace the old cyan stack. SF Symbols, system font/menu presentation and focus rings remain native approximations; the no-speed Off glyph uses a slashed fan because `fan.slash` is absent on macOS 12. Browser fixture backend translation/icon metadata is absent, producing raw attribute-value labels and missing preset/direction icons. The shared reference relative timestamp versus native absolute timestamp, generic sheet header and history remain outside this module. No captures are approved golden baselines; full-dialog pixel equivalence and all transition types are not established.
 
 Per `docs/visual-testing.md`, static NSHostingView captures are suitable; hosted Canvas motion needs compositor/window capture and geometry-sensitive start/mid/end assertions. Test a slider tap/authoritative update's 180 ms movement, direct drag geometry, selected opacity 80 ms, switch 180 ms, final equality and hidden inactivity. Do not use whole-image inequality or changing header text as proof of moving control geometry. Native system menu animation can follow platform conventions; document that approximation. No continuous animation is needed.
 
@@ -173,10 +193,11 @@ No material source-contract question blocks the scoped plan review. Implementati
 
 ## Handoff
 
-Slices 1/2 pure contracts, fixtures and detail-lifetime service/state ownership are implemented. Next is slice 3: a fresh sole Swift owner extracts fan content and integrates native vertical discrete/slider/toggle controls plus the three capability menus with `model.fanDetailController`. Observe that controller directly; do not drive child drag geometry from replacement revision alone. Route new input through `inputBegan` and committed values through its typed actions. Add typed AppConfig geometry/motion defaults and mounted fake-state interaction tests, preserving existing sheet/history and row-power paths. Paired browser/native captures, independent module verification and user visual review remain slices 3/4. Do not confuse model-level recording tests with mounted gesture/visual acceptance. Keep all Module 10 accepted visuals/behavior intact; the offline real fan remains a documented live-QA limitation.
+Slices 1–3 now include pure contracts, service/state ownership, native controls, synthetic interaction tests and an actual-component browser fixture. Next is bounded slice 4 independent verification: inspect the final implementation against C11-01…11, rerun native/oracle tests, complete browser interaction reporting and motion coverage for switch movement, discrete opacity and hidden inactivity, then obtain user visual review. Slider tap/key/authoritative movement and direct dragging have native compositor evidence. Preserve the separate owner-binding/child-drag contract and existing sheet/history/row-power paths. Do not confuse passing native state assertions, generated screenshots or source freshness with complete reference visual acceptance. Keep Module 10 accepted visuals/behavior intact; the offline real fan limits only real-device response confirmation.
 
 ## Change log
 
 - 2026-10-07: Initial actual-more-info research; corrected stale card-feature, unknown, Off service, missing-value, optimistic-state and animation assumptions. Added reviewed manifest, dependency graph, contract matrix and bounded fake-fixture handoff.
 - 2026-10-08: Added the bounded pure fan model/value/service slice, synthetic fixture and exact-source numerical oracle. Mounted integration and visual acceptance remain explicitly pending.
 - 2026-10-08: Added per-detail controller ownership, independent validated fan dispatch and held-response/lifetime tests; native control integration and visual acceptance remain pending.
+- 2026-10-09: Integrated native fan controls, menus and mounted fixture tests; added a separate actual-component browser fixture. Independent verification and user visual acceptance remain pending.

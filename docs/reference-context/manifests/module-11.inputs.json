@@ -4,6 +4,26 @@
   "title": "Fan more-info control semantics and bounded native detail implementation",
   "nativeEntries": [
     {
+      "path": "Sources/NativeHAMac/FanDetailView.swift",
+      "symbols": ["FanDetailContent", "FanDetailControls", "FanMenuButton"]
+    },
+    {
+      "path": "Sources/NativeHAMac/FanControlView.swift",
+      "symbols": ["FanControlNSView", "FanControlDrawing"]
+    },
+    {
+      "path": "Tests/NativeHAMacTests/FanControlTests.swift",
+      "symbols": ["FanControlTests"]
+    },
+    {
+      "path": "tools/fan-reference/browser-entry.ts",
+      "symbols": []
+    },
+    {
+      "path": "tools/fan-reference/browser-harness.mjs",
+      "symbols": []
+    },
+    {
       "path": "Sources/NativeHAMac/FanServiceController.swift",
       "symbols": ["FanServiceController"]
     },
@@ -17,6 +37,10 @@
     },
     {
       "path": "Tests/Fixtures/Fan/complete.json",
+      "symbols": []
+    },
+    {
+      "path": "Tests/Fixtures/Fan/render-variants.json",
       "symbols": []
     },
     {
@@ -34,7 +58,6 @@
     {
       "path": "Sources/NativeHAMac/CardViews.swift",
       "symbols": [
-        "FanDetailContent",
         "EntityDetailSheet",
         "DetailHistoryGraph"
       ]
@@ -54,11 +77,24 @@
     {
       "path": "Sources/NativeHAMac/AppConfig.swift",
       "symbols": [
-        "AppConfig"
+        "AppConfig",
+        "FanPresentationPolicy"
       ]
     }
   ],
   "entries": [
+    {
+      "path": "src/resources/theme/core.globals.ts",
+      "symbols": ["coreStyles"]
+    },
+    {
+      "path": "src/resources/theme/color/color.globals.ts",
+      "symbols": ["colorStyles", "darkColorStyles"]
+    },
+    {
+      "path": "src/resources/theme/typography.globals.ts",
+      "symbols": ["typographyStyles"]
+    },
     {
       "path": "src/dialogs/more-info/controls/more-info-fan.ts",
       "symbols": [
@@ -260,6 +296,10 @@
     },
     {
       "path": "node_modules/@egjs/hammerjs/src/recognizers/swipe.js",
+      "symbols": []
+    },
+    {
+      "path": "node_modules/@egjs/hammerjs/src/inputjs/compute-input-data.js",
       "symbols": []
     },
     {

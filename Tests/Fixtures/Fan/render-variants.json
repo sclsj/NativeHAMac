@@ -1,0 +1,13 @@
+{
+  "complete": {},
+  "off": { "state": "off" },
+  "unknown": { "state": "unknown" },
+  "unavailable": { "state": "unavailable" },
+  "discrete2": { "attributes": { "percentage_step": 100, "percentage": 100 } },
+  "discrete3": { "attributes": { "percentage_step": 50 } },
+  "discrete4": { "attributes": { "percentage_step": 33, "percentage": 66 } },
+  "toggle": { "attributes": { "supported_features": 0 } },
+  "explicit": { "state": "unknown", "attributes": { "supported_features": 0 } },
+  "missingPercentage": { "attributes": { "percentage": null } },
+  "emptyPresets": { "attributes": { "preset_modes": [] } }
+}

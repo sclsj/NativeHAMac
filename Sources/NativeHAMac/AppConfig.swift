@@ -74,6 +74,7 @@ enum AppConfig {
     static let climateNumberLayout: ClimateNumberLayout = .proportional
     static let climateModeFeedback: ClimateModeFeedback = .immediate
     static let climatePendingConfirmationNanoseconds: UInt64 = 10_000_000_000
+    static let fanPolicy = FanPresentationPolicy()
 
     static let cardColumnRules: [CardColumnRule] = [
         CardColumnRule(column: 0, title: "温湿度"),
@@ -100,6 +101,34 @@ enum AppConfig {
         busyTimeoutMilliseconds: 1_000,
         retryIntervalSeconds: 1
     )
+}
+
+struct FanPresentationPolicy {
+    var controlWidth: CGFloat = 130
+    var powerDiameter: CGFloat = 40
+    var viewportHeightFraction: CGFloat = 0.45
+    var minimumHeight: CGFloat = 200
+    var maximumHeight: CGFloat = 320
+    var cornerRadius: CGFloat = 36
+    var selectionPadding: CGFloat = 4
+    var switchPadding: CGFloat = 6
+    var controlSpacing: CGFloat = 24
+    var menuSpacing: CGFloat = 12
+    var menuMinimumWidth: CGFloat = 120
+    var menuMaximumWidth: CGFloat = 160
+    var threeMenuMaximumWidth: CGFloat = 140
+    var menuHeight: CGFloat = 48
+    var geometrySeconds: Double = 0.18
+    var selectionSeconds: Double = 0.08
+    var dragThreshold: CGFloat = 10
+    var tapMovementLimit: CGFloat = 9
+    var tapSeconds: Double = 0.25
+    var pressSeconds: Double = 0.251
+    var swipePointsPerSecond: Double = 300
+    var tooltipSeconds: Double = 0.5
+    func controlHeight(viewportHeight: CGFloat) -> CGFloat {
+        min(max(viewportHeight * viewportHeightFraction, minimumHeight), maximumHeight)
+    }
 }
 
 enum GraphRenderEngine: Equatable {

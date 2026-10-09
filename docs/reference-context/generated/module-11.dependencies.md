@@ -1,13 +1,14 @@
 # Dependency graph: module 11
 
-- Fingerprint: `4d2a5c20c7d7476128d8696b783bed2975c01d9895a9b0da8d1330abbf7dd613`
+- Fingerprint: `d92f3da8de3e60afbfbb048db81e13ae296995c47b4dd8ebaa35a51d2213d1f9`
 - Reference revision: `dbc68cc5c59ce720a47e5f4aa3d9d7a68d84fdbd` (clean)
 - TypeScript: `6.0.3`
-- Nodes: 200; edges: 693; cycles: 3
+- Nodes: 214; edges: 724; cycles: 3
 - Unresolved: 1; truncated: no
 
 ## Explicit seeds
 
+- `npm:@egjs/hammerjs@2.0.17:src/inputjs/compute-input-data.js`
 - `npm:@egjs/hammerjs@2.0.17:src/manager.js`
 - `npm:@egjs/hammerjs@2.0.17:src/recognizerjs/recognizer-constructor.js`
 - `npm:@egjs/hammerjs@2.0.17:src/recognizers/attribute.js`
@@ -48,6 +49,9 @@
 - `repo:src/dialogs/more-info/components/more-info-control-style.ts` — `moreInfoControlStyle`
 - `repo:src/dialogs/more-info/controls/more-info-fan.ts` — `MoreInfoFan`
 - `repo:src/resources/state-control-styles.ts` — `stateControlToggleStyle`
+- `repo:src/resources/theme/color/color.globals.ts` — `colorStyles`, `darkColorStyles`
+- `repo:src/resources/theme/core.globals.ts` — `coreStyles`
+- `repo:src/resources/theme/typography.globals.ts` — `typographyStyles`
 - `repo:src/state-control/fan/ha-state-control-fan-speed.ts` — `HaStateControlFanSpeed`
 - `repo:src/state-control/ha-state-control-toggle.ts` — `HaStateControlToggle`
 - `repo:src/state/connection-mixin.ts` — `connectionMixin`
@@ -62,7 +66,7 @@
 ## Boundaries
 
 - max-depth: 88
-- package-not-allowlisted: 117
+- package-not-allowlisted: 120
 - type-only-not-followed: 156
 - unresolved: 1
 
